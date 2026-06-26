@@ -18,8 +18,12 @@ echo "==> Starting Atlas (gen-ai-rag track)…"
 # the .md/.txt corpus works with no GPU. For structure-aware chunking, switch to
 # --doc-processor-source docling-localhost (run Docling on the host) or
 # docling-container-gpu (needs an NVIDIA GPU).
+# --n8n-source container: n8n isn't part of the gen-ai-rag track, but
+# n8n-adaptive-rag needs it; request it explicitly so Atlas doesn't force-disable
+# it on the non-interactive launch path.
 ( cd infra && ./start.sh --track gen-ai-rag --lightrag-source container \
-    --tei-reranker-source container-cpu --doc-processor-source disabled )
+    --tei-reranker-source container-cpu --doc-processor-source disabled \
+    --n8n-source container )
 
 echo "==> Waiting for the backend to report healthy…"
 BP="$(envval BACKEND_PORT)"
@@ -31,12 +35,27 @@ for _ in $(seq 1 60); do
 done
 [ "$healthy" = 1 ] || { echo "Backend did not become healthy after 5 minutes; aborting before ingest."; exit 1; }
 
+PROJECT_NAME="$(envval PROJECT_NAME)"
+[ -n "$PROJECT_NAME" ] || { echo "PROJECT_NAME not found in infra/.env; aborting."; exit 1; }
+
+# The backend healthcheck does NOT depend on LightRAG, and LightRAG (graph
+# extraction) often comes up slower; without this gate, ingest's first upload
+# could fail mid-run and leave graph-rag empty. Probe LightRAG /health over the
+# in-network address ingest itself uses.
+echo "==> Waiting for LightRAG to report healthy (graph-rag ingest needs it)…"
+lr_ready=0
+for _ in $(seq 1 60); do
+  if docker exec "${PROJECT_NAME}-backend" python -c \
+       "import httpx,sys; sys.exit(0 if httpx.get('http://lightrag:9621/health',timeout=5).status_code==200 else 1)" \
+       >/dev/null 2>&1; then lr_ready=1; break; fi
+  sleep 5
+done
+[ "$lr_ready" = 1 ] || { echo "LightRAG did not become healthy after 5 minutes; aborting before ingest (graph-rag would be empty)."; exit 1; }
+
 echo "==> Assembling corpus on the host (corpus/raw/)…"
 # bare python on purpose: fetch_corpus is stdlib-only, and bare python lets an
 # optional host-side `pip install datasets` take effect (the uv env omits it).
 python corpus/fetch_corpus.py
-PROJECT_NAME="$(envval PROJECT_NAME)"
-[ -n "$PROJECT_NAME" ] || { echo "PROJECT_NAME not found in infra/.env; aborting."; exit 1; }
 echo "==> Ingesting corpus inside the backend container…"
 docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
   python /app/ingest/ingest.py /app/corpus/raw
