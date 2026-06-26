@@ -10,3 +10,5 @@ from .approaches import hybrid  # noqa: E402
 router.include_router(hybrid.router)
 from .approaches import contextual  # noqa: E402
 router.include_router(contextual.router)
+from .approaches import graph  # noqa: E402
+router.include_router(graph.router)
