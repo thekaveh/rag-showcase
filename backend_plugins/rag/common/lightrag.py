@@ -37,7 +37,12 @@ async def query(question: str, mode: str = "hybrid") -> str:
             logging.getLogger("uvicorn.error").warning(
                 "lightrag.query returned no recognized answer field (keys=%s)",
                 list(data)[:10])
-        return answer
+        # Honor the -> str contract at this single choke point: if LightRAG ever
+        # returns a non-string under response/data, coerce here so BOTH consumers
+        # are uniformly protected — graph-rag (via build_response) and agentic-rag
+        # (which slices the raw observation, observation[:300]) — instead of only
+        # the one that happens to coerce downstream.
+        return answer if isinstance(answer, str) else str(answer)
 
 
 async def upload_text(title: str, text: str) -> None:
