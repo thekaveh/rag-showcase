@@ -63,6 +63,12 @@ def _render_footer(m: Metrics) -> str:
 
 def build_response(model: str, answer: str, sources: list[Source],
                    metrics: Metrics) -> dict[str, Any]:
+    # `answer` is the choke point for every approach. Coerce a non-string answer
+    # (e.g. an operator-built n8n workflow that returns a non-string, or a backend
+    # that returns structured/list content) to "" so the concatenation below can't
+    # raise `list/dict + str` -> 500; sources + metrics still render.
+    if not isinstance(answer, str):
+        answer = ""
     content = answer + _render_sources(sources) + _render_footer(metrics)
     return {
         "id": f"ragshow-{model}",

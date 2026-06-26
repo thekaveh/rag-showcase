@@ -1,3 +1,4 @@
+import pytest
 from rag.common.openai_io import build_response, Source, Metrics, ChatRequest
 
 
@@ -46,3 +47,12 @@ def test_chat_request_last_user():
 def test_chat_request_last_user_empty_when_no_user_message():
     req = ChatRequest(model="x", messages=[{"role": "assistant", "content": "hi"}])
     assert req.last_user() == ""
+
+
+@pytest.mark.parametrize("bad_answer", [{"x": 1}, [1, 2], 42, None])
+def test_build_response_coerces_non_string_answer(bad_answer):
+    # a non-string answer (operator-built n8n body, or structured content) must
+    # not raise `dict/list/int + str` -> 500; it degrades to an empty answer.
+    resp = build_response("m", bad_answer, [], Metrics(0.5, 0, 1, 0))
+    assert resp["object"] == "chat.completion"
+    assert isinstance(resp["choices"][0]["message"]["content"], str)
