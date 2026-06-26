@@ -1,9 +1,10 @@
 # Local-first role→model map. Values MUST match a model name Atlas's LiteLLM
-# actually registers. The gen-ai-rag stack's default-active Ollama models are
-# qwen3.6:latest (chat; registered as `qwen3.6:latest`, not bare `qwen3.6`) and
-# nomic-embed-text (embeddings). Flip any value to a cloud model (e.g.
-# claude-sonnet-4-6) once a key is configured, or activate more local models via
-# start.sh's --ollama-models and name them here exactly (tag included).
+# actually registers. This map uses two of the gen-ai-rag stack's default-active
+# Ollama models: qwen3.6:latest (chat; registered as `qwen3.6:latest`, not bare
+# `qwen3.6`) and nomic-embed-text (embeddings; the stack also activates
+# qwen3-embedding:0.6b, which this map does not use). Flip any value to a cloud
+# model (e.g. claude-sonnet-4-6) once a key is configured, or activate more local
+# models via start.sh's --ollama-models and name them here exactly (tag included).
 embed: nomic-embed-text
 light_gen: qwen3.6:latest
 contextual_blurb: qwen3.6:latest
