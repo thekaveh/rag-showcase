@@ -11,8 +11,9 @@ this workflow's webhook and surfaces the chosen `route` in the comparison column
 
 1. **Webhook** (POST, path `adaptive-rag`) — receives `{ "query": "..." }`.
 2. **LLM Classify** (HTTP Request → `http://litellm:4000/v1/chat/completions`,
-   Bearer `LITELLM_MASTER_KEY`, model `qwen3.6:latest` — match a name LiteLLM
-   registers): prompt "Classify the query as
+   Authorization `Bearer {{ $env.LITELLM_API_KEY }}` — Atlas injects the master
+   key into the n8n container under that name — model `qwen3.6:latest`, a name
+   LiteLLM registers): prompt "Classify the query as
    `simple` or `complex`. Answer with one word." Output → `route`.
 3. **IF** node on `route == "complex"`.
    - **true →** HTTP Request to `http://backend:8000/agentic-rag/v1/chat/completions`.
