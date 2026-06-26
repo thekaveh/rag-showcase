@@ -1,0 +1,30 @@
+import pytest
+from fastapi import FastAPI
+from httpx import AsyncClient, ASGITransport
+from rag.common.vectors import Hit
+from rag.approaches import vanilla
+
+
+@pytest.mark.asyncio
+async def test_vanilla_retrieves_and_answers(monkeypatch):
+    async def fake_embed(texts, model=None): return [[0.0, 1.0]]
+    async def fake_chat(model, messages, **kw):
+        # the user's question must reach the model with context appended
+        joined = messages[-1]["content"]
+        assert "CTX-ALPHA" in joined
+        return {"choices": [{"message": {"content": "answered"}}]}
+    monkeypatch.setattr(vanilla.litellm, "embed", fake_embed)
+    monkeypatch.setattr(vanilla.litellm, "chat", fake_chat)
+    monkeypatch.setattr(vanilla.vectors, "search_dense",
+                        lambda c, v, k: [Hit("Doc", "CTX-ALPHA body", 0.2)])
+    monkeypatch.setattr(vanilla.config, "role", lambda r: "qwen3.6")
+
+    app = FastAPI(); app.include_router(vanilla.router)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://t") as ac:
+        r = await ac.post("/vanilla-rag/v1/chat/completions",
+                          json={"model": "vanilla-rag",
+                                "messages": [{"role": "user", "content": "what is alpha?"}]})
+    assert r.status_code == 200
+    content = r.json()["choices"][0]["message"]["content"]
+    assert "answered" in content and "Doc" in content  # answer + sources block
