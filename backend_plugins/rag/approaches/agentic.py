@@ -98,5 +98,8 @@ async def agentic_rag(req: ChatRequest):
     trace_md = "\n\n".join(f"**Step {i+1}.** {t}" for i, t in enumerate(trace)) \
         or "(answered without retrieval)"
     sources = [Source("🤖 Agent trace", trace_md, None)]
-    metrics = Metrics(time.monotonic() - t0, len(trace), llm_calls, 0)
+    # chunks=0: the agent retrieves via tools (shown in the trace), not as a
+    # flat stuffed-chunk count — consistent with the other delegating
+    # approaches (graph-rag, n8n-adaptive-rag).
+    metrics = Metrics(time.monotonic() - t0, 0, llm_calls, 0)
     return build_response("agentic-rag", answer, sources, metrics)

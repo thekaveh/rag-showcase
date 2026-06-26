@@ -33,7 +33,8 @@ echo "==> Registering the six models in LiteLLM…"
 set -a; source infra/.env; set +a
 uv run python register/register_models.py   # needs httpx from the uv env
 
-OWUI="$(grep -E '^OPEN_WEB_UI_PORT=' infra/.env | cut -d= -f2)"
+OWUI="$(grep -E '^OPEN_WEB_UI_PORT=' infra/.env | cut -d= -f2 || true)"
+[ -n "$OWUI" ] || { echo "OPEN_WEB_UI_PORT not found in infra/.env; aborting."; exit 1; }
 echo "==> Ready. Open OpenWebUI at http://localhost:${OWUI} , start a multi-model"
 echo "    chat, and select: vanilla-rag, hybrid-rag, contextual-rag, graph-rag,"
 echo "    agentic-rag, n8n-adaptive-rag."

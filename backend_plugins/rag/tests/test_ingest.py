@@ -74,3 +74,25 @@ async def test_run_raises_on_embedding_count_mismatch(monkeypatch, tmp_path):
     import pytest as _pytest
     with _pytest.raises(RuntimeError, match="embedding count mismatch"):
         await ing.run(str(tmp_path))
+
+
+@pytest.mark.asyncio
+async def test_run_raises_on_contextual_embedding_mismatch(monkeypatch, tmp_path):
+    (tmp_path / "d.txt").write_text("doc", encoding="utf-8")
+    async def fake_chunk(path): return [{"title": "t", "text": "c1"},
+                                        {"title": "t", "text": "c2"}]
+    calls = {"n": 0}
+    async def embed(texts, model=None):
+        calls["n"] += 1
+        # base embed (call 1) returns the right count; contextual embed (call 2) is short
+        return [[0.0]] * len(texts) if calls["n"] == 1 else [[0.0]]
+    async def fake_ctx(doc, chunk): return "blurb"
+    monkeypatch.setattr(ing, "chunk_document", fake_chunk)
+    monkeypatch.setattr(ing.litellm, "embed", embed)
+    monkeypatch.setattr(ing, "contextualize", fake_ctx)
+    monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
+    monkeypatch.setattr(ing.lightrag, "upload_text", lambda t, x: None)
+    import pytest as _pytest
+    with _pytest.raises(RuntimeError, match="contextual embedding count mismatch"):
+        await ing.run(str(tmp_path))
