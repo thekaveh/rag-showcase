@@ -1,0 +1,12 @@
+# Augments Atlas's existing `backend` service (merged by service name).
+# Relative paths resolve against the project dir = infra/ (the dir of the
+# first -f file, docker-compose.yml), so ../backend_plugins == repo root.
+services:
+  backend:
+    environment:
+      BACKEND_PLUGINS_DIR: /app/plugins
+      RAG_ROLES_FILE: /app/plugins/rag/roles.yaml
+      TEI_RERANKER_ENDPOINT: ${TEI_RERANKER_ENDPOINT:-http://tei-reranker:80}
+      N8N_ADAPTIVE_WEBHOOK_URL: ${N8N_ADAPTIVE_WEBHOOK_URL:-http://n8n:5678/webhook/adaptive-rag}
+    volumes:
+      - ../backend_plugins:/app/plugins:ro
