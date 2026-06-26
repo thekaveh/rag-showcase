@@ -35,7 +35,12 @@ def _weaviate() -> Any:
     url = urlparse(os.environ.get("WEAVIATE_URL", "http://weaviate:8080"))
     host = url.hostname or "weaviate"
     http_port = url.port or 8080
-    grpc_port = int(os.environ.get("WEAVIATE_GRPC_PORT", "50051"))
+    raw_grpc = os.environ.get("WEAVIATE_GRPC_PORT", "50051")
+    try:
+        grpc_port = int(raw_grpc)
+    except ValueError as e:
+        raise ValueError(
+            f"WEAVIATE_GRPC_PORT must be an integer, got {raw_grpc!r}") from e
     return weaviate.connect_to_custom(
         http_host=host, http_port=http_port, http_secure=False,
         grpc_host=host, grpc_port=grpc_port, grpc_secure=False,

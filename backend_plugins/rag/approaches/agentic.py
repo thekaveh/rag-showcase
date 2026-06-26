@@ -66,12 +66,16 @@ async def agentic_rag(req: ChatRequest):
             answer = "(no response from model)"
             break
         msg = choices[0]["message"]
+        # a non-string content (some backends return structured content blocks)
+        # would break .strip()/answer concatenation, so coerce to str once.
+        raw_content = msg.get("content")
+        content = raw_content if isinstance(raw_content, str) else ""
         tool_calls = msg.get("tool_calls") or []
         if not tool_calls:
-            answer = msg.get("content") or ""
+            answer = content
             break
         messages.append(msg)
-        thought = (msg.get("content") or "").strip()
+        thought = content.strip()
         for j, call in enumerate(tool_calls):
             # Local models sometimes emit a tool call with a null/absent id. The
             # OpenAI contract requires each tool reply's tool_call_id to match an
