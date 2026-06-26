@@ -1,2 +1,6 @@
-# router is assembled in Task 5; kept importable from the start.
-router = None
+"""RAG showcase backend plugin — exposes `router` for the Atlas plugin seam."""
+from fastapi import APIRouter
+
+router = APIRouter()
+
+# Approach routers are registered by later tasks as they are implemented.
