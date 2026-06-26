@@ -123,7 +123,7 @@ rag-showcase/                 ← private GitHub repo
 ├── backend_plugins/rag/      ← the six approaches (mounted into Atlas's backend) + requirements.txt
 ├── corpus/                   ← MultiHop-RAG + hand-picked keyword docs
 ├── ingest/                   ← loader: corpus → Docling → Weaviate(base+contextual) + LightRAG
-├── register/                 ← UPSERTs the 6 models into public.llms, triggers LiteLLM reload
+├── register/                 ← registers the 6 models via LiteLLM /model/new
 ├── compose/                  ← backend override fragment (symlinked into infra/services/_user/rag/)
 ├── n8n/                      ← the adaptive-RAG workflow export + webhook→OpenAI wrapper notes
 ├── demo/                     ← contrasting query matrix + walkthrough script
@@ -176,7 +176,7 @@ corpus/ ──▶ Docling (/v1/document/convert) ──▶ structure-aware chunk
 - **lightrag** ingests raw docs itself and builds the Neo4j graph.
 - **agentic / n8n** add **no new index** — they query the existing Weaviate base collection and the LightRAG graph as tools.
 
-Ingestion is a one-time `make ingest`. The slow parts (contextual blurbs + LightRAG extraction) are local and offline; expect minutes, gated by health checks.
+Ingestion runs once inside the backend container (`docker exec … python /app/ingest/ingest.py`, driven by `scripts/start-all.sh`). The slow parts (contextual blurbs + LightRAG extraction) are local and offline; expect minutes, gated by health checks.
 
 ---
 
@@ -184,7 +184,7 @@ Ingestion is a one-time `make ingest`. The slow parts (contextual blurbs + Light
 
 ### 6.1 Registration (no Atlas edits beyond the seam)
 
-A `register/` step **UPSERTs six rows into Atlas's `public.llms` catalog** (the sanctioned channel — survives restarts; direct `config.yaml` edits are regenerated away), each pointing its `api_base` at the backend plugin's route, then triggers a LiteLLM reload. The models then auto-appear in OpenWebUI (model-list cache TTL ≈ 300 s; set to 0 in dev). `lightrag` is already registered by Atlas and is reused as-is.
+A `register/` step registers the six approaches as models via LiteLLM's **`/model/new` admin API** (Atlas runs with `STORE_MODEL_IN_DB=True`, so registrations persist), each pointing its `api_base` at the backend plugin's route. They take effect immediately and auto-appear in OpenWebUI (model-list cache TTL ≈ 300 s; set to 0 in dev). The graph approach ships as `graph-rag` — a thin wrapper over Atlas's LightRAG server — rather than reusing Atlas's built-in `lightrag` model.
 
 ### 6.2 Frontend — reuse OpenWebUI multi-model chat
 
@@ -233,7 +233,7 @@ Adding a cloud key is optional and only needed if local extraction/agentic quali
 1. `cd infra && ./start.sh --track gen-ai-rag` (optional `--cloud` wires a Claude key for the heavy roles).
 2. Wait for health on every dependency.
 3. `ingest/` loads the corpus into the three indexes.
-4. `register/` adds the six models + triggers LiteLLM reload.
+4. `register/` adds the six models via LiteLLM `/model/new` (effective immediately).
 5. Print the OpenWebUI URL.
 
 ### 8.2 Verification (evidence, not assertion)

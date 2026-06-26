@@ -77,7 +77,7 @@ set by hand for the default `start-all.sh` flow.
 |----------|---------|---------|--------|
 | `LITELLM_BASE_URL` | `http://litellm:4000` | litellm client, register | Atlas backend env |
 | `LITELLM_API_KEY` | — | litellm client | Atlas backend env |
-| `LITELLM_MASTER_KEY` | `sk-noauth` (fallback) | register | Atlas `.env` (sourced by start-all) |
+| `LITELLM_MASTER_KEY` | `sk-noauth` (fallback) | register, n8n workflow | Atlas `.env` (sourced by start-all) |
 | `WEAVIATE_URL` | `http://weaviate:8080` | vectors | Atlas backend env |
 | `WEAVIATE_GRPC_PORT` | `50051` | vectors | optional override |
 | `TEI_RERANKER_ENDPOINT` | `http://tei-reranker:80` | vectors (rerank) | overlay |

@@ -61,7 +61,11 @@ async def agentic_rag(req: ChatRequest):
     for _ in range(MAX_STEPS):
         resp = await litellm.chat(model, messages, tools=_TOOLS)
         llm_calls += 1
-        msg = resp["choices"][0]["message"]
+        choices = resp.get("choices") or []
+        if not choices:
+            answer = "(no response from model)"
+            break
+        msg = choices[0]["message"]
         tool_calls = msg.get("tool_calls") or []
         if not tool_calls:
             answer = msg.get("content") or ""
