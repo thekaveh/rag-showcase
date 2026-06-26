@@ -52,6 +52,19 @@ for _ in $(seq 1 60); do
 done
 [ "$lr_ready" = 1 ] || { echo "LightRAG did not become healthy after 5 minutes; aborting before ingest (graph-rag would be empty)."; exit 1; }
 
+# Ingest's first operation is vectors.ensure_collection (a Weaviate connect with
+# no retry), and the backend healthcheck does not depend on Weaviate being ready.
+# Gate on Weaviate's readiness endpoint before ingest, mirroring the LightRAG gate.
+echo "==> Waiting for Weaviate to report ready (ingest creates collections first)…"
+wv_ready=0
+for _ in $(seq 1 60); do
+  if docker exec "${PROJECT_NAME}-backend" python -c \
+       "import httpx,sys; sys.exit(0 if httpx.get('http://weaviate:8080/v1/.well-known/ready',timeout=5).status_code==200 else 1)" \
+       >/dev/null 2>&1; then wv_ready=1; break; fi
+  sleep 5
+done
+[ "$wv_ready" = 1 ] || { echo "Weaviate did not become ready after 5 minutes; aborting before ingest."; exit 1; }
+
 echo "==> Assembling corpus on the host (corpus/raw/)…"
 # bare python on purpose: fetch_corpus is stdlib-only, and bare python lets an
 # optional host-side `pip install datasets` take effect (the uv env omits it).
