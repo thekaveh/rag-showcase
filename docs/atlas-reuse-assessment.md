@@ -87,8 +87,8 @@ Atlas's gitignore.
 
 Quality of local-first LightRAG extraction and agentic tool-calling:
 
-- LightRAG extraction using `gemma4:31b`
-- Qwen v3.6 agentic tool-calling
+- LightRAG graph extraction (Atlas-side LLM; gen-ai-rag default `qwen3.6:latest`)
+- `qwen3.6:latest` agentic tool-calling
 
 These will be assessed after the full stack is brought up on a local machine.
 Placeholder marked intentionally open, not a silent gap.
