@@ -20,8 +20,14 @@ this workflow's webhook and surfaces the chosen `route` in the comparison column
 4. **Set** node: build `{ "answer": <chosen answer text>, "route": <route> }`.
 5. **Respond to Webhook**: return the Set node's JSON.
 
+After wiring the nodes, **toggle the workflow Active** (top-right switch in the
+editor). The backend POSTs to the *production* webhook `/webhook/adaptive-rag`,
+which n8n registers only for an active workflow — an inactive one returns 404 and
+the `n8n-adaptive-rag` column errors.
+
 ## 3. Re-importing on Another Machine
 
-Import `adaptive-rag.workflow.json` via the n8n UI (Workflows → Import from File).
-The checked-in file is an empty placeholder until you export your built workflow
-over it.
+Import `adaptive-rag.workflow.json` via the n8n UI (Workflows → Import from File),
+then toggle it **Active** (the production webhook only registers for active
+workflows). The checked-in file is an empty placeholder until you export your
+built workflow over it.

@@ -33,8 +33,8 @@ it takes a while. Then open the printed URL, start a multi-model chat, and selec
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
 `n8n-adaptive-rag`. Stop everything with `./scripts/stop-all.sh`.
 
-The `n8n-adaptive-rag` column also requires building its workflow once in the n8n
-UI — see [`n8n/README.md`](n8n/README.md).
+The `n8n-adaptive-rag` column also requires building and activating its workflow
+once in the n8n UI — see [`n8n/README.md`](n8n/README.md).
 
 ## 3. The Six Approaches
 
