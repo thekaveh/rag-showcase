@@ -26,8 +26,9 @@ the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/
 
 This runs the overlay setup, starts the Atlas `gen-ai-rag` stack (LightRAG, TEI
 reranker, Weaviate, Neo4j, OpenWebUI, LiteLLM, n8n; Docling is off by default —
-ingestion falls back to naive text chunking), waits for the backend and LightRAG,
-assembles the corpus on the host (`corpus/fetch_corpus.py`), ingests it into the backend
+ingestion falls back to naive text chunking), waits for the backend, LightRAG,
+Weaviate, and local model readiness (embed + chat), assembles the corpus on the
+host (`corpus/fetch_corpus.py`), ingests it into the backend
 container, registers the six models, and prints the OpenWebUI URL. **First run downloads several GB of local models**, so
 it takes a while. Then open the printed URL, start a multi-model chat, and select:
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
@@ -35,6 +36,11 @@ it takes a while. Then open the printed URL, start a multi-model chat, and selec
 
 The `n8n-adaptive-rag` column also requires building and activating its workflow
 once in the n8n UI — see [`n8n/README.md`](n8n/README.md).
+
+For the full corpus (MultiHop-RAG + keyword docs), `pip install datasets` on the
+host before running; without it, ingestion uses only the bundled keyword docs, so
+the thematic / multi-hop demo queries have little to work with — see
+[`corpus/README.md`](corpus/README.md).
 
 ## 3. The Six Approaches
 
