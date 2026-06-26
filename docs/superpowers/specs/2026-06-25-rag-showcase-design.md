@@ -1,9 +1,15 @@
 # RAG Showcase — Design Spec
 
 - **Date:** 2026-06-25
-- **Status:** Approved (brainstorming) → next step: implementation plan
+- **Status:** Historical design artifact — implemented (see deviations below). The code and the [Atlas-reuse assessment](../../atlas-reuse-assessment.md) are authoritative where they differ from this snapshot.
 - **Author:** Kaveh (with Claude Code)
 - **Related infra:** [Atlas](https://github.com/thekaveh/atlas) — reused as a Git submodule
+
+> **Implementation deviations from this design (the code is authoritative):**
+> - The graph approach ships as **`graph-rag`** (a thin wrapper over Atlas's LightRAG server), not the spec's `lightrag`/"reuse as-is" — renamed to avoid colliding with Atlas's built-in `lightrag` model.
+> - Ingestion runs **inside the backend container** (`docker exec … python /app/ingest/ingest.py`), not via a `make ingest` target.
+> - Registration uses LiteLLM's **`/model/new` admin API** (not `public.llms` rows) and triggers no separate reload — the admin API takes effect immediately.
+> - `start-all.sh` passes the full track flags (`--lightrag-source container --tei-reranker-source container-cpu --doc-processor-source docling-container-cpu`), not just `--track gen-ai-rag`.
 
 ---
 

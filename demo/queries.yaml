@@ -15,3 +15,11 @@
   query: "What is the firmware version referenced in the widget bootloader error?"
   expect_winner: any
   rationale: "Simple single fact — all approaches should answer; teaches 'when is RAG worth it'."
+- id: context_starved
+  query: "What does the safety relay do when the coil overheats, and how do I clear it?"
+  expect_winner: contextual-rag
+  rationale: "The relay chunk only resolves with its document context (which error code it belongs to); the prepended blurb flips a miss into a hit."
+- id: mixed_batch
+  query: "List the widget error codes, then explain how they relate to each other across the docs."
+  expect_winner: n8n-adaptive-rag
+  rationale: "A cheap lookup plus a multi-doc synthesis in one ask; the adaptive router escalates only the hard half."
