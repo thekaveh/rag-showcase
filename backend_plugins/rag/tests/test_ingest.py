@@ -46,3 +46,31 @@ async def test_run_populates_all_three_indexes(monkeypatch, tmp_path):
     assert result == {"files": 2, "base_chunks": 2, "contextual_chunks": 2}
     assert added == {"RagBase": 2, "RagContextual": 2}
     assert len(uploads) == 2  # one LightRAG upload per file
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_chunk_document_skips_textless_chunks(monkeypatch, tmp_path):
+    monkeypatch.setenv("DOCLING_ENDPOINT", "http://docling-gpu:8000")
+    doc = tmp_path / "a.txt"; doc.write_text("x", encoding="utf-8")
+    respx.post("http://docling-gpu:8000/v1/document/convert").mock(
+        return_value=httpx.Response(200, json={"chunks": [
+            {"metadata": {"section_title": "Empty"}},   # no text key
+            {"text": "real", "metadata": {}}]}))
+    chunks = await ing.chunk_document(str(doc))
+    assert [c["text"] for c in chunks] == ["real"]
+
+
+@pytest.mark.asyncio
+async def test_run_raises_on_embedding_count_mismatch(monkeypatch, tmp_path):
+    (tmp_path / "d.txt").write_text("doc", encoding="utf-8")
+    async def fake_chunk(path): return [{"title": "t", "text": "c1"},
+                                        {"title": "t", "text": "c2"}]
+    async def short_embed(texts, model=None): return [[0.0]]  # fewer than inputs
+    monkeypatch.setattr(ing, "chunk_document", fake_chunk)
+    monkeypatch.setattr(ing.litellm, "embed", short_embed)
+    monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
+    import pytest as _pytest
+    with _pytest.raises(RuntimeError, match="embedding count mismatch"):
+        await ing.run(str(tmp_path))

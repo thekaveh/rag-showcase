@@ -28,7 +28,7 @@ def main() -> None:
                 break
             title = (row.get("title") or f"doc-{i}").replace("/", "-")[:80]
             body = row.get("body") or row.get("text") or json.dumps(row)
-            (RAW / f"{i:03d}-{title}.md").write_text(f"# {title}\n\n{body}")
+            (RAW / f"{i:03d}-{title}.md").write_text(f"# {title}\n\n{body}", encoding="utf-8")
         print(f"Wrote {min(MAX_DOCS, len(ds))} MultiHop-RAG docs + keyword docs to {RAW}")
     except Exception as e:  # offline / dataset unavailable
         print(f"⚠ MultiHop-RAG fetch skipped ({e}). Keyword docs only — "

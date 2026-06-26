@@ -125,6 +125,8 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
                                  json={"query": query, "texts": [h.text for h in hits]})
         resp.raise_for_status()
         ranking = resp.json()
+    if not isinstance(ranking, list):
+        return hits[:top_n]  # unexpected reranker shape — fall back to input order
     ordered: list[Hit] = []
     for row in ranking[:top_n]:
         idx = row.get("index")

@@ -26,3 +26,14 @@ async def test_rerank_reorders_by_tei_score(monkeypatch):
 async def test_rerank_empty_hits_short_circuits():
     # early-return guard: no TEI call is made, so no HTTP mock is needed
     assert await rerank("q", [], top_n=5) == []
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_rerank_falls_back_on_non_list_response(monkeypatch):
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    hits = [Hit("A", "a", 0.1), Hit("B", "b", 0.2)]
+    respx.post("http://tei-reranker:80/rerank").mock(
+        return_value=httpx.Response(200, json={"detail": "unexpected"}))
+    out = await rerank("q", hits, top_n=1)
+    assert out == hits[:1]  # unexpected shape -> input order, no TypeError

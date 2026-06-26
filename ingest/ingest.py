@@ -34,9 +34,12 @@ async def chunk_document(path: str) -> list[dict]:
             payload = resp.json()
     out = []
     for ch in payload.get("chunks", []):
+        text = ch.get("text") or ""
+        if not text:
+            continue  # skip chunks Docling returned without text
         section = (ch.get("metadata") or {}).get("section_title") or ""
         title = f"{name} — {section}" if section else name
-        out.append({"title": title, "text": ch["text"]})
+        out.append({"title": title, "text": text})
     return out
 
 
@@ -53,6 +56,9 @@ async def run(corpus_dir: str) -> dict:
         doc_text = "\n\n".join(c["text"] for c in doc_chunks)
         # Base collection
         vecs = await litellm.embed([c["text"] for c in doc_chunks])
+        if len(vecs) != len(doc_chunks):
+            raise RuntimeError(f"embedding count mismatch for {path.name}: "
+                               f"{len(vecs)} vectors for {len(doc_chunks)} chunks")
         base_count += await asyncio.to_thread(vectors.add_chunks, BASE, [
             {**c, "vector": v} for c, v in zip(doc_chunks, vecs)])
         # Contextual collection (blurb-prefixed)
@@ -61,6 +67,9 @@ async def run(corpus_dir: str) -> dict:
             blurb = await contextualize(doc_text, c["text"])
             ctx_rows.append({"title": c["title"], "text": f"{blurb}\n\n{c['text']}"})
         ctx_vecs = await litellm.embed([r["text"] for r in ctx_rows])
+        if len(ctx_vecs) != len(ctx_rows):
+            raise RuntimeError(f"contextual embedding count mismatch for {path.name}: "
+                               f"{len(ctx_vecs)} vectors for {len(ctx_rows)} chunks")
         ctx_count += await asyncio.to_thread(vectors.add_chunks, CONTEXTUAL, [
             {**r, "vector": v} for r, v in zip(ctx_rows, ctx_vecs)])
         # LightRAG (builds its own KG)
