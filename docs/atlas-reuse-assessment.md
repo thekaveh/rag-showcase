@@ -31,11 +31,14 @@ contains no RAG-specific logic and is a **strong candidate to upstream** as a
 documented downstream-routes extension point (symmetric to the `_user/` compose
 overlay).
 
-### 2.2 Missing client libraries in gen-ai-rag backend
+### 2.2 Client-library version floors
 
-The `gen-ai-rag` backend image does not ship `weaviate-client` and `neo4j` Python
-libraries. Our plugin installs them via the seam's `requirements.txt` at startup.
-This keeps Atlas's base image lean but adds measurable boot latency.
+Atlas's backend image already ships `weaviate-client` (`>=4.0.0`) and `neo4j`
+(`>=5.18.0`), so the RAG client libraries are present out of the box. The
+plugin's `requirements.txt` pins a newer `weaviate-client>=4.9,<5` floor, so the
+seam may reinstall weaviate-client at startup to satisfy it (a minor boot cost).
+The plugin does not use `neo4j` directly — it reaches the graph only via LightRAG
+over HTTP — so it neither installs nor imports it.
 
 ### 2.3 No `api_base` column in `public.llms`
 
@@ -70,9 +73,10 @@ Atlas's gitignore.
 - **Upstream the backend plugin seam** as a documented downstream-routes extension
   point (symmetric to the `_user/` compose overlay). It adds minimal complexity
   and is both RAG-agnostic and generally useful.
-- **Ship RAG client libraries in the `gen-ai-rag` backend image**
-  (`weaviate-client`, `neo4j`) so downstream RAG consumers don't pay a startup
-  pip-install cost.
+- **(No action needed) RAG client libraries** — Atlas's `gen-ai-rag` backend
+  already ships `weaviate-client` and `neo4j`; the plugin only re-pins a newer
+  `weaviate-client` floor. (Originally filed as a gap — corrected after checking
+  the vendored image's `requirements.txt`.)
 - **Add an `api_base` column to `public.llms`** to express custom-endpoint models
   natively in the catalog. Alternatively, document the `/model/new` pattern
   prominently as the standard way to register custom OpenAI-compatible endpoints.
