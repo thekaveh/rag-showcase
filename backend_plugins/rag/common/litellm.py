@@ -24,7 +24,11 @@ async def embed(texts: list[str], model: str | None = None) -> list[list[float]]
             json={"model": model, "input": texts},
         )
         resp.raise_for_status()
-        return [row["embedding"] for row in resp.json()["data"]]
+        data = resp.json()["data"]
+        # /v1/embeddings does not guarantee `data` is returned in input order; map
+        # back by `index` (as rerank() does) so the positional zip() at the ingest
+        # call sites pairs each chunk with its own vector.
+        return [row["embedding"] for row in sorted(data, key=lambda r: r.get("index", 0))]
 
 
 async def chat(model: str, messages: list[dict[str, Any]],

@@ -40,3 +40,12 @@ async def test_lightrag_upload_text_posts_to_documents_text(monkeypatch):
     assert upload.called
     body = json.loads(upload.calls.last.request.content)
     assert body["text"] == "some content" and body["file_source"] == "My Doc"
+
+
+@pytest.mark.asyncio
+async def test_lightrag_query_guards_short_input(monkeypatch):
+    # a <3-char query must not reach LightRAG (which 422s on min_length=3): no
+    # HTTP call is attempted and a clear message is returned instead of a 500.
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    out = await lightrag.query("ok")
+    assert "too short" in out

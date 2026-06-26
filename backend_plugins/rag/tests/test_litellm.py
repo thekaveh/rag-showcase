@@ -45,3 +45,19 @@ async def test_embed_uses_default_role_when_model_omitted(monkeypatch):
         return_value=httpx.Response(200, json={"data": [{"embedding": [0.0]}]}))
     await litellm.embed(["x"])  # no model arg -> falls back to config.role("embed")
     assert "default-embed" in route.calls.last.request.content.decode()
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_embed_orders_by_index(monkeypatch):
+    # /v1/embeddings may return data out of input order; embed() must restore
+    # order by `index` so callers' positional zip stays correct.
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    respx.post("http://litellm:4000/v1/embeddings").mock(
+        return_value=httpx.Response(200, json={"data": [
+            {"index": 1, "embedding": [1.0]},
+            {"index": 0, "embedding": [0.0]},
+        ]}))
+    out = await litellm.embed(["a", "b"], model="nomic-embed-text")
+    assert out == [[0.0], [1.0]]  # reordered by index, not raw response order

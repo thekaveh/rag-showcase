@@ -22,6 +22,11 @@ def _headers() -> dict[str, str]:
 
 
 async def query(question: str, mode: str = "hybrid") -> str:
+    # LightRAG's /query rejects very short queries (min_length=3) with a 422, and
+    # a 0–2 char string isn't a meaningful graph question anyway — degrade with a
+    # clear message instead of surfacing an unhandled 500.
+    if len(question.strip()) < 3:
+        return "(query too short for the knowledge graph)"
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.post(f"{_base()}/query", headers=_headers(),
                                  json={"query": question, "mode": mode})
