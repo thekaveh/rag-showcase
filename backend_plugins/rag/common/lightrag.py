@@ -14,8 +14,11 @@ def _base() -> str:
 
 
 def _headers() -> dict[str, str]:
+    # LightRAG v1.5.0 authenticates the API key via the X-API-Key header;
+    # Authorization: Bearer is reserved for JWT login tokens there, so a raw
+    # key sent as Bearer 401s whenever LightRAG auth is enabled.
     key = os.environ.get("LIGHTRAG_API_KEY", "")
-    return {"Authorization": f"Bearer {key}"} if key else {}
+    return {"X-API-Key": key} if key else {}
 
 
 async def query(question: str, mode: str = "hybrid") -> str:
@@ -34,8 +37,8 @@ async def query(question: str, mode: str = "hybrid") -> str:
 
 async def upload_text(title: str, text: str) -> None:
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        # LightRAG v1.5.0 InsertTextRequest is extra="forbid" with fields
-        # text / file_source / chunking — there is no "description" field.
+        # LightRAG v1.5.0 InsertTextRequest accepts text / file_source / chunking
+        # (the optional source label is "file_source", not "description").
         resp = await client.post(f"{_base()}/documents/text", headers=_headers(),
                                  json={"text": text, "file_source": title})
         resp.raise_for_status()

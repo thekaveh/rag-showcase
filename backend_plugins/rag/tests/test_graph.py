@@ -25,6 +25,9 @@ async def test_graph_queries_lightrag(monkeypatch):
     assert "graph answer" in r.json()["choices"][0]["message"]["content"]
     # the graph approach must request the graph+vector "hybrid" mode
     assert json.loads(route.calls.last.request.content)["mode"] == "hybrid"
+    # auth must use X-API-Key (v1.5.0), not Authorization: Bearer
+    assert route.calls.last.request.headers.get("x-api-key") == "k"
+    assert "authorization" not in route.calls.last.request.headers
 
 
 @pytest.mark.asyncio
