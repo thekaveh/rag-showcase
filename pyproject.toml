@@ -12,6 +12,7 @@ requires-python = ">=3.10"
 [tool.pytest.ini_options]
 pythonpath = ["backend_plugins", "."]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"  # pin per-test loops; avoid pytest-asyncio's unset-default ambiguity
 testpaths = ["backend_plugins/rag/tests", "tests"]
 
 [tool.ruff]
