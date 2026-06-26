@@ -147,3 +147,21 @@ async def test_agentic_links_synthesized_id_for_null_id_tool_call(monkeypatch):
     synth = assistant["tool_calls"][0]["id"]
     assert synth, "a null tool-call id must be replaced with a non-empty id"
     assert tool["tool_call_id"] == synth  # reply is linked to the assistant call
+
+
+@pytest.mark.asyncio
+async def test_agentic_empty_final_content_is_not_max_steps(monkeypatch):
+    # an empty-but-valid final response (no tool calls, content="") must NOT be
+    # relabeled as the MAX_STEPS exhaustion message.
+    async def fake_chat(model, messages, tools=None, **kw):
+        return {"choices": [{"message": {"role": "assistant", "content": ""}}]}
+    monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
+    monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
+    app = FastAPI(); app.include_router(agentic.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/agentic-rag/v1/chat/completions",
+                          json={"model": "agentic-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200
+    content = r.json()["choices"][0]["message"]["content"]
+    assert "MAX_STEPS" not in content  # empty answer, not the exhaustion fallback

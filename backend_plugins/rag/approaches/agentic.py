@@ -57,7 +57,7 @@ async def agentic_rag(req: ChatRequest):
                 {"role": "user", "content": req.last_user()}]
     trace: list[str] = []
     llm_calls = 0
-    answer = ""
+    answer = None
     for step_i in range(MAX_STEPS):
         resp = await litellm.chat(model, messages, tools=_TOOLS)
         llm_calls += 1
@@ -93,7 +93,7 @@ async def agentic_rag(req: ChatRequest):
             name = fn.get("name") or ""
             try:
                 args = json.loads(fn.get("arguments") or "{}")
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, TypeError):
                 args = {}
             observation = await _run_tool(name, args)
             step = ""
@@ -105,7 +105,7 @@ async def agentic_rag(req: ChatRequest):
             trace.append(step)
             messages.append({"role": "tool", "tool_call_id": call["id"],
                              "content": observation})
-    if not answer:
+    if answer is None:  # loop exhausted on tool calls; "" is a valid empty answer
         answer = "(agent reached MAX_STEPS without producing a final answer)"
     trace_md = "\n\n".join(f"**Step {i+1}.** {t}" for i, t in enumerate(trace)) \
         or "(answered without retrieval)"
