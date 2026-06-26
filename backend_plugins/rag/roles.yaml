@@ -1,0 +1,7 @@
+# Local-first role→model map (LiteLLM model names). Flip any value to a
+# cloud model (e.g. claude-sonnet-4-6) once a key is configured.
+embed: nomic-embed-text
+light_gen: qwen3.6
+contextual_blurb: gemma4:31b
+extraction: gemma4:31b
+agentic: qwen3.6
