@@ -20,6 +20,8 @@ done
 [ "$healthy" = 1 ] || { echo "Backend did not become healthy after 5 minutes; aborting before ingest."; exit 1; }
 
 echo "==> Assembling corpus on the host (corpus/raw/)…"
+# bare python on purpose: fetch_corpus is stdlib-only, and bare python lets an
+# optional host-side `pip install datasets` take effect (the uv env omits it).
 python corpus/fetch_corpus.py
 PROJECT_NAME="$(grep -E '^PROJECT_NAME=' infra/.env | cut -d= -f2 || true)"
 [ -n "$PROJECT_NAME" ] || { echo "PROJECT_NAME not found in infra/.env; aborting."; exit 1; }
@@ -29,7 +31,7 @@ docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
 
 echo "==> Registering the six models in LiteLLM…"
 set -a; source infra/.env; set +a
-python register/register_models.py
+uv run python register/register_models.py   # needs httpx from the uv env
 
 OWUI="$(grep -E '^OPEN_WEB_UI_PORT=' infra/.env | cut -d= -f2)"
 echo "==> Ready. Open OpenWebUI at http://localhost:${OWUI} , start a multi-model"
