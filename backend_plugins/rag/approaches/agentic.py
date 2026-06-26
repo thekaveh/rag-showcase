@@ -66,6 +66,7 @@ async def agentic_rag(req: ChatRequest):
             answer = msg.get("content") or ""
             break
         messages.append(msg)
+        thought = (msg.get("content") or "").strip()
         for call in tool_calls:
             name = call["function"]["name"]
             try:
@@ -73,10 +74,17 @@ async def agentic_rag(req: ChatRequest):
             except json.JSONDecodeError:
                 args = {}
             observation = await _run_tool(name, args)
-            trace.append(f"**Action:** `{name}({args.get('query','')})`\n\n"
-                         f"**Observation:** {observation[:300]}")
+            step = ""
+            if thought:
+                step += f"**Thought:** {thought}\n\n"
+                thought = ""  # show the turn's reasoning once
+            step += (f"**Action:** `{name}({args.get('query','')})`\n\n"
+                     f"**Observation:** {observation[:300]}")
+            trace.append(step)
             messages.append({"role": "tool", "tool_call_id": call["id"],
                              "content": observation})
+    if not answer:
+        answer = "(agent reached MAX_STEPS without producing a final answer)"
     trace_md = "\n\n".join(f"**Step {i+1}.** {t}" for i, t in enumerate(trace)) \
         or "(answered without retrieval)"
     sources = [Source("🤖 Agent trace", trace_md, None)]
