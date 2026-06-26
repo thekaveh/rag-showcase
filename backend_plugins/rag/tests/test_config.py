@@ -1,3 +1,4 @@
+import pytest
 from rag.common import config
 
 
@@ -15,8 +16,5 @@ def test_role_unknown_raises(tmp_path, monkeypatch):
     f.write_text("light_gen: x\n")
     monkeypatch.setenv("RAG_ROLES_FILE", str(f))
     config._CACHE.clear()
-    try:
+    with pytest.raises(KeyError):
         config.role("nope")
-        assert False, "expected KeyError"
-    except KeyError:
-        pass

@@ -24,10 +24,12 @@ async def test_embed_posts_to_litellm(monkeypatch):
 async def test_chat_returns_json(monkeypatch):
     monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
     monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
-    respx.post("http://litellm:4000/v1/chat/completions").mock(
+    route = respx.post("http://litellm:4000/v1/chat/completions").mock(
         return_value=httpx.Response(200, json={
             "choices": [{"message": {"content": "hi", "role": "assistant"}}]
         })
     )
     out = await litellm.chat("qwen3.6", [{"role": "user", "content": "hey"}])
     assert out["choices"][0]["message"]["content"] == "hi"
+    assert route.called
+    assert route.calls.last.request.headers["authorization"] == "Bearer sk-test"
