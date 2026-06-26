@@ -20,6 +20,14 @@ the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/
 
 ## 2. Quick Start
 
+**Prerequisites.** This runs entirely on [Atlas](https://github.com/thekaveh/atlas), so Atlas's
+requirements apply:
+
+- **Docker** + **Docker Compose v2**, installed and running.
+- The vendored **`infra/` submodule initialized**: `git submodule update --init --recursive`.
+- Host tools **`uv`** and **`python3`** (Atlas's bootstrapper and the host-side corpus fetch use them).
+- Disk/RAM headroom for the `gen-ai-rag` stack **plus local Ollama models** — the first run pulls several GB.
+
 ```bash
 ./scripts/start-all.sh
 ```
@@ -125,3 +133,25 @@ LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail 
   LITELLM_MASTER_KEY="$(grep -E '^LITELLM_MASTER_KEY=' infra/.env | tail -1 | cut -d= -f2)" \
   uv run pytest tests
 ```
+
+## 8. Troubleshooting
+
+- **First run looks stuck.** It is downloading several GB of local Ollama models
+  (`qwen3.6:latest`, `nomic-embed-text`, `qwen3-embedding:0.6b`); `start-all.sh` gates on model
+  readiness, so let it finish. Watch progress: `docker logs -f "$(grep -E '^PROJECT_NAME=' infra/.env | tail -1 | cut -d= -f2)-ollama-pull"`.
+- **A model column never answers.** Confirm all six registered (`docker logs <project>-backend`,
+  or the LiteLLM model list). `n8n-adaptive-rag` additionally needs its workflow **built and
+  activated** in the n8n UI — see [`n8n/README.md`](n8n/README.md).
+- **`contextual-rag` doesn't visibly win** on the context-starved query: that contrast needs
+  Docling structure-aware chunking, which is **off by default** (ingestion falls back to naive
+  chunking). Enable Docling in the Atlas stack to see it.
+- **Stack fails to come up with a Supabase / Postgres auth error** — e.g. `lightrag-init` exits
+  with `password authentication failed for user "supabase_admin"`. This is an **Atlas stack**
+  matter (the Supabase DB role/secret wiring), *not* the showcase. The reliable fix is a clean
+  reset so the Atlas Supabase DB re-initializes against the current secrets:
+  `cd infra && ./stop.sh --cold` (this **wipes Atlas volumes/data**), then re-run
+  `./scripts/start-all.sh`. See the [Atlas](https://github.com/thekaveh/atlas) repo.
+- **Integration tests skip.** `tests/test_demo_matrix.py` self-skips unless a live LiteLLM is
+  reachable; point it at the published port + master key (see §7).
+- **Stop / reset:** `./scripts/stop-all.sh` to stop; `cd infra && ./stop.sh --cold` to stop **and**
+  wipe all Atlas data.
