@@ -5,3 +5,6 @@ __pycache__/
 corpus/raw/
 infra/.env
 infra/volumes/
+
+# SDD process scratch
+.superpowers/
