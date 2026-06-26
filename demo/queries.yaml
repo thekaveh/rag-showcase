@@ -1,0 +1,17 @@
+# Each query is engineered so `expect_winner` visibly outperforms the others.
+- id: keyword
+  query: "What does error code WIDGET-ERR-7741 mean and how do I reset it?"
+  expect_winner: hybrid-rag
+  rationale: "Rare exact identifier — BM25 leg beats pure dense."
+- id: thematic
+  query: "What are the main recurring themes across all the documents?"
+  expect_winner: graph-rag
+  rationale: "Whole-corpus synthesis — graph community structure beats flat top-k."
+- id: multihop
+  query: "Compare what two different sources concluded on the same event and reconcile them."
+  expect_winner: agentic-rag
+  rationale: "Needs decomposition + multiple retrievals — the agent loop shows its work."
+- id: factoid
+  query: "What is the firmware version referenced in the widget bootloader error?"
+  expect_winner: any
+  rationale: "Simple single fact — all approaches should answer; teaches 'when is RAG worth it'."
