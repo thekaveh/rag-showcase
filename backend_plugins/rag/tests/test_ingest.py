@@ -9,7 +9,7 @@ import ingest.ingest as ing
 async def test_chunk_document_calls_docling(monkeypatch, tmp_path):
     monkeypatch.setenv("DOCLING_ENDPOINT", "http://docling-gpu:8000")
     doc = tmp_path / "a.txt"
-    doc.write_text("hello world")
+    doc.write_text("hello world", encoding="utf-8")
     respx.post("http://docling-gpu:8000/v1/document/convert").mock(
         return_value=httpx.Response(200, json={
             "chunks": [{"text": "hello world",
@@ -82,8 +82,7 @@ async def test_run_raises_on_embedding_count_mismatch(monkeypatch, tmp_path):
     monkeypatch.setattr(ing.litellm, "embed", short_embed)
     monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
     monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
-    import pytest as _pytest
-    with _pytest.raises(RuntimeError, match="embedding count mismatch"):
+    with pytest.raises(RuntimeError, match="embedding count mismatch"):
         await ing.run(str(tmp_path))
 
 
@@ -104,6 +103,5 @@ async def test_run_raises_on_contextual_embedding_mismatch(monkeypatch, tmp_path
     monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
     monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
     monkeypatch.setattr(ing.lightrag, "upload_text", lambda t, x: None)
-    import pytest as _pytest
-    with _pytest.raises(RuntimeError, match="contextual embedding count mismatch"):
+    with pytest.raises(RuntimeError, match="contextual embedding count mismatch"):
         await ing.run(str(tmp_path))
