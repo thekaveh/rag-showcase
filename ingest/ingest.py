@@ -12,9 +12,9 @@ import httpx
 # Make the plugin package importable when run as a script.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend_plugins"))
 
-from rag.common import litellm, vectors  # noqa: E402
-from rag.common.contextual import contextualize  # noqa: E402
-from rag.common import lightrag  # noqa: E402
+from rag.common import litellm, vectors
+from rag.common.contextual import contextualize
+from rag.common import lightrag
 
 BASE = "RagBase"
 CONTEXTUAL = "RagContextual"
