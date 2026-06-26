@@ -16,11 +16,11 @@ for _ in $(seq 1 60); do
   sleep 5
 done
 
-echo "==> Ingesting corpus…"
+echo "==> Ingesting corpus (inside the backend container)…"
 python corpus/fetch_corpus.py
-docker exec "$(grep -E '^PROJECT_NAME=' infra/.env | cut -d= -f2)-backend" \
-  python /app/plugins/../ingest/ingest.py /app/plugins/../corpus/raw || \
-  python ingest/ingest.py corpus/raw   # fallback: run from host if it can reach the stack
+PROJECT_NAME="$(grep -E '^PROJECT_NAME=' infra/.env | cut -d= -f2)"
+docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
+  python /app/ingest/ingest.py /app/corpus/raw
 
 echo "==> Registering the six models in LiteLLM…"
 set -a; source infra/.env; set +a

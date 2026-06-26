@@ -10,3 +10,5 @@ services:
       N8N_ADAPTIVE_WEBHOOK_URL: ${N8N_ADAPTIVE_WEBHOOK_URL:-http://n8n:5678/webhook/adaptive-rag}
     volumes:
       - ../backend_plugins:/app/plugins:ro
+      - ../ingest:/app/ingest:ro
+      - ../corpus:/app/corpus:ro
