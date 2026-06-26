@@ -56,6 +56,27 @@ echo "==> Assembling corpus on the host (corpus/raw/)…"
 # bare python on purpose: fetch_corpus is stdlib-only, and bare python lets an
 # optional host-side `pip install datasets` take effect (the uv env omits it).
 python corpus/fetch_corpus.py
+
+# The backend/LightRAG health gates do NOT guarantee Ollama has finished pulling
+# the embed + chat models (a cold first run downloads several GB), and ingest's
+# first embed/contextualize call would then 4xx/5xx and abort the run. Probe a
+# real embed + chat round-trip through LiteLLM (using the plugin's own client and
+# roles) before ingesting. Generous timeout: the chat model can be large.
+echo "==> Waiting for the local models (embed + chat) to be pulled and serving…"
+models_ready=0
+for _ in $(seq 1 180); do
+  if docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" python -c '
+import asyncio
+from rag.common import litellm, config
+async def _probe():
+    await litellm.embed(["ping"])
+    await litellm.chat(config.role("contextual_blurb"), [{"role": "user", "content": "hi"}])
+asyncio.run(_probe())
+' >/dev/null 2>&1; then models_ready=1; break; fi
+  sleep 10
+done
+[ "$models_ready" = 1 ] || { echo "Local models not ready after ~30 min; aborting before ingest."; exit 1; }
+
 echo "==> Ingesting corpus inside the backend container…"
 docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
   python /app/ingest/ingest.py /app/corpus/raw
