@@ -181,3 +181,30 @@ async def test_agentic_tolerates_choice_without_message(monkeypatch):
                           json={"model": "agentic-rag",
                                 "messages": [{"role": "user", "content": "q"}]})
     assert r.status_code == 200  # graceful degrade, not a 500
+
+
+@pytest.mark.parametrize("bad_args", ["null", "5", '"hi"', "[1, 2]", "true"])
+@pytest.mark.asyncio
+async def test_agentic_tolerates_non_object_tool_args(monkeypatch, bad_args):
+    # tool-call arguments that are valid JSON but NOT an object (null/number/
+    # string/array/bool) must be coerced to {} — not crash args.get(...) -> 500.
+    turns = []
+    async def fake_chat(model, messages, tools=None, **kw):
+        turns.append(1)
+        if len(turns) == 1:
+            return {"choices": [{"message": {"role": "assistant", "content": None,
+                "tool_calls": [{"id": "c1", "type": "function",
+                  "function": {"name": "search_vectors", "arguments": bad_args}}]}}]}
+        return {"choices": [{"message": {"role": "assistant", "content": "done"}}]}
+    async def fake_embed(texts, model=None): return [[1.0]]
+    monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
+    monkeypatch.setattr(agentic.litellm, "embed", fake_embed)
+    monkeypatch.setattr(agentic.vectors, "search_hybrid",
+                        lambda c, q, v, k: [Hit("D", "body", 0.5)])
+    monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
+    app = FastAPI(); app.include_router(agentic.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/agentic-rag/v1/chat/completions",
+                          json={"model": "agentic-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200  # coerced to {}, no AttributeError

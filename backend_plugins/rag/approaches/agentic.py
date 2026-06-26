@@ -95,6 +95,8 @@ async def agentic_rag(req: ChatRequest):
                 args = json.loads(fn.get("arguments") or "{}")
             except (json.JSONDecodeError, TypeError):
                 args = {}
+            if not isinstance(args, dict):  # valid JSON but not an object
+                args = {}                   # (null/number/string/array/bool)
             observation = await _run_tool(name, args)
             step = ""
             if thought:
