@@ -165,3 +165,19 @@ async def test_agentic_empty_final_content_is_not_max_steps(monkeypatch):
     assert r.status_code == 200
     content = r.json()["choices"][0]["message"]["content"]
     assert "MAX_STEPS" not in content  # empty answer, not the exhaustion fallback
+
+
+@pytest.mark.asyncio
+async def test_agentic_tolerates_choice_without_message(monkeypatch):
+    # a 2xx whose first choice lacks a "message" key must degrade (empty answer),
+    # like the other approaches — not raise KeyError into a 500.
+    async def fake_chat(model, messages, tools=None, **kw):
+        return {"choices": [{}]}
+    monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
+    monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
+    app = FastAPI(); app.include_router(agentic.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/agentic-rag/v1/chat/completions",
+                          json={"model": "agentic-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200  # graceful degrade, not a 500

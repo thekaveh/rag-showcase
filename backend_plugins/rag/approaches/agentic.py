@@ -65,7 +65,7 @@ async def agentic_rag(req: ChatRequest):
         if not choices:
             answer = "(no response from model)"
             break
-        msg = choices[0]["message"]
+        msg = choices[0].get("message") or {}  # degrade like the other approaches
         # a non-string content (some backends return structured content blocks)
         # would break .strip()/answer concatenation, so coerce to str once.
         raw_content = msg.get("content")
