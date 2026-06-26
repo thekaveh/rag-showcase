@@ -73,7 +73,7 @@ async def test_agentic_tolerates_malformed_tool_call(monkeypatch):
         turns.append(messages)
         if len(turns) == 1:
             return {"choices": [{"message": {"role": "assistant", "content": None,
-                "tool_calls": [{"type": "function", "function": {}}]}}]}  # no id, no name
+                "tool_calls": [{"id": None, "type": "function", "function": {}}]}}]}  # null id, no name
         return {"choices": [{"message": {"role": "assistant", "content": "done"}}]}
     monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
     monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")

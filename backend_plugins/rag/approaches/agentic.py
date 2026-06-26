@@ -91,7 +91,7 @@ async def agentic_rag(req: ChatRequest):
             step += (f"**Action:** `{name}({args.get('query','')})`\n\n"
                      f"**Observation:** {observation[:300]}")
             trace.append(step)
-            messages.append({"role": "tool", "tool_call_id": call.get("id", ""),
+            messages.append({"role": "tool", "tool_call_id": call.get("id") or "",
                              "content": observation})
     if not answer:
         answer = "(agent reached MAX_STEPS without producing a final answer)"
