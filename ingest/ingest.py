@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import sys
 from pathlib import Path
@@ -20,9 +21,23 @@ CONTEXTUAL = "RagContextual"
 _TIMEOUT = httpx.Timeout(300.0, connect=10.0)
 
 
-async def chunk_document(path: str) -> list[dict]:
-    endpoint = os.environ.get("DOCLING_ENDPOINT", "http://docling-gpu:8000").rstrip("/")
-    name = Path(path).name
+def _naive_chunks(path: str, name: str, size: int = 800, overlap: int = 100) -> list[dict]:
+    """Fallback chunker used when Docling is disabled/unreachable: split the
+    file's text into overlapping windows. Adequate for the .md/.txt corpus."""
+    try:
+        text = Path(path).read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        return []
+    out: list[dict] = []
+    step = max(1, size - overlap)
+    for i in range(0, len(text), step):
+        piece = text[i:i + size].strip()
+        if piece:
+            out.append({"title": name, "text": piece})
+    return out
+
+
+async def _docling_chunks(path: str, name: str, endpoint: str) -> list[dict]:
     with open(path, "rb") as fh:
         files = {"file": (name, fh, "application/octet-stream")}
         data = {"output_format": "markdown", "enable_chunking": "true",
@@ -41,6 +56,21 @@ async def chunk_document(path: str) -> list[dict]:
         title = f"{name} — {section}" if section else name
         out.append({"title": title, "text": text})
     return out
+
+
+async def chunk_document(path: str) -> list[dict]:
+    """Chunk a document, preferring Docling when it's configured, else naive."""
+    name = Path(path).name
+    endpoint = os.environ.get("DOCLING_ENDPOINT", "").rstrip("/")
+    if endpoint:  # Docling enabled — prefer its structure-aware chunking
+        try:
+            out = await _docling_chunks(path, name, endpoint)
+            if out:
+                return out
+        except Exception as e:  # Docling down/misconfigured — degrade gracefully
+            logging.getLogger("uvicorn.error").warning(
+                "Docling unavailable (%s); naive-chunking %s", e, name)
+    return _naive_chunks(path, name)
 
 
 async def run(corpus_dir: str) -> dict:

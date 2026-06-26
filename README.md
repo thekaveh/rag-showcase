@@ -25,7 +25,8 @@ the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/
 ```
 
 This runs the overlay setup, starts the Atlas `gen-ai-rag` stack (LightRAG, TEI
-reranker, Docling, Weaviate, Neo4j, OpenWebUI, LiteLLM), waits for the backend,
+reranker, Weaviate, Neo4j, OpenWebUI, LiteLLM; Docling is off by default —
+ingestion falls back to naive text chunking), waits for the backend,
 ingests the corpus into the backend container, registers the six models, and
 prints the OpenWebUI URL. **First run downloads several GB of local models**, so
 it takes a while. Then open the printed URL, start a multi-model chat, and select:
@@ -56,7 +57,7 @@ rag-showcase/
 │   ├── approaches/          # vanilla, hybrid, contextual, graph, agentic, n8n
 │   ├── tests/               # unit tests (mocked I/O)
 │   └── roles.yaml           # role→model map (local-first)
-├── ingest/                  # corpus → Docling → Weaviate(base+contextual) + LightRAG
+├── ingest/                  # corpus → chunk (Docling optional) → Weaviate(base+contextual) + LightRAG
 ├── register/                # idempotent LiteLLM /model/new registration
 ├── corpus/                  # curated corpus (MultiHop-RAG + keyword docs)
 ├── compose/                 # backend plugin compose overlay

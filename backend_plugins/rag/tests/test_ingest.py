@@ -62,6 +62,17 @@ async def test_chunk_document_skips_textless_chunks(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_chunk_document_naive_fallback_when_docling_disabled(monkeypatch, tmp_path):
+    # DOCLING_ENDPOINT unset (doc-processor disabled) -> naive text chunking
+    monkeypatch.delenv("DOCLING_ENDPOINT", raising=False)
+    doc = tmp_path / "d.md"
+    doc.write_text("# Title\n\n" + ("x" * 1000), encoding="utf-8")
+    chunks = await ing.chunk_document(str(doc))
+    assert len(chunks) >= 2  # ~1000 chars split into overlapping ~800-char windows
+    assert all(c["title"] == "d.md" and c["text"] for c in chunks)
+
+
+@pytest.mark.asyncio
 async def test_run_raises_on_embedding_count_mismatch(monkeypatch, tmp_path):
     (tmp_path / "d.txt").write_text("doc", encoding="utf-8")
     async def fake_chunk(path): return [{"title": "t", "text": "c1"},

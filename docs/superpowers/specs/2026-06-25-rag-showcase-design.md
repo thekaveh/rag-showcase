@@ -9,7 +9,7 @@
 > - The graph approach ships as **`graph-rag`** — a thin wrapper over Atlas's LightRAG server, named to avoid colliding with Atlas's built-in `lightrag` model. (The original design considered reusing Atlas's `lightrag` model as-is.)
 > - Ingestion runs **inside the backend container** (`docker exec … python /app/ingest/ingest.py`), not via a `make ingest` target.
 > - Registration uses LiteLLM's **`/model/new` admin API** (not `public.llms` rows) and triggers no separate reload — the admin API takes effect immediately.
-> - `start-all.sh` passes the full track flags (`--lightrag-source container --tei-reranker-source container-cpu --doc-processor-source docling-container-cpu`), not just `--track gen-ai-rag`.
+> - `start-all.sh` passes the full track flags (`--lightrag-source container --tei-reranker-source container-cpu --doc-processor-source disabled`), not just `--track gen-ai-rag`. Docling is disabled by default (Atlas has no CPU-container Docling); ingestion falls back to naive text chunking, with Docling available as an opt-in (`docling-localhost`/`docling-container-gpu`).
 
 ---
 

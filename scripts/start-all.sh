@@ -6,8 +6,13 @@ cd "$ROOT"
 ./scripts/setup-overlay.sh
 
 echo "==> Starting Atlas (gen-ai-rag track)…"
+# doc-processor disabled: Atlas ships only GPU-container or localhost Docling, so
+# there's no CPU-container option. ingest falls back to naive text chunking, so
+# the .md/.txt corpus works with no GPU. For structure-aware chunking, switch to
+# --doc-processor-source docling-localhost (run Docling on the host) or
+# docling-container-gpu (needs an NVIDIA GPU).
 ( cd infra && ./start.sh --track gen-ai-rag --lightrag-source container \
-    --tei-reranker-source container-cpu --doc-processor-source docling-container-cpu )
+    --tei-reranker-source container-cpu --doc-processor-source disabled )
 
 echo "==> Waiting for the backend to report healthy…"
 BP="$(grep -E '^BACKEND_PORT=' infra/.env | cut -d= -f2 || true)"

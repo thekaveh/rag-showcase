@@ -2138,7 +2138,7 @@ cd "$ROOT"
 
 echo "==> Starting Atlas (gen-ai-rag track)…"
 ( cd infra && ./start.sh --track gen-ai-rag --lightrag-source container \
-    --tei-reranker-source container-cpu --doc-processor-source docling-container-cpu )
+    --tei-reranker-source container-cpu --doc-processor-source disabled )
 
 echo "==> Waiting for the backend to report healthy…"
 BP="$(grep -E '^BACKEND_PORT=' infra/.env | cut -d= -f2)"
