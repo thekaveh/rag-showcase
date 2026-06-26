@@ -105,3 +105,43 @@ async def test_run_raises_on_contextual_embedding_mismatch(monkeypatch, tmp_path
     monkeypatch.setattr(ing.lightrag, "upload_text", lambda t, x: None)
     with pytest.raises(RuntimeError, match="contextual embedding count mismatch"):
         await ing.run(str(tmp_path))
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_chunk_document_falls_back_when_docling_errors(monkeypatch, tmp_path):
+    # Docling configured but unreachable -> graceful degrade to naive chunking
+    # (the exception path, distinct from the DOCLING_ENDPOINT-unset path).
+    monkeypatch.setenv("DOCLING_ENDPOINT", "http://docling-gpu:8000")
+    doc = tmp_path / "d.md"
+    doc.write_text("# T\n\n" + ("y" * 900), encoding="utf-8")
+    respx.post("http://docling-gpu:8000/v1/document/convert").mock(
+        side_effect=httpx.ConnectError("docling down"))
+    chunks = await ing.chunk_document(str(doc))
+    assert len(chunks) >= 1
+    assert all(c["title"] == "d.md" and c["text"] for c in chunks)  # naive chunks
+
+
+@pytest.mark.asyncio
+async def test_run_skips_files_yielding_no_chunks(monkeypatch, tmp_path):
+    # a file that produces no chunks (e.g. a textless PDF) is skipped, never
+    # embedded or uploaded; the files count still reflects all globbed files.
+    (tmp_path / "good.txt").write_text("good", encoding="utf-8")
+    (tmp_path / "empty.txt").write_text("", encoding="utf-8")
+    embedded, uploads = [], []
+    async def fake_chunk(path):
+        return [] if path.endswith("empty.txt") else [{"title": "t", "text": "c"}]
+    async def fake_embed(texts, model=None):
+        embedded.append(list(texts)); return [[0.0] for _ in texts]
+    async def fake_ctx(doc, chunk): return "blurb"
+    async def fake_upload(t, x): uploads.append(t)
+    monkeypatch.setattr(ing, "chunk_document", fake_chunk)
+    monkeypatch.setattr(ing.litellm, "embed", fake_embed)
+    monkeypatch.setattr(ing, "contextualize", fake_ctx)
+    monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
+    monkeypatch.setattr(ing.lightrag, "upload_text", fake_upload)
+    result = await ing.run(str(tmp_path))
+    assert result == {"files": 2, "base_chunks": 1, "contextual_chunks": 1}
+    assert uploads == ["good.txt"]            # empty file never uploaded
+    assert all(len(t) > 0 for t in embedded)  # embed never called with []
