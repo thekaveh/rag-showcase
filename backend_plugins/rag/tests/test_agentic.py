@@ -208,3 +208,30 @@ async def test_agentic_tolerates_non_object_tool_args(monkeypatch, bad_args):
                           json={"model": "agentic-rag",
                                 "messages": [{"role": "user", "content": "q"}]})
     assert r.status_code == 200  # coerced to {}, no AttributeError
+
+
+@pytest.mark.parametrize("bad_query", [5, [1, 2], {"x": 1}, None, True])
+@pytest.mark.asyncio
+async def test_agentic_tolerates_non_string_query_value(monkeypatch, bad_query):
+    # a tool-arg dict whose `query` VALUE is not a string must degrade to empty,
+    # not crash (e.g. lightrag.query(5).strip() -> AttributeError -> 500). Uses the
+    # real lightrag.query so its short-query guard short-circuits without HTTP.
+    import json as _json
+    turns = []
+    async def fake_chat(model, messages, tools=None, **kw):
+        turns.append(1)
+        if len(turns) == 1:
+            return {"choices": [{"message": {"role": "assistant", "content": None,
+                "tool_calls": [{"id": "c1", "type": "function",
+                  "function": {"name": "query_graph",
+                               "arguments": _json.dumps({"query": bad_query})}}]}}]}
+        return {"choices": [{"message": {"role": "assistant", "content": "done"}}]}
+    monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
+    monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    app = FastAPI(); app.include_router(agentic.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/agentic-rag/v1/chat/completions",
+                          json={"model": "agentic-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200  # non-string query coerced to "", degrades cleanly

@@ -39,7 +39,8 @@ _SYSTEM = ("You are a research agent. Use the tools to gather evidence before "
 
 
 async def _run_tool(name: str, args: dict) -> str:
-    q = args.get("query", "")
+    raw = args.get("query")
+    q = raw if isinstance(raw, str) else ""  # non-string query (malformed) -> empty
     if name == "search_vectors":
         vec = (await litellm.embed([q]))[0]
         hits = await asyncio.to_thread(vectors.search_hybrid, COLLECTION, q, vec, 5)
