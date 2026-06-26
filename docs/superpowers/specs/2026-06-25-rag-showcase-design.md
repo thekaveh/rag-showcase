@@ -205,7 +205,7 @@ Every approach returns its answer plus collapsible structured-markdown sections 
 └────────────────────────────────────────────┘
 ```
 
-The shared response helper guarantees a consistent footer schema across all six (so latency / #calls / local-vs-cloud are eyeball-comparable). OWUI native citations are wired *if cheap*; markdown is the guaranteed-portable baseline.
+The shared response helper guarantees a consistent footer schema across all six (so latency and #calls are eyeball-comparable). The `cloud` count is `0` in the local-first default — an honest placeholder for a future enhancement that would classify cloud-vs-local calls once a role is flipped to a cloud model. OWUI native citations are wired *if cheap*; markdown is the guaranteed-portable baseline.
 
 ---
 

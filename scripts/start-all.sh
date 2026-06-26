@@ -19,10 +19,11 @@ for _ in $(seq 1 60); do
 done
 [ "$healthy" = 1 ] || { echo "Backend did not become healthy after 5 minutes; aborting before ingest."; exit 1; }
 
-echo "==> Ingesting corpus (inside the backend container)…"
+echo "==> Assembling corpus on the host (corpus/raw/)…"
 python corpus/fetch_corpus.py
 PROJECT_NAME="$(grep -E '^PROJECT_NAME=' infra/.env | cut -d= -f2 || true)"
 [ -n "$PROJECT_NAME" ] || { echo "PROJECT_NAME not found in infra/.env; aborting."; exit 1; }
+echo "==> Ingesting corpus inside the backend container…"
 docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
   python /app/ingest/ingest.py /app/corpus/raw
 
