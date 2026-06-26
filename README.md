@@ -84,7 +84,7 @@ set by hand for the default `start-all.sh` flow.
 | `TEI_RERANKER_ENDPOINT` | `http://tei-reranker:80` | vectors (rerank) | overlay |
 | `LIGHTRAG_ENDPOINT` | `http://lightrag:9621` | lightrag client | Atlas backend env |
 | `LIGHTRAG_API_KEY` | — | lightrag client | Atlas backend env |
-| `DOCLING_ENDPOINT` | `http://docling-gpu:8000` | ingest | Atlas backend env |
+| `DOCLING_ENDPOINT` | `""` (unset → naive chunking) | ingest | Atlas backend env (set only when Docling is enabled) |
 | `N8N_ADAPTIVE_WEBHOOK_URL` | `http://n8n:5678/webhook/adaptive-rag` | n8n approach | overlay |
 | `RAG_ROLES_FILE` | `/app/plugins/rag/roles.yaml` | config | overlay |
 | `BACKEND_PLUGINS_DIR` | `/app/plugins` | plugin seam (Atlas) | overlay |
