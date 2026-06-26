@@ -3,5 +3,5 @@
 embed: nomic-embed-text
 light_gen: qwen3.6
 contextual_blurb: gemma4:31b
-extraction: gemma4:31b
+extraction: gemma4:31b   # consumed by LightRAG (Atlas-side), not read by this plugin
 agentic: qwen3.6

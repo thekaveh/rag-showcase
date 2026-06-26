@@ -1,5 +1,4 @@
 import os
-import yaml
 import httpx
 import pytest
 
@@ -19,8 +18,10 @@ def _ask(model: str, query: str) -> str:
 
 
 def test_all_models_registered(litellm_up):
-    data = httpx.get(f"{LITELLM}/v1/models",
-                     headers={"Authorization": f"Bearer {KEY}"}, timeout=10).json()
+    r = httpx.get(f"{LITELLM}/v1/models",
+                  headers={"Authorization": f"Bearer {KEY}"}, timeout=10)
+    r.raise_for_status()
+    data = r.json()
     ids = {m["id"] for m in data["data"]}
     for m in MODELS:
         assert m in ids, f"{m} not registered in LiteLLM"

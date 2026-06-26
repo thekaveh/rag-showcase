@@ -85,8 +85,7 @@ def search_dense(collection: str, query_vec: list[float], k: int) -> list[Hit]:
     client = _weaviate()
     try:
         coll = client.collections.get(collection)
-        res = coll.query.near_vector(near_vector=query_vec, limit=k,
-                                     return_metadata=wq.MetadataQuery(distance=True))
+        res = coll.query.near_vector(near_vector=query_vec, limit=k)
         return _hits_from_objects(res.objects)
     finally:
         client.close()
