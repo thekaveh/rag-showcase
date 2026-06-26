@@ -1,0 +1,6 @@
+{
+  "name": "adaptive-rag",
+  "nodes": [],
+  "connections": {},
+  "_comment": "Build per n8n/README.md, then overwrite this file via n8n UI export."
+}

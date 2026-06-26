@@ -14,3 +14,5 @@ from .approaches import graph  # noqa: E402
 router.include_router(graph.router)
 from .approaches import agentic  # noqa: E402
 router.include_router(agentic.router)
+from .approaches import n8n  # noqa: E402
+router.include_router(n8n.router)
