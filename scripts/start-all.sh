@@ -66,9 +66,11 @@ done
 [ "$wv_ready" = 1 ] || { echo "Weaviate did not become ready after 5 minutes; aborting before ingest."; exit 1; }
 
 echo "==> Assembling corpus on the host (corpus/raw/)…"
-# bare python on purpose: fetch_corpus is stdlib-only, and bare python lets an
-# optional host-side `pip install datasets` take effect (the uv env omits it).
-python corpus/fetch_corpus.py
+# host python3 on purpose: fetch_corpus is stdlib-only, and using the host
+# interpreter (not the uv env, which omits `datasets`) lets an optional host-side
+# `python3 -m pip install datasets` take effect. python3, not bare `python`, for
+# portability (stock macOS — the documented platform — ships only python3).
+python3 corpus/fetch_corpus.py
 
 # The backend/LightRAG health gates do NOT guarantee Ollama has finished pulling
 # the embed + chat models (a cold first run downloads several GB), and ingest's
