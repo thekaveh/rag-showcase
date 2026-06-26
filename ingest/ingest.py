@@ -41,8 +41,8 @@ async def chunk_document(path: str) -> list[dict]:
 
 
 async def run(corpus_dir: str) -> dict:
-    vectors.ensure_collection(BASE)
-    vectors.ensure_collection(CONTEXTUAL)
+    await asyncio.to_thread(vectors.ensure_collection, BASE)
+    await asyncio.to_thread(vectors.ensure_collection, CONTEXTUAL)
     files = sorted(p for p in Path(corpus_dir).glob("**/*")
                    if p.is_file() and p.suffix.lower() in {".txt", ".md", ".pdf"})
     base_count = ctx_count = 0
@@ -53,7 +53,7 @@ async def run(corpus_dir: str) -> dict:
         doc_text = "\n\n".join(c["text"] for c in doc_chunks)
         # Base collection
         vecs = await litellm.embed([c["text"] for c in doc_chunks])
-        base_count += vectors.add_chunks(BASE, [
+        base_count += await asyncio.to_thread(vectors.add_chunks, BASE, [
             {**c, "vector": v} for c, v in zip(doc_chunks, vecs)])
         # Contextual collection (blurb-prefixed)
         ctx_rows = []
@@ -61,7 +61,7 @@ async def run(corpus_dir: str) -> dict:
             blurb = await contextualize(doc_text, c["text"])
             ctx_rows.append({"title": c["title"], "text": f"{blurb}\n\n{c['text']}"})
         ctx_vecs = await litellm.embed([r["text"] for r in ctx_rows])
-        ctx_count += vectors.add_chunks(CONTEXTUAL, [
+        ctx_count += await asyncio.to_thread(vectors.add_chunks, CONTEXTUAL, [
             {**r, "vector": v} for r, v in zip(ctx_rows, ctx_vecs)])
         # LightRAG (builds its own KG)
         await lightrag.upload_text(path.name, doc_text)

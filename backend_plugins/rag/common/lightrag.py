@@ -1,6 +1,7 @@
 """Client for Atlas's LightRAG server (graph + vector RAG)."""
 from __future__ import annotations
 
+import logging
 import os
 
 import httpx
@@ -23,7 +24,12 @@ async def query(question: str, mode: str = "hybrid") -> str:
                                  json={"query": question, "mode": mode})
         resp.raise_for_status()
         data = resp.json()
-        return data.get("response") or data.get("data") or ""
+        answer = data.get("response") or data.get("data") or ""
+        if not answer:
+            logging.getLogger("uvicorn.error").warning(
+                "lightrag.query returned no recognized answer field (keys=%s)",
+                list(data)[:10])
+        return answer
 
 
 async def upload_text(title: str, text: str) -> None:

@@ -16,4 +16,6 @@ async def contextualize(doc_text: str, chunk_text: str) -> str:
         config.role("contextual_blurb"),
         [{"role": "user", "content": _PROMPT.format(doc=doc_text[:6000], chunk=chunk_text)}],
     )
-    return resp["choices"][0]["message"]["content"].strip()
+    choices = resp.get("choices") or []
+    content = (choices[0].get("message", {}).get("content") if choices else None) or ""
+    return content.strip()

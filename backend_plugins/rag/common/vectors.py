@@ -22,17 +22,23 @@ class Hit:
     score: float | None = None
 
 
-def _weaviate():
-    """Open a Weaviate v4 client to the in-network instance."""
+def _weaviate() -> Any:
+    """Open a Weaviate v4 client to the in-network instance.
+
+    The gRPC port defaults to 50051 (Weaviate's standard) but is overridable
+    via WEAVIATE_GRPC_PORT for non-standard deployments — the WEAVIATE_URL
+    scheme only carries the HTTP port.
+    """
     import weaviate
     from urllib.parse import urlparse
 
     url = urlparse(os.environ.get("WEAVIATE_URL", "http://weaviate:8080"))
     host = url.hostname or "weaviate"
     http_port = url.port or 8080
+    grpc_port = int(os.environ.get("WEAVIATE_GRPC_PORT", "50051"))
     return weaviate.connect_to_custom(
         http_host=host, http_port=http_port, http_secure=False,
-        grpc_host=host, grpc_port=50051, grpc_secure=False,
+        grpc_host=host, grpc_port=grpc_port, grpc_secure=False,
     )
 
 
@@ -64,12 +70,19 @@ def add_chunks(name: str, chunks: list[dict[str, Any]]) -> int:
                     properties={"title": c["title"], "text": c["text"]},
                     vector=c["vector"],
                 )
-        return len(chunks)
+        # Weaviate v4 batches absorb per-object errors instead of raising;
+        # surface them and return the count actually inserted (not the input
+        # count) so callers don't over-report a partially failed ingest.
+        failed = getattr(coll.batch, "failed_objects", None) or []
+        if failed:
+            print(f"  ⚠ add_chunks: {len(failed)}/{len(chunks)} objects "
+                  f"failed to insert into '{name}'", flush=True)
+        return len(chunks) - len(failed)
     finally:
         client.close()
 
 
-def _hits_from_objects(objs) -> list[Hit]:
+def _hits_from_objects(objs: Any) -> list[Hit]:
     out: list[Hit] = []
     for o in objs:
         score = None
@@ -81,7 +94,6 @@ def _hits_from_objects(objs) -> list[Hit]:
 
 
 def search_dense(collection: str, query_vec: list[float], k: int) -> list[Hit]:
-    import weaviate.classes.query as wq
     client = _weaviate()
     try:
         coll = client.collections.get(collection)
@@ -115,6 +127,10 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
         ranking = resp.json()
     ordered: list[Hit] = []
     for row in ranking[:top_n]:
-        h = hits[row["index"]]
-        ordered.append(Hit(title=h.title, text=h.text, score=float(row["score"])))
+        idx = row.get("index")
+        if not isinstance(idx, int) or not (0 <= idx < len(hits)):
+            continue  # ignore out-of-range indices from a misbehaving reranker
+        h = hits[idx]
+        ordered.append(Hit(title=h.title, text=h.text,
+                           score=float(row.get("score", 0.0))))
     return ordered

@@ -13,7 +13,7 @@ def _load() -> dict[str, str]:
     if _CACHE:
         return _CACHE
     path = Path(os.getenv("RAG_ROLES_FILE", "/app/plugins/rag/roles.yaml"))
-    data = yaml.safe_load(path.read_text()) if path.is_file() else {}
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) if path.is_file() else {}
     _CACHE.update({str(k): str(v) for k, v in (data or {}).items()})
     return _CACHE
 

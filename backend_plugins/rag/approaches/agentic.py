@@ -8,6 +8,7 @@ returns the model's final answer.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 
@@ -41,7 +42,7 @@ async def _run_tool(name: str, args: dict) -> str:
     q = args.get("query", "")
     if name == "search_vectors":
         vec = (await litellm.embed([q]))[0]
-        hits = vectors.search_hybrid(COLLECTION, q, vec, 5)
+        hits = await asyncio.to_thread(vectors.search_hybrid, COLLECTION, q, vec, 5)
         return "\n".join(f"- {h.title}: {h.text[:200]}" for h in hits) or "(no results)"
     if name == "query_graph":
         return await lightrag.query(q, mode="hybrid")

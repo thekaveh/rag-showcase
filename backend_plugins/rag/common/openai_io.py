@@ -8,6 +8,11 @@ from pydantic import BaseModel
 
 
 class ChatRequest(BaseModel):
+    # `model`, `stream`, and `temperature` are accepted for OpenAI-compat (so
+    # OpenWebUI's payloads validate) but intentionally NOT honored: every
+    # approach generates at temperature 0 for a fair side-by-side comparison,
+    # and responses are returned whole (clients that send stream=true fall back
+    # to the non-streamed body). Only `messages` (via last_user) drives behavior.
     model: str
     messages: list[dict[str, Any]]
     stream: bool = False

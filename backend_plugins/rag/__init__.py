@@ -3,7 +3,7 @@ from fastapi import APIRouter
 
 router = APIRouter()
 
-# Approach routers are registered by later tasks as they are implemented.
+# Include all six approach routers onto the aggregate router the seam loads.
 from .approaches import vanilla  # noqa: E402
 router.include_router(vanilla.router)
 from .approaches import hybrid  # noqa: E402

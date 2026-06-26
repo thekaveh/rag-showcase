@@ -1,6 +1,7 @@
 """hybrid-rag: Weaviate hybrid (BM25+dense, RRF) → TEI rerank → stuff."""
 from __future__ import annotations
 
+import asyncio
 import time
 
 from fastapi import APIRouter
@@ -20,7 +21,8 @@ async def hybrid_rag(req: ChatRequest):
     t0 = time.monotonic()
     question = req.last_user()
     query_vec = (await litellm.embed([question]))[0]
-    candidates = vectors.search_hybrid(COLLECTION, question, query_vec, RETRIEVE_K)
+    candidates = await asyncio.to_thread(
+        vectors.search_hybrid, COLLECTION, question, query_vec, RETRIEVE_K)
     hits = await vectors.rerank(question, candidates, TOP_N)
     answer, calls = await answer_from_context(config.role("light_gen"), question, hits)
     sources = [Source(h.title, h.text[:240], h.score) for h in hits]

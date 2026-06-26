@@ -16,13 +16,13 @@ _NAMES = ["vanilla-rag", "hybrid-rag", "contextual-rag",
 
 
 def _model_spec(name: str) -> dict:
+    # api_key is injected at run() time (read from env then), not at import,
+    # so a spec built at import never captures a stale/missing key.
     return {
         "model_name": name,
         "litellm_params": {
             "model": f"openai/{name}",
             "api_base": f"http://backend:8000/{name}/v1",
-            # any non-empty key; the backend route doesn't check it
-            "api_key": os.environ.get("LITELLM_MASTER_KEY", "sk-noauth"),
         },
         "model_info": {"description": f"RAG showcase: {name}"},
     }
@@ -49,11 +49,17 @@ async def run() -> None:
             if row.get("model_name") in ours:
                 mid = (row.get("model_info") or {}).get("id")
                 if mid:
-                    await client.post(f"{_base()}/model/delete",
-                                      headers=_headers(), json={"id": mid})
+                    # the model provably exists (we just listed it), so a
+                    # failed delete is a real error worth surfacing.
+                    dresp = await client.post(f"{_base()}/model/delete",
+                                              headers=_headers(), json={"id": mid})
+                    dresp.raise_for_status()
+        key = os.environ.get("LITELLM_MASTER_KEY", "sk-noauth")
         for spec in MODELS:
+            payload = {**spec, "litellm_params":
+                       {**spec["litellm_params"], "api_key": key}}
             resp = await client.post(f"{_base()}/model/new",
-                                     headers=_headers(), json=spec)
+                                     headers=_headers(), json=payload)
             resp.raise_for_status()
             print(f"  ↳ registered {spec['model_name']}")
 
