@@ -222,6 +222,8 @@ agentic:           qwen3.6            # local (orchestrator / n8n) — cloud fal
 rerank:            <TEI service>      # not an LLM; mxbai-rerank-base-v1 cross-encoder
 ```
 
+> **Deviation (corrected in `roles.yaml`):** Atlas's catalog has no `gemma4:31b`, and its LiteLLM registers the default chat model as `qwen3.6:latest` (bare `qwen3.6` does not resolve). The implementation therefore uses `qwen3.6:latest` for every chat role (`light_gen`, `contextual_blurb`, `extraction`, `agentic`) and `nomic-embed-text` for `embed`. To use distinct/heavier per-role models, activate them via `start.sh --ollama-models` and name them exactly in `roles.yaml`.
+
 Adding a cloud key is optional and only needed if local extraction/agentic quality is insufficient. (Optional future enhancement: expose `*-local` vs `*-cloud` variants as separate columns to compare *brains*, not just *methods*.)
 
 ---
