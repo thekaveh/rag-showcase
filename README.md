@@ -42,7 +42,7 @@ once in the n8n UI — see [`n8n/README.md`](n8n/README.md).
 |-------|----------|-----------------|
 | `vanilla-rag` | dense top-k → stuff → one call (baseline) | — (the control) |
 | `hybrid-rag` | Weaviate hybrid (BM25+dense) → TEI rerank | exact keyword / ID queries |
-| `contextual-rag` | Anthropic Contextual Retrieval over context-prefixed chunks | context-starved chunks |
+| `contextual-rag` | Anthropic Contextual Retrieval over context-prefixed chunks | context-starved chunks (clearest under Docling chunking) |
 | `graph-rag` | wraps Atlas's LightRAG (graph + vector) | thematic / whole-corpus questions |
 | `agentic-rag` | ReAct loop over vector + graph tools | multi-hop / comparative questions |
 | `n8n-adaptive-rag` | low-code Adaptive-RAG workflow (routes by complexity) | mixed simple+complex batches |
