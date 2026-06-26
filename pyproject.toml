@@ -5,7 +5,7 @@ description = "Six-approach RAG comparison showcase over Atlas"
 requires-python = ">=3.10"
 
 [tool.pytest.ini_options]
-pythonpath = ["backend_plugins"]
+pythonpath = ["backend_plugins", "."]
 asyncio_mode = "auto"
 testpaths = ["backend_plugins/rag/tests", "tests"]
 
