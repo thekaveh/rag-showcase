@@ -1,4 +1,9 @@
 [project]
+# Not published or pip-installed as a library: the plugin package is bind-mounted
+# into Atlas's backend at runtime, and its runtime deps come from the Atlas
+# backend image + backend_plugins/requirements.txt (installed by the plugin
+# seam). This pyproject defines only the local dev/test environment — hence no
+# [project].dependencies; see [dependency-groups] below.
 name = "rag-showcase"
 version = "0.1.0"
 description = "Six-approach RAG comparison showcase over Atlas"

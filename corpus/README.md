@@ -15,10 +15,11 @@ python corpus/fetch_corpus.py
 ```
 
 This copies the keyword docs into `corpus/raw/` and appends a MultiHop-RAG slice.
-The MultiHop-RAG slice needs the optional `datasets` dependency:
+The MultiHop-RAG slice needs the optional `datasets` package, which is kept out
+of the uv-managed deps (its transitive closure is heavy) — install it on demand:
 
 ```bash
-uv sync --group corpus    # or: pip install datasets
+pip install datasets
 ```
 
 If `datasets` is unavailable, the script degrades gracefully to keyword-docs only.
