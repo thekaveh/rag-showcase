@@ -21,3 +21,19 @@ async def test_register_deletes_existing_then_adds(monkeypatch):
     assert new.call_count == len(reg.MODELS)   # added all six
     body = new.calls[0].request.read().decode()
     assert "backend:8000" in body and "openai/" in body
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_register_skips_delete_when_clean(monkeypatch):
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_MASTER_KEY", "sk-master")
+    respx.get("http://litellm:4000/model/info").mock(
+        return_value=httpx.Response(200, json={"data": []}))
+    delete = respx.post("http://litellm:4000/model/delete").mock(
+        return_value=httpx.Response(200, json={}))
+    new = respx.post("http://litellm:4000/model/new").mock(
+        return_value=httpx.Response(200, json={}))
+    await reg.run()
+    assert not delete.called                       # nothing to remove on a clean slate
+    assert new.call_count == len(reg.MODELS)       # still registers all six

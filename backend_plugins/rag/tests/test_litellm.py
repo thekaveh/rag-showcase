@@ -33,3 +33,15 @@ async def test_chat_returns_json(monkeypatch):
     assert out["choices"][0]["message"]["content"] == "hi"
     assert route.called
     assert route.calls.last.request.headers["authorization"] == "Bearer sk-test"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_embed_uses_default_role_when_model_omitted(monkeypatch):
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    monkeypatch.setattr(litellm.config, "role", lambda r: "default-embed")
+    route = respx.post("http://litellm:4000/v1/embeddings").mock(
+        return_value=httpx.Response(200, json={"data": [{"embedding": [0.0]}]}))
+    await litellm.embed(["x"])  # no model arg -> falls back to config.role("embed")
+    assert "default-embed" in route.calls.last.request.content.decode()

@@ -19,3 +19,30 @@ async def test_chunk_document_calls_docling(monkeypatch, tmp_path):
     chunks = await ing.chunk_document(str(doc))
     assert chunks[0]["text"] == "hello world"
     assert chunks[0]["title"].endswith("Intro") or "a.txt" in chunks[0]["title"]
+
+
+@pytest.mark.asyncio
+async def test_run_populates_all_three_indexes(monkeypatch, tmp_path):
+    (tmp_path / "d1.txt").write_text("doc one", encoding="utf-8")
+    (tmp_path / "d2.txt").write_text("doc two", encoding="utf-8")
+    added = {"RagBase": 0, "RagContextual": 0}
+    uploads = []
+
+    async def fake_chunk(path): return [{"title": "t", "text": "chunk"}]
+    async def fake_embed(texts, model=None): return [[0.0] for _ in texts]
+    async def fake_contextualize(doc, chunk): return "blurb"
+    async def fake_upload(title, text): uploads.append(title)
+    def fake_ensure(name): pass
+    def fake_add(name, rows): added[name] += len(rows); return len(rows)
+
+    monkeypatch.setattr(ing, "chunk_document", fake_chunk)
+    monkeypatch.setattr(ing.litellm, "embed", fake_embed)
+    monkeypatch.setattr(ing, "contextualize", fake_contextualize)
+    monkeypatch.setattr(ing.lightrag, "upload_text", fake_upload)
+    monkeypatch.setattr(ing.vectors, "ensure_collection", fake_ensure)
+    monkeypatch.setattr(ing.vectors, "add_chunks", fake_add)
+
+    result = await ing.run(str(tmp_path))
+    assert result == {"files": 2, "base_chunks": 2, "contextual_chunks": 2}
+    assert added == {"RagBase": 2, "RagContextual": 2}
+    assert len(uploads) == 2  # one LightRAG upload per file

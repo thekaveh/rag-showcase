@@ -20,3 +20,9 @@ async def test_rerank_reorders_by_tei_score(monkeypatch):
     out = await rerank("q", hits, top_n=2)
     assert [h.title for h in out] == ["C", "A"]
     assert out[0].score == 0.99
+
+
+@pytest.mark.asyncio
+async def test_rerank_empty_hits_short_circuits():
+    # early-return guard: no TEI call is made, so no HTTP mock is needed
+    assert await rerank("q", [], top_n=5) == []

@@ -41,3 +41,8 @@ def test_chat_request_last_user():
         {"role": "user", "content": "second"},
     ])
     assert req.last_user() == "second"
+
+
+def test_chat_request_last_user_empty_when_no_user_message():
+    req = ChatRequest(model="x", messages=[{"role": "assistant", "content": "hi"}])
+    assert req.last_user() == ""

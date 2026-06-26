@@ -29,4 +29,5 @@ async def test_hybrid_uses_hybrid_search_then_rerank(monkeypatch):
                                 "messages": [{"role": "user", "content": "find KEYWORD"}]})
     assert r.status_code == 200
     assert calls["hybrid"][0] == "find KEYWORD"   # raw text drives BM25 leg
+    assert calls["rerank"] == hybrid.TOP_N         # rerank runs with the configured top_n
     assert "KEYWORD" in r.json()["choices"][0]["message"]["content"]
