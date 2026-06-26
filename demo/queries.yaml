@@ -18,7 +18,7 @@
 - id: context_starved
   query: "What does the safety relay do when the coil overheats, and how do I clear it?"
   expect_winner: contextual-rag
-  rationale: "A chunk split from its parent doc loses the error code it belongs to; contextual-rag's prepended blurb restores it. Shows on the multi-chunk MultiHop-RAG docs (the one-chunk keyword doc exposes it only under Docling chunking)."
+  rationale: "Contextual blurbs help when a chunk is split from the context that disambiguates it. Under the default naive chunking the keyword doc is a single chunk, so this visibly wins only with Docling structure-aware chunking (or a longer doc that separates the relay from its error code)."
 - id: mixed_batch
   query: "List the widget error codes, then explain how they relate to each other across the docs."
   expect_winner: n8n-adaptive-rag
