@@ -38,8 +38,8 @@ it takes a while. Then open the printed URL, start a multi-model chat, and selec
 The `n8n-adaptive-rag` column also requires building and activating its workflow
 once in the n8n UI — see [`n8n/README.md`](n8n/README.md).
 
-For the full corpus (MultiHop-RAG + keyword docs), `pip install datasets` on the
-host before running; without it, ingestion uses only the bundled keyword docs, so
+For the full corpus (MultiHop-RAG + keyword docs), `python3 -m pip install datasets`
+on the host before running; without it, ingestion uses only the bundled keyword docs, so
 the thematic / multi-hop demo queries have little to work with — see
 [`corpus/README.md`](corpus/README.md).
 
