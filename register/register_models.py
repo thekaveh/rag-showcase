@@ -35,8 +35,15 @@ def _base() -> str:
     return os.environ.get("LITELLM_BASE_URL", "http://litellm:4000").rstrip("/")
 
 
+def _key() -> str:
+    # In the backend container the master key is exposed as LITELLM_API_KEY;
+    # on a host run it's LITELLM_MASTER_KEY. Accept either.
+    return (os.environ.get("LITELLM_MASTER_KEY")
+            or os.environ.get("LITELLM_API_KEY") or "sk-noauth")
+
+
 def _headers() -> dict:
-    return {"Authorization": f"Bearer {os.environ.get('LITELLM_MASTER_KEY','')}"}
+    return {"Authorization": f"Bearer {_key()}"}
 
 
 async def run() -> None:
@@ -54,7 +61,7 @@ async def run() -> None:
                     dresp = await client.post(f"{_base()}/model/delete",
                                               headers=_headers(), json={"id": mid})
                     dresp.raise_for_status()
-        key = os.environ.get("LITELLM_MASTER_KEY", "sk-noauth")
+        key = _key()
         for spec in MODELS:
             payload = {**spec, "litellm_params":
                        {**spec["litellm_params"], "api_key": key}}

@@ -37,3 +37,18 @@ async def test_register_skips_delete_when_clean(monkeypatch):
     await reg.run()
     assert not delete.called                       # nothing to remove on a clean slate
     assert new.call_count == len(reg.MODELS)       # still registers all six
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_register_uses_api_key_when_master_absent(monkeypatch):
+    # in-container the master key is exposed as LITELLM_API_KEY, not _MASTER_KEY
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.delenv("LITELLM_MASTER_KEY", raising=False)
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-fromapi")
+    respx.get("http://litellm:4000/model/info").mock(
+        return_value=httpx.Response(200, json={"data": []}))
+    new = respx.post("http://litellm:4000/model/new").mock(
+        return_value=httpx.Response(200, json={}))
+    await reg.run()
+    assert new.calls.last.request.headers["authorization"] == "Bearer sk-fromapi"

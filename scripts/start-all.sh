@@ -29,9 +29,12 @@ echo "==> Ingesting corpus inside the backend container…"
 docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
   python /app/ingest/ingest.py /app/corpus/raw
 
-echo "==> Registering the six models in LiteLLM…"
-set -a; source infra/.env; set +a
-uv run python register/register_models.py   # needs httpx from the uv env
+echo "==> Registering the six models in LiteLLM (inside the backend container)…"
+# Run in-container: LiteLLM is reachable at http://litellm:4000 there, the key
+# is present (LITELLM_API_KEY), and httpx is installed by the plugin seam. This
+# also avoids shell-sourcing Atlas's .env (which has unquoted values).
+docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
+  python /app/register/register_models.py
 
 OWUI="$(grep -E '^OPEN_WEB_UI_PORT=' infra/.env | cut -d= -f2 || true)"
 [ -n "$OWUI" ] || { echo "OPEN_WEB_UI_PORT not found in infra/.env; aborting."; exit 1; }
