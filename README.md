@@ -114,4 +114,12 @@ uv run pytest backend_plugins # unit tests only
 
 The unit tests mock all external I/O and run without the stack. The
 `tests/test_demo_matrix.py` integration tests exercise the live stack and
-self-skip when LiteLLM is unreachable.
+self-skip when LiteLLM is unreachable. They default to the in-container address
+`http://litellm:4000`; to run them from the host against a running stack, point
+them at the published port and master key:
+
+```bash
+LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail -1 | cut -d= -f2)" \
+  LITELLM_MASTER_KEY="$(grep -E '^LITELLM_MASTER_KEY=' infra/.env | tail -1 | cut -d= -f2)" \
+  uv run pytest tests
+```

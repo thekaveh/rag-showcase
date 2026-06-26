@@ -62,6 +62,11 @@ async def agentic_rag(req: ChatRequest):
     for step_i in range(MAX_STEPS):
         resp = await litellm.chat(model, messages, tools=_TOOLS)
         llm_calls += 1
+        # We harden against malformed VALUES the local model controls (content,
+        # and each tool call's id/name/arguments — handled below), but trust the
+        # OpenAI response STRUCTURE that the LiteLLM gateway enforces (choices is a
+        # list of objects; message/tool_calls/function are objects). A structurally
+        # malformed envelope is a gateway-contract violation, handled like any 5xx.
         choices = resp.get("choices") or []
         if not choices:
             answer = "(no response from model)"
