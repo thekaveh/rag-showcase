@@ -45,7 +45,7 @@ Each approach is one OpenAI-compatible endpoint, registered as a LiteLLM model s
 | Model name | Mechanism | Atlas services used | LLM role (default = local) | Surfaces (the "why") | Distinct axis |
 |---|---|---|---|---|---|
 | **`vanilla-rag`** | chunk → embed → top-k dense → stuff → 1 call | Weaviate, LiteLLM | `qwen3.6` (gen) + `nomic-embed-text` | retrieved chunks | control: none (baseline) |
-| **`hybrid-rag`** | Weaviate native hybrid (BM25+dense, RRF) → TEI rerank → stuff | Weaviate, TEI reranker, LiteLLM | local | chunks *before vs after* rerank | retrieval |
+| **`hybrid-rag`** | Weaviate native hybrid (BM25+dense, relativeScoreFusion) → TEI rerank → stuff | Weaviate, TEI reranker, LiteLLM | local | reranked top-k chunks | retrieval |
 | **`contextual-rag`** | Anthropic's Contextual Retrieval: LLM-written context blurb prepended to each chunk *at ingest*, then hybrid+rerank | Weaviate, TEI, LiteLLM | `gemma4:31b` (blurbs, offline) | the blurb that rescued an ambiguous chunk | context assembly |
 | **`graph-rag`** | graph + vector dual retrieval (thin wrapper over Atlas's LightRAG server) | **LightRAG**, Neo4j, pgvector, Redis | `gemma4:31b` (extraction) | entities/relations hit in the KG | index structure |
 | **`agentic-rag`** | ReAct loop: decides when/what to retrieve, multi-hop, tool use over Weaviate + LightRAG | LiteLLM, Weaviate, LightRAG | `qwen3.6` (orchestrator) | Thought→Action→Observation trace | control flow (full agent) |
@@ -66,7 +66,7 @@ The corpus (§5) is chosen to support all of these. Each is engineered so one ap
 | **Exact keyword / proper-noun** | "What did *<rare name/date/title>* say about X?" | hybrid, contextual | vanilla retrieves wrong chunks; BM25 leg nails it |
 | **Context-starved chunk** | a fact that only resolves with its document context | contextual | the prepended blurb flips a miss into a hit |
 | **Thematic / whole-corpus** | "What are the main themes across all the docs?" | graph-rag | flat RAG → shallow list; graph → synthesized themes |
-| **Multi-hop / comparative** | "Compare what A and C concluded and reconcile them" | agentic | the trace retrieves twice, then reasons |
+| **Multi-hop / comparative** | "Compare what A and C concluded and reconcile them" | agentic | the trace shows the agent deciding to retrieve (often more than once), then reasoning |
 | **Mixed simple+complex batch** | a run of easy and hard queries | n8n-adaptive | routes cheaply on easy, escalates on hard |
 | **Simple factoid** | one clean fact | *all tie* | teaches "when is fancy RAG even worth it?" |
 
@@ -297,7 +297,7 @@ A living document (`docs/atlas-reuse-assessment.md`) capturing, as we build:
 The six were chosen from a broader survey to maximize *visible* contrast across the four RAG axes (query transform / context assembly / index structure / control flow) while staying self-hostable on Ollama + Weaviate + Neo4j.
 
 - **Naive RAG** — Gao et al. survey, arxiv.org/abs/2312.10997; original RAG, Lewis et al. 2020, arxiv.org/abs/2005.11401.
-- **Hybrid + rerank** — RRF (Cormack et al., SIGIR 2009); SPLADE, arxiv.org/abs/2107.05720; rerankers: `mxbai-rerank` / `bge-reranker-v2-m3`.
+- **Hybrid + rerank** — Weaviate relativeScoreFusion (the v4 default; RRF — Cormack et al., SIGIR 2009 — is the rank-based alternative); SPLADE, arxiv.org/abs/2107.05720; rerankers: `mxbai-rerank` / `bge-reranker-v2-m3`.
 - **Contextual Retrieval** — Anthropic, anthropic.com/news/contextual-retrieval (−35%/−49%/−67% retrieval-failure reductions).
 - **LightRAG** — Guo et al., arxiv.org/abs/2410.05779 (HKUDS/LightRAG); dual-level graph+vector, cheap incremental updates.
 - **GraphRAG** (context/alternative) — Edge et al., arxiv.org/abs/2404.16130 (microsoft/graphrag); painful to self-host locally → LightRAG chosen instead.

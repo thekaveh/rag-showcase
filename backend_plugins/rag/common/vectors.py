@@ -121,6 +121,8 @@ def search_hybrid(collection: str, query: str, query_vec: list[float],
     client = _weaviate()
     try:
         coll = client.collections.get(collection)
+        # No fusion_type → Weaviate's default relativeScoreFusion (each of BM25 +
+        # dense is normalized to [0,1] and summed); alpha=0.5 weights the legs equally.
         res = coll.query.hybrid(query=query, vector=query_vec, alpha=0.5, limit=k,
                                 return_metadata=wq.MetadataQuery(score=True))
         return _hits_from_objects(res.objects)

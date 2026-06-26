@@ -1,4 +1,4 @@
-"""hybrid-rag: Weaviate hybrid (BM25+dense, RRF) → TEI rerank → stuff."""
+"""hybrid-rag: Weaviate hybrid (BM25+dense, relativeScoreFusion) → TEI rerank → stuff."""
 from __future__ import annotations
 
 import asyncio
