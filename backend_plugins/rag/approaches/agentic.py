@@ -58,7 +58,7 @@ async def agentic_rag(req: ChatRequest):
     trace: list[str] = []
     llm_calls = 0
     answer = ""
-    for _ in range(MAX_STEPS):
+    for step_i in range(MAX_STEPS):
         resp = await litellm.chat(model, messages, tools=_TOOLS)
         llm_calls += 1
         choices = resp.get("choices") or []
@@ -72,7 +72,15 @@ async def agentic_rag(req: ChatRequest):
             break
         messages.append(msg)
         thought = (msg.get("content") or "").strip()
-        for call in tool_calls:
+        for j, call in enumerate(tool_calls):
+            # Local models sometimes emit a tool call with a null/absent id. The
+            # OpenAI contract requires each tool reply's tool_call_id to match an
+            # id in the preceding assistant message, so synthesize a stable one
+            # when missing — mutating `call`, which aliases the just-appended
+            # msg's tool_calls — so a later turn that re-sends this pair can't
+            # 400 at the gateway on an id mismatch.
+            if not call.get("id"):
+                call["id"] = f"call_{step_i}_{j}"
             # defensive against malformed tool calls from local models: a
             # missing name flows to _run_tool, which returns an "unknown tool"
             # observation, so the tool_call still gets a response (no dangling
@@ -91,7 +99,7 @@ async def agentic_rag(req: ChatRequest):
             step += (f"**Action:** `{name}({args.get('query','')})`\n\n"
                      f"**Observation:** {observation[:300]}")
             trace.append(step)
-            messages.append({"role": "tool", "tool_call_id": call.get("id") or "",
+            messages.append({"role": "tool", "tool_call_id": call["id"],
                              "content": observation})
     if not answer:
         answer = "(agent reached MAX_STEPS without producing a final answer)"

@@ -97,6 +97,11 @@ def search_dense(collection: str, query_vec: list[float], k: int) -> list[Hit]:
     client = _weaviate()
     try:
         coll = client.collections.get(collection)
+        # Intentionally requests no score metadata: a pure vector search exposes
+        # only distance/certainty, never the fused `score` that hybrid/BM25
+        # populate, and the demo surface renders sources fine without a per-hit
+        # score (see test_build_response_source_without_score). We don't request
+        # metadata we don't render, so vanilla-rag's Hits carry score=None by design.
         res = coll.query.near_vector(near_vector=query_vec, limit=k)
         return _hits_from_objects(res.objects)
     finally:
@@ -135,4 +140,6 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
         h = hits[idx]
         ordered.append(Hit(title=h.title, text=h.text,
                            score=float(row.get("score", 0.0))))
-    return ordered
+    # if every ranked index was out of range (or the list was empty), fall back
+    # to input order rather than dropping all sources
+    return ordered or hits[:top_n]
