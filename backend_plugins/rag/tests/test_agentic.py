@@ -62,3 +62,26 @@ async def test_agentic_uses_query_graph_tool(monkeypatch):
     assert "graph-based answer" in content
     assert "query_graph" in content and "GRAPH-OBS-XYZ" in content
     assert len(turns) == 2
+
+
+@pytest.mark.asyncio
+async def test_agentic_tolerates_malformed_tool_call(monkeypatch):
+    # a tool call missing function.name / id must not raise; it gets answered
+    # with an "unknown tool" observation and the loop proceeds to a final answer.
+    turns = []
+    async def fake_chat(model, messages, tools=None, **kw):
+        turns.append(messages)
+        if len(turns) == 1:
+            return {"choices": [{"message": {"role": "assistant", "content": None,
+                "tool_calls": [{"type": "function", "function": {}}]}}]}  # no id, no name
+        return {"choices": [{"message": {"role": "assistant", "content": "done"}}]}
+    monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
+    monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
+    app = FastAPI(); app.include_router(agentic.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/agentic-rag/v1/chat/completions",
+                          json={"model": "agentic-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200
+    assert "done" in r.json()["choices"][0]["message"]["content"]
+    assert len(turns) == 2

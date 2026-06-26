@@ -73,9 +73,14 @@ async def agentic_rag(req: ChatRequest):
         messages.append(msg)
         thought = (msg.get("content") or "").strip()
         for call in tool_calls:
-            name = call["function"]["name"]
+            # defensive against malformed tool calls from local models: a
+            # missing name flows to _run_tool, which returns an "unknown tool"
+            # observation, so the tool_call still gets a response (no dangling
+            # call left for the next turn).
+            fn = call.get("function") or {}
+            name = fn.get("name") or ""
             try:
-                args = json.loads(call["function"].get("arguments") or "{}")
+                args = json.loads(fn.get("arguments") or "{}")
             except json.JSONDecodeError:
                 args = {}
             observation = await _run_tool(name, args)
@@ -86,7 +91,7 @@ async def agentic_rag(req: ChatRequest):
             step += (f"**Action:** `{name}({args.get('query','')})`\n\n"
                      f"**Observation:** {observation[:300]}")
             trace.append(step)
-            messages.append({"role": "tool", "tool_call_id": call["id"],
+            messages.append({"role": "tool", "tool_call_id": call.get("id", ""),
                              "content": observation})
     if not answer:
         answer = "(agent reached MAX_STEPS without producing a final answer)"

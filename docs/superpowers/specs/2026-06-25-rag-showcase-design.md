@@ -6,7 +6,7 @@
 - **Related infra:** [Atlas](https://github.com/thekaveh/atlas) — reused as a Git submodule
 
 > **Implementation deviations from this design (the code is authoritative):**
-> - The graph approach ships as **`graph-rag`** (a thin wrapper over Atlas's LightRAG server), not the spec's `lightrag`/"reuse as-is" — renamed to avoid colliding with Atlas's built-in `lightrag` model.
+> - The graph approach ships as **`graph-rag`** — a thin wrapper over Atlas's LightRAG server, named to avoid colliding with Atlas's built-in `lightrag` model. (The original design considered reusing Atlas's `lightrag` model as-is.)
 > - Ingestion runs **inside the backend container** (`docker exec … python /app/ingest/ingest.py`), not via a `make ingest` target.
 > - Registration uses LiteLLM's **`/model/new` admin API** (not `public.llms` rows) and triggers no separate reload — the admin API takes effect immediately.
 > - `start-all.sh` passes the full track flags (`--lightrag-source container --tei-reranker-source container-cpu --doc-processor-source docling-container-cpu`), not just `--track gen-ai-rag`.
@@ -47,7 +47,7 @@ Each approach is one OpenAI-compatible endpoint, registered as a LiteLLM model s
 | **`vanilla-rag`** | chunk → embed → top-k dense → stuff → 1 call | Weaviate, LiteLLM | `qwen3.6` (gen) + `nomic-embed-text` | retrieved chunks | control: none (baseline) |
 | **`hybrid-rag`** | Weaviate native hybrid (BM25+dense, RRF) → TEI rerank → stuff | Weaviate, TEI reranker, LiteLLM | local | chunks *before vs after* rerank | retrieval |
 | **`contextual-rag`** | Anthropic's Contextual Retrieval: LLM-written context blurb prepended to each chunk *at ingest*, then hybrid+rerank | Weaviate, TEI, LiteLLM | `gemma4:31b` (blurbs, offline) | the blurb that rescued an ambiguous chunk | context assembly |
-| **`lightrag`** | graph + vector dual retrieval (reuses Atlas's existing LightRAG model) | **LightRAG**, Neo4j, pgvector, Redis | `gemma4:31b` (extraction) | entities/relations hit in the KG | index structure |
+| **`graph-rag`** | graph + vector dual retrieval (thin wrapper over Atlas's LightRAG server) | **LightRAG**, Neo4j, pgvector, Redis | `gemma4:31b` (extraction) | entities/relations hit in the KG | index structure |
 | **`agentic-rag`** | ReAct loop: decides when/what to retrieve, multi-hop, tool use over Weaviate + LightRAG | LiteLLM, Weaviate, LightRAG | `qwen3.6` (orchestrator) | Thought→Action→Observation trace | control flow (full agent) |
 | **`n8n-adaptive-rag`** | semi-agentic **Adaptive-RAG**: route by query complexity (simple → cheap retrieval, complex → multi-step), built visually in n8n | **n8n**, Weaviate, LightRAG, LiteLLM | `qwen3.6` (routing) | the routing decision + path taken | control flow (low-code, routed) |
 
@@ -65,7 +65,7 @@ The corpus (§5) is chosen to support all of these. Each is engineered so one ap
 |---|---|---|---|
 | **Exact keyword / proper-noun** | "What did *<rare name/date/title>* say about X?" | hybrid, contextual | vanilla retrieves wrong chunks; BM25 leg nails it |
 | **Context-starved chunk** | a fact that only resolves with its document context | contextual | the prepended blurb flips a miss into a hit |
-| **Thematic / whole-corpus** | "What are the main themes across all the docs?" | lightrag | flat RAG → shallow list; graph → synthesized themes |
+| **Thematic / whole-corpus** | "What are the main themes across all the docs?" | graph-rag | flat RAG → shallow list; graph → synthesized themes |
 | **Multi-hop / comparative** | "Compare what A and C concluded and reconcile them" | agentic | the trace retrieves twice, then reasons |
 | **Mixed simple+complex batch** | a run of easy and hard queries | n8n-adaptive | routes cheaply on easy, escalates on hard |
 | **Simple factoid** | one clean fact | *all tie* | teaches "when is fancy RAG even worth it?" |
@@ -173,7 +173,7 @@ corpus/ ──▶ Docling (/v1/document/convert) ──▶ structure-aware chunk
 
 - **vanilla / hybrid** read the Weaviate *base* collection.
 - **contextual** reads the *contextual* collection (identical retrieval code; only the chunks differ).
-- **lightrag** ingests raw docs itself and builds the Neo4j graph.
+- **graph-rag** delegates to Atlas's LightRAG server, which ingests raw docs and builds the Neo4j graph.
 - **agentic / n8n** add **no new index** — they query the existing Weaviate base collection and the LightRAG graph as tools.
 
 Ingestion runs once inside the backend container (`docker exec … python /app/ingest/ingest.py`, driven by `scripts/start-all.sh`). The slow parts (contextual blurbs + LightRAG extraction) are local and offline; expect minutes, gated by health checks.
@@ -251,7 +251,7 @@ Adding a cloud key is optional and only needed if local extraction/agentic quali
 |---|---|
 | **P0** | Private GitHub repo + Atlas submodule (Method B) + the two generic backend seams (Atlas feature branch) + `_user/` symlink wiring |
 | **P1** | Backend plugin package: `vanilla` → `hybrid` → `contextual` endpoints (local) + shared response helper |
-| **P2** | LightRAG ingest + reuse as `lightrag` |
+| **P2** | LightRAG ingest + expose as `graph-rag` |
 | **P3** | `agentic` endpoint (qwen3.6 orchestrator, corpus-scoped tools) |
 | **P4** | n8n adaptive-RAG workflow + webhook→OpenAI wrapper |
 | **P5** | Registration + OpenWebUI multi-model wiring + uniform sources/metrics surfacing |

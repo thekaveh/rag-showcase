@@ -26,8 +26,8 @@ async def n8n_adaptive_rag(req: ChatRequest):
         resp = await client.post(url, json={"query": req.last_user()})
         resp.raise_for_status()
         data = resp.json()
-    answer = data.get("answer", "")
-    route = data.get("route", "unknown")
+    answer = data.get("answer") or ""        # tolerate a null answer
+    route = data.get("route") or "unknown"   # tolerate a null/missing route
     sources = [Source("🧭 Adaptive route", f"n8n routed this query as **{route}**.", None)]
     metrics = Metrics(time.monotonic() - t0, 0, 1, 0)
     return build_response("n8n-adaptive-rag", answer, sources, metrics)
