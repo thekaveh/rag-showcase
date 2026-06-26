@@ -52,3 +52,38 @@ async def test_n8n_wrapper_tolerates_null_answer(monkeypatch):
                                 "messages": [{"role": "user", "content": "q"}]})
     assert r.status_code == 200
     assert "unknown" in r.json()["choices"][0]["message"]["content"]
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_n8n_wrapper_unwraps_list_body(monkeypatch):
+    # an operator-built "Respond With: All Incoming Items" node returns a JSON
+    # array; the wrapper must use the first object item, not 500 on list.get().
+    monkeypatch.setenv("N8N_ADAPTIVE_WEBHOOK_URL", "http://n8n:5678/webhook/adaptive-rag")
+    respx.post("http://n8n:5678/webhook/adaptive-rag").mock(
+        return_value=httpx.Response(200, json=[{"answer": "from list", "route": "simple"}]))
+    app = FastAPI(); app.include_router(n8n.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/n8n-adaptive-rag/v1/chat/completions",
+                          json={"model": "n8n-adaptive-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200
+    assert "from list" in r.json()["choices"][0]["message"]["content"]
+
+
+@pytest.mark.parametrize("body", [[], "oops", 5])
+@pytest.mark.asyncio
+@respx.mock
+async def test_n8n_wrapper_degrades_on_non_object_body(monkeypatch, body):
+    # empty array / bare scalar body must degrade to the route fallback, not raise
+    # AttributeError -> 500. (A JSON null hits the same non-dict branch.)
+    monkeypatch.setenv("N8N_ADAPTIVE_WEBHOOK_URL", "http://n8n:5678/webhook/adaptive-rag")
+    respx.post("http://n8n:5678/webhook/adaptive-rag").mock(
+        return_value=httpx.Response(200, json=body))
+    app = FastAPI(); app.include_router(n8n.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/n8n-adaptive-rag/v1/chat/completions",
+                          json={"model": "n8n-adaptive-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200
+    assert "unknown" in r.json()["choices"][0]["message"]["content"]
