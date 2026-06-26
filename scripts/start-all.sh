@@ -3,6 +3,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# Read a key's value from Atlas's infra/.env. Atlas's .env can carry a key more
+# than once (overlays/appends); dotenv and Compose both take the last assignment,
+# so we do too (tail -1). This also keeps the result a single line even when the
+# key is duplicated, so `docker exec "${PROJECT_NAME}-backend"` can't receive a
+# multi-line container name.
+envval() { grep -E "^$1=" infra/.env | tail -1 | cut -d= -f2 || true; }
+
 ./scripts/setup-overlay.sh
 
 echo "==> Starting Atlas (gen-ai-rag track)…"
@@ -15,7 +22,7 @@ echo "==> Starting Atlas (gen-ai-rag track)…"
     --tei-reranker-source container-cpu --doc-processor-source disabled )
 
 echo "==> Waiting for the backend to report healthy…"
-BP="$(grep -E '^BACKEND_PORT=' infra/.env | cut -d= -f2 || true)"
+BP="$(envval BACKEND_PORT)"
 [ -n "$BP" ] || { echo "BACKEND_PORT not found in infra/.env; aborting."; exit 1; }
 healthy=0
 for _ in $(seq 1 60); do
@@ -28,7 +35,7 @@ echo "==> Assembling corpus on the host (corpus/raw/)…"
 # bare python on purpose: fetch_corpus is stdlib-only, and bare python lets an
 # optional host-side `pip install datasets` take effect (the uv env omits it).
 python corpus/fetch_corpus.py
-PROJECT_NAME="$(grep -E '^PROJECT_NAME=' infra/.env | cut -d= -f2 || true)"
+PROJECT_NAME="$(envval PROJECT_NAME)"
 [ -n "$PROJECT_NAME" ] || { echo "PROJECT_NAME not found in infra/.env; aborting."; exit 1; }
 echo "==> Ingesting corpus inside the backend container…"
 docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
@@ -41,7 +48,7 @@ echo "==> Registering the six models in LiteLLM (inside the backend container)�
 docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
   python /app/register/register_models.py
 
-OWUI="$(grep -E '^OPEN_WEB_UI_PORT=' infra/.env | cut -d= -f2 || true)"
+OWUI="$(envval OPEN_WEB_UI_PORT)"
 [ -n "$OWUI" ] || { echo "OPEN_WEB_UI_PORT not found in infra/.env; aborting."; exit 1; }
 echo "==> Ready. Open OpenWebUI at http://localhost:${OWUI} , start a multi-model"
 echo "    chat, and select: vanilla-rag, hybrid-rag, contextual-rag, graph-rag,"
