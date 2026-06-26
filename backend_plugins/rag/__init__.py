@@ -12,3 +12,5 @@ from .approaches import contextual  # noqa: E402
 router.include_router(contextual.router)
 from .approaches import graph  # noqa: E402
 router.include_router(graph.router)
+from .approaches import agentic  # noqa: E402
+router.include_router(agentic.router)
