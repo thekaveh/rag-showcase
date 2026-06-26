@@ -25,11 +25,12 @@ the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/
 ```
 
 This runs the overlay setup, starts the Atlas `gen-ai-rag` stack (LightRAG, TEI
-reranker, Weaviate, Neo4j, OpenWebUI, LiteLLM, n8n; Docling is off by default —
-ingestion falls back to naive text chunking), waits for the backend, LightRAG,
-Weaviate, and local model readiness (embed + chat), assembles the corpus on the
-host (`corpus/fetch_corpus.py`), ingests it into the backend
-container, registers the six models, and prints the OpenWebUI URL. **First run downloads several GB of local models**, so
+reranker, Weaviate, Neo4j, OpenWebUI, LiteLLM; Docling is off by default —
+ingestion falls back to naive text chunking) plus n8n (added via an explicit
+`--n8n-source container` flag), waits for the backend, LightRAG, and Weaviate,
+assembles the corpus on the host (`corpus/fetch_corpus.py`), waits for local model
+readiness (embed + chat), ingests it into the backend container, registers the six
+models, and prints the OpenWebUI URL. **First run downloads several GB of local models**, so
 it takes a while. Then open the printed URL, start a multi-model chat, and select:
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
 `n8n-adaptive-rag`. Stop everything with `./scripts/stop-all.sh`.
