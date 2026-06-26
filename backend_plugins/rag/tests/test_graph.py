@@ -64,3 +64,16 @@ async def test_lightrag_query_coerces_non_string_response(monkeypatch):
     out = await lightrag.query("a real graph question")
     assert isinstance(out, str)
     assert "unexpected" in out
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_lightrag_query_empty_answer_returns_empty_string(monkeypatch):
+    # A 200 with no recognized answer field (a miss, or a response-field rename)
+    # must degrade to "" — graph-rag/agentic get a clean empty string, not a
+    # KeyError/None that would 500 downstream.
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    respx.post("http://lightrag:9621/query").mock(
+        return_value=httpx.Response(200, json={}))
+    out = await lightrag.query("a real graph question")
+    assert out == ""

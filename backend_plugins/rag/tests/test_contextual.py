@@ -14,10 +14,10 @@ async def test_contextualize_calls_blurb_model(monkeypatch):
         seen["prompt"] = messages[-1]["content"]
         return {"choices": [{"message": {"content": "This chunk is about X."}}]}
     monkeypatch.setattr(contextual.litellm, "chat", fake_chat)
-    monkeypatch.setattr(contextual.config, "role", lambda r: "gemma4:31b")
+    monkeypatch.setattr(contextual.config, "role", lambda r: "stub-blurb-model")
     out = await contextual.contextualize("FULL DOC", "CHUNK")
     assert out == "This chunk is about X."
-    assert seen["model"] == "gemma4:31b"
+    assert seen["model"] == "stub-blurb-model"
     assert "FULL DOC" in seen["prompt"] and "CHUNK" in seen["prompt"]
 
 

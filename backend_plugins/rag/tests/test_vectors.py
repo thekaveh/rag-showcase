@@ -50,3 +50,69 @@ async def test_rerank_falls_back_when_all_indices_out_of_range(monkeypatch):
         return_value=httpx.Response(200, json=[{"index": 99, "score": 0.9}]))
     out = await rerank("q", hits, top_n=2)
     assert out == hits[:2]  # not dropped to []
+
+
+class _FakeBatchCtx:
+    """Stand-in for the `coll.batch.dynamic()` context manager."""
+    def __init__(self, parent):
+        self._parent = parent
+    def __enter__(self):
+        return self
+    def __exit__(self, *exc):
+        return False
+    def add_object(self, properties, vector):
+        self._parent.added.append((properties, vector))
+
+
+class _FakeBatch:
+    def __init__(self, failed):
+        self.added = []
+        self.failed_objects = failed
+    def dynamic(self):
+        return _FakeBatchCtx(self)
+
+
+class _FakeCollection:
+    def __init__(self, failed):
+        self.batch = _FakeBatch(failed)
+
+
+class _FakeWeaviateClient:
+    def __init__(self, failed):
+        self._coll = _FakeCollection(failed)
+        self.closed = False
+    @property
+    def collections(self):
+        coll = self._coll
+        class _Collections:
+            def get(self, name):
+                return coll
+        return _Collections()
+    def close(self):
+        self.closed = True
+
+
+def _chunks(n):
+    return [{"title": f"t{i}", "text": f"x{i}", "vector": [float(i)]} for i in range(n)]
+
+
+def test_add_chunks_returns_full_count_when_none_fail(monkeypatch):
+    from rag.common import vectors
+    client = _FakeWeaviateClient(failed=[])
+    monkeypatch.setattr(vectors, "_weaviate", lambda: client)
+    n = vectors.add_chunks("RagBase", _chunks(3))
+    assert n == 3                          # all inserted
+    assert len(client._coll.batch.added) == 3
+    assert client.closed is True           # client always closed (finally)
+
+
+def test_add_chunks_subtracts_failed_objects_and_warns(monkeypatch, caplog):
+    import logging
+    from rag.common import vectors
+    client = _FakeWeaviateClient(failed=[object()])  # one per-object failure
+    monkeypatch.setattr(vectors, "_weaviate", lambda: client)
+    with caplog.at_level(logging.WARNING, logger="uvicorn.error"):
+        n = vectors.add_chunks("RagBase", _chunks(3))
+    assert n == 2                          # 3 attempted − 1 failed = 2 actually inserted
+    assert any("failed to insert" in r.getMessage() for r in caplog.records)
+    assert client.closed is True
