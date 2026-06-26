@@ -8,3 +8,5 @@ from .approaches import vanilla  # noqa: E402
 router.include_router(vanilla.router)
 from .approaches import hybrid  # noqa: E402
 router.include_router(hybrid.router)
+from .approaches import contextual  # noqa: E402
+router.include_router(contextual.router)
