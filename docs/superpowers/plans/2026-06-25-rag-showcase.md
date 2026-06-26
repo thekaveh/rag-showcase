@@ -2,6 +2,8 @@
 
 > **Status:** Historical artifact — Tasks 0–19 are complete. This is the as-built plan, not a live task list.
 
+> **Section numbering:** primary sections use a domain-specific `Task N` scheme rather than `1./1.1.` numbering; that task ordering is this plan's hierarchy. Kept as-built.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship a six-approach RAG comparison showcase that reuses Atlas (as a Git submodule) for all infrastructure, surfaces each approach as a selectable model in OpenWebUI's multi-model chat, and doubles as a written test-drive of Atlas's reusability.

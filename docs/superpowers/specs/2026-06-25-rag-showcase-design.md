@@ -21,7 +21,7 @@ This project has **two equally weighted goals**:
 
 2. **A test-drive of Atlas as reusable infrastructure.** The showcase is a real downstream consumer of Atlas. We deliberately **reuse and minimally extend** existing Atlas services rather than standing up our own, and we capture the friction (or lack of it) as a written assessment that can feed Atlas's roadmap. Where Atlas lacks a clean extension point, we add the *smallest possible generic seam* — never showcase-specific bloat.
 
-### Success criteria
+### 1.1 Success criteria
 
 - One OpenWebUI multi-model chat shows all six approaches answering the same prompt in parallel columns.
 - For each query type in the demo matrix (§3), the intended approach **visibly wins** and the assertion script proves it.
@@ -29,7 +29,7 @@ This project has **two equally weighted goals**:
 - Atlas's tree gains only **two tiny, generic backend hooks** and **no new services**; all RAG logic lives in this (private) repo.
 - A written **Atlas-reuse assessment** (§10) exists.
 
-### Non-goals (for this iteration)
+### 1.2 Non-goals (for this iteration)
 
 - A custom comparison dashboard (TUI or web) — **deferred** to a future phase (§12).
 - Production hardening, multi-tenant auth, horizontal scale.

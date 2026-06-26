@@ -26,9 +26,9 @@ the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/
 
 This runs the overlay setup, starts the Atlas `gen-ai-rag` stack (LightRAG, TEI
 reranker, Weaviate, Neo4j, OpenWebUI, LiteLLM; Docling is off by default —
-ingestion falls back to naive text chunking), waits for the backend,
-ingests the corpus into the backend container, registers the six models, and
-prints the OpenWebUI URL. **First run downloads several GB of local models**, so
+ingestion falls back to naive text chunking), waits for the backend, assembles
+the corpus on the host (`corpus/fetch_corpus.py`), ingests it into the backend
+container, registers the six models, and prints the OpenWebUI URL. **First run downloads several GB of local models**, so
 it takes a while. Then open the printed URL, start a multi-model chat, and select:
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
 `n8n-adaptive-rag`. Stop everything with `./scripts/stop-all.sh`.
@@ -77,8 +77,8 @@ set by hand for the default `start-all.sh` flow.
 | Variable | Default | Read by | Source |
 |----------|---------|---------|--------|
 | `LITELLM_BASE_URL` | `http://litellm:4000` | litellm client, register | Atlas backend env |
-| `LITELLM_API_KEY` | — | litellm client | Atlas backend env |
-| `LITELLM_MASTER_KEY` | `sk-noauth` (fallback) | register, n8n workflow | Atlas `.env` (sourced by start-all) |
+| `LITELLM_API_KEY` | — | litellm client, register (fallback) | Atlas backend env |
+| `LITELLM_MASTER_KEY` | `sk-noauth` (register fallback) | register; n8n UI node | Atlas `.env` (not auto-sourced; mapped to `LITELLM_API_KEY` in-container) |
 | `WEAVIATE_URL` | `http://weaviate:8080` | vectors | Atlas backend env |
 | `WEAVIATE_GRPC_PORT` | `50051` | vectors | optional override |
 | `TEI_RERANKER_ENDPOINT` | `http://tei-reranker:80` | vectors (rerank) | overlay |
@@ -94,7 +94,7 @@ set by hand for the default `start-all.sh` flow.
 | Document | Status | What it covers |
 |----------|--------|----------------|
 | [Design spec](docs/superpowers/specs/2026-06-25-rag-showcase-design.md) | Historical | The approved design: six approaches, architecture, corpus, phasing (predates implementation — see its deviations note) |
-| [Implementation plan](docs/superpowers/plans/2026-06-25-rag-showcase.md) | Historical | The task-by-task TDD build plan |
+| [Implementation plan](docs/superpowers/plans/2026-06-25-rag-showcase.md) | Historical | The task-by-task implementation plan (Tasks 0–19, as-built) |
 | [Atlas-reuse assessment](docs/atlas-reuse-assessment.md) | Living | What reused cleanly, friction found, recommendations for Atlas |
 | [Corpus](corpus/README.md) | Living | How to populate the corpus |
 | [n8n workflow](n8n/README.md) | Living | Building the Adaptive-RAG workflow in the n8n UI |
