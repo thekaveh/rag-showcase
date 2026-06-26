@@ -34,6 +34,8 @@ async def query(question: str, mode: str = "hybrid") -> str:
 
 async def upload_text(title: str, text: str) -> None:
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        # LightRAG v1.5.0 InsertTextRequest is extra="forbid" with fields
+        # text / file_source / chunking — there is no "description" field.
         resp = await client.post(f"{_base()}/documents/text", headers=_headers(),
-                                 json={"text": text, "description": title})
+                                 json={"text": text, "file_source": title})
         resp.raise_for_status()

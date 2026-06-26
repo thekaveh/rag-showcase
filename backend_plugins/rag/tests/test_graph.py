@@ -36,4 +36,4 @@ async def test_lightrag_upload_text_posts_to_documents_text(monkeypatch):
     await lightrag.upload_text("My Doc", "some content")
     assert upload.called
     body = json.loads(upload.calls.last.request.content)
-    assert body["text"] == "some content" and body["description"] == "My Doc"
+    assert body["text"] == "some content" and body["file_source"] == "My Doc"
