@@ -6,6 +6,7 @@ is identical across approaches and independent of Weaviate's module config.
 """
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from typing import Any
@@ -80,8 +81,9 @@ def add_chunks(name: str, chunks: list[dict[str, Any]]) -> int:
         # count) so callers don't over-report a partially failed ingest.
         failed = getattr(coll.batch, "failed_objects", None) or []
         if failed:
-            print(f"  ⚠ add_chunks: {len(failed)}/{len(chunks)} objects "
-                  f"failed to insert into '{name}'", flush=True)
+            logging.getLogger("uvicorn.error").warning(
+                "add_chunks: %d/%d objects failed to insert into %r",
+                len(failed), len(chunks), name)
         return len(chunks) - len(failed)
     finally:
         client.close()

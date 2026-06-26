@@ -26,5 +26,7 @@ async def contextual_rag(req: ChatRequest):
     hits = await vectors.rerank(question, candidates, TOP_N)
     answer, calls = await answer_from_context(config.role("light_gen"), question, hits)
     sources = [Source(h.title, h.text[:240], h.score) for h in hits]
+    # calls + 1 = chat + embed; the TEI rerank is a cross-encoder (not an LLM/
+    # LiteLLM call), so it isn't counted here — its cost surfaces in the latency.
     metrics = Metrics(time.monotonic() - t0, len(hits), calls + 1, 0)
     return build_response("contextual-rag", answer, sources, metrics)
