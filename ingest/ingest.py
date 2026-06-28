@@ -74,8 +74,14 @@ async def chunk_document(path: str) -> list[dict]:
 
 
 async def run(corpus_dir: str) -> dict:
-    await asyncio.to_thread(vectors.ensure_collection, BASE)
-    await asyncio.to_thread(vectors.ensure_collection, CONTEXTUAL)
+    # Idempotent corpus build: drop and recreate the Weaviate collections so a warm
+    # re-run (start-all.sh against a preserved volume) yields exactly one copy of the
+    # corpus instead of appending duplicate chunks — add_chunks inserts with fresh
+    # UUIDs and never dedups. Mirrors register's delete-then-add idempotency.
+    # (LightRAG dedups /documents/text by content hash on its own.)
+    for coll in (BASE, CONTEXTUAL):
+        await asyncio.to_thread(vectors.delete_collection, coll)
+        await asyncio.to_thread(vectors.ensure_collection, coll)
     files = sorted(p for p in Path(corpus_dir).glob("**/*")
                    if p.is_file() and p.suffix.lower() in {".txt", ".md", ".pdf"})
     base_count = ctx_count = 0

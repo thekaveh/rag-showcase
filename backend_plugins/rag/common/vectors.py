@@ -65,6 +65,21 @@ def ensure_collection(name: str) -> None:
         client.close()
 
 
+def delete_collection(name: str) -> None:
+    """Drop a collection (and its objects) if it exists; a no-op otherwise.
+
+    Used to make ingest idempotent: a warm re-run of start-all.sh rebuilds the
+    corpus from scratch instead of appending duplicate chunks (add_chunks inserts
+    with fresh UUIDs and never dedups), mirroring register's delete-then-add.
+    """
+    client = _weaviate()
+    try:
+        if client.collections.exists(name):
+            client.collections.delete(name)
+    finally:
+        client.close()
+
+
 def add_chunks(name: str, chunks: list[dict[str, Any]]) -> int:
     """chunks: [{'title','text','vector'}]. Returns count inserted."""
     client = _weaviate()

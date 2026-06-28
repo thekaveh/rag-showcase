@@ -216,6 +216,25 @@ async def test_agentic_tolerates_choice_without_message(monkeypatch):
     assert r.status_code == 200  # graceful degrade, not a 500
 
 
+@pytest.mark.asyncio
+async def test_agentic_empty_choices_degrades(monkeypatch):
+    # a structurally-valid 2xx with an EMPTY choices list (a content-filter / no-
+    # completion turn) must degrade to "(no response from model)", not IndexError
+    # on choices[0] -> 500. The agentic-loop sibling of the pipeline/contextual
+    # {"choices": []} degrades (agentic.py:70-73), otherwise unexercised.
+    async def fake_chat(model, messages, tools=None, **kw):
+        return {"choices": []}
+    monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
+    monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
+    app = FastAPI(); app.include_router(agentic.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/agentic-rag/v1/chat/completions",
+                          json={"model": "agentic-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200
+    assert "(no response from model)" in r.json()["choices"][0]["message"]["content"]
+
+
 @pytest.mark.parametrize("bad_args", ["null", "5", '"hi"', "[1, 2]", "true"])
 @pytest.mark.asyncio
 async def test_agentic_tolerates_non_object_tool_args(monkeypatch, bad_args):

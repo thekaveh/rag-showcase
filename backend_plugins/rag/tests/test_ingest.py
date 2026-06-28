@@ -33,7 +33,9 @@ async def test_run_populates_all_three_indexes(monkeypatch, tmp_path):
     async def fake_embed(texts, model=None): return [[0.0] for _ in texts]
     async def fake_contextualize(doc, chunk): return "blurb"
     async def fake_upload(title, text): uploads.append(title)
+    deleted = []
     def fake_ensure(name): pass
+    def fake_delete(name): deleted.append(name)
     def fake_add(name, rows):
         rows_by_name[name].extend(rows); added[name] += len(rows); return len(rows)
 
@@ -42,6 +44,7 @@ async def test_run_populates_all_three_indexes(monkeypatch, tmp_path):
     monkeypatch.setattr(ing, "contextualize", fake_contextualize)
     monkeypatch.setattr(ing.lightrag, "upload_text", fake_upload)
     monkeypatch.setattr(ing.vectors, "ensure_collection", fake_ensure)
+    monkeypatch.setattr(ing.vectors, "delete_collection", fake_delete)
     monkeypatch.setattr(ing.vectors, "add_chunks", fake_add)
 
     result = await ing.run(str(tmp_path))
@@ -54,6 +57,9 @@ async def test_run_populates_all_three_indexes(monkeypatch, tmp_path):
     # into hybrid-rag with every other test still green — so assert it explicitly.
     assert all(r["text"] == "blurb\n\nchunk" for r in rows_by_name["RagContextual"])
     assert all(r["text"] == "chunk" for r in rows_by_name["RagBase"])
+    # idempotent build: BOTH Weaviate collections are dropped (then recreated)
+    # before ingest, so a warm re-run rebuilds the corpus instead of duplicating it.
+    assert deleted == ["RagBase", "RagContextual"]
 
 
 @pytest.mark.asyncio
@@ -89,6 +95,7 @@ async def test_run_raises_on_embedding_count_mismatch(monkeypatch, tmp_path):
     monkeypatch.setattr(ing, "chunk_document", fake_chunk)
     monkeypatch.setattr(ing.litellm, "embed", short_embed)
     monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "delete_collection", lambda n: None)
     monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
     with pytest.raises(RuntimeError, match="embedding count mismatch"):
         await ing.run(str(tmp_path))
@@ -109,6 +116,7 @@ async def test_run_raises_on_contextual_embedding_mismatch(monkeypatch, tmp_path
     monkeypatch.setattr(ing.litellm, "embed", embed)
     monkeypatch.setattr(ing, "contextualize", fake_ctx)
     monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "delete_collection", lambda n: None)
     monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
     monkeypatch.setattr(ing.lightrag, "upload_text", lambda t, x: None)
     with pytest.raises(RuntimeError, match="contextual embedding count mismatch"):
@@ -147,6 +155,7 @@ async def test_run_skips_files_yielding_no_chunks(monkeypatch, tmp_path):
     monkeypatch.setattr(ing.litellm, "embed", fake_embed)
     monkeypatch.setattr(ing, "contextualize", fake_ctx)
     monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "delete_collection", lambda n: None)
     monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
     monkeypatch.setattr(ing.lightrag, "upload_text", fake_upload)
     result = await ing.run(str(tmp_path))

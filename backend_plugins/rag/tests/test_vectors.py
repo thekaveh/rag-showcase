@@ -132,3 +132,36 @@ def test_add_chunks_subtracts_failed_objects_and_warns(monkeypatch, caplog):
     assert n == 2                          # 3 attempted − 1 failed = 2 actually inserted
     assert any("failed to insert" in r.getMessage() for r in caplog.records)
     assert client.closed is True
+
+
+class _FakeColls:
+    def __init__(self, present): self.present = present; self.deleted = []
+    def exists(self, name): return self.present
+    def delete(self, name): self.deleted.append(name)
+
+
+class _FakeDelClient:
+    def __init__(self, present): self.collections = _FakeColls(present); self.closed = False
+    def close(self): self.closed = True
+
+
+def test_delete_collection_drops_when_present(monkeypatch):
+    # ingest idempotency: an existing collection is dropped so a warm re-run
+    # rebuilds it instead of appending duplicate chunks.
+    from rag.common import vectors
+    client = _FakeDelClient(present=True)
+    monkeypatch.setattr(vectors, "_weaviate", lambda: client)
+    vectors.delete_collection("RagBase")
+    assert client.collections.deleted == ["RagBase"]
+    assert client.closed is True            # client always closed (finally)
+
+
+def test_delete_collection_noop_when_absent(monkeypatch):
+    # first-ever run: nothing exists yet, so delete must be a no-op (never error),
+    # and still close the client.
+    from rag.common import vectors
+    client = _FakeDelClient(present=False)
+    monkeypatch.setattr(vectors, "_weaviate", lambda: client)
+    vectors.delete_collection("RagBase")
+    assert client.collections.deleted == []
+    assert client.closed is True
