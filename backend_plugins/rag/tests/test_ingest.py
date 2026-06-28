@@ -26,6 +26,7 @@ async def test_run_populates_all_three_indexes(monkeypatch, tmp_path):
     (tmp_path / "d1.txt").write_text("doc one", encoding="utf-8")
     (tmp_path / "d2.txt").write_text("doc two", encoding="utf-8")
     added = {"RagBase": 0, "RagContextual": 0}
+    rows_by_name = {"RagBase": [], "RagContextual": []}
     uploads = []
 
     async def fake_chunk(path): return [{"title": "t", "text": "chunk"}]
@@ -33,7 +34,8 @@ async def test_run_populates_all_three_indexes(monkeypatch, tmp_path):
     async def fake_contextualize(doc, chunk): return "blurb"
     async def fake_upload(title, text): uploads.append(title)
     def fake_ensure(name): pass
-    def fake_add(name, rows): added[name] += len(rows); return len(rows)
+    def fake_add(name, rows):
+        rows_by_name[name].extend(rows); added[name] += len(rows); return len(rows)
 
     monkeypatch.setattr(ing, "chunk_document", fake_chunk)
     monkeypatch.setattr(ing.litellm, "embed", fake_embed)
@@ -46,6 +48,12 @@ async def test_run_populates_all_three_indexes(monkeypatch, tmp_path):
     assert result == {"files": 2, "base_chunks": 2, "contextual_chunks": 2}
     assert added == {"RagBase": 2, "RagContextual": 2}
     assert len(uploads) == 2  # one LightRAG upload per file
+    # contextual-rag's distinguishing transform: each RagContextual row is the
+    # per-chunk blurb prepended to the chunk text, while RagBase carries the bare
+    # chunk. Drop that prefix (ingest.py:98) and contextual-rag silently collapses
+    # into hybrid-rag with every other test still green — so assert it explicitly.
+    assert all(r["text"] == "blurb\n\nchunk" for r in rows_by_name["RagContextual"])
+    assert all(r["text"] == "chunk" for r in rows_by_name["RagBase"])
 
 
 @pytest.mark.asyncio
