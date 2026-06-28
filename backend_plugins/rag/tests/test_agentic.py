@@ -22,7 +22,7 @@ async def test_agentic_runs_tool_then_answers(monkeypatch):
     monkeypatch.setattr(agentic.litellm, "embed", fake_embed)
     seen = {}
     def fake_search(c, q, v, k):
-        seen["collection"] = c
+        seen["collection"] = c; seen["q"] = q
         return [Hit("D", "alpha body", 0.5)]
     monkeypatch.setattr(agentic.vectors, "search_hybrid", fake_search)
     monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
@@ -36,6 +36,10 @@ async def test_agentic_runs_tool_then_answers(monkeypatch):
     content = r.json()["choices"][0]["message"]["content"]
     assert "final answer" in content
     assert seen["collection"] == "RagBase"  # search_vectors retrieves from the base index
+    # the model-chosen tool query (extracted via json.loads + args.get + type-coercion,
+    # NOT a trivial req.last_user() pass-through) must reach retrieval — rename the key
+    # at agentic._run_tool and every real tool call searches on "", with the suite green.
+    assert seen["q"] == "alpha"
     assert "Action" in content and "search_vectors" in content  # trace surfaced
     assert len(turns) == 2
     # cost footer counts the tool's work too: 2 chat turns + 1 search_vectors embed
@@ -87,8 +91,8 @@ async def test_agentic_uses_query_graph_tool(monkeypatch):
                   "function": {"name": "query_graph",
                                "arguments": json.dumps({"query": "themes"})}}]}}]}
         return {"choices": [{"message": {"role": "assistant", "content": "graph-based answer"}}]}
-    async def fake_graph(q, mode="hybrid"): return "GRAPH-OBS-XYZ"
     seen = {}
+    async def fake_graph(q, mode="hybrid"): seen["q"] = q; return "GRAPH-OBS-XYZ"
     def fake_role(r): seen["role"] = r; return "qwen3.6"
     monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
     monkeypatch.setattr(agentic.lightrag, "query", fake_graph)
@@ -108,6 +112,7 @@ async def test_agentic_uses_query_graph_tool(monkeypatch):
     # (sibling of the search_vectors "+1"; change query_graph's +1 to 0 and this drops to 2).
     assert "3 LLM calls" in content
     assert seen["role"] == "agentic"  # the agent uses the "agentic" role (wrong key misroutes)
+    assert seen["q"] == "themes"      # the extracted tool query reaches the graph backend
 
 
 @pytest.mark.asyncio
