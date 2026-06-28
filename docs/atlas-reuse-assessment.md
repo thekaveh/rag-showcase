@@ -31,6 +31,15 @@ contains no RAG-specific logic and is a **strong candidate to upstream** as a
 documented downstream-routes extension point (symmetric to the `_user/` compose
 overlay).
 
+> **Resolved upstream.** Atlas `6fd482b` upstreamed this exact seam
+> (`services/backend/app/app/plugin_seam.py`, #162/#164) — same `BACKEND_PLUGINS_DIR`
+> contract: load each immediate package exposing a module-level `router`,
+> pip-install its `requirements.txt`, no-op when the dir is absent. The showcase no
+> longer needs a fork-side seam; the plugin loads through Atlas's **native** seam via
+> the unchanged compose overlay (`BACKEND_PLUGINS_DIR=/app/plugins` + the
+> `backend_plugins/` mount). The override mechanism is identical — only the seam's
+> provider moved from the fork to upstream.
+
 ### 2.2 Client-library version floors
 
 Atlas's backend image already ships `weaviate-client` (`>=4.0.0`) and `neo4j`
@@ -74,9 +83,12 @@ Atlas's gitignore.
 
 ## 3. Recommendations for Atlas
 
-- **Upstream the backend plugin seam** as a documented downstream-routes extension
-  point (symmetric to the `_user/` compose overlay). It adds minimal complexity
-  and is both RAG-agnostic and generally useful.
+- **(Resolved)** Originally: *upstream the backend plugin seam* as a documented
+  downstream-routes extension point (symmetric to the `_user/` compose overlay).
+  Atlas `6fd482b` did exactly this (#162, documented in #164): the generic
+  `plugin_seam.py` now ships in the backend image with the same `BACKEND_PLUGINS_DIR`
+  contract the showcase targets, so no fork-side seam is needed — the unchanged
+  compose overlay drives Atlas's native seam.
 - **(No action needed) RAG client libraries** — Atlas's `gen-ai-rag` backend
   already ships `weaviate-client` and `neo4j`; the plugin only re-pins a newer
   `weaviate-client` floor. (Originally filed as a gap — corrected after checking
