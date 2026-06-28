@@ -37,3 +37,5 @@ async def test_vanilla_retrieves_and_answers(monkeypatch):
     # cost footer: 1 embed + 1 generation = 2 (guards the "+1 = embed" convention the
     # showcase's cost comparison depends on — drop the +1 and this drops to "1 LLM call").
     assert "2 LLM calls" in content
+    assert "1 chunk" in content  # chunks footer = len(hits); flip to the delegating
+    #   approaches' constant 0 and it misreports the headline retrieval count, suite green.

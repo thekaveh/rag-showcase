@@ -44,3 +44,4 @@ async def test_hybrid_uses_hybrid_search_then_rerank(monkeypatch):
     # cost footer: 1 embed + 1 generation = 2 (guards the "+1 = embed" convention).
     assert "2 LLM calls" in content
     assert calls["role"] == "light_gen"  # generation uses the light_gen role
+    assert "1 chunk" in content           # chunks footer = len(hits), the headline retrieval count

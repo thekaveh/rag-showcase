@@ -76,3 +76,4 @@ async def test_contextual_route_uses_contextual_collection(monkeypatch):
     # uniform default); cost footer = 1 embed + 1 generation = 2 (the "+1 = embed" convention).
     assert seen["role"] == "light_gen"
     assert "2 LLM calls" in content
+    assert "1 chunk" in content  # chunks footer = len(hits), the headline retrieval count
