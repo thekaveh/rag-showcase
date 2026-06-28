@@ -83,3 +83,18 @@ async def test_lightrag_query_empty_answer_returns_empty_string(monkeypatch):
             return_value=httpx.Response(200, json={}))
         out = await lightrag.query("a real graph question")
         assert out == ""
+
+
+@pytest.mark.asyncio
+async def test_lightrag_query_reads_data_field_fallback(monkeypatch):
+    # query() recognizes the answer under either `response` or `data`
+    # (data.get("response") or data.get("data")). When LightRAG answers under the
+    # `data` field only, query() must still return it — drop the `or data.get("data")`
+    # fallback and graph-rag plus the agentic graph tool go blank, with no test
+    # failing (every other test feeds `response`). So exercise the data branch.
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    with respx.mock:
+        respx.post("http://lightrag:9621/query").mock(
+            return_value=httpx.Response(200, json={"data": "answer via data field"}))
+        out = await lightrag.query("a real graph question")
+        assert out == "answer via data field"

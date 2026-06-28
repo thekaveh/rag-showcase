@@ -22,6 +22,25 @@ async def test_contextualize_calls_blurb_model(monkeypatch):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("resp", [
+    {"choices": []},                                # gateway returned no choices
+    {},                                             # malformed: no choices key at all
+    {"choices": [{"message": {"content": None}}]},  # choice present, null content
+    {"choices": [{"message": {}}]},                 # choice present, no content key
+])
+async def test_contextualize_degrades_to_empty_string(monkeypatch, resp):
+    # the blurb reply is parsed with the same guard-and-degrade idiom as
+    # answer_from_context: a malformed/empty gateway reply must yield "" — never
+    # None, never an AttributeError at .strip(). Drop the guards and ingest.py's
+    # f"{blurb}\n\n{text}" either embeds the literal "None" or crashes the whole
+    # corpus run, with no test failing. So pin the degrade explicitly.
+    async def fake_chat(model, messages, **kw): return resp
+    monkeypatch.setattr(contextual.litellm, "chat", fake_chat)
+    monkeypatch.setattr(contextual.config, "role", lambda r: "stub-blurb-model")
+    assert await contextual.contextualize("doc", "chunk") == ""
+
+
+@pytest.mark.asyncio
 async def test_contextual_route_uses_contextual_collection(monkeypatch):
     # The collection name is the only behavioral differentiator from hybrid-rag;
     # assert the route queries RagContextual (not RagBase).

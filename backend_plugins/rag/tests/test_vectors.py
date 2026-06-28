@@ -1,3 +1,5 @@
+import json
+
 import respx
 import httpx
 import pytest
@@ -10,7 +12,7 @@ async def test_rerank_reorders_by_tei_score(monkeypatch):
     monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
     hits = [Hit("A", "alpha", 0.1), Hit("B", "bravo", 0.2), Hit("C", "charlie", 0.3)]
     # TEI says index 2 is best, then 0, then 1
-    respx.post("http://tei-reranker:80/rerank").mock(
+    route = respx.post("http://tei-reranker:80/rerank").mock(
         return_value=httpx.Response(200, json=[
             {"index": 2, "score": 0.99},
             {"index": 0, "score": 0.50},
@@ -20,6 +22,13 @@ async def test_rerank_reorders_by_tei_score(monkeypatch):
     out = await rerank("q", hits, top_n=2)
     assert [h.title for h in out] == ["C", "A"]
     assert out[0].score == 0.99
+    # also pin the request payload: the cross-encoder must score the chunk BODIES
+    # (not titles) against the query. Send `h.title` instead and ranking silently
+    # degrades in prod while this test — which only checked the mock's fabricated
+    # ordering — stays green. So assert what actually goes on the wire.
+    sent = json.loads(route.calls.last.request.content)
+    assert sent["query"] == "q"
+    assert sent["texts"] == ["alpha", "bravo", "charlie"]
 
 
 @pytest.mark.asyncio
@@ -103,6 +112,13 @@ def test_add_chunks_returns_full_count_when_none_fail(monkeypatch):
     n = vectors.add_chunks("RagBase", _chunks(3))
     assert n == 3                          # all inserted
     assert len(client._coll.batch.added) == 3
+    # assert the property MAPPING, not just the count: title->title, text->text,
+    # and the vector passed through. Swap the mapping (e.g. title<->text) and the
+    # count stays 3 while Weaviate stores bodies in the title field — corrupting
+    # BM25 and the Source(title, text) display for every text-RAG approach — with
+    # no test failing. So pin the exact (properties, vector) tuples.
+    assert client._coll.batch.added[0] == ({"title": "t0", "text": "x0"}, [0.0])
+    assert client._coll.batch.added[2] == ({"title": "t2", "text": "x2"}, [2.0])
     assert client.closed is True           # client always closed (finally)
 
 

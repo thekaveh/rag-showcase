@@ -1,3 +1,5 @@
+import json
+
 import respx
 import httpx
 import pytest
@@ -33,6 +35,26 @@ async def test_chat_returns_json(monkeypatch):
     assert out["choices"][0]["message"]["content"] == "hi"
     assert route.called
     assert route.calls.last.request.headers["authorization"] == "Bearer sk-test"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_chat_forwards_tools_and_omits_when_absent(monkeypatch):
+    # agentic-rag depends on the model actually receiving its tool schemas: chat()
+    # must place `tools` in the POST body when given, and omit the key entirely when
+    # not. Drop the forwarding (or send tools=None unconditionally) and agentic-rag
+    # silently degrades to "answered without retrieval" while all nine agentic tests
+    # — which fabricate tool_calls via a mocked chat — stay green. So assert the wire.
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    route = respx.post("http://litellm:4000/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json={"choices": [{"message": {"content": "x"}}]}))
+    tools = [{"type": "function", "function": {"name": "search_vectors"}}]
+    await litellm.chat("m", [{"role": "user", "content": "q"}], tools=tools)
+    assert json.loads(route.calls.last.request.content)["tools"] == tools
+    # with no tools, the key must be absent (not present as null)
+    await litellm.chat("m", [{"role": "user", "content": "q"}])
+    assert "tools" not in json.loads(route.calls.last.request.content)
 
 
 @pytest.mark.asyncio
