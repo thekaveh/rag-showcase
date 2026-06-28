@@ -20,7 +20,8 @@ async def test_hybrid_uses_hybrid_search_then_rerank(monkeypatch):
     monkeypatch.setattr(hybrid.vectors, "search_hybrid", fake_hybrid)
     monkeypatch.setattr(hybrid.vectors, "rerank", fake_rerank)
     monkeypatch.setattr(hybrid, "answer_from_context", fake_answer)
-    monkeypatch.setattr(hybrid.config, "role", lambda r: "qwen3.6")
+    def fake_role(r): calls["role"] = r; return "qwen3.6"
+    monkeypatch.setattr(hybrid.config, "role", fake_role)
 
     app = FastAPI(); app.include_router(hybrid.router)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
@@ -42,3 +43,4 @@ async def test_hybrid_uses_hybrid_search_then_rerank(monkeypatch):
     assert calls["collection"] == "RagBase"
     # cost footer: 1 embed + 1 generation = 2 (guards the "+1 = embed" convention).
     assert "2 LLM calls" in content
+    assert calls["role"] == "light_gen"  # generation uses the light_gen role

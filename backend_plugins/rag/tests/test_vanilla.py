@@ -20,7 +20,8 @@ async def test_vanilla_retrieves_and_answers(monkeypatch):
         seen["collection"] = c
         return [Hit("Doc", "CTX-ALPHA body", 0.2)]
     monkeypatch.setattr(vanilla.vectors, "search_dense", fake_dense)
-    monkeypatch.setattr(vanilla.config, "role", lambda r: "qwen3.6")
+    def fake_role(r): seen["role"] = r; return "qwen3.6"
+    monkeypatch.setattr(vanilla.config, "role", fake_role)
 
     app = FastAPI(); app.include_router(vanilla.router)
     transport = ASGITransport(app=app)
@@ -32,6 +33,7 @@ async def test_vanilla_retrieves_and_answers(monkeypatch):
     content = r.json()["choices"][0]["message"]["content"]
     assert "answered" in content and "Doc" in content  # answer + sources block
     assert seen["collection"] == "RagBase"  # the baseline retrieves from the base index
+    assert seen["role"] == "light_gen"      # generation uses the light_gen role
     # cost footer: 1 embed + 1 generation = 2 (guards the "+1 = embed" convention the
     # showcase's cost comparison depends on — drop the +1 and this drops to "1 LLM call").
     assert "2 LLM calls" in content

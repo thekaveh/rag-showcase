@@ -84,9 +84,11 @@ async def test_agentic_uses_query_graph_tool(monkeypatch):
                                "arguments": json.dumps({"query": "themes"})}}]}}]}
         return {"choices": [{"message": {"role": "assistant", "content": "graph-based answer"}}]}
     async def fake_graph(q, mode="hybrid"): return "GRAPH-OBS-XYZ"
+    seen = {}
+    def fake_role(r): seen["role"] = r; return "qwen3.6"
     monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
     monkeypatch.setattr(agentic.lightrag, "query", fake_graph)
-    monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
+    monkeypatch.setattr(agentic.config, "role", fake_role)
 
     app = FastAPI(); app.include_router(agentic.router)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
@@ -98,6 +100,10 @@ async def test_agentic_uses_query_graph_tool(monkeypatch):
     assert "graph-based answer" in content
     assert "query_graph" in content and "GRAPH-OBS-XYZ" in content
     assert len(turns) == 2
+    # cost footer counts the delegated graph call too: 2 chat turns + 1 query_graph = 3
+    # (sibling of the search_vectors "+1"; change query_graph's +1 to 0 and this drops to 2).
+    assert "3 LLM calls" in content
+    assert seen["role"] == "agentic"  # the agent uses the "agentic" role (wrong key misroutes)
 
 
 @pytest.mark.asyncio

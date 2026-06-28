@@ -1,3 +1,5 @@
+import json
+
 import respx
 import httpx
 import pytest
@@ -10,7 +12,7 @@ from rag.approaches import n8n
 @respx.mock
 async def test_n8n_wrapper_forwards_and_wraps(monkeypatch):
     monkeypatch.setenv("N8N_ADAPTIVE_WEBHOOK_URL", "http://n8n:5678/webhook/adaptive-rag")
-    respx.post("http://n8n:5678/webhook/adaptive-rag").mock(
+    route = respx.post("http://n8n:5678/webhook/adaptive-rag").mock(
         return_value=httpx.Response(200, json={"answer": "routed answer", "route": "complex"})
     )
     app = FastAPI(); app.include_router(n8n.router)
@@ -21,6 +23,10 @@ async def test_n8n_wrapper_forwards_and_wraps(monkeypatch):
     assert r.status_code == 200
     content = r.json()["choices"][0]["message"]["content"]
     assert "routed answer" in content and "complex" in content  # route surfaced
+    # forwarding the user query to the workflow IS the wrapper's whole job — assert the
+    # wire payload, not just the mock's return. Change the key or stop forwarding and the
+    # workflow gets an empty/wrong query and answers garbage, with this test still green.
+    assert json.loads(route.calls.last.request.content) == {"query": "hard q"}
 
 
 @pytest.mark.asyncio
