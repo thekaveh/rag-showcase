@@ -20,8 +20,11 @@ async def test_agentic_runs_tool_then_answers(monkeypatch):
     async def fake_embed(texts, model=None): return [[1.0]]
     monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
     monkeypatch.setattr(agentic.litellm, "embed", fake_embed)
-    monkeypatch.setattr(agentic.vectors, "search_hybrid",
-                        lambda c, q, v, k: [Hit("D", "alpha body", 0.5)])
+    seen = {}
+    def fake_search(c, q, v, k):
+        seen["collection"] = c
+        return [Hit("D", "alpha body", 0.5)]
+    monkeypatch.setattr(agentic.vectors, "search_hybrid", fake_search)
     monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
 
     app = FastAPI(); app.include_router(agentic.router)
@@ -32,6 +35,7 @@ async def test_agentic_runs_tool_then_answers(monkeypatch):
     assert r.status_code == 200
     content = r.json()["choices"][0]["message"]["content"]
     assert "final answer" in content
+    assert seen["collection"] == "RagBase"  # search_vectors retrieves from the base index
     assert "Action" in content and "search_vectors" in content  # trace surfaced
     assert len(turns) == 2
     # cost footer counts the tool's work too: 2 chat turns + 1 search_vectors embed

@@ -29,8 +29,12 @@ async def test_graph_queries_lightrag(monkeypatch):
                                     "messages": [{"role": "user", "content": "themes?"}]})
         assert r.status_code == 200
         assert "graph answer" in r.json()["choices"][0]["message"]["content"]
-        # the graph approach must request the graph+vector "hybrid" mode
-        assert json.loads(route.calls.last.request.content)["mode"] == "hybrid"
+        # the graph approach forwards the user question AND requests the graph+vector
+        # "hybrid" mode — assert BOTH on the wire (rename the query key and graph-rag +
+        # the agentic graph tool would send LightRAG an empty/wrong query, suite green).
+        sent = json.loads(route.calls.last.request.content)
+        assert sent["query"] == "themes?"
+        assert sent["mode"] == "hybrid"
         # auth must use X-API-Key (v1.5.0), not Authorization: Bearer
         assert route.calls.last.request.headers.get("x-api-key") == "k"
         assert "authorization" not in route.calls.last.request.headers
