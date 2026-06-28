@@ -38,16 +38,22 @@ _SYSTEM = ("You are a research agent. Use the tools to gather evidence before "
            "answering. Call a tool when you need information; otherwise answer.")
 
 
-async def _run_tool(name: str, args: dict) -> str:
+async def _run_tool(name: str, args: dict) -> tuple[str, int]:
+    """Run a tool. Returns (observation, llm_calls) where llm_calls counts the
+    LiteLLM/LLM work the tool did — the query embedding for search_vectors, the
+    delegated graph generation for query_graph — so agentic-rag's footer counts
+    cost the same way the other approaches do (vanilla/hybrid: +1 = embed;
+    graph-rag: +1 = the delegated call). An unknown tool does no such work."""
     raw = args.get("query")
     q = raw if isinstance(raw, str) else ""  # non-string query (malformed) -> empty
     if name == "search_vectors":
         vec = (await litellm.embed([q]))[0]
         hits = await asyncio.to_thread(vectors.search_hybrid, COLLECTION, q, vec, 5)
-        return "\n".join(f"- {h.title}: {h.text[:200]}" for h in hits) or "(no results)"
+        obs = "\n".join(f"- {h.title}: {h.text[:200]}" for h in hits) or "(no results)"
+        return obs, 1  # +1 = the query embedding
     if name == "query_graph":
-        return await lightrag.query(q, mode="hybrid")
-    return f"(unknown tool {name})"
+        return await lightrag.query(q, mode="hybrid"), 1  # +1 = delegated graph call
+    return f"(unknown tool {name})", 0
 
 
 @router.post("/agentic-rag/v1/chat/completions")
@@ -103,7 +109,8 @@ async def agentic_rag(req: ChatRequest):
                 args = {}
             if not isinstance(args, dict):  # valid JSON but not an object
                 args = {}                   # (null/number/string/array/bool)
-            observation = await _run_tool(name, args)
+            observation, tool_llm_calls = await _run_tool(name, args)
+            llm_calls += tool_llm_calls  # count the tool's embed / delegated call too
             step = ""
             if thought:
                 step += f"**Thought:** {thought}\n\n"

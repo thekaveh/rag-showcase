@@ -73,43 +73,58 @@ async def chunk_document(path: str) -> list[dict]:
     return _naive_chunks(path, name)
 
 
+async def _rebuild(name: str, rows: list[dict]) -> int:
+    """Idempotently replace a collection: drop, recreate, then bulk-add ``rows``.
+
+    The destructive drop runs only once the replacement rows are already in hand
+    (computed in run()'s phase 1), so a failure during the long embed phase never
+    leaves a warm corpus empty, and the rebuild window stays the seconds it takes to
+    bulk-insert (no LLM calls between the drop and the add). Mirrors register's
+    delete-then-add idempotency.
+    """
+    await asyncio.to_thread(vectors.delete_collection, name)
+    await asyncio.to_thread(vectors.ensure_collection, name)
+    if not rows:
+        return 0
+    return await asyncio.to_thread(vectors.add_chunks, name, rows)
+
+
 async def run(corpus_dir: str) -> dict:
-    # Idempotent corpus build: drop and recreate the Weaviate collections so a warm
-    # re-run (start-all.sh against a preserved volume) yields exactly one copy of the
-    # corpus instead of appending duplicate chunks — add_chunks inserts with fresh
-    # UUIDs and never dedups. Mirrors register's delete-then-add idempotency.
-    # (LightRAG dedups /documents/text by content hash on its own.)
-    for coll in (BASE, CONTEXTUAL):
-        await asyncio.to_thread(vectors.delete_collection, coll)
-        await asyncio.to_thread(vectors.ensure_collection, coll)
     files = sorted(p for p in Path(corpus_dir).glob("**/*")
                    if p.is_file() and p.suffix.lower() in {".txt", ".md", ".pdf"})
-    base_count = ctx_count = 0
+    # Phase 1 — do all the failure-prone work (chunk, embed, contextualize, LightRAG
+    # upload) WITHOUT touching the live Weaviate collections, accumulating the rows to
+    # store. A failure here leaves the existing corpus fully serveable, not half-built.
+    base_rows: list[dict] = []
+    ctx_rows: list[dict] = []
     for path in files:
         doc_chunks = await chunk_document(str(path))
         if not doc_chunks:
             continue
         doc_text = "\n\n".join(c["text"] for c in doc_chunks)
-        # Base collection
+        # Base collection rows
         vecs = await litellm.embed([c["text"] for c in doc_chunks])
         if len(vecs) != len(doc_chunks):
             raise RuntimeError(f"embedding count mismatch for {path.name}: "
                                f"{len(vecs)} vectors for {len(doc_chunks)} chunks")
-        base_count += await asyncio.to_thread(vectors.add_chunks, BASE, [
-            {**c, "vector": v} for c, v in zip(doc_chunks, vecs)])
-        # Contextual collection (blurb-prefixed)
-        ctx_rows = []
+        base_rows.extend({**c, "vector": v} for c, v in zip(doc_chunks, vecs))
+        # Contextual collection rows (blurb-prefixed)
+        rows = []
         for c in doc_chunks:
             blurb = await contextualize(doc_text, c["text"])
-            ctx_rows.append({"title": c["title"], "text": f"{blurb}\n\n{c['text']}"})
-        ctx_vecs = await litellm.embed([r["text"] for r in ctx_rows])
-        if len(ctx_vecs) != len(ctx_rows):
+            rows.append({"title": c["title"], "text": f"{blurb}\n\n{c['text']}"})
+        ctx_vecs = await litellm.embed([r["text"] for r in rows])
+        if len(ctx_vecs) != len(rows):
             raise RuntimeError(f"contextual embedding count mismatch for {path.name}: "
-                               f"{len(ctx_vecs)} vectors for {len(ctx_rows)} chunks")
-        ctx_count += await asyncio.to_thread(vectors.add_chunks, CONTEXTUAL, [
-            {**r, "vector": v} for r, v in zip(ctx_rows, ctx_vecs)])
-        # LightRAG (builds its own KG)
+                               f"{len(ctx_vecs)} vectors for {len(rows)} chunks")
+        ctx_rows.extend({**r, "vector": v} for r, v in zip(rows, ctx_vecs))
+        # LightRAG builds its own KG and dedups by content hash, so uploading here
+        # (before the swap) is safe and idempotent across re-runs.
         await lightrag.upload_text(path.name, doc_text)
+    # Phase 2 — every embedding now exists; idempotently swap each Weaviate collection
+    # in a tight drop->recreate->bulk-add (mirrors register's delete-then-add).
+    base_count = await _rebuild(BASE, base_rows)
+    ctx_count = await _rebuild(CONTEXTUAL, ctx_rows)
     return {"files": len(files), "base_chunks": base_count, "contextual_chunks": ctx_count}
 
 

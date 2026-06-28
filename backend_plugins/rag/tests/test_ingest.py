@@ -93,12 +93,17 @@ async def test_run_raises_on_embedding_count_mismatch(monkeypatch, tmp_path):
                                         {"title": "t", "text": "c2"}]
     async def short_embed(texts, model=None): return [[0.0]]  # fewer than inputs
     monkeypatch.setattr(ing, "chunk_document", fake_chunk)
+    deleted = []
     monkeypatch.setattr(ing.litellm, "embed", short_embed)
     monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
-    monkeypatch.setattr(ing.vectors, "delete_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "delete_collection", lambda n: deleted.append(n))
     monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
     with pytest.raises(RuntimeError, match="embedding count mismatch"):
         await ing.run(str(tmp_path))
+    # atomicity: the embed failure happens in phase 1, BEFORE the destructive swap,
+    # so the live Weaviate collections are never dropped — a failed re-run leaves the
+    # warm corpus fully intact instead of half-rebuilt (the regression this guards).
+    assert deleted == []
 
 
 @pytest.mark.asyncio

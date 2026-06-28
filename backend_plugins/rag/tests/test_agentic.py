@@ -34,6 +34,9 @@ async def test_agentic_runs_tool_then_answers(monkeypatch):
     assert "final answer" in content
     assert "Action" in content and "search_vectors" in content  # trace surfaced
     assert len(turns) == 2
+    # cost footer counts the tool's work too: 2 chat turns + 1 search_vectors embed
+    # = 3, matching the +1=embed convention of vanilla/hybrid (not just chat turns).
+    assert "3 LLM calls" in content
 
 
 @pytest.mark.asyncio
