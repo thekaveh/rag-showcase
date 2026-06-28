@@ -32,7 +32,8 @@ requirements apply:
 ./scripts/start-all.sh
 ```
 
-This runs the overlay setup, starts the Atlas `gen-ai-rag` stack (LightRAG, TEI
+This runs the overlay setup (which also brands the vendored Atlas as `rag-showcase` —
+`rag-showcase-*` containers/network and a RAG-SHOWCASE startup banner), starts the Atlas `gen-ai-rag` stack (LightRAG, TEI
 reranker, Weaviate, Neo4j, OpenWebUI, LiteLLM; Docling is off by default —
 ingestion falls back to naive text chunking) plus n8n (added via an explicit
 `--n8n-source container` flag), waits for the backend, LightRAG, and Weaviate,

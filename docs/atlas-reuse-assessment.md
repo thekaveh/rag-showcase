@@ -48,6 +48,10 @@ over HTTP — so it neither installs nor imports it.
 should be **documented for Atlas** as the preferred way to register custom
 OpenAI-compatible endpoints.
 
+> **Resolved upstream.** Atlas `d085f09` removed `public.llms` entirely — model
+> source-of-truth moved to per-service YAML — so this table-level limitation no
+> longer applies. The `/model/new` admin API remains the channel the showcase uses.
+
 ### 2.4 In-container path mismatch
 
 `backend_plugins` mounts at `/app/plugins` (not `/app/backend_plugins`). Running
@@ -77,9 +81,11 @@ Atlas's gitignore.
   already ships `weaviate-client` and `neo4j`; the plugin only re-pins a newer
   `weaviate-client` floor. (Originally filed as a gap — corrected after checking
   the vendored image's `requirements.txt`.)
-- **Add an `api_base` column to `public.llms`** to express custom-endpoint models
-  natively in the catalog. Alternatively, document the `/model/new` pattern
-  prominently as the standard way to register custom OpenAI-compatible endpoints.
+- **(Resolved)** Originally: *add an `api_base` column to `public.llms`* to express
+  custom-endpoint models natively. Atlas has since removed `public.llms` outright
+  (model source-of-truth moved to per-service YAML, `d085f09`); the showcase now
+  registers its custom OpenAI-compatible endpoints via the `/model/new` admin API,
+  which remains the supported pattern.
 - **Add a `--extra-compose <file>` flag to `start.sh`** so consumers can add
   overlays without symlinking into the gitignored `_user/` slot.
 
