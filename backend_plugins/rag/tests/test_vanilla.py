@@ -15,8 +15,11 @@ async def test_vanilla_retrieves_and_answers(monkeypatch):
         return {"choices": [{"message": {"content": "answered"}}]}
     monkeypatch.setattr(vanilla.litellm, "embed", fake_embed)
     monkeypatch.setattr(vanilla.litellm, "chat", fake_chat)
-    monkeypatch.setattr(vanilla.vectors, "search_dense",
-                        lambda c, v, k: [Hit("Doc", "CTX-ALPHA body", 0.2)])
+    seen = {}
+    def fake_dense(c, v, k):
+        seen["collection"] = c
+        return [Hit("Doc", "CTX-ALPHA body", 0.2)]
+    monkeypatch.setattr(vanilla.vectors, "search_dense", fake_dense)
     monkeypatch.setattr(vanilla.config, "role", lambda r: "qwen3.6")
 
     app = FastAPI(); app.include_router(vanilla.router)
@@ -28,3 +31,7 @@ async def test_vanilla_retrieves_and_answers(monkeypatch):
     assert r.status_code == 200
     content = r.json()["choices"][0]["message"]["content"]
     assert "answered" in content and "Doc" in content  # answer + sources block
+    assert seen["collection"] == "RagBase"  # the baseline retrieves from the base index
+    # cost footer: 1 embed + 1 generation = 2 (guards the "+1 = embed" convention the
+    # showcase's cost comparison depends on — drop the +1 and this drops to "1 LLM call").
+    assert "2 LLM calls" in content

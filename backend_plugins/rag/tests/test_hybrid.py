@@ -10,7 +10,7 @@ async def test_hybrid_uses_hybrid_search_then_rerank(monkeypatch):
     calls = {}
     async def fake_embed(texts, model=None): return [[1.0]]
     def fake_hybrid(c, q, v, k):
-        calls["hybrid"] = (q, k)
+        calls["hybrid"] = (q, k); calls["collection"] = c
         return [Hit("A", "a", 0.1), Hit("B", "KEYWORD body", 0.2)]
     async def fake_rerank(q, hits, top_n):
         calls["rerank"] = top_n
@@ -33,4 +33,12 @@ async def test_hybrid_uses_hybrid_search_then_rerank(monkeypatch):
     #   the reranker — passing TOP_N (5) here would silently shrink the pool, degrading
     #   rerank quality while every other assertion stays green.
     assert calls["rerank"] == hybrid.TOP_N         # rerank runs with the configured top_n
-    assert "KEYWORD" in r.json()["choices"][0]["message"]["content"]
+    content = r.json()["choices"][0]["message"]["content"]
+    assert "KEYWORD" in content
+    # hybrid-rag's ONLY differentiator from contextual-rag is the collection it queries:
+    # RagBase (plain chunks) vs RagContextual (blurb-prefixed). Flip hybrid.COLLECTION to
+    # RagContextual and the two become retrieval-identical, collapsing the showcase's
+    # central "does contextual beat plain hybrid?" contrast — every test still green. Pin it.
+    assert calls["collection"] == "RagBase"
+    # cost footer: 1 embed + 1 generation = 2 (guards the "+1 = embed" convention).
+    assert "2 LLM calls" in content
