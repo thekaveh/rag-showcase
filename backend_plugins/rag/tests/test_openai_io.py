@@ -15,6 +15,10 @@ def test_build_response_shapes_openai_and_embeds_sources():
     assert "The answer." in content
     assert "Doc A" in content and "alpha" in content
     assert "1.2s" in content and "1 chunk" in content
+    # a non-None score must RENDER (positive assertion — the only other score test
+    # checks the None case shows nothing). Drop/invert the score block and per-source
+    # relevance silently disappears from this comparison surface, with tests green.
+    assert "score 0.900" in content
 
 
 def test_build_response_handles_empty_sources():

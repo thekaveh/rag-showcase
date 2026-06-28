@@ -37,6 +37,39 @@ async def test_agentic_runs_tool_then_answers(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_agentic_surfaces_thought_in_trace(monkeypatch):
+    # when the model emits reasoning (content) ALONGSIDE a tool call, the ReAct trace
+    # must surface it as "**Thought:** ...". Every other agentic test sends content=None
+    # on the tool turn, so agentic.py's thought branch is otherwise unexercised — break
+    # it and the agent's reasoning silently vanishes from the trace, all tests green.
+    turns = []
+    async def fake_chat(model, messages, tools=None, **kw):
+        turns.append(messages)
+        if len(turns) == 1:
+            return {"choices": [{"message": {"role": "assistant",
+                "content": "I should search the corpus first.",
+                "tool_calls": [{"id": "c1", "type": "function",
+                  "function": {"name": "search_vectors",
+                               "arguments": json.dumps({"query": "alpha"})}}]}}]}
+        return {"choices": [{"message": {"role": "assistant", "content": "done"}}]}
+    async def fake_embed(texts, model=None): return [[1.0]]
+    monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
+    monkeypatch.setattr(agentic.litellm, "embed", fake_embed)
+    monkeypatch.setattr(agentic.vectors, "search_hybrid",
+                        lambda c, q, v, k: [Hit("D", "alpha body", 0.5)])
+    monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
+
+    app = FastAPI(); app.include_router(agentic.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/agentic-rag/v1/chat/completions",
+                          json={"model": "agentic-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200
+    content = r.json()["choices"][0]["message"]["content"]
+    assert "**Thought:** I should search the corpus first." in content
+
+
+@pytest.mark.asyncio
 async def test_agentic_uses_query_graph_tool(monkeypatch):
     turns = []
     async def fake_chat(model, messages, tools=None, **kw):
