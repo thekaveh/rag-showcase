@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAG Showcase Architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'JetBrains Mono', monospace; background: #020617; min-height: 100vh; padding: 2rem; color: white; }
+    .container { max-width: 1240px; margin: 0 auto; }
+    .header { margin-bottom: 1.5rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot { width: 12px; height: 12px; background: #34d399; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { color: #94a3b8; font-size: 0.875rem; margin-left: 1.75rem; }
+    .diagram-container { background: rgba(15, 23, 42, 0.5); border-radius: 1rem; border: 1px solid #1e293b; padding: 1.5rem; overflow-x: auto; }
+    svg { width: 100%; min-width: 1080px; display: block; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+    .card { background: rgba(15, 23, 42, 0.5); border-radius: 0.75rem; border: 1px solid #1e293b; padding: 1.25rem; }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.cyan { background: #22d3ee; } .card-dot.emerald { background: #34d399; }
+    .card-dot.violet { background: #a78bfa; } .card-dot.amber { background: #fbbf24; }
+    .card-dot.slate { background: #94a3b8; }
+    .card h3 { font-size: 0.875rem; font-weight: 600; }
+    .card ul { list-style: none; color: #94a3b8; font-size: 0.75rem; }
+    .card li { margin-bottom: 0.375rem; }
+    .footer { text-align: center; margin-top: 1.5rem; color: #475569; font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>RAG Showcase &mdash; End-to-End Flow</h1>
+      </div>
+      <p class="subtitle">Six RAG approaches on Atlas &bull; one prompt fans out to six columns &bull; all-local on Apple Silicon (host Ollama, Metal GPU)</p>
+    </div>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1120 760">
+        <defs>
+          <marker id="ah" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- ===== Legend (top-left, outside layers) ===== -->
+        <text x="40" y="58" fill="white" font-size="10" font-weight="600">Legend</text>
+        <rect x="40" y="68" width="16" height="10" rx="2" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1"/><text x="62" y="76" fill="#94a3b8" font-size="8">Frontend</text>
+        <rect x="40" y="84" width="16" height="10" rx="2" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1"/><text x="62" y="92" fill="#94a3b8" font-size="8">Backend / approach</text>
+        <rect x="40" y="100" width="16" height="10" rx="2" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1"/><text x="62" y="108" fill="#94a3b8" font-size="8">Vector / graph store</text>
+        <rect x="40" y="116" width="16" height="10" rx="2" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1"/><text x="62" y="124" fill="#94a3b8" font-size="8">Gateway / host GPU</text>
+        <rect x="40" y="132" width="16" height="10" rx="2" fill="rgba(251,146,60,0.3)" stroke="#fb923c" stroke-width="1"/><text x="62" y="140" fill="#94a3b8" font-size="8">Low-code workflow</text>
+        <rect x="40" y="148" width="16" height="10" rx="2" fill="rgba(30,41,59,0.6)" stroke="#94a3b8" stroke-width="1"/><text x="62" y="156" fill="#94a3b8" font-size="8">Local model (Ollama)</text>
+
+        <!-- ===== Layer 1: OpenWebUI ===== -->
+        <rect x="455" y="40" width="210" height="52" rx="6" fill="#0f172a"/>
+        <rect x="455" y="40" width="210" height="52" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="560" y="62" fill="white" font-size="12" font-weight="600" text-anchor="middle">OpenWebUI</text>
+        <text x="560" y="78" fill="#94a3b8" font-size="9" text-anchor="middle">multi-model chat &mdash; select all six</text>
+
+        <line x1="560" y1="92" x2="560" y2="128" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#ah)"/>
+        <text x="690" y="113" fill="#94a3b8" font-size="8" text-anchor="middle">one prompt &rarr; six columns</text>
+
+        <!-- ===== Layer 2: LiteLLM ===== -->
+        <rect x="440" y="130" width="240" height="52" rx="6" fill="#0f172a"/>
+        <rect x="440" y="130" width="240" height="52" rx="6" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="560" y="152" fill="white" font-size="12" font-weight="600" text-anchor="middle">LiteLLM Gateway</text>
+        <text x="560" y="168" fill="#94a3b8" font-size="9" text-anchor="middle">OpenAI /v1 &bull; six models registered</text>
+
+        <line x1="560" y1="182" x2="560" y2="208" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#ah)"/>
+
+        <!-- ===== Layer 3: Backend plugin (boundary + 6 approaches) ===== -->
+        <rect x="40" y="208" width="1040" height="126" rx="12" fill="rgba(6,78,59,0.06)" stroke="#34d399" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="54" y="226" fill="#34d399" font-size="10" font-weight="600">backend (FastAPI) &bull; backend_plugins/rag &mdash; plugin seam, each = /&lt;name&gt;/v1/chat/completions</text>
+
+        <!-- 6 approach boxes: start x=58, step 168, w=158, y=246 h=74 -->
+        <rect x="58"  y="246" width="158" height="74" rx="6" fill="#0f172a"/><rect x="58"  y="246" width="158" height="74" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="137" y="276" fill="white" font-size="11" font-weight="600" text-anchor="middle">vanilla-rag</text><text x="137" y="293" fill="#94a3b8" font-size="8" text-anchor="middle">dense top-k &rarr; stuff</text><text x="137" y="306" fill="#94a3b8" font-size="8" text-anchor="middle">(baseline)</text>
+
+        <rect x="226" y="246" width="158" height="74" rx="6" fill="#0f172a"/><rect x="226" y="246" width="158" height="74" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="305" y="276" fill="white" font-size="11" font-weight="600" text-anchor="middle">hybrid-rag</text><text x="305" y="293" fill="#94a3b8" font-size="8" text-anchor="middle">BM25+dense</text><text x="305" y="306" fill="#94a3b8" font-size="8" text-anchor="middle">&rarr; TEI rerank</text>
+
+        <rect x="394" y="246" width="158" height="74" rx="6" fill="#0f172a"/><rect x="394" y="246" width="158" height="74" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="473" y="276" fill="white" font-size="11" font-weight="600" text-anchor="middle">contextual-rag</text><text x="473" y="293" fill="#94a3b8" font-size="8" text-anchor="middle">context-prefixed</text><text x="473" y="306" fill="#94a3b8" font-size="8" text-anchor="middle">chunks</text>
+
+        <rect x="562" y="246" width="158" height="74" rx="6" fill="#0f172a"/><rect x="562" y="246" width="158" height="74" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="641" y="276" fill="white" font-size="11" font-weight="600" text-anchor="middle">graph-rag</text><text x="641" y="293" fill="#94a3b8" font-size="8" text-anchor="middle">LightRAG</text><text x="641" y="306" fill="#94a3b8" font-size="8" text-anchor="middle">graph + vector</text>
+
+        <rect x="730" y="246" width="158" height="74" rx="6" fill="#0f172a"/><rect x="730" y="246" width="158" height="74" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="809" y="276" fill="white" font-size="11" font-weight="600" text-anchor="middle">agentic-rag</text><text x="809" y="293" fill="#94a3b8" font-size="8" text-anchor="middle">ReAct loop</text><text x="809" y="306" fill="#94a3b8" font-size="8" text-anchor="middle">vector + graph tools</text>
+
+        <rect x="898" y="246" width="158" height="74" rx="6" fill="#0f172a"/><rect x="898" y="246" width="158" height="74" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="977" y="276" fill="white" font-size="11" font-weight="600" text-anchor="middle">n8n-adaptive-rag</text><text x="977" y="293" fill="#94a3b8" font-size="8" text-anchor="middle">route by</text><text x="977" y="306" fill="#94a3b8" font-size="8" text-anchor="middle">complexity</text>
+
+        <!-- approach -> store arrows -->
+        <line x1="137" y1="320" x2="150" y2="384" stroke="#a78bfa" stroke-width="1.3" marker-end="url(#ah)"/>
+        <line x1="305" y1="320" x2="245" y2="384" stroke="#a78bfa" stroke-width="1.3" marker-end="url(#ah)"/>
+        <line x1="335" y1="320" x2="380" y2="384" stroke="#94a3b8" stroke-width="1.3" marker-end="url(#ah)"/>
+        <line x1="473" y1="320" x2="230" y2="384" stroke="#a78bfa" stroke-width="1.3" marker-end="url(#ah)"/>
+        <line x1="641" y1="320" x2="600" y2="384" stroke="#a78bfa" stroke-width="1.3" marker-end="url(#ah)"/>
+        <line x1="809" y1="320" x2="640" y2="384" stroke="#a78bfa" stroke-width="1.3" marker-end="url(#ah)"/>
+        <line x1="977" y1="320" x2="840" y2="384" stroke="#fb923c" stroke-width="1.3" marker-end="url(#ah)"/>
+
+        <!-- ===== Layer 4: stores ===== -->
+        <rect x="58"  y="384" width="232" height="64" rx="6" fill="#0f172a"/><rect x="58" y="384" width="232" height="64" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="174" y="410" fill="white" font-size="11" font-weight="600" text-anchor="middle">Weaviate</text><text x="174" y="427" fill="#94a3b8" font-size="8" text-anchor="middle">RagBase + RagContextual</text><text x="174" y="439" fill="#94a3b8" font-size="8" text-anchor="middle">(hybrid BM25 + dense)</text>
+
+        <rect x="310" y="384" width="150" height="64" rx="6" fill="#0f172a"/><rect x="310" y="384" width="150" height="64" rx="6" fill="rgba(30,41,59,0.6)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="385" y="410" fill="white" font-size="11" font-weight="600" text-anchor="middle">TEI reranker</text><text x="385" y="427" fill="#94a3b8" font-size="8" text-anchor="middle">cross-encoder</text><text x="385" y="439" fill="#94a3b8" font-size="8" text-anchor="middle">rerank top-k</text>
+
+        <rect x="480" y="384" width="246" height="64" rx="6" fill="#0f172a"/><rect x="480" y="384" width="246" height="64" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="603" y="410" fill="white" font-size="11" font-weight="600" text-anchor="middle">LightRAG + Neo4j</text><text x="603" y="427" fill="#94a3b8" font-size="8" text-anchor="middle">extracted entities &amp; relations</text><text x="603" y="439" fill="#94a3b8" font-size="8" text-anchor="middle">graph + vector dual retrieval</text>
+
+        <rect x="746" y="384" width="200" height="64" rx="6" fill="#0f172a"/><rect x="746" y="384" width="200" height="64" rx="6" fill="rgba(251,146,60,0.3)" stroke="#fb923c" stroke-width="1.5"/>
+        <text x="846" y="410" fill="white" font-size="11" font-weight="600" text-anchor="middle">n8n</text><text x="846" y="427" fill="#94a3b8" font-size="8" text-anchor="middle">Adaptive-RAG workflow</text><text x="846" y="439" fill="#94a3b8" font-size="8" text-anchor="middle">classify &rarr; vanilla | agentic</text>
+
+        <!-- store/approach -> host Ollama arrows -->
+        <line x1="603" y1="448" x2="430" y2="520" stroke="#fbbf24" stroke-width="1.3" marker-end="url(#ah)"/>
+        <text x="545" y="486" fill="#94a3b8" font-size="8">extract/query</text>
+        <line x1="846" y1="448" x2="250" y2="520" stroke="#fbbf24" stroke-width="1.3" marker-end="url(#ah)"/>
+
+        <!-- generation routing on the left margin: backend boundary -> host Ollama -->
+        <path d="M 40 270 L 22 270 L 22 545 L 40 545" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#ah)"/>
+        <text x="28" y="408" fill="#fbbf24" font-size="8" transform="rotate(-90 28 408)" text-anchor="middle">generation &rarr; host GPU (think:false)</text>
+
+        <!-- ===== Layer 5: Host Ollama (Metal GPU) ===== -->
+        <rect x="40" y="494" width="1040" height="132" rx="12" fill="rgba(251,191,36,0.05)" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="54" y="512" fill="#fbbf24" font-size="10" font-weight="600">Host Ollama &mdash; Apple Metal GPU &bull; host.docker.internal:11434 (containers route here; container Ollama is CPU-only on macOS)</text>
+
+        <rect x="58"  y="528" width="232" height="80" rx="6" fill="#0f172a"/><rect x="58" y="528" width="232" height="80" rx="6" fill="rgba(30,41,59,0.6)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="174" y="554" fill="white" font-size="11" font-weight="600" text-anchor="middle">qwen3.6 35B-A3B MoE</text><text x="174" y="571" fill="#94a3b8" font-size="8" text-anchor="middle">generation (5 code approaches)</text><text x="174" y="585" fill="#fbbf24" font-size="8" text-anchor="middle">think:false &mdash; ~30&times; faster</text><text x="174" y="599" fill="#94a3b8" font-size="8" text-anchor="middle">via models.yaml (per-model)</text>
+
+        <rect x="310" y="528" width="232" height="80" rx="6" fill="#0f172a"/><rect x="310" y="528" width="232" height="80" rx="6" fill="rgba(30,41,59,0.6)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="426" y="554" fill="white" font-size="11" font-weight="600" text-anchor="middle">mistral-small3.2:24b</text><text x="426" y="571" fill="#94a3b8" font-size="8" text-anchor="middle">LightRAG extraction + query</text><text x="426" y="585" fill="#fbbf24" font-size="8" text-anchor="middle">non-reasoning (no CoT)</text><text x="426" y="599" fill="#94a3b8" font-size="8" text-anchor="middle">LIGHTRAG_LLM_MODEL</text>
+
+        <rect x="562" y="528" width="180" height="80" rx="6" fill="#0f172a"/><rect x="562" y="528" width="180" height="80" rx="6" fill="rgba(30,41,59,0.6)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="652" y="554" fill="white" font-size="11" font-weight="600" text-anchor="middle">nomic-embed-text</text><text x="652" y="571" fill="#94a3b8" font-size="8" text-anchor="middle">embeddings (768-dim)</text><text x="652" y="589" fill="#94a3b8" font-size="8" text-anchor="middle">base + contextual</text>
+
+        <rect x="762" y="528" width="294" height="80" rx="6" fill="#0f172a"/><rect x="762" y="528" width="294" height="80" rx="6" fill="rgba(30,41,59,0.6)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="909" y="554" fill="white" font-size="11" font-weight="600" text-anchor="middle">Judge panel (offline scoring)</text><text x="909" y="571" fill="#94a3b8" font-size="8" text-anchor="middle">qwen3.6:latest + gemma4:31b</text><text x="909" y="589" fill="#94a3b8" font-size="8" text-anchor="middle">shuffled/anonymized, 1&ndash;5 per answer</text>
+      </svg>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-header"><div class="card-dot emerald"></div><h3>Six approaches (visibly win on)</h3></div>
+        <ul>
+          <li>&bull; vanilla-rag &mdash; baseline (dense top-k)</li>
+          <li>&bull; hybrid-rag &mdash; exact keyword / ID queries</li>
+          <li>&bull; contextual-rag &mdash; context-starved chunks (Docling)</li>
+          <li>&bull; graph-rag &mdash; thematic / whole-corpus</li>
+          <li>&bull; agentic-rag &mdash; multi-hop / comparative</li>
+          <li>&bull; n8n-adaptive-rag &mdash; mixed simple+complex</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-dot amber"></div><h3>Local-LLM routing (Apple Silicon)</h3></div>
+        <ul>
+          <li>&bull; All LLM calls route to the host Ollama (Metal GPU)</li>
+          <li>&bull; Generation: qwen3.6 MoE with think:false (the MoE is a reasoning model; CoT was ~30&times; slower)</li>
+          <li>&bull; think:false scoped per-model via models.yaml</li>
+          <li>&bull; LightRAG: a non-reasoning model (mistral-small) &mdash; reasoning CoT made extraction time out</li>
+          <li>&bull; Embeddings: nomic-embed-text (768-dim)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-dot violet"></div><h3>Ingest &amp; comparison</h3></div>
+        <ul>
+          <li>&bull; Corpus (MultiHop-RAG subset) &rarr; chunk</li>
+          <li>&bull; embed + contextualize &rarr; Weaviate</li>
+          <li>&bull; entity/relation extraction &rarr; LightRAG/Neo4j</li>
+          <li>&bull; compare/run_matrix.py &mdash; 6 queries &times; 6 approaches</li>
+          <li>&bull; compare/judge.py &mdash; local two-model judge panel</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="footer">RAG Showcase &bull; six approaches on Atlas (vendored submodule) &bull; 100% local on a Mac Studio M2 Ultra</p>
+  </div>
+</body>
+</html>

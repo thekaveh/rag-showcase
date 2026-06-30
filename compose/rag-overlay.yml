@@ -6,6 +6,7 @@ services:
     environment:
       BACKEND_PLUGINS_DIR: /app/plugins
       RAG_ROLES_FILE: /app/plugins/rag/roles.yaml
+      RAG_MODELS_FILE: /app/plugins/rag/models.yaml
       TEI_RERANKER_ENDPOINT: ${TEI_RERANKER_ENDPOINT:-http://tei-reranker:80}
       N8N_ADAPTIVE_WEBHOOK_URL: ${N8N_ADAPTIVE_WEBHOOK_URL:-http://n8n:5678/webhook/adaptive-rag}
     volumes:
