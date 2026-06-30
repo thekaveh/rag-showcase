@@ -1,6 +1,100 @@
 {
+  "id": "adaptiverag00001",
   "name": "adaptive-rag",
-  "nodes": [],
-  "connections": {},
-  "_comment": "Build per n8n/README.md, then overwrite this file via n8n UI export."
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "adaptive-rag",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1111111-1111-4111-8111-111111111111",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "a1111111-1111-4111-8111-111111111111"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://litellm:4000/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.LITELLM_API_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'qwen3.6:latest', messages: [ { role: 'user', content: 'Classify the question as exactly one word, simple or complex. complex = needs multi-step reasoning, comparing or reconciling multiple sources, or synthesis across documents; otherwise simple. Answer with only the one word. Question: ' + $json.body.query } ], temperature: 0 }) }}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "b2222222-2222-4222-8222-222222222222",
+      "name": "Classify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const c=(($json.choices&&$json.choices[0]&&$json.choices[0].message&&$json.choices[0].message.content)||'').toLowerCase();const route=c.includes('complex')?'complex':'simple';const approach=route==='complex'?'agentic-rag':'vanilla-rag';const query=$('Webhook').first().json.body.query;return [{json:{route:route,approach:approach,query:query,url:'http://backend:8000/'+approach+'/v1/chat/completions'}}];"
+      },
+      "id": "b3333333-3333-4333-8333-333333333333",
+      "name": "Route",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $json.approach, messages: [ { role: 'user', content: $json.query } ] }) }}",
+        "options": { "timeout": 175000 }
+      },
+      "id": "b4444444-4444-4444-8444-444444444444",
+      "name": "Call Approach",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 0],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const ch=$json.choices&&$json.choices[0]&&$json.choices[0].message&&$json.choices[0].message.content;const r=$('Route').first().json;const answer=ch||('(n8n-adaptive-rag: '+r.approach+' returned no answer \\u2014 corpus may be empty or the approach errored)');return [{json:{answer:answer,route:r.route,approach:r.approach}}];"
+      },
+      "id": "b5555555-5555-4555-8555-555555555555",
+      "name": "Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "c6666666-6666-4666-8666-666666666666",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1100, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Classify", "type": "main", "index": 0 }]] },
+    "Classify": { "main": [[{ "node": "Route", "type": "main", "index": 0 }]] },
+    "Route": { "main": [[{ "node": "Call Approach", "type": "main", "index": 0 }]] },
+    "Call Approach": { "main": [[{ "node": "Shape", "type": "main", "index": 0 }]] },
+    "Shape": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" }
 }

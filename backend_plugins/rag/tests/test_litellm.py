@@ -59,6 +59,44 @@ async def test_chat_forwards_tools_and_omits_when_absent(monkeypatch):
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_chat_merges_model_params_onto_wire(monkeypatch):
+    # models.yaml carries per-model request props (e.g. think:false to suppress a
+    # local reasoning model's chain-of-thought). chat() must place them in the POST
+    # body for that model; drop the merge and the 30x-slower thinking pass returns
+    # with every test still green, so assert the wire.
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    monkeypatch.setattr(litellm.config, "model_params",
+                        lambda m: {"think": False} if m == "qwen3.6:latest" else {})
+    route = respx.post("http://litellm:4000/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json={"choices": [{"message": {"content": "x"}}]}))
+    await litellm.chat("qwen3.6:latest", [{"role": "user", "content": "q"}])
+    assert json.loads(route.calls.last.request.content)["think"] is False
+    # an unlisted model contributes nothing — no `think` key leaks onto its requests
+    await litellm.chat("claude-sonnet-4-6", [{"role": "user", "content": "q"}])
+    assert "think" not in json.loads(route.calls.last.request.content)
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_chat_explicit_args_win_over_model_params(monkeypatch):
+    # The merge uses setdefault: an explicit call argument must beat a models.yaml
+    # value for the same key, so models.yaml can only ADD properties, never override
+    # what a caller deliberately set.
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    monkeypatch.setattr(litellm.config, "model_params",
+                        lambda m: {"temperature": 0.9, "think": False})
+    route = respx.post("http://litellm:4000/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json={"choices": [{"message": {"content": "x"}}]}))
+    await litellm.chat("m", [{"role": "user", "content": "q"}], temperature=0.0)
+    body = json.loads(route.calls.last.request.content)
+    assert body["temperature"] == 0.0   # caller's explicit value wins
+    assert body["think"] is False        # models.yaml-only key still merged in
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_embed_uses_default_role_when_model_omitted(monkeypatch):
     monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
     monkeypatch.setenv("LITELLM_API_KEY", "sk-test")

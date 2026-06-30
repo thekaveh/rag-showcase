@@ -5,6 +5,18 @@ all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
 submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
 as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
 
+![RAG Showcase architecture — end-to-end flow](docs/architecture.png)
+
+*End-to-end flow: one prompt fans out across the six approaches; all LLM calls route to the
+host Ollama on Apple Silicon (Metal GPU). Source: [`docs/architecture.html`](docs/architecture.html).*
+
+> **Live results (2026-06-30).** First full local run on a Mac Studio M2 Ultra.
+> **`hybrid-rag` and `contextual-rag` lead** (judge-panel means 4.33 / 3.92 of 5); pure-dense
+> `vanilla-rag` is a weak baseline (it misses the rare keyword doc). The key enabler was
+> disabling the reasoning model's chain-of-thought (`think:false`, ~30× faster). `graph-rag`
+> is excluded pending a LightRAG model-wiring fix. Full analysis, methodology, and findings:
+> **[`docs/comparison.md`](docs/comparison.md)**.
+
 ## 1. Overview
 
 Each approach is an OpenAI-compatible `/<name>/v1/chat/completions` endpoint in a
@@ -72,7 +84,8 @@ rag-showcase/
 │   ├── common/              # config, litellm, vectors, openai_io, pipeline, contextual, lightrag
 │   ├── approaches/          # vanilla, hybrid, contextual, graph, agentic, n8n
 │   ├── tests/               # unit tests (mocked I/O)
-│   └── roles.yaml           # role→model map (local-first)
+│   ├── roles.yaml           # role→model map (local-first)
+│   └── models.yaml          # per-model request props (e.g. think:false)
 ├── ingest/                  # corpus → chunk (Docling optional) → Weaviate(base+contextual) + LightRAG
 ├── register/                # idempotent LiteLLM /model/new registration
 ├── corpus/                  # curated corpus (MultiHop-RAG + keyword docs)
@@ -103,6 +116,7 @@ set by hand for the default `start-all.sh` flow.
 | `DOCLING_ENDPOINT` | `""` (unset → naive chunking) | ingest | Atlas backend env (set only when Docling is enabled) |
 | `N8N_ADAPTIVE_WEBHOOK_URL` | `http://n8n:5678/webhook/adaptive-rag` | n8n approach | overlay |
 | `RAG_ROLES_FILE` | `/app/plugins/rag/roles.yaml` | config | overlay |
+| `RAG_MODELS_FILE` | `/app/plugins/rag/models.yaml` | config (per-model request props, e.g. `think:false`) | overlay |
 | `BACKEND_PLUGINS_DIR` | `/app/plugins` | plugin seam (Atlas) | overlay |
 
 ## 6. Documentation Index
@@ -114,6 +128,7 @@ set by hand for the default `start-all.sh` flow.
 | [Atlas-reuse assessment](docs/atlas-reuse-assessment.md) | Living | What reused cleanly, friction found, recommendations for Atlas |
 | [Corpus](corpus/README.md) | Living | How to populate the corpus |
 | [n8n workflow](n8n/README.md) | Living | Building the Adaptive-RAG workflow in the n8n UI |
+| [Live comparison](docs/comparison.md) | Living | Side-by-side results of the six approaches + first live-validation findings (host-GPU routing on macOS, the `start.sh` log-follow blocker, LightRAG's CPU-model default) |
 
 ## 7. Development & Testing
 
@@ -152,6 +167,17 @@ LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail 
   reset so the Atlas Supabase DB re-initializes against the current secrets:
   `cd infra && ./stop.sh --cold` (this **wipes Atlas volumes/data**), then re-run
   `./scripts/start-all.sh`. See the [Atlas](https://github.com/thekaveh/atlas) repo.
+- **macOS / Apple Silicon: generation is unusably slow.** Docker Desktop can't pass the
+  Metal GPU into containers, so Atlas's containerized Ollama runs the 24–38 GB models on
+  **CPU** and ingest/queries time out. Point LiteLLM's chat model at the **host** Ollama
+  (`host.docker.internal:11434`, Metal-accelerated) — see the routing recipe in
+  [docs/comparison.md §3](docs/comparison.md). Also set `LIGHTRAG_LLM_MODEL` to that
+  host model, or graph-rag's extraction silently times out.
+- **`start-all.sh` hangs after the stack is up and never ingests/registers.** Atlas's
+  `start.py` ends by following logs (`docker compose … logs -f`), which blocks the
+  non-interactive path before the ingest/register steps. Run them manually once the
+  backend is healthy (`docker exec … ingest.py` / `register_models.py`) — see
+  [docs/comparison.md §4](docs/comparison.md). (Tracked for Atlas in the reuse assessment.)
 - **Integration tests skip.** `tests/test_demo_matrix.py` self-skips unless a live LiteLLM is
   reachable; point it at the published port + master key (see §7).
 - **Stop / reset:** `./scripts/stop-all.sh` to stop; `cd infra && ./stop.sh --cold` to stop **and**
