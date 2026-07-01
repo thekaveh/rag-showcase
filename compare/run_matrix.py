@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the demo query matrix: every demo query x every RAG approach, through the
 stack's LiteLLM gateway, capturing answer + retrieved sources + server metrics +
-client-side latency. Writes compare/results/matrix.json.
+client-side latency. Writes compare/results/matrix.json by default.
 
 Host-run. Reads LITELLM_PORT + LITELLM_MASTER_KEY from infra/.env (the published
 gateway; the in-repo tests' localhost:4000 default is the in-network address, not
@@ -47,6 +47,14 @@ def envval(key: str, default: str = "") -> str:
     return val
 
 
+def queries_file() -> Path:
+    return Path(os.environ.get("MATRIX_QUERIES_FILE", "demo/queries.yaml"))
+
+
+def results_file() -> Path:
+    return RESULTS / os.environ.get("MATRIX_RESULTS_FILE", "matrix.json")
+
+
 def parse_content(content: str) -> dict:
     """Split a uniform build_response payload into answer / sources / metrics."""
     body = content
@@ -68,9 +76,11 @@ def parse_content(content: str) -> dict:
 def main() -> None:
     port, key = envval("LITELLM_PORT"), envval("LITELLM_MASTER_KEY")
     base = f"http://localhost:{port}"
-    queries = yaml.safe_load((ROOT / "demo" / "queries.yaml").read_text(encoding="utf-8"))
+    query_path = ROOT / queries_file()
+    queries = yaml.safe_load(query_path.read_text(encoding="utf-8"))
     RESULTS.mkdir(parents=True, exist_ok=True)
     out: dict = {"base": base, "models": MODELS,
+                 "queries_file": str(queries_file()),
                  "queries": [{k: q.get(k) for k in ("id", "query", "expect_winner", "rationale")}
                              for q in queries],
                  "cells": []}
@@ -97,8 +107,9 @@ def main() -> None:
                 tag = "ok " if cell.get("ok") else "ERR"
                 ans = (cell.get("answer") or cell.get("error") or "")[:60].replace("\n", " ")
                 print(f"  [{tag}] {q['id']:14} {model:18} {cell['latency_s']:6}s  {ans}", flush=True)
-    (RESULTS / "matrix.json").write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"\nwrote {RESULTS / 'matrix.json'} ({len(out['cells'])} cells)")
+    output = results_file()
+    output.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"\nwrote {output} ({len(out['cells'])} cells)")
 
 
 if __name__ == "__main__":

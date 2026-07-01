@@ -1,0 +1,33 @@
+# Graph-native benchmark queries: designed for relation traversal and entity bridges.
+- id: entity_bridge
+  query: "Explain how Microsoft is connected to OpenAI's 2023 leadership crisis, including the roles of Sam Altman, Greg Brockman, and Satya Nadella."
+  expect_winner: graph-rag
+  rationale: "Requires traversing organization-person-role relationships across the OpenAI crisis and Microsoft partnership documents."
+- id: relationship_chain
+  query: "Trace the relationship chain connecting Google, Apple, Safari, the DOJ, Judge Amit Mehta, and Microsoft Bing in the search antitrust material."
+  expect_winner: graph-rag
+  rationale: "A graph should connect default-search agreements, browser distribution, the court case, and the competing search engine."
+- id: shared_actor
+  query: "Which companies appear both in AI partnership or investment relationships and in competition or antitrust scrutiny, and what are their connections?"
+  expect_winner: graph-rag
+  rationale: "Requires finding shared entities across AI partnership docs and competition inquiry docs, not just retrieving one passage."
+- id: timeline_cause
+  query: "Summarize the sequence connecting FTX, Alameda Research, Binance, customer withdrawals, bankruptcy, and the DOJ prosecution."
+  expect_winner: graph-rag
+  rationale: "A graph should preserve the causal and temporal chain across crypto collapse, trial, and Binance documents."
+- id: witness_network
+  query: "Map the witness and insider network around the FTX case: Caroline Ellison, Gary Wang, Nishad Singh, Sam Bankman-Fried, Alameda Research, FTX, and the DOJ."
+  expect_winner: graph-rag
+  rationale: "Relation extraction should make the insider/cooperator network explicit."
+- id: cloud_model_competition
+  query: "Compare how Microsoft/OpenAI, Amazon/Anthropic, and Google/Anthropic connect cloud infrastructure to frontier AI models."
+  expect_winner: graph-rag
+  rationale: "Requires grouping repeated model, cloud, and investor relationships across multiple AI partnership documents."
+- id: default_search_ecosystem
+  query: "Describe the default-search ecosystem involving Google Search, Apple Safari, Mozilla Firefox, Microsoft Bing, and the DOJ."
+  expect_winner: graph-rag
+  rationale: "A graph-native answer should stitch browser, search-engine, revenue, and antitrust relationships."
+- id: cross_domain_regulators
+  query: "Which regulators or government bodies appear across the AI, search, and crypto documents, and what actions did each take?"
+  expect_winner: graph-rag
+  rationale: "Tests cross-domain entity grouping for DOJ, FTC, CMA, FEC, and courts."

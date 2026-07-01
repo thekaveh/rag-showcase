@@ -7,21 +7,27 @@ memory. All LLM calls used local Ollama on the host Apple Metal GPU.
 - **Run date:** 2026-07-01
 - **Approaches compared:** all 6 - `vanilla-rag`, `hybrid-rag`, `contextual-rag`,
   `graph-rag`, `agentic-rag`, `n8n-adaptive-rag`.
-- **Corpus:** 11-document curated subset of MultiHop-RAG plus `widget-error-codes.md`.
-- **Queries:** the six prompts in [`demo/queries.yaml`](../demo/queries.yaml).
+- **Baseline corpus:** 11-document curated subset of MultiHop-RAG plus `widget-error-codes.md`.
+- **Graph-native corpus:** 10 committed relation-dense dossiers in
+  [`corpus/graph_native/`](../corpus/graph_native/).
+- **Queries:** baseline prompts in [`demo/queries.yaml`](../demo/queries.yaml) and
+  graph-native prompts in [`demo/graph_native_queries.yaml`](../demo/graph_native_queries.yaml).
 - **Harness:** [`compare/run_matrix.py`](../compare/run_matrix.py) and
   [`compare/judge.py`](../compare/judge.py). Raw working outputs are written under
   `compare/results/` and are intentionally gitignored; the committed snapshots for
   this run are [`live-2026-07-01-six-way-matrix.json`](results/live-2026-07-01-six-way-matrix.json)
-  and [`live-2026-07-01-six-way-judgments.json`](results/live-2026-07-01-six-way-judgments.json).
+  / [`live-2026-07-01-six-way-judgments.json`](results/live-2026-07-01-six-way-judgments.json)
+  plus [`live-2026-07-01-graph-native-matrix.json`](results/live-2026-07-01-graph-native-matrix.json)
+  / [`live-2026-07-01-graph-native-judgments.json`](results/live-2026-07-01-graph-native-judgments.json).
 
 ## 0. Headline
 
-The renewed six-way run completed. `contextual-rag` was the strongest overall result
-on this corpus, with `vanilla-rag`, `hybrid-rag`, and `n8n-adaptive-rag` clustered
-close behind. `graph-rag` is now operational, but remains slower and uneven: after
-the LightRAG fixes it answered 4 of 6 queries usefully, but still failed the
-multihop query.
+The renewed six-way runs completed on both the baseline corpus and a graph-native
+corpus built specifically around entities, relationships, shared actors, and causal
+chains. `contextual-rag` was the strongest overall result in both runs. `graph-rag`
+is now operational and participated in every cell, but remains slower and uneven:
+it answered every graph-native query, yet the judge panel still ranked it behind
+contextual, vanilla, n8n, and hybrid on aggregate quality.
 
 The key fixes were:
 
@@ -45,6 +51,18 @@ uv run python compare/judge.py
 
 ```bash
 MATRIX_MODELS=vanilla-rag,graph-rag uv run python compare/run_matrix.py
+```
+
+The graph-native comparison uses the same harness with alternate input/output files:
+
+```bash
+MATRIX_QUERIES_FILE=demo/graph_native_queries.yaml \
+MATRIX_RESULTS_FILE=graph_native_matrix.json \
+uv run python compare/run_matrix.py
+
+JUDGE_MATRIX_FILE=graph_native_matrix.json \
+JUDGE_RESULTS_FILE=graph_native_judgments.json \
+uv run python compare/judge.py
 ```
 
 ## 2. The approaches
@@ -132,16 +150,66 @@ The rerank/query tuning moved it from unusable one-word answers to useful answer
 keyword, thematic, factoid, context-starved, and mixed-batch prompts, but it still
 missed the multihop question.
 
-## 6. Caveats
+## 6. Graph-native corpus run
+
+To test whether the earlier graph-rag results were partly a corpus mismatch, the
+repo now includes a second corpus under [`corpus/graph_native/`](../corpus/graph_native/).
+It contains 10 concise real-world dossiers with explicit entity and relationship
+statements covering AI partnerships, search antitrust, browser-search economics,
+AI competition inquiries, FTX/Alameda, Binance/DOJ, and campaign-finance links.
+The query set asks for bridges, shared actors, relationship chains, witnesses,
+timelines, and cross-domain regulators.
+
+All 48 cells returned without transport errors.
+
+| Approach | ok cells | avg latency | judge mean |
+|---|---:|---:|---:|
+| **contextual-rag** | 8/8 | 12.3s | **4.38** |
+| vanilla-rag | 8/8 | 6.2s | 3.88 |
+| n8n-adaptive-rag | 8/8 | 1.9s | 3.88 |
+| hybrid-rag | 8/8 | 11.4s | 3.69 |
+| graph-rag | 8/8 | 26.2s | 2.69 |
+| agentic-rag | 8/8 | 34.0s | 1.62 |
+
+### 6.1 Per-query winners
+
+| Query | Winner | Notes |
+|---|---|---|
+| `entity_bridge` | hybrid-rag | graph-rag received one judge-model win, but hybrid won on mean score |
+| `relationship_chain` | contextual-rag | vanilla, contextual, and n8n all scored 5.0; contextual won by tiebreak |
+| `shared_actor` | contextual-rag | strongest synthesis of common actors across Anthropic/Amazon/Google |
+| `timeline_cause` | n8n-adaptive-rag | routed answer handled the chronological cause/effect prompt best |
+| `witness_network` | contextual-rag | all approaches were weaker; contextual led at 3.0/5 |
+| `cloud_model_competition` | contextual-rag | best answer across cloud/provider/model relationships |
+| `default_search_ecosystem` | n8n-adaptive-rag | n8n, vanilla, and contextual tied at 5.0; n8n won by tiebreak |
+| `cross_domain_regulators` | vanilla-rag | direct retrieval gave the cleanest list of regulators and agencies |
+
+### 6.2 Interpretation
+
+The graph-native corpus confirms that the graph path is technically healthy: LightRAG
+indexed the corpus, drained extraction, and answered all eight graph-shaped prompts.
+It does not yet show that this LightRAG configuration is the best answerer for these
+prompts. The graph-rag column is still slower than all non-agentic retrievers and
+often under-synthesizes compared with contextual retrieval over the same source text.
+
+That suggests the remaining work is LightRAG query quality, not only corpus choice:
+prompt/mode selection, graph fanout, source-text inclusion, and rerank-provider wiring
+are likely more important than simply adding more graph-shaped documents.
+
+## 7. Caveats
 
 - **Small corpus:** the scored run uses the curated 11-doc subset. The full 41-file
   corpus is useful as a stress test, but graph extraction is still expensive locally.
+- **Graph-native corpus is synthetic-curated:** the documents are real-world dossiers
+  with source links and explicit relationship bullets, designed to make graph structure
+  available. This is a better graph test than the baseline subset, but it is still not
+  a large natural enterprise corpus.
 - **Local judges:** scores are directional, not authoritative. Answers are shuffled
   and anonymized, but both judges are local models.
 - **Cache effects:** n8n and graph-rag include cache hits in some cells.
 - **Agentic cap:** `MAX_STEPS=4` materially limits `agentic-rag`.
 
-## 7. Reversibility
+## 8. Reversibility
 
 - `qwen3.6-moe` is a LiteLLM runtime alias for host Ollama; delete it from LiteLLM if
   you want to return to Atlas defaults.

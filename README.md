@@ -14,9 +14,11 @@ host Ollama on Apple Silicon (Metal GPU). Source: [`docs/architecture.html`](doc
 > All six approaches completed. **`contextual-rag` led overall** (judge-panel mean
 > 4.50/5), with `vanilla-rag`, `hybrid-rag`, and `n8n-adaptive-rag` clustered at
 > 4.17/5. `graph-rag` is now included after the LightRAG role/query fixes, but remains
-> slower and uneven (3.25/5). The key enabler was disabling the Qwen reasoning model's
-> chain-of-thought (`think:false`, ~30x faster). Full analysis, methodology, and
-> findings:
+> slower and uneven (3.25/5). A second graph-native corpus run is now included:
+> `contextual-rag` still led (4.38/5), while `graph-rag` answered every graph-shaped
+> query but averaged 2.69/5. The key enabler was disabling the Qwen reasoning model's
+> chain-of-thought (`think:false`, ~30x faster). Full analysis, methodology, raw
+> snapshots, and findings:
 > **[`docs/comparison.md`](docs/comparison.md)**.
 
 ## 1. Overview
@@ -92,7 +94,7 @@ rag-showcase/
 │   └── models.yaml          # per-model request props (e.g. think:false)
 ├── ingest/                  # corpus → chunk (Docling optional) → Weaviate(base+contextual) + LightRAG
 ├── register/                # idempotent LiteLLM /model/new registration
-├── corpus/                  # curated corpus (MultiHop-RAG + keyword docs)
+├── corpus/                  # curated corpora (MultiHop-RAG + keyword docs + graph-native dossiers)
 ├── compose/                 # backend plugin compose overlay
 ├── scripts/                 # start-all / stop-all / setup-overlay
 ├── n8n/                     # Adaptive-RAG workflow recipe

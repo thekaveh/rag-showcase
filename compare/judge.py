@@ -7,7 +7,7 @@ cannot bias by approach order or name.
 Batched by judge model — all 6 queries for one judge before switching to the next —
 so each ~20-38 GB model loads ONCE instead of swapping every call (Ollama keeps only
 a couple models resident, so per-call alternation thrashes/stalls). Reads
-compare/results/matrix.json, writes compare/results/judgments.json.
+compare/results/matrix.json, writes compare/results/judgments.json by default.
 
     uv run python compare/judge.py
 """
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from pathlib import Path
 
@@ -25,6 +26,14 @@ RESULTS = ROOT / "compare" / "results"
 OLLAMA = "http://localhost:11434/v1/chat/completions"
 JUDGES = ["qwen3.6:latest", "gemma4:31b"]
 MAXLEN = 1200  # cap answer length fed to judges
+
+
+def matrix_file() -> Path:
+    return RESULTS / os.environ.get("JUDGE_MATRIX_FILE", "matrix.json")
+
+
+def judgments_file() -> Path:
+    return RESULTS / os.environ.get("JUDGE_RESULTS_FILE", "judgments.json")
 
 
 def stable_order(items: list[str], seed: str) -> list[str]:
@@ -75,7 +84,7 @@ def build_prompt(query: str, rationale: str, labeled: list[tuple[str, str]]) -> 
 
 
 def main() -> None:
-    matrix = json.loads((RESULTS / "matrix.json").read_text(encoding="utf-8"))
+    matrix = json.loads(matrix_file().read_text(encoding="utf-8"))
     by_q: dict[str, dict[str, dict]] = {}
     for c in matrix["cells"]:
         by_q.setdefault(c["query_id"], {})[c["model"]] = c
@@ -136,8 +145,9 @@ def main() -> None:
         })
         print(f"  [{qid}] winner={winner} mean={mean}", flush=True)
 
-    (RESULTS / "judgments.json").write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"\nwrote {RESULTS / 'judgments.json'}")
+    output = judgments_file()
+    output.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"\nwrote {output}")
 
 
 if __name__ == "__main__":
