@@ -1,6 +1,7 @@
 """Client for Atlas's LightRAG server (graph + vector RAG)."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 
@@ -21,6 +22,31 @@ def _headers() -> dict[str, str]:
     return {"X-API-Key": key} if key else {}
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return int(raw)
+
+
+def _query_payload(question: str, mode: str) -> dict:
+    return {
+        "query": question,
+        "mode": mode,
+        "enable_rerank": _env_bool("LIGHTRAG_QUERY_ENABLE_RERANK", False),
+        "top_k": _env_int("LIGHTRAG_QUERY_TOP_K", 10),
+        "chunk_top_k": _env_int("LIGHTRAG_QUERY_CHUNK_TOP_K", 5),
+        "max_total_tokens": _env_int("LIGHTRAG_QUERY_MAX_TOTAL_TOKENS", 12000),
+    }
+
+
 async def query(question: str, mode: str = "hybrid") -> str:
     # LightRAG's /query rejects very short queries (min_length=3) with a 422, and
     # a 0–2 char string isn't a meaningful graph question anyway — degrade with a
@@ -29,7 +55,7 @@ async def query(question: str, mode: str = "hybrid") -> str:
         return "(query too short for the knowledge graph)"
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.post(f"{_base()}/query", headers=_headers(),
-                                 json={"query": question, "mode": mode})
+                                 json=_query_payload(question, mode))
         resp.raise_for_status()
         data = resp.json()
         answer = data.get("response") or data.get("data") or ""
@@ -46,9 +72,20 @@ async def query(question: str, mode: str = "hybrid") -> str:
 
 
 async def upload_text(title: str, text: str) -> None:
+    retries = int(os.environ.get("LIGHTRAG_UPLOAD_RETRIES", "60"))
+    delay = float(os.environ.get("LIGHTRAG_UPLOAD_RETRY_DELAY", "5"))
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         # LightRAG v1.5.0 InsertTextRequest accepts text / file_source / chunking
         # (the optional source label is "file_source", not "description").
-        resp = await client.post(f"{_base()}/documents/text", headers=_headers(),
-                                 json={"text": text, "file_source": title})
-        resp.raise_for_status()
+        for attempt in range(retries + 1):
+            resp = await client.post(f"{_base()}/documents/text", headers=_headers(),
+                                     json={"text": text, "file_source": title})
+            if resp.status_code != 409:
+                resp.raise_for_status()
+                return
+            if attempt >= retries:
+                resp.raise_for_status()
+            logging.getLogger("uvicorn.error").info(
+                "LightRAG upload backpressure for %s; retrying in %.1fs (%d/%d)",
+                title, delay, attempt + 1, retries)
+            await asyncio.sleep(delay)

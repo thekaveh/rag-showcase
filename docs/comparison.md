@@ -1,208 +1,148 @@
-# RAG approaches — live comparison
+# RAG approaches - live comparison
 
 A side-by-side comparison of the RAG approaches in this repo, run against a live
-`gen-ai-rag` Atlas stack on a single macOS host (Mac Studio M2 Ultra, 192 GB),
-**fully local** — every LLM call (generation, extraction, judging) runs on the host
-Ollama (Apple Metal GPU). This is also the first end-to-end **live validation** of
-the showcase, and it surfaced several real findings (§4).
+`gen-ai-rag` Atlas stack on a single macOS host: Mac Studio M2 Ultra, 192 GB unified
+memory. All LLM calls used local Ollama on the host Apple Metal GPU.
 
-- **Run date:** 2026-06-30
-- **Approaches compared:** 5 of 6 — `vanilla-rag`, `hybrid-rag`, `contextual-rag`,
-  `agentic-rag`, `n8n-adaptive-rag`. **`graph-rag` is excluded** (LightRAG would not
-  reliably use a non-reasoning extraction model on this deployment — §4.6).
-- **Corpus:** 11-doc curated subset of MultiHop-RAG — FTX/SBF and US-v-Google
-  clusters (multi-source overlap) + AI-theme docs + the `widget-error-codes.md`
-  keyword doc.
-- **Queries:** the six contrasting prompts in [`demo/queries.yaml`](../demo/queries.yaml).
-- **Harness:** [`compare/run_matrix.py`](../compare/run_matrix.py) +
-  [`compare/judge.py`](../compare/judge.py). Raw data in `compare/results/`.
+- **Run date:** 2026-07-01
+- **Approaches compared:** all 6 - `vanilla-rag`, `hybrid-rag`, `contextual-rag`,
+  `graph-rag`, `agentic-rag`, `n8n-adaptive-rag`.
+- **Corpus:** 11-document curated subset of MultiHop-RAG plus `widget-error-codes.md`.
+- **Queries:** the six prompts in [`demo/queries.yaml`](../demo/queries.yaml).
+- **Harness:** [`compare/run_matrix.py`](../compare/run_matrix.py) and
+  [`compare/judge.py`](../compare/judge.py). Raw run data is written under
+  `compare/results/` and is intentionally gitignored.
 
 ## 0. Headline
 
-Two things made this run work where earlier attempts stalled, and one approach
-couldn't be salvaged:
+The renewed six-way run completed. `contextual-rag` was the strongest overall result
+on this corpus, with `vanilla-rag`, `hybrid-rag`, and `n8n-adaptive-rag` clustered
+close behind. `graph-rag` is now operational, but remains slower and uneven: after
+the LightRAG fixes it answered 4 of 6 queries usefully, but still failed the
+multihop query.
 
-- **Disabling the reasoning model's chain-of-thought (`think:false`) is the unlock**
-  — the qwen3.6 MoE answered in **~5 s instead of ~46 s (~30×)** with no quality loss
-  on these tasks (§4.1). Without it, every call ran a multi-thousand-token "thinking"
-  pass and the whole pipeline timed out.
-- **`hybrid-rag` and `contextual-rag` are the clear winners** here; `vanilla-rag` is a
-  notably weak baseline because pure-dense retrieval misses the small/rare widget doc
-  (§6).
-- **`graph-rag` is excluded** — a LightRAG/Atlas bug (§4.6) prevented its graph from
-  building reliably.
+The key fixes were:
+
+- scoped `think:false` for local reasoning models via `backend_plugins/rag/models.yaml`;
+- LightRAG role-specific EXTRACT/KEYWORD/QUERY models pointed at host Ollama;
+- LightRAG EXTRACT tuned to `max_async=1`, `timeout=900`, and `num_ctx=8192`;
+- direct host-Ollama embeddings with `nomic-embed-text` and `EMBEDDING_DIM=768`;
+- LightRAG upload retry on HTTP 409 backpressure;
+- graph query payload tuned to avoid the broken TEI rerank path and reduce context fanout:
+  `enable_rerank=false`, `top_k=10`, `chunk_top_k=5`, `max_total_tokens=12000`.
 
 ## 1. Reproduce
 
 ```bash
-./scripts/start-all.sh                 # bring the stack up, then apply the §3 routing
-uv run python compare/run_matrix.py    # 6 queries × N approaches  -> compare/results/matrix.json
-uv run python compare/judge.py         # local judge panel        -> compare/results/judgments.json
+./scripts/start-all.sh
+uv run python compare/run_matrix.py
+uv run python compare/judge.py
 ```
-`MATRIX_MODELS` (comma-separated) overrides which approaches the matrix runs.
+
+`MATRIX_MODELS` can restrict the approaches for a partial run:
+
+```bash
+MATRIX_MODELS=vanilla-rag,graph-rag uv run python compare/run_matrix.py
+```
 
 ## 2. The approaches
 
-See the [README](../README.md#3-the-six-approaches). In one line each: `vanilla-rag`
-(dense top-k), `hybrid-rag` (BM25+dense+rerank), `contextual-rag` (context-prefixed
-chunks), `graph-rag` (LightRAG graph+vector), `agentic-rag` (ReAct over vector+graph
-tools), `n8n-adaptive-rag` (low-code complexity router).
+See the [README](../README.md#3-the-six-approaches). In one line each:
+`vanilla-rag` is dense top-k; `hybrid-rag` adds BM25 and TEI rerank;
+`contextual-rag` retrieves context-prefixed chunks; `graph-rag` delegates to
+LightRAG; `agentic-rag` runs a ReAct loop over vector and graph tools; and
+`n8n-adaptive-rag` routes through the n8n workflow.
 
-## 3. Environment & setup (the local-LLM architecture)
+## 3. Environment
 
-100% local; the architecture is in [`architecture.html`](architecture.html). All LLM
-calls route to the **host** Ollama (Metal GPU), because Atlas's containerized Ollama
-is CPU-only on macOS (Docker Desktop has no Metal passthrough).
+| Concern | This run |
+|---|---|
+| Hardware | Mac Studio M2 Ultra, 192 GB unified memory |
+| Generation | host Ollama model alias `qwen3.6-moe` -> `qwen3.6:35b-a3b-coding-mxfp8`, with `think:false` |
+| LightRAG extraction/query | host Ollama `mistral-small3.2:24b`, non-reasoning, `num_ctx=8192` |
+| Embeddings | `nomic-embed-text`, host Ollama for LightRAG; LiteLLM embedding route for plugin vectors |
+| Judges | `qwen3.6:latest` + `gemma4:31b`, local Ollama, `think:false` |
 
-| Concern | Default | This run |
+Docker Desktop cannot pass Apple Metal into containers, so Atlas's containerized
+Ollama is CPU-only on macOS. The working path is to route big model calls to the
+host Ollama at `host.docker.internal:11434`.
+
+## 4. Findings
+
+1. **`think:false` is mandatory for the Qwen reasoning model.** With thinking enabled,
+   extraction and generation calls spend time on hidden reasoning. With `think:false`,
+   the same local model is roughly 30x faster for this workload. The setting is
+   scoped per model in `models.yaml`, so it does not leak to unrelated models.
+2. **Atlas needs first-class host-Ollama support on macOS.** Container Ollama works
+   functionally but is not viable for large local models on Apple Silicon.
+3. **Atlas should expose LightRAG role-specific model settings.** LightRAG supports
+   EXTRACT, KEYWORD, QUERY, and VLM roles, but Atlas currently exposes only the
+   global `LIGHTRAG_LLM_MODEL` path. Rag-showcase now works around that locally in
+   `compose/rag-overlay.yml`.
+4. **LightRAG extraction works with the local overlay, but full-corpus graph builds
+   remain expensive.** The 11-doc subset drained cleanly. A 41-file stress ingest
+   completed vector/text ingest but LightRAG graph processing did not fully drain
+   under the earlier settings and should be treated as a separate capacity test.
+5. **LightRAG query-time rerank is incompatible with the current TEI endpoint wiring.**
+   LightRAG sent a Jina-style rerank request to Atlas's TEI reranker and TEI returned
+   `422 missing field texts`. Disabling LightRAG query rerank and lowering graph query
+   fanout fixed graph-rag answer quality for most queries.
+6. **`agentic-rag` is still step-limited.** `MAX_STEPS=4` is too low for several
+   synthesis prompts; it does well on single-hop tool use and often stops early on
+   multi-step tasks.
+
+## 5. Results
+
+All 36 cells returned without transport errors.
+
+| Approach | ok cells | avg latency | judge mean |
+|---|---:|---:|---:|
+| **contextual-rag** | 6/6 | 9.6s | **4.50** |
+| vanilla-rag | 6/6 | 4.7s | 4.17 |
+| hybrid-rag | 6/6 | 7.5s | 4.17 |
+| n8n-adaptive-rag | 6/6 | 0.6s | 4.17 |
+| graph-rag | 6/6 | 23.3s | 3.25 |
+| agentic-rag | 6/6 | 5.8s | 2.33 |
+
+### 5.1 Per-query winners
+
+| Query | Winner | Notes |
 |---|---|---|
-| **Generation** (5 approaches + ingest) | `qwen3.6:latest` on the CPU container | `qwen3.6 35B-A3B MoE` on the **host GPU** (LiteLLM model `qwen3.6-moe`), with **`think:false`** scoped per-model via [`backend_plugins/rag/models.yaml`](../backend_plugins/rag/models.yaml) |
-| **LightRAG** (graph-rag) | resolves to the CPU reasoning model | `LIGHTRAG_LLM_MODEL=mistral-small` (non-reasoning `mistral-small3.2:24b`) — *intended*; see §4.6 |
-| **Embeddings** | `nomic-embed-text` (container) | unchanged (fast on CPU) |
-| **Judges** | — | `qwen3.6:latest` + `gemma4:31b` on the host, `think:false` |
-| **Ingest / register** | run by `start-all.sh` | run manually (§4.2) |
+| `keyword` | agentic-rag by tiebreak | all six scored 5.0 |
+| `thematic` | contextual-rag | best real synthesis; graph-rag improved but scored 2.0 |
+| `multihop` | contextual-rag | graph-rag still returned a weak one-word answer |
+| `factoid` | graph-rag by tiebreak | graph, vanilla, hybrid, contextual, and n8n all scored 5.0 |
+| `context_starved` | graph-rag by tiebreak | all six scored 4.5 |
+| `mixed_batch` | contextual-rag by tiebreak | vanilla/hybrid/contextual/n8n all scored 5.0 |
 
-## 4. Findings (first live validation)
+### 5.2 Interpretation
 
-1. **`think:false` is the unlock.** The qwen3.6 MoE is a *reasoning* model: it emits a
-   multi-thousand-token chain-of-thought per call. Same prompt: **`think:True` ≈ 46 s
-   (4.5 K thinking chars) vs `think:false` ≈ 1.6–7 s, same-quality answer (~30×)**. The
-   context window (a forced 262144 / ~40 GB) is *not* cappable on Ollama's MLX runner
-   (`num_ctx` ignored per-request, via Modelfile, and via `OLLAMA_CONTEXT_LENGTH`), so
-   `think:false` — not context — was the lever. It's set as a **per-model property** in
-   `models.yaml` (a top-level `think` flag that LiteLLM forwards to Ollama), so it
-   applies only to that model — flip a role to a cloud model and nothing is sent.
-2. **`start-all.sh` never reaches ingest/register non-interactively.** Atlas's
-   `start.py` ends by following logs (`docker compose … logs -f`), which blocks the
-   wrapper before its ingest/register steps. *Workaround:* run them manually once the
-   stack is healthy.
-3. **Containerized Ollama is CPU-only on macOS.** The 24–40 GB models are unusable
-   there; route generation to the host Ollama (`host.docker.internal:11434`).
-4. **The 40 GB / 256 K-context MoE destabilizes Ollama under churn.** Repeated
-   load/unload (and slow reasoning calls) wedge it — the model sticks in `Stopping…`,
-   blocking new loads; only an Ollama restart clears it. Mitigation: keep `think:false`
-   (fast calls, no churn) and give LightRAG a *separate* model so the MoE isn't hammered.
-5. **n8n 2.x Code nodes block `$env`.** Supply the LiteLLM key via an HTTP Request node
-   header, not Code (the shape the workflow uses).
-6. **LightRAG does not honor the configured extraction model (graph-rag blocker).**
-   With `LIGHTRAG_LLM_MODEL=mistral-small`, LightRAG's `/health` reports
-   `extract/query/keyword → mistral-small`, yet its **actual LiteLLM calls hit the
-   default `qwen3.6:latest`** (CPU reasoning) — so extraction hits the 480 s worker
-   timeout and **10 of 11 docs fail**, and graph-rag's query itself times out (180 s).
-   Research confirms LightRAG v1.5+ *should* support per-role non-reasoning models
-   (`EXTRACT_LLM_MODEL`), so this is an Atlas/LightRAG wiring bug, not a model problem.
-   graph-rag was therefore excluded from the scored run. **Fix path:** make LightRAG's
-   actual calls use the resolved non-reasoning model (e.g. `mistral-small3.2:24b` or
-   `qwen2.5:14b-instruct`, both on Ollama).
+`contextual-rag` is the best overall default in this run: it handled the thematic and
+mixed prompts well and stayed robust on exact fact questions. `hybrid-rag` remains a
+good production-style retriever because it is predictable and cheaper than graph-rag.
+`vanilla-rag` performed better on this renewed subset than in the earlier failed run
+because the widget document was present and retrieved. `n8n-adaptive-rag` mostly
+mirrors its selected route and benefits heavily from cache hits.
 
-## 5. Methodology
+`graph-rag` is no longer excluded. It is included, indexed, and queried successfully.
+Its remaining weakness is query-time quality and latency, not indexing availability.
+The rerank/query tuning moved it from unusable one-word answers to useful answers on
+keyword, thematic, factoid, context-starved, and mixed-batch prompts, but it still
+missed the multihop question.
 
-- **Collector** runs each query against each approach through the published LiteLLM
-  gateway (temperature 0), records client latency, and parses each response's uniform
-  `build_response` payload into `{answer, sources[], server_metrics}`. Per-cell errors
-  are recorded, not fatal.
-- **Judge panel** = two local models on the host Ollama (`qwen3.6:latest` + `gemma4:31b`,
-  `think:false`). Per query, every answer is shown shuffled + anonymized (Answer A…E);
-  each judge scores all answers 1–5 against the query's intent; scores map back to
-  approaches and average across judges.
+## 6. Caveats
 
-## 6. Results
+- **Small corpus:** the scored run uses the curated 11-doc subset. The full 41-file
+  corpus is useful as a stress test, but graph extraction is still expensive locally.
+- **Local judges:** scores are directional, not authoritative. Answers are shuffled
+  and anonymized, but both judges are local models.
+- **Cache effects:** n8n and graph-rag include cache hits in some cells.
+- **Agentic cap:** `MAX_STEPS=4` materially limits `agentic-rag`.
 
-All 30 cells (6 queries × 5 approaches) returned without harness errors; latencies are
-**fast** (3–19 s) thanks to `think:false`. Raw data: `compare/results/matrix.json`.
+## 7. Reversibility
 
-### 6.1 Thesis check
-
-| Query | Expected | Observed | Verdict |
-|-------|----------|----------|---------|
-| `keyword` | hybrid-rag | **hybrid + contextual + agentic** answered WIDGET-ERR-7741; **vanilla said "no info"** (dense missed the rare doc); n8n routed→vanilla→missed | ✓✓ **strong** — vanilla's miss is exactly why BM25/contextual win exact-ID queries |
-| `thematic` | graph-rag | **contextual-rag only** produced themes; others "insufficient" (graph-rag excluded) | contextual best among the 5 |
-| `multihop` | agentic-rag | **agentic** attempted a reconciliation; others "insufficient" | agentic edges it (weakly) |
-| `factoid` | any | **hybrid + contextual → "v4.2"**; vanilla/n8n missed; agentic MAX_STEPS | ⚠️ only the retrievers that surfaced the doc got it |
-| `context_starved` | contextual-rag (*Docling*) | hybrid/contextual/agentic answered; vanilla/n8n missed | ✓ contextual shows no special edge (Docling off, as predicted) |
-| `mixed_batch` | n8n-adaptive-rag | **hybrid + contextual** listed the codes; **n8n mis-routed to "simple"→vanilla→missed** | ✗ n8n failed its own query (router misclassified) |
-
-**Reading:** `hybrid-rag` and `contextual-rag` are the standouts — they consistently
-surface the small/rare widget doc (via BM25 / context-prefixing) that `vanilla-rag`'s
-pure-dense top-k misses, so vanilla repeatedly answers "no information" *despite
-retrieving 5 chunks* (they're the wrong chunks). `agentic-rag` answers single-shot
-queries but hits `MAX_STEPS=4` on 3/6 (and its graph tool is dead). `n8n-adaptive-rag`
-inherits whatever it routes to — it classified most queries "simple" → `vanilla-rag`,
-so it mirrors vanilla's misses (the 0.3 s cells are LiteLLM cache hits).
-
-### 6.2 Per-approach metrics
-
-| Approach | avg latency | notes |
-|----------|------------:|-------|
-| vanilla-rag | ~5 s | dense top-k; misses the rare doc here |
-| hybrid-rag | ~10 s | + TEI rerank; most reliable answers |
-| contextual-rag | ~13 s | context-prefixed; only one to do `thematic` |
-| agentic-rag | ~8 s | ReAct (MAX_STEPS=4); graph tool dead |
-| n8n-adaptive-rag | ~0.3 s* | *cache hits — mirrors its route target |
-
-### 6.3 Per-query detail
-
-- **keyword** — hybrid/contextual/agentic return the thermal-cutoff explanation;
-  vanilla & n8n say "no information" (dense top-k didn't surface `widget-error-codes.md`).
-- **thematic** — contextual-rag enumerates real themes (AI/search, antitrust, FTX);
-  the others say "insufficient".
-- **multihop** — agentic-rag attempts a source comparison; vanilla/hybrid/contextual/n8n
-  say "insufficient".
-- **factoid** — hybrid & contextual return **v4.2**; vanilla/n8n miss; agentic MAX_STEPS.
-- **context_starved** — hybrid/contextual/agentic answer (relay opens >84 °C, power-cycle);
-  contextual shows no special edge without Docling, as predicted.
-- **mixed_batch** — hybrid & contextual list the codes; agentic MAX_STEPS; n8n mis-routed.
-
-### 6.4 Judge-panel scores
-
-Local panel (`qwen3.6:latest` + `gemma4:31b`, `think:false`), 1–5 per answer, averaged
-across both judges. Full data: `compare/results/judgments.json`.
-
-**Overall (mean across the 6 queries):**
-
-| Approach | mean | |
-|----------|-----:|--|
-| **hybrid-rag** | **4.33** | most reliable across queries |
-| **contextual-rag** | **3.92** | close second |
-| agentic-rag | 2.33 | good single-shot, MAX_STEPS bails |
-| n8n-adaptive-rag | 1.67 | inherits its (vanilla) route |
-| vanilla-rag | 1.67 | dense-only misses the rare doc |
-
-This is the robust signal and it matches §6.1: **`hybrid-rag` and `contextual-rag` clearly
-lead.** Per-query "winners" are noisier — on the factual queries (`keyword`, `factoid`,
-`context_starved`) hybrid/contextual/agentic frequently **tie at 5.0** and the listed
-winner is just a vote tiebreak. Two honest caveats on the panel: (a) on `thematic` it
-scored the cautious "insufficient" non-answers (vanilla/n8n ≈ 4.5) *above* contextual's
-actual enumerated themes (2.0) — a clear local-judge misfire; (b) the engineered
-per-query "expected winners" mostly did **not** hold, because graph-rag is excluded and
-the intended winners for `multihop` (agentic) and `mixed_batch` (n8n) are constrained by
-`MAX_STEPS=4` and the router misclassifying respectively. The small corpus also mutes the
-sharp single-winner contrasts. Net: a fair, fast comparison in which retrieval quality
-(hybrid/contextual) dominates on this corpus.
-
-## 7. Caveats
-
-- **graph-rag excluded** (§4.6) — LightRAG didn't use the configured non-reasoning model.
-- **`think:false` quality trade-off** — the qwen3.6 MoE is coding-tuned; without
-  chain-of-thought, prose answers can be terser/more literal. Applied uniformly to all
-  approaches, so the *relative* comparison stays fair.
-- **Reduced corpus** (11 docs) keeps local ingest tractable; thematic/multihop signal is
-  real but thinner than the full 40-doc corpus.
-- **`agentic-rag` `MAX_STEPS=4`** is low for a reasoning-style loop; raising it (now that
-  calls are fast) is a fair follow-up.
-- **Local judge panel** — two local models, directional not authoritative; answers are
-  anonymized/shuffled to reduce bias.
-
-## 8. Reversibility
-
-Runtime changes, not committed to Atlas:
-
-- **LiteLLM DB models `qwen3.6-moe` / `mistral-small`:** delete via `POST /model/delete`.
-- **`roles.yaml` gen-role override:** the run pointed the generation roles at the host
-  alias `qwen3.6-moe`; the **committed default already targets `qwen3.6:latest`**, so
-  reverting is just restoring the committed file (restart the backend). The committed
-  `models.yaml` keeps **`think:false` on both** `qwen3.6:latest` and `qwen3.6-moe` *by
-  design* — it's the validated RAG default for the reasoning model (~30× faster, no
-  quality loss on these tasks), so there is nothing to undo there.
-- **`infra/.env` `LIGHTRAG_LLM_MODEL`:** clear it and recreate `lightrag-init`/`lightrag`.
-- Original LiteLLM route for `qwen3.6:latest`: `ollama_chat/qwen3.6:latest @ http://ollama:11434`.
+- `qwen3.6-moe` is a LiteLLM runtime alias for host Ollama; delete it from LiteLLM if
+  you want to return to Atlas defaults.
+- `models.yaml` keeps `think:false` for the qwen3.6 local models by design.
+- LightRAG role/query settings are rag-showcase overlay defaults, not Atlas changes.
+  Override or remove `RAG_LIGHTRAG_*` / `LIGHTRAG_QUERY_*` env vars to experiment.

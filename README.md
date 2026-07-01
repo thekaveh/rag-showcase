@@ -10,11 +10,13 @@ as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse
 *End-to-end flow: one prompt fans out across the six approaches; all LLM calls route to the
 host Ollama on Apple Silicon (Metal GPU). Source: [`docs/architecture.html`](docs/architecture.html).*
 
-> **Live results (2026-06-30).** First full local run on a Mac Studio M2 Ultra.
-> **`hybrid-rag` and `contextual-rag` lead** (judge-panel means 4.33 / 3.92 of 5); pure-dense
-> `vanilla-rag` is a weak baseline (it misses the rare keyword doc). The key enabler was
-> disabling the reasoning model's chain-of-thought (`think:false`, ~30× faster). `graph-rag`
-> is excluded pending a LightRAG model-wiring fix. Full analysis, methodology, and findings:
+> **Live results (2026-07-01).** Renewed full local run on a Mac Studio M2 Ultra.
+> All six approaches completed. **`contextual-rag` led overall** (judge-panel mean
+> 4.50/5), with `vanilla-rag`, `hybrid-rag`, and `n8n-adaptive-rag` clustered at
+> 4.17/5. `graph-rag` is now included after the LightRAG role/query fixes, but remains
+> slower and uneven (3.25/5). The key enabler was disabling the Qwen reasoning model's
+> chain-of-thought (`think:false`, ~30x faster). Full analysis, methodology, and
+> findings:
 > **[`docs/comparison.md`](docs/comparison.md)**.
 
 ## 1. Overview
@@ -38,6 +40,8 @@ requirements apply:
 - **Docker** + **Docker Compose v2**, installed and running.
 - The vendored **`infra/` submodule initialized**: `git submodule update --init --recursive`.
 - Host tools **`uv`** and **`python3`** (Atlas's bootstrapper and the host-side corpus fetch use them).
+- Host **Ollama** running on Apple Silicon for LightRAG role calls, with
+  `ollama pull mistral-small3.2:24b` for the default graph extraction/query override.
 - Disk/RAM headroom for the `gen-ai-rag` stack **plus local Ollama models** — the first run pulls several GB.
 
 ```bash
@@ -118,6 +122,18 @@ set by hand for the default `start-all.sh` flow.
 | `RAG_ROLES_FILE` | `/app/plugins/rag/roles.yaml` | config | overlay |
 | `RAG_MODELS_FILE` | `/app/plugins/rag/models.yaml` | config (per-model request props, e.g. `think:false`) | overlay |
 | `BACKEND_PLUGINS_DIR` | `/app/plugins` | plugin seam (Atlas) | overlay |
+| `RAG_LIGHTRAG_EXTRACT_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | overlay |
+| `RAG_LIGHTRAG_KEYWORD_MODEL` | `mistral-small3.2:24b` | LightRAG KEYWORD role | overlay |
+| `RAG_LIGHTRAG_QUERY_MODEL` | `mistral-small3.2:24b` | LightRAG QUERY role | overlay |
+| `RAG_LIGHTRAG_EXTRACT_MAX_ASYNC` | `1` | LightRAG EXTRACT concurrency | overlay |
+| `RAG_LIGHTRAG_EXTRACT_TIMEOUT` | `900` | LightRAG EXTRACT timeout seconds | overlay |
+| `RAG_LIGHTRAG_EXTRACT_NUM_CTX` | `8192` | LightRAG EXTRACT Ollama context | overlay |
+| `RAG_LIGHTRAG_KEYWORD_NUM_CTX` | `8192` | LightRAG KEYWORD Ollama context | overlay |
+| `RAG_LIGHTRAG_QUERY_NUM_CTX` | `8192` | LightRAG QUERY Ollama context | overlay |
+| `LIGHTRAG_QUERY_ENABLE_RERANK` | `false` | graph-rag LightRAG query rerank flag | plugin |
+| `LIGHTRAG_QUERY_TOP_K` | `10` | graph-rag LightRAG KG top-k | plugin |
+| `LIGHTRAG_QUERY_CHUNK_TOP_K` | `5` | graph-rag LightRAG chunk top-k | plugin |
+| `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS` | `12000` | graph-rag LightRAG query context budget | plugin |
 
 ## 6. Documentation Index
 
@@ -126,9 +142,10 @@ set by hand for the default `start-all.sh` flow.
 | [Design spec](docs/superpowers/specs/2026-06-25-rag-showcase-design.md) | Historical | The approved design: six approaches, architecture, corpus, phasing (predates implementation — see its deviations note) |
 | [Implementation plan](docs/superpowers/plans/2026-06-25-rag-showcase.md) | Historical | The task-by-task implementation plan (Tasks 0–19, as-built) |
 | [Atlas-reuse assessment](docs/atlas-reuse-assessment.md) | Living | What reused cleanly, friction found, recommendations for Atlas |
+| [Atlas LightRAG role-model spec](docs/atlas-lightrag-role-model-spec.md) | Handoff | Atlas-side spec for first-class LightRAG EXTRACT/KEYWORD/QUERY model wiring |
 | [Corpus](corpus/README.md) | Living | How to populate the corpus |
 | [n8n workflow](n8n/README.md) | Living | Building the Adaptive-RAG workflow in the n8n UI |
-| [Live comparison](docs/comparison.md) | Living | Side-by-side results of the six approaches + first live-validation findings (host-GPU routing on macOS, the `start.sh` log-follow blocker, LightRAG's CPU-model default) |
+| [Live comparison](docs/comparison.md) | Living | Side-by-side results of all six approaches + live-validation findings (host-GPU routing on macOS, `think:false`, LightRAG role/query tuning) |
 
 ## 7. Development & Testing
 
@@ -171,8 +188,15 @@ LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail 
   Metal GPU into containers, so Atlas's containerized Ollama runs the 24–38 GB models on
   **CPU** and ingest/queries time out. Point LiteLLM's chat model at the **host** Ollama
   (`host.docker.internal:11434`, Metal-accelerated) — see the routing recipe in
-  [docs/comparison.md §3](docs/comparison.md). Also set `LIGHTRAG_LLM_MODEL` to that
-  host model, or graph-rag's extraction silently times out.
+  [docs/comparison.md §3](docs/comparison.md). The showcase overlay also points
+  LightRAG's EXTRACT/KEYWORD/QUERY roles at host Ollama and defaults them to
+  `mistral-small3.2:24b`; override with `RAG_LIGHTRAG_*_MODEL` only if that model is
+  already available on the host.
+- **`graph-rag` returns one-word answers or takes ~30s/query.** LightRAG's query-time
+  rerank path is incompatible with the current TEI reranker payload. The plugin defaults
+  graph queries to `LIGHTRAG_QUERY_ENABLE_RERANK=false`, `LIGHTRAG_QUERY_TOP_K=10`,
+  `LIGHTRAG_QUERY_CHUNK_TOP_K=5`, and `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS=12000`; keep those
+  unless you have fixed the LightRAG rerank provider path.
 - **`start-all.sh` hangs after the stack is up and never ingests/registers.** Atlas's
   `start.py` ends by following logs (`docker compose … logs -f`), which blocks the
   non-interactive path before the ingest/register steps. Run them manually once the

@@ -35,6 +35,10 @@ async def test_graph_queries_lightrag(monkeypatch):
         sent = json.loads(route.calls.last.request.content)
         assert sent["query"] == "themes?"
         assert sent["mode"] == "hybrid"
+        assert sent["enable_rerank"] is False
+        assert sent["top_k"] == 10
+        assert sent["chunk_top_k"] == 5
+        assert sent["max_total_tokens"] == 12000
         # auth must use X-API-Key (v1.5.0), not Authorization: Bearer
         assert route.calls.last.request.headers.get("x-api-key") == "k"
         assert "authorization" not in route.calls.last.request.headers
@@ -50,6 +54,22 @@ async def test_lightrag_upload_text_posts_to_documents_text(monkeypatch):
         assert upload.called
         body = json.loads(upload.calls.last.request.content)
         assert body["text"] == "some content" and body["file_source"] == "My Doc"
+
+
+@pytest.mark.asyncio
+async def test_lightrag_upload_text_retries_409_backpressure(monkeypatch):
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    monkeypatch.setenv("LIGHTRAG_UPLOAD_RETRIES", "2")
+    monkeypatch.setenv("LIGHTRAG_UPLOAD_RETRY_DELAY", "0")
+    with respx.mock:
+        upload = respx.post("http://lightrag:9621/documents/text").mock(
+            side_effect=[
+                httpx.Response(409, json={"status": "busy"}),
+                httpx.Response(200),
+            ]
+        )
+        await lightrag.upload_text("My Doc", "some content")
+        assert upload.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -102,3 +122,22 @@ async def test_lightrag_query_reads_data_field_fallback(monkeypatch):
             return_value=httpx.Response(200, json={"data": "answer via data field"}))
         out = await lightrag.query("a real graph question")
         assert out == "answer via data field"
+
+
+@pytest.mark.asyncio
+async def test_lightrag_query_options_are_env_overridable(monkeypatch):
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    monkeypatch.setenv("LIGHTRAG_QUERY_ENABLE_RERANK", "true")
+    monkeypatch.setenv("LIGHTRAG_QUERY_TOP_K", "7")
+    monkeypatch.setenv("LIGHTRAG_QUERY_CHUNK_TOP_K", "3")
+    monkeypatch.setenv("LIGHTRAG_QUERY_MAX_TOTAL_TOKENS", "4096")
+    with respx.mock:
+        route = respx.post("http://lightrag:9621/query").mock(
+            return_value=httpx.Response(200, json={"response": "ok"}))
+        out = await lightrag.query("a real graph question")
+        assert out == "ok"
+        sent = json.loads(route.calls.last.request.content)
+        assert sent["enable_rerank"] is True
+        assert sent["top_k"] == 7
+        assert sent["chunk_top_k"] == 3
+        assert sent["max_total_tokens"] == 4096

@@ -108,31 +108,39 @@ wires the host instance in its place.
 
 `lightrag-init/scripts/resolve-models.py` resolves the extraction LLM to
 `LITELLM_DEFAULT_MODEL` (= `ollama/qwen3.6:latest`, CPU) unless `LIGHTRAG_LLM_MODEL`
-is set. On a CPU-only host this hits the extraction worker timeout (240–480 s),
-produces **zero entities**, yet `/health` reports healthy — so `graph-rag` silently
-returns "no context" with no surfaced error. We set `LIGHTRAG_LLM_MODEL=qwen3.6-moe`.
-But even on the host GPU, local big/reasoning models cost ~24–31 s per extraction
-call (the MoE's `reasoning_content` is pure overhead here) × ~73+ calls →
-~30–90 min to build the graph. **Graph-RAG has a prohibitively high local-indexing
-cost on this hardware**; a small non-reasoning model (e.g. `qwen2.5:7b`, ~3–6 s/call)
-would be the practical extraction backend.
+is set. On a CPU-only host this hits the extraction worker timeout (240-480 s),
+produces **zero entities**, yet `/health` reports healthy, so `graph-rag` can
+silently return "no context" with no surfaced error.
 
-### 2.10 LightRAG does not honor the resolved/configured extraction model
+The showcase now works around this locally by pointing LightRAG EXTRACT/KEYWORD/QUERY
+directly at host Ollama and using `mistral-small3.2:24b` with a capped 8192-token
+Ollama context. That successfully drained the 11-document curated graph build. The
+full 41-file corpus remains a separate capacity/stress test.
 
-The deeper blocker (found 2026-06-30): even with `LIGHTRAG_LLM_MODEL=mistral-small`
-(a non-reasoning model) and LightRAG's `/health` reporting
-`role_llm_config.extract/query/keyword → mistral-small`, LightRAG's **actual LiteLLM
-calls still hit the default `qwen3.6:latest`** (CPU reasoning) — so extraction times
-out (480 s) and **10 of 11 docs fail**, and `graph-rag`'s query times out (180 s). The
-resolve→runtime handoff is broken: the model is resolved + reported but not used for
-the real calls. Research confirms LightRAG v1.5+ supports per-role models
-(`EXTRACT_LLM_MODEL`, "medium-parameter non-reasoning" recommended for EXTRACT), so
-this is an Atlas wiring bug. *Net effect:* `graph-rag` could not be run reliably and was
-excluded from the scored comparison (see [comparison.md](comparison.md) §4.6, §6).
-**Atlas fix:** ensure LightRAG's actual extraction/query calls use the resolved model
-(wire the per-role `EXTRACT_LLM_MODEL`/`QUERY_LLM_MODEL`, or fix `lightrag-init`'s
-hand-off so the server reads `LLM_MODEL`), and surface a non-reasoning default for
-the call-heavy EXTRACT role.
+### 2.10 Atlas does not expose LightRAG's role-specific model wiring
+
+The deeper blocker (found 2026-06-30): Atlas configures LightRAG as a single-model
+service (`LIGHTRAG_LLM_MODEL` → `LLM_MODEL`), while the pinned LightRAG v1.5.4 image
+has native role-specific LLM settings: `EXTRACT_LLM_MODEL`, `KEYWORD_LLM_MODEL`, and
+`QUERY_LLM_MODEL`. The reliable fix is not another global model override; it is to
+expose LightRAG's native role variables so the call-heavy EXTRACT role can use a
+medium, non-reasoning model independently of QUERY.
+
+Rag-showcase carries a local compose override that sets those native role vars
+directly for this repo without changing Atlas defaults. A shareable Atlas-side spec
+is captured in [atlas-lightrag-role-model-spec.md](atlas-lightrag-role-model-spec.md).
+
+### 2.11 LightRAG query rerank does not match Atlas's TEI reranker API
+
+After graph indexing was fixed, `graph-rag` still returned one-word answers and took
+~31 s/query. LightRAG logs showed the query-time rerank path calling the configured
+TEI endpoint with a Jina-style payload; TEI rejected it with `422 missing field
+texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
+(`top_k=10`, `chunk_top_k=5`, `max_total_tokens=12000`) produced usable answers.
+
+*Net effect:* Atlas should either expose a LightRAG-compatible reranker binding for
+the TEI service, disable LightRAG query rerank when the configured endpoint is TEI,
+or document the required `/rerank` payload adapter.
 
 ## 3. Recommendations for Atlas
 
@@ -164,17 +172,27 @@ the call-heavy EXTRACT role.
   extraction should show in `/health` or as a loud error, not just a log WARNING.
   Document that graph extraction needs a GPU-class (ideally non-reasoning) model and
   how to set `LIGHTRAG_LLM_MODEL`.
+- **(HIGH) Expose LightRAG role-specific models** (§2.10): map Atlas variables such as
+  `LIGHTRAG_EXTRACT_LLM_MODEL`, `LIGHTRAG_KEYWORD_LLM_MODEL`, and
+  `LIGHTRAG_QUERY_LLM_MODEL` to LightRAG's native runtime vars. Keep the current
+  `LIGHTRAG_LLM_MODEL` fallback for backward compatibility. See the
+  [role-model spec](atlas-lightrag-role-model-spec.md).
+- **(MED-HIGH) Fix or disable LightRAG query rerank for TEI** (§2.11): the current
+  LightRAG/Jina rerank client does not speak the same payload shape as the Atlas TEI
+  reranker. Either provide an adapter, select a compatible rerank binding, or default
+  LightRAG query rerank off when Atlas wires TEI directly.
 
-## 4. Live End-to-End Run — Resolved (2026-06-29)
+## 4. Live End-to-End Run — Resolved (2026-07-01)
 
 The first live e2e run was completed (see [comparison.md](comparison.md)). The
 previously-open items are now assessed:
 
-- **LightRAG graph extraction** — impractical with the local default. Atlas resolves
-  it to the CPU-bound `qwen3.6:latest`, which times out silently (§2.9); even the
-  host-GPU big models (~24–31 s/call) make full extraction ~30–90 min. `graph-rag`
-  is **infrastructure-limited** on this hardware, not approach-limited. A small
-  non-reasoning extraction model is the practical fix.
+- **LightRAG graph extraction** — fixed locally for the 11-document curated subset by
+  using role-specific host-Ollama settings and a non-reasoning extraction model
+  (§2.10). The full corpus is still an expensive graph-indexing stress test.
+- **LightRAG graph query** — fixed locally enough to include `graph-rag` in the scored
+  six-way run by disabling LightRAG query rerank and reducing graph query fanout
+  (§2.11). Quality remains uneven and slower than text/vector approaches.
 - **Agentic tool-calling (qwen3.6 MoE)** — `MAX_STEPS=4` is too low for the reasoning
   model to converge on multi-hop/synthesis queries; 3/6 queries hit the step cap. The
   empty graph tool (above) compounded it. It answered well on single-shot queries
