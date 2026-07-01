@@ -10,8 +10,10 @@ memory. All LLM calls used local Ollama on the host Apple Metal GPU.
 - **Corpus:** 11-document curated subset of MultiHop-RAG plus `widget-error-codes.md`.
 - **Queries:** the six prompts in [`demo/queries.yaml`](../demo/queries.yaml).
 - **Harness:** [`compare/run_matrix.py`](../compare/run_matrix.py) and
-  [`compare/judge.py`](../compare/judge.py). Raw run data is written under
-  `compare/results/` and is intentionally gitignored.
+  [`compare/judge.py`](../compare/judge.py). Raw working outputs are written under
+  `compare/results/` and are intentionally gitignored; the committed snapshots for
+  this run are [`live-2026-07-01-six-way-matrix.json`](results/live-2026-07-01-six-way-matrix.json)
+  and [`live-2026-07-01-six-way-judgments.json`](results/live-2026-07-01-six-way-judgments.json).
 
 ## 0. Headline
 
