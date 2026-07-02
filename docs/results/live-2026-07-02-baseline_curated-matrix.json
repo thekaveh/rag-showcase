@@ -1,0 +1,1156 @@
+{
+  "base": "http://localhost:63030",
+  "models": [
+    "vanilla-rag",
+    "hybrid-rag",
+    "contextual-rag",
+    "graph-rag",
+    "agentic-rag",
+    "n8n-adaptive-rag"
+  ],
+  "queries_file": "demo/queries.yaml",
+  "queries": [
+    {
+      "id": "keyword",
+      "query": "What does error code WIDGET-ERR-7741 mean and how do I reset it?",
+      "expect_winner": "hybrid-rag",
+      "rationale": "Rare exact identifier — BM25 leg beats pure dense."
+    },
+    {
+      "id": "thematic",
+      "query": "What are the main recurring themes across all the documents?",
+      "expect_winner": "graph-rag",
+      "rationale": "Whole-corpus synthesis — graph community structure beats flat top-k."
+    },
+    {
+      "id": "multihop",
+      "query": "Compare what two different sources concluded on the same event and reconcile them.",
+      "expect_winner": "agentic-rag",
+      "rationale": "Needs decomposition + multiple retrievals — the agent loop shows its work."
+    },
+    {
+      "id": "factoid",
+      "query": "What is the firmware version referenced in the widget bootloader error?",
+      "expect_winner": "any",
+      "rationale": "Simple single fact — all approaches should answer; teaches 'when is RAG worth it'."
+    },
+    {
+      "id": "context_starved",
+      "query": "What does the safety relay do when the coil overheats, and how do I clear it?",
+      "expect_winner": "contextual-rag",
+      "rationale": "Contextual blurbs help when a chunk is split from the context that disambiguates it. Under the default naive chunking the keyword doc is a single chunk, so this visibly wins only with Docling structure-aware chunking (or a longer doc that separates the relay from its error code)."
+    },
+    {
+      "id": "mixed_batch",
+      "query": "List the widget error codes, then explain how they relate to each other across the docs.",
+      "expect_winner": "n8n-adaptive-rag",
+      "rationale": "A cheap lookup plus a multi-doc synthesis in one ask; the adaptive router escalates only the hard half."
+    }
+  ],
+  "cells": [
+    {
+      "query_id": "keyword",
+      "model": "vanilla-rag",
+      "ok": true,
+      "latency_s": 9.5,
+      "raw": "WIDGET-ERR-7741 means that the thermal cutoff engaged because the widget's coil exceeded 84°C and the safety relay (part RLY-22B) opened. To reset it, you must power-cycle the device for 30 seconds.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md**\n\n> # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WIDGET-ERR-3390**: Calibration drift beyond\n\n**2. 033-News publisher files class action antitrust suit against Google, citing AI’s har.md**\n\n> ronicle, LLC v. Google LLC and Alphabet Inc by TechCrunch on Scribd\n\nEditor’s note: This post was updated after publication with a statement provided by Google on Friday evening.\n\n**3. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md**\n\n> izes; the location-tracking prompt that appears when you open Maps; and the App Tracking Transparency pop-up that tells you when an app wants to collect your data. Cue objected to all these things being considered part of setup, but Bellsha\n\n**4. 009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md**\n\n> space. Our resident crypto expert Jacquelyn Melinek has been on the ground at the trial since it started, and continues to cover the ins and outs of the proceedings. But the trial has been on pause from October 20 to today, so there’s plent\n\n**5. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md**\n\n> # Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’\n\nEddy Cue, in a dark suit, peered down at the monitor in front of him. The screens in the Washington, DC, courtroom had briefly malfunctioned and left witnesses\n\n</details>\n\n---\n📊 9.3s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "WIDGET-ERR-7741 means that the thermal cutoff engaged because the widget's coil exceeded 84°C and the safety relay (part RLY-22B) opened. To reset it, you must power-cycle the device for 30 seconds.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": null
+        },
+        {
+          "title": "033-News publisher files class action antitrust suit against Google, citing AI’s har.md",
+          "score": null
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": null
+        },
+        {
+          "title": "009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md",
+          "score": null
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 9.3,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "keyword",
+      "model": "hybrid-rag",
+      "ok": true,
+      "latency_s": 6.2,
+      "raw": "WIDGET-ERR-7741 means the thermal cutoff engaged because the widget's coil exceeded 84°C and the safety relay (part RLY-22B) opened. To reset it, power-cycle for 30s.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md** · score 0.888\n\n> # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WIDGET-ERR-3390**: Calibration drift beyond\n\n**2. 033-News publisher files class action antitrust suit against Google, citing AI’s har.md** · score 0.022\n\n> ronicle, LLC v. Google LLC and Alphabet Inc by TechCrunch on Scribd\n\nEditor’s note: This post was updated after publication with a statement provided by Google on Friday evening.\n\n**3. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md** · score 0.015\n\n> # Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’\n\nEddy Cue, in a dark suit, peered down at the monitor in front of him. The screens in the Washington, DC, courtroom had briefly malfunctioned and left witnesses\n\n**4. 015-More from the US v Google trial: vertical search, pre-installs and the case of F.md** · score 0.012\n\n> e share agreements (RSAs) with smartphone makers and wireless carriers (like Verizon) that require them to set Google search and Chrome web browser as defaults. Rosenberg defended the move and said it was because Google apps [like Search] a\n\n**5. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md** · score 0.011\n\n> izes; the location-tracking prompt that appears when you open Maps; and the App Tracking Transparency pop-up that tells you when an app wants to collect your data. Cue objected to all these things being considered part of setup, but Bellsha\n\n</details>\n\n---\n📊 6.2s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "WIDGET-ERR-7741 means the thermal cutoff engaged because the widget's coil exceeded 84°C and the safety relay (part RLY-22B) opened. To reset it, power-cycle for 30s.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": 0.888
+        },
+        {
+          "title": "033-News publisher files class action antitrust suit against Google, citing AI’s har.md",
+          "score": 0.022
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": 0.015
+        },
+        {
+          "title": "015-More from the US v Google trial: vertical search, pre-installs and the case of F.md",
+          "score": 0.012
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": 0.011
+        }
+      ],
+      "metrics": {
+        "seconds": 6.2,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "keyword",
+      "model": "contextual-rag",
+      "ok": true,
+      "latency_s": 7.9,
+      "raw": "Error code WIDGET-ERR-7741 means that the widget's thermal cutoff engaged because the coil exceeded 84°C and the safety relay opened. To reset it, you must power-cycle the widget for 30 seconds.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md** · score 0.903\n\n> This section lists specific error codes for the Acme Widget, detailing their causes and required resolution steps. It serves as a quick reference guide for troubleshooting common hardware and software issues.\n\n# Acme Widget Error Code Refer\n\n**2. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.028\n\n> The text details the intense rivalry between Elon Musk and Larry Page regarding the development and safety of artificial intelligence, which led to the creation of OpenAI as a counterbalance to Google's DeepMind. This specific chunk highlig\n\n**3. 032-Is Google Search better than the rest? And is that fair?.md** · score 0.028\n\n> The document discusses allegations that Google manipulates search queries to maximize ad revenue, a claim made by former DuckDuckGo executive Megan Gray in a Wired article that was subsequently removed for inaccuracies. This section highlig\n\n**4. 032-Is Google Search better than the rest? And is that fair?.md** · score 0.021\n\n> The text discusses Google's explanation of its meaning-matching systems, which look beyond specific query words to understand user intent and handle spelling mistakes or synonyms. This process is described as separate from ad keyword matchi\n\n**5. 032-Is Google Search better than the rest? And is that fair?.md** · score 0.015\n\n> This section addresses allegations by former DuckDuckGo executive Megan Gray that Google manipulates search queries to maximize ad revenue, presenting Google's official denial and explanation of how its organic results are determined indepe\n\n</details>\n\n---\n📊 7.8s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "Error code WIDGET-ERR-7741 means that the widget's thermal cutoff engaged because the coil exceeded 84°C and the safety relay opened. To reset it, you must power-cycle the widget for 30 seconds.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": 0.903
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.028
+        },
+        {
+          "title": "032-Is Google Search better than the rest? And is that fair?.md",
+          "score": 0.028
+        },
+        {
+          "title": "032-Is Google Search better than the rest? And is that fair?.md",
+          "score": 0.021
+        },
+        {
+          "title": "032-Is Google Search better than the rest? And is that fair?.md",
+          "score": 0.015
+        }
+      ],
+      "metrics": {
+        "seconds": 7.8,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "keyword",
+      "model": "graph-rag",
+      "ok": true,
+      "latency_s": 18.2,
+      "raw": "The error code **WIDGET-ERR-7741** indicates that the widget's coil has exceeded 84°C, triggering the thermal cutoff. This causes the safety relay (part RLY-22B) to open as a protective measure.\n\nTo reset this error, you need to perform a power-cycle by turning off the widget and then turning it back on after 30 seconds. This process allows the system to cool down and reset the safety mechanisms.\n\n### References\n\n- [1] Acme Widget Error Code Reference\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. LightRAG knowledge graph**\n\n> Graph + vector dual retrieval (mode=hybrid) over the corpus's extracted entities & relations.\n\n</details>\n\n---\n📊 18.2s · 0 chunks · 1 LLM call · 0 cloud",
+      "answer": "The error code **WIDGET-ERR-7741** indicates that the widget's coil has exceeded 84°C, triggering the thermal cutoff. This causes the safety relay (part RLY-22B) to open as a protective measure.\n\nTo reset this error, you need to perform a power-cycle by turning off the widget and then turning it back on after 30 seconds. This process allows the system to cool down and reset the safety mechanisms.\n\n### References\n\n- [1] Acme Widget Error Code Reference",
+      "sources": [
+        {
+          "title": "LightRAG knowledge graph",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 18.2,
+        "chunks": 0,
+        "llm_calls": 1,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "keyword",
+      "model": "agentic-rag",
+      "ok": true,
+      "latency_s": 4.0,
+      "raw": "Based on the error code reference:\n\n**WIDGET-ERR-7741** means that a **thermal cutoff has engaged** because the widget's coil exceeded 84°C, causing the safety relay (part RLY-22B) to open.\n\n**To reset it:** Power-cycle the device for 30 seconds.\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. 🤖 Agent trace**\n\n> **Step 1.** **Action:** `search_vectors(WIDGET-ERR-7741 error code meaning reset)`\n\n**Observation:** - widget-error-codes.md: # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WID\n- 031-Is Sam Bankman-Fried a bad ‘man’ or a good ‘boy’? Lawyers swap openi\n\n**Step 2.** **Action:** `search_vectors(WIDGET-ERR-7741 reset procedure)`\n\n**Observation:** - widget-error-codes.md: # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WID\n- 009-SBF Trial: The latest updates from the FTX collapse’s courtroom dram\n\n</details>\n\n---\n📊 4.0s · 0 chunks · 5 LLM calls · 0 cloud",
+      "answer": "Based on the error code reference:\n\n**WIDGET-ERR-7741** means that a **thermal cutoff has engaged** because the widget's coil exceeded 84°C, causing the safety relay (part RLY-22B) to open.\n\n**To reset it:** Power-cycle the device for 30 seconds.",
+      "sources": [
+        {
+          "title": "🤖 Agent trace",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 4.0,
+        "chunks": 0,
+        "llm_calls": 5,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "keyword",
+      "model": "n8n-adaptive-rag",
+      "ok": true,
+      "latency_s": 0.7,
+      "raw": "WIDGET-ERR-7741 means that the thermal cutoff engaged because the widget's coil exceeded 84°C and the safety relay (part RLY-22B) opened. To reset it, you must power-cycle the device for 30 seconds.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md**\n\n> # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WIDGET-ERR-3390**: Calibration drift beyond\n\n**2. 033-News publisher files class action antitrust suit against Google, citing AI’s har.md**\n\n> ronicle, LLC v. Google LLC and Alphabet Inc by TechCrunch on Scribd\n\nEditor’s note: This post was updated after publication with a statement provided by Google on Friday evening.\n\n**3. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md**\n\n> izes; the location-tracking prompt that appears when you open Maps; and the App Tracking Transparency pop-up that tells you when an app wants to collect your data. Cue objected to all these things being considered part of setup, but Bellsha\n\n**4. 009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md**\n\n> space. Our resident crypto expert Jacquelyn Melinek has been on the ground at the trial since it started, and continues to cover the ins and outs of the proceedings. But the trial has been on pause from October 20 to today, so there’s plent\n\n**5. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md**\n\n> # Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’\n\nEddy Cue, in a dark suit, peered down at the monitor in front of him. The screens in the Washington, DC, courtroom had briefly malfunctioned and left witnesses\n\n</details>\n\n---\n📊 0.3s · 5 chunks · 2 LLM calls · 0 cloud\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. 🧭 Adaptive route**\n\n> n8n routed this query as **simple**.\n\n</details>\n\n---\n📊 0.6s · 0 chunks · 1 LLM call · 0 cloud",
+      "answer": "WIDGET-ERR-7741 means that the thermal cutoff engaged because the widget's coil exceeded 84°C and the safety relay (part RLY-22B) opened. To reset it, you must power-cycle the device for 30 seconds.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": null
+        },
+        {
+          "title": "033-News publisher files class action antitrust suit against Google, citing AI’s har.md",
+          "score": null
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": null
+        },
+        {
+          "title": "009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md",
+          "score": null
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 0.3,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "thematic",
+      "model": "vanilla-rag",
+      "ok": true,
+      "latency_s": 3.4,
+      "raw": "The provided context is insufficient to identify main recurring themes across *all* the documents because the documents cover disparate and unrelated topics without a clear common thread.\n\n*   **Documents [1], [2], and [3]** discuss the rise of artificial intelligence, internal conflicts at OpenAI (specifically regarding Sam Altman), the pursuit of Artificial General Intelligence (AGI), and interactions involving figures like Peter Thiel and Eliezer Yudkowsky.\n*   **Document [4]** discusses a US v Google trial, specifically focusing on search revenue data and popular search queries.\n*   **Document [5]** briefly mentions the SBF (Sam Bankman-Fried) trial and FTX collapse.\n\nThere is no single theme that connects AI development, Google's search revenue, and the FTX legal proceedings. Therefore, a unified recurring theme across all documents cannot be determined from the context.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> of digital text. Seeking the path to artificial general intelligence, AGI. Credit: iStock By analysing countless Wikipedia articles, digital books and message boards, it could generate text on its own. It also had the unfortunate habit of m\n\n**2. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> d in the same direction, the more contentious the disagreements are. You see this in sects and religious orders. There are bitter fights between the closest people.” Last month that infighting came to OpenAI’s boardroom. Rebel board members\n\n**3. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> rope of science fiction that describes the moment when intelligent technology can no longer be controlled by humanity.\n\nWith funding from Thiel, Yudkowsky had expanded his AI lab and created an annual conference on the singularity. Years be\n\n**4. 015-More from the US v Google trial: vertical search, pre-installs and the case of F.md**\n\n> st popular search queries\n\nJudge Amit Mehta ruled to make a list public that provides a glimpse of which search terms make Google the most money. The list of popular search terms ordered by revenue includes 20 terms that were lucrative for \n\n**5. 009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md**\n\n> ity. You can listen to a special joint episode of our podcasts Equity and Chain Reaction to get a better sense of the vibe between the jurors and the rest of the court.\n\nFor a full rundown of our coverage of the SBF trial, check below:\n\n</details>\n\n---\n📊 3.4s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "The provided context is insufficient to identify main recurring themes across *all* the documents because the documents cover disparate and unrelated topics without a clear common thread.\n\n*   **Documents [1], [2], and [3]** discuss the rise of artificial intelligence, internal conflicts at OpenAI (specifically regarding Sam Altman), the pursuit of Artificial General Intelligence (AGI), and interactions involving figures like Peter Thiel and Eliezer Yudkowsky.\n*   **Document [4]** discusses a US v Google trial, specifically focusing on search revenue data and popular search queries.\n*   **Document [5]** briefly mentions the SBF (Sam Bankman-Fried) trial and FTX collapse.\n\nThere is no single theme that connects AI development, Google's search revenue, and the FTX legal proceedings. Therefore, a unified recurring theme across all documents cannot be determined from the context.",
+      "sources": [
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        },
+        {
+          "title": "015-More from the US v Google trial: vertical search, pre-installs and the case of F.md",
+          "score": null
+        },
+        {
+          "title": "009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 3.4,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "thematic",
+      "model": "hybrid-rag",
+      "ok": true,
+      "latency_s": 6.6,
+      "raw": "The provided context is insufficient to identify main recurring themes across *all* the documents because the documents cover distinct and unrelated topics. Documents [1], [2], and [5] discuss antitrust issues involving Google, while Documents [3] and [4] discuss the criminal trial of Sam Bankman-Fried. There is no common theme linking these separate legal cases within the provided text.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. 033-News publisher files class action antitrust suit against Google, citing AI’s har.md** · score 0.179\n\n> which owns and publishes two weekly newspapers in Arkansas, argues that Google is “starving the free press” by sharing publishers’ content on Google, losing them “billions of dollars.”\n\nIn addition to new AI technologies, the suit points to\n\n**2. 015-More from the US v Google trial: vertical search, pre-installs and the case of F.md** · score 0.134\n\n> Hurst pointed out that Google began sharing its own flight and hotel data in search results in that period, according to The Seattle Times.\n\nEuropean antitrust fine spurs Google to beef up search engine quality\n\nThe government argued on Nov\n\n**3. 031-Is Sam Bankman-Fried a bad ‘man’ or a good ‘boy’? Lawyers swap opening statement.md** · score 0.127\n\n> arents and Damian Williams, U.S. attorney for the Southern District of New York.\n\nA conscious criminal…\n\nThe prosecution’s account of the alleged crimes by Bankman-Fried, who spent most of his day in court staring into a laptop while seated\n\n**4. 031-Is Sam Bankman-Fried a bad ‘man’ or a good ‘boy’? Lawyers swap opening statement.md** · score 0.117\n\n> t “all of that, all of it, was built on lies,” Rehn declared to the jury. “Behind the curtains, he was not what he appeared to be.” What followed was a roughly 30-minute story that repeatedly emphasized how Bankman-Fried allegedly stole cus\n\n**5. 015-More from the US v Google trial: vertical search, pre-installs and the case of F.md** · score 0.092\n\n> # More from the US v Google trial: vertical search, pre-installs and the case of F\n\nMore from the US v Google trial: Vertical search, pre-installs and the case of Firefox/Yahoo\n\nWe’re nearly two months into the Justice Department’s landmark\n\n</details>\n\n---\n📊 6.6s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "The provided context is insufficient to identify main recurring themes across *all* the documents because the documents cover distinct and unrelated topics. Documents [1], [2], and [5] discuss antitrust issues involving Google, while Documents [3] and [4] discuss the criminal trial of Sam Bankman-Fried. There is no common theme linking these separate legal cases within the provided text.",
+      "sources": [
+        {
+          "title": "033-News publisher files class action antitrust suit against Google, citing AI’s har.md",
+          "score": 0.179
+        },
+        {
+          "title": "015-More from the US v Google trial: vertical search, pre-installs and the case of F.md",
+          "score": 0.134
+        },
+        {
+          "title": "031-Is Sam Bankman-Fried a bad ‘man’ or a good ‘boy’? Lawyers swap opening statement.md",
+          "score": 0.127
+        },
+        {
+          "title": "031-Is Sam Bankman-Fried a bad ‘man’ or a good ‘boy’? Lawyers swap opening statement.md",
+          "score": 0.117
+        },
+        {
+          "title": "015-More from the US v Google trial: vertical search, pre-installs and the case of F.md",
+          "score": 0.092
+        }
+      ],
+      "metrics": {
+        "seconds": 6.6,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "thematic",
+      "model": "contextual-rag",
+      "ok": true,
+      "latency_s": 10.7,
+      "raw": "The main recurring themes across the documents are:\n\n1.  **Intense Rivalry and Competition:** There is a persistent focus on the competitive dynamics among Silicon Valley titans (such as Elon Musk, Larry Page, Sam Altman, Peter Thiel, and Geoffrey Hinton) and tech giants (Google, Microsoft, Baidu, Tesla) regarding the development and control of artificial intelligence.\n2.  **Conflict Between Safety and Commercial Interests:** A central tension exists between AI safety concerns (often associated with effective altruists and rationalists) and the commercial or financial incentives driving corporate behavior. This is illustrated by DeepMind founders staying for financial reasons despite ethical disagreements, Musk’s attempt to commercialize OpenAI, and former OpenAI employees leaving to form Anthropic due to fears that corporate overlords would prioritize profit over safety.\n3.  **Financial Incentives and Talent Acquisition:** The documents highlight how massive financial packages, stock awards, and acquisitions are used to secure top AI talent (such as Geoffrey Hinton’s auctioned research) and retain key personnel (such as Google increasing DeepMind founders' salaries).\n4.  **Rapid Progress and Fear of AI Risks:** There is a recurring acknowledgment that AI is progressing faster than anticipated, validating fears about its risks among certain groups, which in turn fuels the drive to create counterbalances or safer alternatives like OpenAI and Anthropic.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.563\n\n> The text details the intense rivalry between Elon Musk and Larry Page regarding the development and safety of artificial intelligence, which led to the creation of OpenAI as a counterbalance to Google's DeepMind. This specific chunk highlig\n\n**2. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.529\n\n> The text details the intense rivalry and shifting alliances among Silicon Valley titans like Elon Musk, Sam Altman, and Peter Thiel regarding the development of artificial intelligence. This specific passage highlights Musk's failed attempt\n\n**3. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.514\n\n> The text describes the intense competition among Silicon Valley leaders and researchers to control artificial intelligence, highlighting how figures like Peter Thiel funded early AI ventures while others, such as Geoffrey Hinton, navigated \n\n**4. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.499\n\n> The document details the competitive and often contentious history of AI development in Silicon Valley, highlighting key figures like Elon Musk, Peter Thiel, and Sam Altman who drove the industry's rapid growth through massive funding and s\n\n**5. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.485\n\n> The text details the intense rivalry and ideological splits among Silicon Valley leaders regarding AI safety, specifically highlighting how concerns over corporate priorities led former OpenAI employees to establish Anthropic as a safer alt\n\n</details>\n\n---\n📊 10.7s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "The main recurring themes across the documents are:\n\n1.  **Intense Rivalry and Competition:** There is a persistent focus on the competitive dynamics among Silicon Valley titans (such as Elon Musk, Larry Page, Sam Altman, Peter Thiel, and Geoffrey Hinton) and tech giants (Google, Microsoft, Baidu, Tesla) regarding the development and control of artificial intelligence.\n2.  **Conflict Between Safety and Commercial Interests:** A central tension exists between AI safety concerns (often associated with effective altruists and rationalists) and the commercial or financial incentives driving corporate behavior. This is illustrated by DeepMind founders staying for financial reasons despite ethical disagreements, Musk’s attempt to commercialize OpenAI, and former OpenAI employees leaving to form Anthropic due to fears that corporate overlords would prioritize profit over safety.\n3.  **Financial Incentives and Talent Acquisition:** The documents highlight how massive financial packages, stock awards, and acquisitions are used to secure top AI talent (such as Geoffrey Hinton’s auctioned research) and retain key personnel (such as Google increasing DeepMind founders' salaries).\n4.  **Rapid Progress and Fear of AI Risks:** There is a recurring acknowledgment that AI is progressing faster than anticipated, validating fears about its risks among certain groups, which in turn fuels the drive to create counterbalances or safer alternatives like OpenAI and Anthropic.",
+      "sources": [
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.563
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.529
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.514
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.499
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.485
+        }
+      ],
+      "metrics": {
+        "seconds": 10.7,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "thematic",
+      "model": "graph-rag",
+      "ok": true,
+      "latency_s": 34.0,
+      "raw": "The provided documents cover a range of topics related to technology, legal cases, and artificial intelligence. Here are the main recurring themes:\n\n1. **Artificial Intelligence (AI) and Its Impact**:\n   - The rise of AI and its potential to elevate or harm humanity is a central theme.\n   - The debate surrounding AI's future involves key figures like Elon Musk, Larry Page, Mark Zuckerberg, Peter Thiel, Satya Nadella, and Sam Altman.\n   - The development of AI technologies, such as OpenAI's GPT-3 and GPT-4, is highlighted, along with the ethical concerns and commercial interests driving its advancement.\n\n2. **Legal Cases and Antitrust Issues**:\n   - The SBF trial, involving Sam Bankman-Fried and the collapse of FTX, is a significant focus.\n   - Legal actions against Google for monopolizing digital ad technologies and the filing of an antitrust lawsuit by Helena World Chronicle, LLC are discussed.\n   - The broader implications of these legal cases on competition, consumers, labor, and a democratic free press are explored.\n\n3. **Technological Innovations and Their Consequences**:\n   - The evolution of AI from static websites to dynamic data nested within various services and apps is noted.\n   - The impact of AI on different sectors, including education, warfare, and business, is examined.\n   - The role of AI in reshaping the technology industry and introducing both risks and potential benefits is emphasized.\n\n4. **Key Figures and Their Influence**:\n   - Prominent individuals like Demis Hassabis, Eliezer Yudkowsky, and Sam Altman are mentioned for their roles in AI development and the ethical debates surrounding it.\n   - The influence of these figures on the direction of AI research and the commercialization of AI technologies is discussed.\n\n5. **Economic and Financial Implications**:\n   - The financial aspects of AI development, including investments and valuations, are highlighted.\n   - The economic impact of legal cases, such as the potential harm to competition and consumers, is explored.\n   - The role of AI in changing the nature of work and its potential to solve global challenges like climate change is mentioned.\n\nThese themes collectively underscore the complex interplay between technological innovation, legal frameworks, ethical considerations, and economic implications in the era of artificial intelligence.\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. LightRAG knowledge graph**\n\n> Graph + vector dual retrieval (mode=hybrid) over the corpus's extracted entities & relations.\n\n</details>\n\n---\n📊 34.0s · 0 chunks · 1 LLM call · 0 cloud",
+      "answer": "The provided documents cover a range of topics related to technology, legal cases, and artificial intelligence. Here are the main recurring themes:\n\n1. **Artificial Intelligence (AI) and Its Impact**:\n   - The rise of AI and its potential to elevate or harm humanity is a central theme.\n   - The debate surrounding AI's future involves key figures like Elon Musk, Larry Page, Mark Zuckerberg, Peter Thiel, Satya Nadella, and Sam Altman.\n   - The development of AI technologies, such as OpenAI's GPT-3 and GPT-4, is highlighted, along with the ethical concerns and commercial interests driving its advancement.\n\n2. **Legal Cases and Antitrust Issues**:\n   - The SBF trial, involving Sam Bankman-Fried and the collapse of FTX, is a significant focus.\n   - Legal actions against Google for monopolizing digital ad technologies and the filing of an antitrust lawsuit by Helena World Chronicle, LLC are discussed.\n   - The broader implications of these legal cases on competition, consumers, labor, and a democratic free press are explored.\n\n3. **Technological Innovations and Their Consequences**:\n   - The evolution of AI from static websites to dynamic data nested within various services and apps is noted.\n   - The impact of AI on different sectors, including education, warfare, and business, is examined.\n   - The role of AI in reshaping the technology industry and introducing both risks and potential benefits is emphasized.\n\n4. **Key Figures and Their Influence**:\n   - Prominent individuals like Demis Hassabis, Eliezer Yudkowsky, and Sam Altman are mentioned for their roles in AI development and the ethical debates surrounding it.\n   - The influence of these figures on the direction of AI research and the commercialization of AI technologies is discussed.\n\n5. **Economic and Financial Implications**:\n   - The financial aspects of AI development, including investments and valuations, are highlighted.\n   - The economic impact of legal cases, such as the potential harm to competition and consumers, is explored.\n   - The role of AI in changing the nature of work and its potential to solve global challenges like climate change is mentioned.\n\nThese themes collectively underscore the complex interplay between technological innovation, legal frameworks, ethical considerations, and economic implications in the era of artificial intelligence.",
+      "sources": [
+        {
+          "title": "LightRAG knowledge graph",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 34.0,
+        "chunks": 0,
+        "llm_calls": 1,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "thematic",
+      "model": "agentic-rag",
+      "ok": true,
+      "latency_s": 5.3,
+      "raw": "(agent reached MAX_STEPS without producing a final answer)\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. 🤖 Agent trace**\n\n> **Step 1.** **Thought:** To identify the main recurring themes, I first need to understand the content of the document corpus. I will start by performing a broad search to get an overview of the topics covered.\n\n**Action:** `search_vectors(overview of topics and subjects in the documents)`\n\n**Observation:** - 032-Is Google Search better than the rest? And is that fair?.md: query,” he said. “It’s no secret that Google Search looks beyond the specific words in a query to better understand their meaning ... If you make a spelling mistake, or search for a term that’s not on\n- 015-More from the US v Google \n\n**Step 2.** **Action:** `search_vectors(main themes topics covered in documents)`\n\n**Observation:** - 038-There’s something going on with AI startups in France.md: # There’s something going on with AI startups in France\n\nThere’s something going on with AI startups in France In just a few months, dozens of French entrepreneurs have turned their focus to AI\n\nLast \n- 009-SBF Trial: The latest updates\n\n**Step 3.** **Action:** `search_vectors(main themes topics covered in documents)`\n\n**Observation:** - 038-There’s something going on with AI startups in France.md: # There’s something going on with AI startups in France\n\nThere’s something going on with AI startups in France In just a few months, dozens of French entrepreneurs have turned their focus to AI\n\nLast \n- 009-SBF Trial: The latest updates\n\n**Step 4.** **Action:** `search_vectors(main themes topics covered in all documents)`\n\n**Observation:** - 031-Is Sam Bankman-Fried a bad ‘man’ or a good ‘boy’? Lawyers swap opening statement.md: t “all of that, all of it, was built on lies,” Rehn declared to the jury. “Behind the curtains, he was not what he appeared to be.” What followed was a roughly 30-minute story that repeatedly emphasiz\n- 038-Th\n\n</details>\n\n---\n📊 5.2s · 0 chunks · 8 LLM calls · 0 cloud",
+      "answer": "(agent reached MAX_STEPS without producing a final answer)",
+      "sources": [
+        {
+          "title": "🤖 Agent trace",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 5.2,
+        "chunks": 0,
+        "llm_calls": 8,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "thematic",
+      "model": "n8n-adaptive-rag",
+      "ok": true,
+      "latency_s": 0.4,
+      "raw": "The provided context is insufficient to identify main recurring themes across *all* the documents because the documents cover disparate and unrelated topics without a clear common thread.\n\n*   **Documents [1], [2], and [3]** discuss the rise of artificial intelligence, internal conflicts at OpenAI (specifically regarding Sam Altman), the pursuit of Artificial General Intelligence (AGI), and interactions involving figures like Peter Thiel and Eliezer Yudkowsky.\n*   **Document [4]** discusses a US v Google trial, specifically focusing on search revenue data and popular search queries.\n*   **Document [5]** briefly mentions the SBF (Sam Bankman-Fried) trial and FTX collapse.\n\nThere is no single theme that connects AI development, Google's search revenue, and the FTX legal proceedings. Therefore, a unified recurring theme across all documents cannot be determined from the context.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> of digital text. Seeking the path to artificial general intelligence, AGI. Credit: iStock By analysing countless Wikipedia articles, digital books and message boards, it could generate text on its own. It also had the unfortunate habit of m\n\n**2. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> d in the same direction, the more contentious the disagreements are. You see this in sects and religious orders. There are bitter fights between the closest people.” Last month that infighting came to OpenAI’s boardroom. Rebel board members\n\n**3. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> rope of science fiction that describes the moment when intelligent technology can no longer be controlled by humanity.\n\nWith funding from Thiel, Yudkowsky had expanded his AI lab and created an annual conference on the singularity. Years be\n\n**4. 015-More from the US v Google trial: vertical search, pre-installs and the case of F.md**\n\n> st popular search queries\n\nJudge Amit Mehta ruled to make a list public that provides a glimpse of which search terms make Google the most money. The list of popular search terms ordered by revenue includes 20 terms that were lucrative for \n\n**5. 009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md**\n\n> ity. You can listen to a special joint episode of our podcasts Equity and Chain Reaction to get a better sense of the vibe between the jurors and the rest of the court.\n\nFor a full rundown of our coverage of the SBF trial, check below:\n\n</details>\n\n---\n📊 0.3s · 5 chunks · 2 LLM calls · 0 cloud\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. 🧭 Adaptive route**\n\n> n8n routed this query as **simple**.\n\n</details>\n\n---\n📊 0.4s · 0 chunks · 1 LLM call · 0 cloud",
+      "answer": "The provided context is insufficient to identify main recurring themes across *all* the documents because the documents cover disparate and unrelated topics without a clear common thread.\n\n*   **Documents [1], [2], and [3]** discuss the rise of artificial intelligence, internal conflicts at OpenAI (specifically regarding Sam Altman), the pursuit of Artificial General Intelligence (AGI), and interactions involving figures like Peter Thiel and Eliezer Yudkowsky.\n*   **Document [4]** discusses a US v Google trial, specifically focusing on search revenue data and popular search queries.\n*   **Document [5]** briefly mentions the SBF (Sam Bankman-Fried) trial and FTX collapse.\n\nThere is no single theme that connects AI development, Google's search revenue, and the FTX legal proceedings. Therefore, a unified recurring theme across all documents cannot be determined from the context.",
+      "sources": [
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        },
+        {
+          "title": "015-More from the US v Google trial: vertical search, pre-installs and the case of F.md",
+          "score": null
+        },
+        {
+          "title": "009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 0.3,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "multihop",
+      "model": "vanilla-rag",
+      "ok": true,
+      "latency_s": 2.1,
+      "raw": "The provided context is insufficient to answer the question. While the text contains information about events involving OpenAI (Sources 1, 2, and 5), SBF/FTX (Source 3), and Apple/Google (Source 4), it does not present two different sources that conclude on the *same* event in a way that allows for comparison and reconciliation. The sources discuss distinct, unrelated topics.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> d in the same direction, the more contentious the disagreements are. You see this in sects and religious orders. There are bitter fights between the closest people.” Last month that infighting came to OpenAI’s boardroom. Rebel board members\n\n**2. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> rope of science fiction that describes the moment when intelligent technology can no longer be controlled by humanity.\n\nWith funding from Thiel, Yudkowsky had expanded his AI lab and created an annual conference on the singularity. Years be\n\n**3. 009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md**\n\n> red a couple of noteworthy moments for the prosecution, including FTX’s former general counsel Can Sun. He, like many of SBF’s former colleagues, opted to cooperate with authorities and testified that SBF asked him to create a theoretical “\n\n**4. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md**\n\n> compromised on some other number we weren’t told in court, and Google has been paying Apple that amount since.\n\n“I always felt like it was in Google’s best interest, and our best interest, to get a deal done.”\n\nMeagan Bellshaw, a Justice De\n\n**5. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> alled OpenAI later in the year. Backed by hundreds of millions of dollars from Musk and other funders, the lab promised to protect the world from Page’s vision. Thanks to its ChatGPT chatbot, OpenAI has fundamentally changed the technology \n\n</details>\n\n---\n📊 2.1s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "The provided context is insufficient to answer the question. While the text contains information about events involving OpenAI (Sources 1, 2, and 5), SBF/FTX (Source 3), and Apple/Google (Source 4), it does not present two different sources that conclude on the *same* event in a way that allows for comparison and reconciliation. The sources discuss distinct, unrelated topics.",
+      "sources": [
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        },
+        {
+          "title": "009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md",
+          "score": null
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": null
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 2.1,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "multihop",
+      "model": "hybrid-rag",
+      "ok": true,
+      "latency_s": 7.0,
+      "raw": "The provided context is insufficient to answer the question. While the text contains conflicting perspectives regarding Sam Bankman-Fried (SBF)—specifically, the prosecution's view that he used customer funds for illegal purposes versus his defense's argument that he acted in good faith and did not steal money—it does not provide information on \"two different sources\" concluding on the same event in a way that allows for reconciliation. The text presents opposing legal arguments rather than reconciled conclusions from independent sources.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.073\n\n> ccording to three people familiar with the matter. Hassabis and his co-founders insisted on two conditions: No DeepMind technology could be used for military purposes, and its AGI technology must be overseen by an independent board of techn\n\n**2. 009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md** · score 0.058\n\n> red a couple of noteworthy moments for the prosecution, including FTX’s former general counsel Can Sun. He, like many of SBF’s former colleagues, opted to cooperate with authorities and testified that SBF asked him to create a theoretical “\n\n**3. 009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md** · score 0.051\n\n> uld not have invested in FTX in the first place.\n\nAnd earlier in the week, a University of Notre Dame professor who helped the government prosecution of Enron and WorldCom, Peter Easton, testified about what he uncovered after tracing the f\n\n**4. 031-Is Sam Bankman-Fried a bad ‘man’ or a good ‘boy’? Lawyers swap opening statement.md** · score 0.044\n\n> working at a startup is like building a plane as you’re flying it” and that businesses sometimes fail. In fact, he specifically pointed the finger at Ellison, the former CEO of Alameda, who, he said, did not adequately protect her hedge fun\n\n**5. 031-Is Sam Bankman-Fried a bad ‘man’ or a good ‘boy’? Lawyers swap opening statement.md** · score 0.042\n\n> # Is Sam Bankman-Fried a bad ‘man’ or a good ‘boy’? Lawyers swap opening statement\n\nWho is Sam Bankman-Fried, the former CEO of crypto exchange FTX? Is he a liar and a fraud? Or did he act in good faith, and like many a startup founder, fly\n\n</details>\n\n---\n📊 7.0s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "The provided context is insufficient to answer the question. While the text contains conflicting perspectives regarding Sam Bankman-Fried (SBF)—specifically, the prosecution's view that he used customer funds for illegal purposes versus his defense's argument that he acted in good faith and did not steal money—it does not provide information on \"two different sources\" concluding on the same event in a way that allows for reconciliation. The text presents opposing legal arguments rather than reconciled conclusions from independent sources.",
+      "sources": [
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.073
+        },
+        {
+          "title": "009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md",
+          "score": 0.058
+        },
+        {
+          "title": "009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md",
+          "score": 0.051
+        },
+        {
+          "title": "031-Is Sam Bankman-Fried a bad ‘man’ or a good ‘boy’? Lawyers swap opening statement.md",
+          "score": 0.044
+        },
+        {
+          "title": "031-Is Sam Bankman-Fried a bad ‘man’ or a good ‘boy’? Lawyers swap opening statement.md",
+          "score": 0.042
+        }
+      ],
+      "metrics": {
+        "seconds": 7.0,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "multihop",
+      "model": "contextual-rag",
+      "ok": true,
+      "latency_s": 8.7,
+      "raw": "The provided context is insufficient to answer the question. While the text contains multiple sources discussing events related to Sam Bankman-Fried (SBF) and FTX, it does not present two distinct sources that conclude differently on the *same* specific event in a way that allows for reconciliation. The sources generally align on the facts of the collapse, the misuse of funds, and SBF's arrest, differing only in their framing of his intent (fraud vs. mistake) during opening statements, but they do not offer conflicting factual conclusions on a single event to reconcile.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.081\n\n> The text details the intense competition among Silicon Valley titans like Peter Thiel and Elon Musk to control artificial intelligence, highlighting how their personal rivalries and philosophical differences shaped the industry's early land\n\n**2. 009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md** · score 0.077\n\n> This chunk details key testimonies from the third and second weeks of Sam Bankman-Fried's trial, specifically highlighting financial expert Peter Easton's findings on misused customer funds and former Alameda CEO Caroline Ellison's admissio\n\n**3. 031-Is Sam Bankman-Fried a bad ‘man’ or a good ‘boy’? Lawyers swap opening statement.md** · score 0.063\n\n> This section introduces the second day of the trial where prosecutors and defense attorneys presented conflicting opening statements regarding Sam Bankman-Fried's intent and actions. It sets the stage for the central debate over whether he \n\n**4. 010-SBF’s trial starts soon, but how did he — and FTX — get here?.md** · score 0.063\n\n> This section details the immediate aftermath of FTX's collapse in late 2022, covering Bankman-Fried's resignation, his public denial of fraud, and his subsequent arrest and extradition to the United States.\n\nlameda filed for Chapter 11 bank\n\n**5. 009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md** · score 0.055\n\n> This section details key testimonies from the third week of the SBF trial, highlighting evidence presented by cooperating witnesses regarding the misuse of customer funds and undisclosed relationships between FTX and Alameda Research.\n\nred \n\n</details>\n\n---\n📊 8.7s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "The provided context is insufficient to answer the question. While the text contains multiple sources discussing events related to Sam Bankman-Fried (SBF) and FTX, it does not present two distinct sources that conclude differently on the *same* specific event in a way that allows for reconciliation. The sources generally align on the facts of the collapse, the misuse of funds, and SBF's arrest, differing only in their framing of his intent (fraud vs. mistake) during opening statements, but they do not offer conflicting factual conclusions on a single event to reconcile.",
+      "sources": [
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.081
+        },
+        {
+          "title": "009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md",
+          "score": 0.077
+        },
+        {
+          "title": "031-Is Sam Bankman-Fried a bad ‘man’ or a good ‘boy’? Lawyers swap opening statement.md",
+          "score": 0.063
+        },
+        {
+          "title": "010-SBF’s trial starts soon, but how did he — and FTX — get here?.md",
+          "score": 0.063
+        },
+        {
+          "title": "009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md",
+          "score": 0.055
+        }
+      ],
+      "metrics": {
+        "seconds": 8.7,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "multihop",
+      "model": "graph-rag",
+      "ok": true,
+      "latency_s": 23.0,
+      "raw": "To\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. LightRAG knowledge graph**\n\n> Graph + vector dual retrieval (mode=hybrid) over the corpus's extracted entities & relations.\n\n</details>\n\n---\n📊 23.0s · 0 chunks · 1 LLM call · 0 cloud",
+      "answer": "To",
+      "sources": [
+        {
+          "title": "LightRAG knowledge graph",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 23.0,
+        "chunks": 0,
+        "llm_calls": 1,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "multihop",
+      "model": "agentic-rag",
+      "ok": true,
+      "latency_s": 2.6,
+      "raw": "To provide a meaningful comparison and reconciliation of conclusions from two different sources regarding the same event, I first need to know **which specific event** you are referring to.\n\nPlease specify:\n1. The **event** (e.g., the signing of the Treaty of Versailles, the Chernobyl disaster, the 2020 US Presidential Election, etc.).\n2. Optionally, if you have specific sources in mind (e.g., \"The New York Times vs. The Wall Street Journal\" or \"Source A vs. Source B\"), please name them. If not, I can select two prominent or contrasting reputable sources for the event.\n\nOnce you provide the event, I will:\n1. Search for the conclusions drawn by each source.\n2. Compare their perspectives, evidence, and interpretations.\n3. Reconcile any discrepancies by identifying common facts, contextual differences, or biases.\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. 🤖 Agent trace**\n\n> (answered without retrieval)\n\n</details>\n\n---\n📊 2.6s · 0 chunks · 1 LLM call · 0 cloud",
+      "answer": "To provide a meaningful comparison and reconciliation of conclusions from two different sources regarding the same event, I first need to know **which specific event** you are referring to.\n\nPlease specify:\n1. The **event** (e.g., the signing of the Treaty of Versailles, the Chernobyl disaster, the 2020 US Presidential Election, etc.).\n2. Optionally, if you have specific sources in mind (e.g., \"The New York Times vs. The Wall Street Journal\" or \"Source A vs. Source B\"), please name them. If not, I can select two prominent or contrasting reputable sources for the event.\n\nOnce you provide the event, I will:\n1. Search for the conclusions drawn by each source.\n2. Compare their perspectives, evidence, and interpretations.\n3. Reconcile any discrepancies by identifying common facts, contextual differences, or biases.",
+      "sources": [
+        {
+          "title": "🤖 Agent trace",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 2.6,
+        "chunks": 0,
+        "llm_calls": 1,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "multihop",
+      "model": "n8n-adaptive-rag",
+      "ok": true,
+      "latency_s": 0.4,
+      "raw": "The provided context is insufficient to answer the question. While the text contains information about events involving OpenAI (Sources 1, 2, and 5), SBF/FTX (Source 3), and Apple/Google (Source 4), it does not present two different sources that conclude on the *same* event in a way that allows for comparison and reconciliation. The sources discuss distinct, unrelated topics.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> d in the same direction, the more contentious the disagreements are. You see this in sects and religious orders. There are bitter fights between the closest people.” Last month that infighting came to OpenAI’s boardroom. Rebel board members\n\n**2. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> rope of science fiction that describes the moment when intelligent technology can no longer be controlled by humanity.\n\nWith funding from Thiel, Yudkowsky had expanded his AI lab and created an annual conference on the singularity. Years be\n\n**3. 009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md**\n\n> red a couple of noteworthy moments for the prosecution, including FTX’s former general counsel Can Sun. He, like many of SBF’s former colleagues, opted to cooperate with authorities and testified that SBF asked him to create a theoretical “\n\n**4. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md**\n\n> compromised on some other number we weren’t told in court, and Google has been paying Apple that amount since.\n\n“I always felt like it was in Google’s best interest, and our best interest, to get a deal done.”\n\nMeagan Bellshaw, a Justice De\n\n**5. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> alled OpenAI later in the year. Backed by hundreds of millions of dollars from Musk and other funders, the lab promised to protect the world from Page’s vision. Thanks to its ChatGPT chatbot, OpenAI has fundamentally changed the technology \n\n</details>\n\n---\n📊 0.3s · 5 chunks · 2 LLM calls · 0 cloud\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. 🧭 Adaptive route**\n\n> n8n routed this query as **simple**.\n\n</details>\n\n---\n📊 0.4s · 0 chunks · 1 LLM call · 0 cloud",
+      "answer": "The provided context is insufficient to answer the question. While the text contains information about events involving OpenAI (Sources 1, 2, and 5), SBF/FTX (Source 3), and Apple/Google (Source 4), it does not present two different sources that conclude on the *same* event in a way that allows for comparison and reconciliation. The sources discuss distinct, unrelated topics.",
+      "sources": [
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        },
+        {
+          "title": "009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md",
+          "score": null
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": null
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 0.3,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "factoid",
+      "model": "vanilla-rag",
+      "ok": true,
+      "latency_s": 1.3,
+      "raw": "The firmware version referenced in the widget bootloader error is v4.2.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md**\n\n> # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WIDGET-ERR-3390**: Calibration drift beyond\n\n**2. 033-News publisher files class action antitrust suit against Google, citing AI’s har.md**\n\n> ronicle, LLC v. Google LLC and Alphabet Inc by TechCrunch on Scribd\n\nEditor’s note: This post was updated after publication with a statement provided by Google on Friday evening.\n\n**3. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md**\n\n> izes; the location-tracking prompt that appears when you open Maps; and the App Tracking Transparency pop-up that tells you when an app wants to collect your data. Cue objected to all these things being considered part of setup, but Bellsha\n\n**4. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md**\n\n> # Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’\n\nEddy Cue, in a dark suit, peered down at the monitor in front of him. The screens in the Washington, DC, courtroom had briefly malfunctioned and left witnesses\n\n**5. 010-SBF’s trial starts soon, but how did he — and FTX — get here?.md**\n\n> blem: The report showed Alameda’s largest asset was $3.66 billion of “unlocked FTT” and $2.16 billion of “FTT collateral.” FTT was the token behind FTX.\n\nThe balance sheet showed that the $5.82 billion in FTT tokens that Alameda owned was 1\n\n</details>\n\n---\n📊 1.3s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "The firmware version referenced in the widget bootloader error is v4.2.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": null
+        },
+        {
+          "title": "033-News publisher files class action antitrust suit against Google, citing AI’s har.md",
+          "score": null
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": null
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": null
+        },
+        {
+          "title": "010-SBF’s trial starts soon, but how did he — and FTX — get here?.md",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 1.3,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "factoid",
+      "model": "hybrid-rag",
+      "ok": true,
+      "latency_s": 5.7,
+      "raw": "The firmware version referenced in the widget bootloader error is v4.2.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md** · score 0.414\n\n> # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WIDGET-ERR-3390**: Calibration drift beyond\n\n**2. 033-News publisher files class action antitrust suit against Google, citing AI’s har.md** · score 0.003\n\n> ronicle, LLC v. Google LLC and Alphabet Inc by TechCrunch on Scribd\n\nEditor’s note: This post was updated after publication with a statement provided by Google on Friday evening.\n\n**3. 015-More from the US v Google trial: vertical search, pre-installs and the case of F.md** · score 0.002\n\n> # More from the US v Google trial: vertical search, pre-installs and the case of F\n\nMore from the US v Google trial: Vertical search, pre-installs and the case of Firefox/Yahoo\n\nWe’re nearly two months into the Justice Department’s landmark\n\n**4. 015-More from the US v Google trial: vertical search, pre-installs and the case of F.md** · score 0.002\n\n> as making a big push to win business with people who wanted to buy identity theft protection.\n\nRevenue-shares to pre-install Google apps on Androids\n\nJamie Rosenberg, a Google employee who focuses on Android and Google Play, testified in Go\n\n**5. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md** · score 0.002\n\n> there wasn’t a valid alternative to Google at the time,” Cue said. He said there still isn’t one.\n\nThat question — whether Apple picked Google because it’s the most lucrative choice or the best product — was a key part of Cue’s testimony an\n\n</details>\n\n---\n📊 5.7s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "The firmware version referenced in the widget bootloader error is v4.2.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": 0.414
+        },
+        {
+          "title": "033-News publisher files class action antitrust suit against Google, citing AI’s har.md",
+          "score": 0.003
+        },
+        {
+          "title": "015-More from the US v Google trial: vertical search, pre-installs and the case of F.md",
+          "score": 0.002
+        },
+        {
+          "title": "015-More from the US v Google trial: vertical search, pre-installs and the case of F.md",
+          "score": 0.002
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": 0.002
+        }
+      ],
+      "metrics": {
+        "seconds": 5.7,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "factoid",
+      "model": "contextual-rag",
+      "ok": true,
+      "latency_s": 7.7,
+      "raw": "The firmware version referenced in the widget bootloader error is v4.2.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md** · score 0.227\n\n> This section lists specific error codes for the Acme Widget, detailing their causes and required resolution steps. It serves as a quick reference guide for troubleshooting common hardware and software issues.\n\n# Acme Widget Error Code Refer\n\n**2. 015-More from the US v Google trial: vertical search, pre-installs and the case of F.md** · score 0.002\n\n> This section details testimony from Google employee Jamie Rosenberg regarding the company's use of Mobile App Distribution Agreements and Revenue Share Agreements to mandate the pre-installation of Google apps on Android devices. It illustr\n\n**3. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md** · score 0.002\n\n> The chunk concludes Apple executive Eddy Cue's testimony regarding the company's stance on user privacy and its agreement with Google, which allows users to change their default search engine but does not require Apple to offer a choice dur\n\n**4. 015-More from the US v Google trial: vertical search, pre-installs and the case of F.md** · score 0.002\n\n> This passage outlines the potential remedies and broader implications of the U.S. Department of Justice's antitrust trial against Google, specifically regarding exclusive deals with manufacturers and the impact on other major tech companies\n\n**5. 010-SBF’s trial starts soon, but how did he — and FTX — get here?.md** · score 0.001\n\n> This section details the legal aftermath of FTX's collapse, highlighting how key figures like Gary Wang and Caroline Ellison pleaded guilty and agreed to cooperate with prosecutors, while Sam Bankman-Fried maintained his innocence ahead of \n\n</details>\n\n---\n📊 7.7s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "The firmware version referenced in the widget bootloader error is v4.2.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": 0.227
+        },
+        {
+          "title": "015-More from the US v Google trial: vertical search, pre-installs and the case of F.md",
+          "score": 0.002
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": 0.002
+        },
+        {
+          "title": "015-More from the US v Google trial: vertical search, pre-installs and the case of F.md",
+          "score": 0.002
+        },
+        {
+          "title": "010-SBF’s trial starts soon, but how did he — and FTX — get here?.md",
+          "score": 0.001
+        }
+      ],
+      "metrics": {
+        "seconds": 7.7,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "factoid",
+      "model": "graph-rag",
+      "ok": true,
+      "latency_s": 19.7,
+      "raw": "The firmware version referenced in the widget bootloader error is **Bootloader v4.2**. This version is associated with the error code **WIDGET-ERR-1188**, which indicates a mismatch in the firmware signature.\n\n### References\n\n- [2] Acme Widget Error Code Reference\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. LightRAG knowledge graph**\n\n> Graph + vector dual retrieval (mode=hybrid) over the corpus's extracted entities & relations.\n\n</details>\n\n---\n📊 19.7s · 0 chunks · 1 LLM call · 0 cloud",
+      "answer": "The firmware version referenced in the widget bootloader error is **Bootloader v4.2**. This version is associated with the error code **WIDGET-ERR-1188**, which indicates a mismatch in the firmware signature.\n\n### References\n\n- [2] Acme Widget Error Code Reference",
+      "sources": [
+        {
+          "title": "LightRAG knowledge graph",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 19.7,
+        "chunks": 0,
+        "llm_calls": 1,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "factoid",
+      "model": "agentic-rag",
+      "ok": true,
+      "latency_s": 5.1,
+      "raw": "(agent reached MAX_STEPS without producing a final answer)\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. 🤖 Agent trace**\n\n> **Step 1.** **Action:** `search_vectors(widget bootloader error firmware version)`\n\n**Observation:** - widget-error-codes.md: # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WID\n- 033-News publisher files class action antitrust suit against Google, cit\n\n**Step 2.** **Action:** `search_vectors(widget bootloader error firmware version)`\n\n**Observation:** - widget-error-codes.md: # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WID\n- 033-News publisher files class action antitrust suit against Google, cit\n\n**Step 3.** **Action:** `search_vectors(widget bootloader error firmware version)`\n\n**Observation:** - widget-error-codes.md: # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WID\n- 033-News publisher files class action antitrust suit against Google, cit\n\n**Step 4.** **Action:** `search_vectors(widget bootloader error firmware version)`\n\n**Observation:** - widget-error-codes.md: # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WID\n- 033-News publisher files class action antitrust suit against Google, cit\n\n</details>\n\n---\n📊 5.1s · 0 chunks · 8 LLM calls · 0 cloud",
+      "answer": "(agent reached MAX_STEPS without producing a final answer)",
+      "sources": [
+        {
+          "title": "🤖 Agent trace",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 5.1,
+        "chunks": 0,
+        "llm_calls": 8,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "factoid",
+      "model": "n8n-adaptive-rag",
+      "ok": true,
+      "latency_s": 0.4,
+      "raw": "The firmware version referenced in the widget bootloader error is v4.2.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md**\n\n> # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WIDGET-ERR-3390**: Calibration drift beyond\n\n**2. 033-News publisher files class action antitrust suit against Google, citing AI’s har.md**\n\n> ronicle, LLC v. Google LLC and Alphabet Inc by TechCrunch on Scribd\n\nEditor’s note: This post was updated after publication with a statement provided by Google on Friday evening.\n\n**3. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md**\n\n> izes; the location-tracking prompt that appears when you open Maps; and the App Tracking Transparency pop-up that tells you when an app wants to collect your data. Cue objected to all these things being considered part of setup, but Bellsha\n\n**4. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md**\n\n> # Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’\n\nEddy Cue, in a dark suit, peered down at the monitor in front of him. The screens in the Washington, DC, courtroom had briefly malfunctioned and left witnesses\n\n**5. 010-SBF’s trial starts soon, but how did he — and FTX — get here?.md**\n\n> blem: The report showed Alameda’s largest asset was $3.66 billion of “unlocked FTT” and $2.16 billion of “FTT collateral.” FTT was the token behind FTX.\n\nThe balance sheet showed that the $5.82 billion in FTT tokens that Alameda owned was 1\n\n</details>\n\n---\n📊 0.3s · 5 chunks · 2 LLM calls · 0 cloud\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. 🧭 Adaptive route**\n\n> n8n routed this query as **simple**.\n\n</details>\n\n---\n📊 0.3s · 0 chunks · 1 LLM call · 0 cloud",
+      "answer": "The firmware version referenced in the widget bootloader error is v4.2.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": null
+        },
+        {
+          "title": "033-News publisher files class action antitrust suit against Google, citing AI’s har.md",
+          "score": null
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": null
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": null
+        },
+        {
+          "title": "010-SBF’s trial starts soon, but how did he — and FTX — get here?.md",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 0.3,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "context_starved",
+      "model": "vanilla-rag",
+      "ok": true,
+      "latency_s": 2.0,
+      "raw": "When the coil exceeds 84°C, the safety relay (part RLY-22B) opens. To clear this error, you must reset it by power-cycling for 30 seconds.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md**\n\n> # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WIDGET-ERR-3390**: Calibration drift beyond\n\n**2. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> DeepMind machine AlphaGo in March 2016. Credit: EPA\n\nRationalists, effective altruists and others who worried about the risks of AI claimed the computer’s win validated their fears. “This is another indication that AI is progressing faster \n\n**3. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> rope of science fiction that describes the moment when intelligent technology can no longer be controlled by humanity.\n\nWith funding from Thiel, Yudkowsky had expanded his AI lab and created an annual conference on the singularity. Years be\n\n**4. 009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md**\n\n> space. Our resident crypto expert Jacquelyn Melinek has been on the ground at the trial since it started, and continues to cover the ins and outs of the proceedings. But the trial has been on pause from October 20 to today, so there’s plent\n\n**5. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> our of SpaceX headquarters. Afterward, with rocket hulls hanging from the ceiling, the two men lunched in the cafeteria and talked. Musk explained that his plan was to colonise Mars to escape overpopulation and other dangers on Earth. Hassa\n\n</details>\n\n---\n📊 2.0s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "When the coil exceeds 84°C, the safety relay (part RLY-22B) opens. To clear this error, you must reset it by power-cycling for 30 seconds.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": null
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        },
+        {
+          "title": "009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md",
+          "score": null
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 2.0,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "context_starved",
+      "model": "hybrid-rag",
+      "ok": true,
+      "latency_s": 6.2,
+      "raw": "When the coil exceeds 84°C, the safety relay (part RLY-22B) opens. To clear this error, you must reset by power-cycling for 30s.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md** · score 0.431\n\n> # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WIDGET-ERR-3390**: Calibration drift beyond\n\n**2. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.007\n\n> e other. The system answered correctly and explained its choice. “It was only trained to provide an answer,” Brockman said. “The conversational nature kind of fell out, almost magically.” In other words, it was doing things they hadn’t real\n\n**3. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.003\n\n> to the Galaxy. By the spring of 2010, they were building their dream machine. They wholeheartedly believed that because they understood the risks, they were uniquely positioned to protect the world. “I don’t see this as a contradictory posi\n\n**4. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.003\n\n> from Britain, had a connection to Eliezer Yudkowsky, an internet philosopher and self-taught AI researcher. Yudkowsky was a leader in a community of people who called themselves Rationalists or, in later years, effective altruists. They bel\n\n**5. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.003\n\n> DeepMind machine AlphaGo in March 2016. Credit: EPA\n\nRationalists, effective altruists and others who worried about the risks of AI claimed the computer’s win validated their fears. “This is another indication that AI is progressing faster \n\n</details>\n\n---\n📊 6.2s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "When the coil exceeds 84°C, the safety relay (part RLY-22B) opens. To clear this error, you must reset by power-cycling for 30s.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": 0.431
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.007
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.003
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.003
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.003
+        }
+      ],
+      "metrics": {
+        "seconds": 6.2,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "context_starved",
+      "model": "contextual-rag",
+      "ok": true,
+      "latency_s": 8.1,
+      "raw": "When the coil exceeds 84°C, the safety relay (part RLY-22B) opens. To clear this error, you must reset by power-cycling for 30s.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md** · score 0.481\n\n> This section lists specific error codes for the Acme Widget, detailing their causes and required resolution steps. It serves as a quick reference guide for troubleshooting common hardware and software issues.\n\n# Acme Widget Error Code Refer\n\n**2. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.003\n\n> This passage details the origins of DeepMind and its founders' alignment with the \"Rationalist\" community's fears about artificial general intelligence, which influenced Peter Thiel’s interest in the technological singularity. It sets the s\n\n**3. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.003\n\n> This passage details how DeepMind founders Demis Hassabis and Mustafa Suleyman leveraged their shared concerns about AI risks to secure funding from Peter Thiel and later connect with Elon Musk, establishing the competitive landscape that w\n\n**4. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.003\n\n> This passage details the escalating conflict between Elon Musk and Sam Altman regarding OpenAI's direction, which led to Musk's departure and a pivotal partnership with Microsoft. It illustrates the broader theme of how ego and fear among S\n\n**5. 027-How ego and fear fuelled the rise of artificial intelligence.md** · score 0.003\n\n> This passage details Demis Hassabis's strategic efforts in 2010 to secure funding from Peter Thiel for his artificial general intelligence startup by leveraging their shared interest in chess and connecting with the rationalist community co\n\n</details>\n\n---\n📊 8.1s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "When the coil exceeds 84°C, the safety relay (part RLY-22B) opens. To clear this error, you must reset by power-cycling for 30s.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": 0.481
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.003
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.003
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.003
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": 0.003
+        }
+      ],
+      "metrics": {
+        "seconds": 8.1,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "context_starved",
+      "model": "graph-rag",
+      "ok": true,
+      "latency_s": 24.3,
+      "raw": "The safety relay, labeled RLY-22B, opens when the thermal cutoff is engaged due to the widget's coil exceeding 84°C. This action is a safety mechanism designed to prevent further damage or hazards.\n\nTo clear this error (WIDGET-ERR-7741), you need to reset the device by power-cycling it for 30 seconds. This process involves turning off and then back on the widget, allowing the system to reset and potentially re-engage normal operations once the coil has cooled down.\n\n### References\n\n- [2] Acme Widget Error Code Reference\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. LightRAG knowledge graph**\n\n> Graph + vector dual retrieval (mode=hybrid) over the corpus's extracted entities & relations.\n\n</details>\n\n---\n📊 24.3s · 0 chunks · 1 LLM call · 0 cloud",
+      "answer": "The safety relay, labeled RLY-22B, opens when the thermal cutoff is engaged due to the widget's coil exceeding 84°C. This action is a safety mechanism designed to prevent further damage or hazards.\n\nTo clear this error (WIDGET-ERR-7741), you need to reset the device by power-cycling it for 30 seconds. This process involves turning off and then back on the widget, allowing the system to reset and potentially re-engage normal operations once the coil has cooled down.\n\n### References\n\n- [2] Acme Widget Error Code Reference",
+      "sources": [
+        {
+          "title": "LightRAG knowledge graph",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 24.3,
+        "chunks": 0,
+        "llm_calls": 1,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "context_starved",
+      "model": "agentic-rag",
+      "ok": true,
+      "latency_s": 27.8,
+      "raw": "When the coil overheats (exceeding 84°C), the safety relay (part RLY-22B) opens, which is indicated by error code **WIDGET-ERR-7741**.\n\nTo clear this error and reset the system, you need to **power-cycle the device for 30 seconds** (turn it off for 30 seconds, then turn it back on).\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. 🤖 Agent trace**\n\n> **Step 1.** **Action:** `search_vectors(safety relay coil overheat protection action clear reset)`\n\n**Observation:** - widget-error-codes.md: # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WID\n- 027-How ego and fear fuelled the rise of artificial intelligence.md: Dee\n\n**Step 2.** **Action:** `query_graph(safety relay thermal overload behavior and clearing procedure)`\n\n**Observation:** The safety relay labeled RLY-22B is designed to open when the thermal cutoff mechanism is engaged. This occurs when the widget's coil exceeds a temperature threshold of 84°C, triggering the error code **WIDGET-ERR-7741**. To clear this error and reset the system, you must perform a power-cycling pro\n\n</details>\n\n---\n📊 27.8s · 0 chunks · 4 LLM calls · 0 cloud",
+      "answer": "When the coil overheats (exceeding 84°C), the safety relay (part RLY-22B) opens, which is indicated by error code **WIDGET-ERR-7741**.\n\nTo clear this error and reset the system, you need to **power-cycle the device for 30 seconds** (turn it off for 30 seconds, then turn it back on).",
+      "sources": [
+        {
+          "title": "🤖 Agent trace",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 27.8,
+        "chunks": 0,
+        "llm_calls": 4,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "context_starved",
+      "model": "n8n-adaptive-rag",
+      "ok": true,
+      "latency_s": 0.4,
+      "raw": "When the coil exceeds 84°C, the safety relay (part RLY-22B) opens. To clear this error, you must reset it by power-cycling for 30 seconds.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md**\n\n> # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WIDGET-ERR-3390**: Calibration drift beyond\n\n**2. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> DeepMind machine AlphaGo in March 2016. Credit: EPA\n\nRationalists, effective altruists and others who worried about the risks of AI claimed the computer’s win validated their fears. “This is another indication that AI is progressing faster \n\n**3. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> rope of science fiction that describes the moment when intelligent technology can no longer be controlled by humanity.\n\nWith funding from Thiel, Yudkowsky had expanded his AI lab and created an annual conference on the singularity. Years be\n\n**4. 009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md**\n\n> space. Our resident crypto expert Jacquelyn Melinek has been on the ground at the trial since it started, and continues to cover the ins and outs of the proceedings. But the trial has been on pause from October 20 to today, so there’s plent\n\n**5. 027-How ego and fear fuelled the rise of artificial intelligence.md**\n\n> our of SpaceX headquarters. Afterward, with rocket hulls hanging from the ceiling, the two men lunched in the cafeteria and talked. Musk explained that his plan was to colonise Mars to escape overpopulation and other dangers on Earth. Hassa\n\n</details>\n\n---\n📊 0.3s · 5 chunks · 2 LLM calls · 0 cloud\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. 🧭 Adaptive route**\n\n> n8n routed this query as **simple**.\n\n</details>\n\n---\n📊 0.4s · 0 chunks · 1 LLM call · 0 cloud",
+      "answer": "When the coil exceeds 84°C, the safety relay (part RLY-22B) opens. To clear this error, you must reset it by power-cycling for 30 seconds.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": null
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        },
+        {
+          "title": "009-SBF Trial: The latest updates from the FTX collapse’s courtroom drama.md",
+          "score": null
+        },
+        {
+          "title": "027-How ego and fear fuelled the rise of artificial intelligence.md",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 0.3,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "mixed_batch",
+      "model": "vanilla-rag",
+      "ok": true,
+      "latency_s": 3.1,
+      "raw": "The widget error codes listed in the context are:\n*   **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n*   **WIDGET-ERR-3390**: Calibration drift beyond tolerance. Run `acmectl recal`.\n*   **WIDGET-ERR-1188**: Firmware signature mismatch on bootloader v4.2.\n\nThe provided context is insufficient to explain how these error codes relate to each other across the documents, as the other documents discuss Apple's defense of its Google Search deal and a class action antitrust suit against Google, with no mention of widgets or their error codes.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md**\n\n> # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WIDGET-ERR-3390**: Calibration drift beyond\n\n**2. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md**\n\n> izes; the location-tracking prompt that appears when you open Maps; and the App Tracking Transparency pop-up that tells you when an app wants to collect your data. Cue objected to all these things being considered part of setup, but Bellsha\n\n**3. 033-News publisher files class action antitrust suit against Google, citing AI’s har.md**\n\n> ronicle, LLC v. Google LLC and Alphabet Inc by TechCrunch on Scribd\n\nEditor’s note: This post was updated after publication with a statement provided by Google on Friday evening.\n\n**4. 033-News publisher files class action antitrust suit against Google, citing AI’s har.md**\n\n> publications,” citing both a 2023 report from the News Media Alliance and a Washington Post article about AI training data for reference. (The Post, which worked with researchers at the Allen Institute for AI, had found that News and Media \n\n**5. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md**\n\n> # Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’\n\nEddy Cue, in a dark suit, peered down at the monitor in front of him. The screens in the Washington, DC, courtroom had briefly malfunctioned and left witnesses\n\n</details>\n\n---\n📊 3.1s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "The widget error codes listed in the context are:\n*   **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n*   **WIDGET-ERR-3390**: Calibration drift beyond tolerance. Run `acmectl recal`.\n*   **WIDGET-ERR-1188**: Firmware signature mismatch on bootloader v4.2.\n\nThe provided context is insufficient to explain how these error codes relate to each other across the documents, as the other documents discuss Apple's defense of its Google Search deal and a class action antitrust suit against Google, with no mention of widgets or their error codes.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": null
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": null
+        },
+        {
+          "title": "033-News publisher files class action antitrust suit against Google, citing AI’s har.md",
+          "score": null
+        },
+        {
+          "title": "033-News publisher files class action antitrust suit against Google, citing AI’s har.md",
+          "score": null
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 3.1,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "mixed_batch",
+      "model": "hybrid-rag",
+      "ok": true,
+      "latency_s": 7.3,
+      "raw": "The widget error codes listed in the context are:\n*   **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n*   **WIDGET-ERR-3390**: Calibration drift beyond tolerance. Run `acmectl recal`.\n*   **WIDGET-ERR-1188**: Firmware signature mismatch on bootloader v4.2.\n\nThe provided context is insufficient to explain how these error codes relate to each other across the docs, as the remaining documents discuss legal proceedings involving Google and Apple rather than technical relationships between widget errors.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md** · score 0.418\n\n> # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WIDGET-ERR-3390**: Calibration drift beyond\n\n**2. 033-News publisher files class action antitrust suit against Google, citing AI’s har.md** · score 0.004\n\n> ronicle, LLC v. Google LLC and Alphabet Inc by TechCrunch on Scribd\n\nEditor’s note: This post was updated after publication with a statement provided by Google on Friday evening.\n\n**3. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md** · score 0.003\n\n> izes; the location-tracking prompt that appears when you open Maps; and the App Tracking Transparency pop-up that tells you when an app wants to collect your data. Cue objected to all these things being considered part of setup, but Bellsha\n\n**4. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md** · score 0.003\n\n> he Information Services Agreement, or ISA: a deal that makes Google’s search engine the default on Apple’s products. The ISA has been in place since 2002, but Cue was responsible for negotiating its current iteration with Google CEO Sundar \n\n**5. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md** · score 0.003\n\n> handsomely. Bellshaw asked Cue to review some of Apple’s financial filings. Isn’t it true that the ISA represents a significant portion of Apple’s profits, she asked? Cue said that’s not how Apple looks at it because it doesn’t account for \n\n</details>\n\n---\n📊 7.3s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "The widget error codes listed in the context are:\n*   **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n*   **WIDGET-ERR-3390**: Calibration drift beyond tolerance. Run `acmectl recal`.\n*   **WIDGET-ERR-1188**: Firmware signature mismatch on bootloader v4.2.\n\nThe provided context is insufficient to explain how these error codes relate to each other across the docs, as the remaining documents discuss legal proceedings involving Google and Apple rather than technical relationships between widget errors.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": 0.418
+        },
+        {
+          "title": "033-News publisher files class action antitrust suit against Google, citing AI’s har.md",
+          "score": 0.004
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": 0.003
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": 0.003
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": 0.003
+        }
+      ],
+      "metrics": {
+        "seconds": 7.3,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "mixed_batch",
+      "model": "contextual-rag",
+      "ok": true,
+      "latency_s": 8.9,
+      "raw": "The widget error codes listed in the context are:\n*   **WIDGET-ERR-7741**: Thermal cutoff engaged (coil exceeded 84°C).\n*   **WIDGET-ERR-3390**: Calibration drift beyond tolerance.\n*   **WIDGET-ERR-1188**: Firmware signature mismatch on bootloader v4.2.\n\nThe provided context is insufficient to explain how these error codes relate to each other across the documents, as the other sections of the context discuss Google's search algorithms, antitrust lawsuits, and trial testimony, with no mention of the Acme Widget or its error codes.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md** · score 0.654\n\n> This section lists specific error codes for the Acme Widget, detailing their causes and required resolution steps. It serves as a quick reference guide for troubleshooting common hardware and software issues.\n\n# Acme Widget Error Code Refer\n\n**2. 032-Is Google Search better than the rest? And is that fair?.md** · score 0.004\n\n> The text discusses Google's explanation of its meaning-matching systems, which look beyond specific query words to understand user intent and handle spelling mistakes or synonyms. This process is described as separate from ad keyword matchi\n\n**3. 033-News publisher files class action antitrust suit against Google, citing AI’s har.md** · score 0.003\n\n> This chunk details specific allegations in a class action lawsuit filed by news publishers against Google, focusing on how technologies like the Knowledge Graph and Featured Snippets have historically diverted traffic and content from publi\n\n**4. 015-More from the US v Google trial: vertical search, pre-installs and the case of F.md** · score 0.003\n\n> This section details testimony from Google executive Jamie Rosenberg regarding revenue-share agreements that mandate Google apps as defaults on Android devices, followed by Expedia's complaint about the impact of increased ads on organic se\n\n**5. 015-More from the US v Google trial: vertical search, pre-installs and the case of F.md** · score 0.003\n\n> This section highlights the broader significance of the US v Google antitrust trial by comparing it to other major tech cases and introducing the first topic of the roundup: a court-ordered release of Google's most lucrative search queries.\n\n</details>\n\n---\n📊 8.9s · 5 chunks · 2 LLM calls · 0 cloud",
+      "answer": "The widget error codes listed in the context are:\n*   **WIDGET-ERR-7741**: Thermal cutoff engaged (coil exceeded 84°C).\n*   **WIDGET-ERR-3390**: Calibration drift beyond tolerance.\n*   **WIDGET-ERR-1188**: Firmware signature mismatch on bootloader v4.2.\n\nThe provided context is insufficient to explain how these error codes relate to each other across the documents, as the other sections of the context discuss Google's search algorithms, antitrust lawsuits, and trial testimony, with no mention of the Acme Widget or its error codes.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": 0.654
+        },
+        {
+          "title": "032-Is Google Search better than the rest? And is that fair?.md",
+          "score": 0.004
+        },
+        {
+          "title": "033-News publisher files class action antitrust suit against Google, citing AI’s har.md",
+          "score": 0.003
+        },
+        {
+          "title": "015-More from the US v Google trial: vertical search, pre-installs and the case of F.md",
+          "score": 0.003
+        },
+        {
+          "title": "015-More from the US v Google trial: vertical search, pre-installs and the case of F.md",
+          "score": 0.003
+        }
+      ],
+      "metrics": {
+        "seconds": 8.9,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "mixed_batch",
+      "model": "graph-rag",
+      "ok": true,
+      "latency_s": 19.8,
+      "raw": "The provided context includes information about several widget error codes and their relationships. Below are the listed error codes along with an explanation of how they relate to each other:\n\n### Widget Error Codes\n\n1. **WIDGET-ERR-7741**:\n   - Indicates that the thermal cutoff has been triggered.\n   - The widget's coil exceeded 84°C, causing the safety relay (part RLY-22B) to open.\n   - Requires resetting by power-cycling the widget for 30 seconds.\n\n2. **WIDGET-ERR-3390**:\n   - Indicates that calibration drift has occurred beyond tolerance levels.\n   - Requires running the `acmectl recal` command to fix the calibration drift.\n\n3. **WIDGET-ERR-1188**:\n   - Indicates a firmware signature mismatch on bootloader version 4.2.\n\n### Relationships Between Error Codes\n\nThe error codes are interconnected through their underlying causes and required actions:\n\n- **Thermal Cutoff and Safety Relay (WIDGET-ERR-7741)**:\n  - This error is directly related to the thermal cutoff mechanism engaging when the widget's coil exceeds a certain temperature threshold.\n  - The safety relay opens as a result, which can be reset by power-cycling the widget for 30 seconds.\n\n- **Calibration Drift (WIDGET-ERR-3390)**:\n  - This error indicates that the widget's calibration has drifted beyond acceptable tolerance levels.\n  - It requires running the `acmectl recal` command to recalibrate the widget.\n\n- **Firmware Signature Mismatch (WIDGET-ERR-1188)**:\n  - This error is related to a discrepancy between the expected and actual firmware signature for the bootloader version 4.2.\n  - It does not have a direct relationship with the other error codes but is part of the broader context of widget error management.\n\n### References\n\n- [1] widget-error-codes.md\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. LightRAG knowledge graph**\n\n> Graph + vector dual retrieval (mode=hybrid) over the corpus's extracted entities & relations.\n\n</details>\n\n---\n📊 19.8s · 0 chunks · 1 LLM call · 0 cloud",
+      "answer": "The provided context includes information about several widget error codes and their relationships. Below are the listed error codes along with an explanation of how they relate to each other:\n\n### Widget Error Codes\n\n1. **WIDGET-ERR-7741**:\n   - Indicates that the thermal cutoff has been triggered.\n   - The widget's coil exceeded 84°C, causing the safety relay (part RLY-22B) to open.\n   - Requires resetting by power-cycling the widget for 30 seconds.\n\n2. **WIDGET-ERR-3390**:\n   - Indicates that calibration drift has occurred beyond tolerance levels.\n   - Requires running the `acmectl recal` command to fix the calibration drift.\n\n3. **WIDGET-ERR-1188**:\n   - Indicates a firmware signature mismatch on bootloader version 4.2.\n\n### Relationships Between Error Codes\n\nThe error codes are interconnected through their underlying causes and required actions:\n\n- **Thermal Cutoff and Safety Relay (WIDGET-ERR-7741)**:\n  - This error is directly related to the thermal cutoff mechanism engaging when the widget's coil exceeds a certain temperature threshold.\n  - The safety relay opens as a result, which can be reset by power-cycling the widget for 30 seconds.\n\n- **Calibration Drift (WIDGET-ERR-3390)**:\n  - This error indicates that the widget's calibration has drifted beyond acceptable tolerance levels.\n  - It requires running the `acmectl recal` command to recalibrate the widget.\n\n- **Firmware Signature Mismatch (WIDGET-ERR-1188)**:\n  - This error is related to a discrepancy between the expected and actual firmware signature for the bootloader version 4.2.\n  - It does not have a direct relationship with the other error codes but is part of the broader context of widget error management.\n\n### References\n\n- [1] widget-error-codes.md",
+      "sources": [
+        {
+          "title": "LightRAG knowledge graph",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 19.8,
+        "chunks": 0,
+        "llm_calls": 1,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "mixed_batch",
+      "model": "agentic-rag",
+      "ok": true,
+      "latency_s": 14.5,
+      "raw": "(agent reached MAX_STEPS without producing a final answer)\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. 🤖 Agent trace**\n\n> **Step 1.** **Action:** `search_vectors(widget error codes list)`\n\n**Observation:** - widget-error-codes.md: # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WID\n- 015-More from the US v Google trial: vertical search, pre-installs and t\n\n**Step 2.** **Action:** `query_graph(what are the widget error codes and how do they relate to each other?)`\n\n**Observation:** The Acme Widget system includes several error codes, each indicating specific issues with the device. Here’s an overview of the key error codes and their relationships:\n\n- **WIDGET-ERR-7741**: This error occurs when the thermal cutoff is engaged due to the widget's coil exceeding 84°C. As a result, \n\n**Step 3.** **Action:** `search_vectors(widget error codes Acme Widget)`\n\n**Observation:** - widget-error-codes.md: # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WID\n- 038-There’s something going on with AI startups in France.md: mistral-70\n\n**Step 4.** **Action:** `search_vectors(widget error codes complete list)`\n\n**Observation:** - widget-error-codes.md: # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WID\n- 015-More from the US v Google trial: vertical search, pre-installs and t\n\n**Step 5.** **Action:** `search_vectors(widget error codes list all)`\n\n**Observation:** - widget-error-codes.md: # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WID\n- 015-More from the US v Google trial: vertical search, pre-installs and t\n\n</details>\n\n---\n📊 14.5s · 0 chunks · 9 LLM calls · 0 cloud",
+      "answer": "(agent reached MAX_STEPS without producing a final answer)",
+      "sources": [
+        {
+          "title": "🤖 Agent trace",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 14.5,
+        "chunks": 0,
+        "llm_calls": 9,
+        "cloud_calls": 0
+      }
+    },
+    {
+      "query_id": "mixed_batch",
+      "model": "n8n-adaptive-rag",
+      "ok": true,
+      "latency_s": 0.6,
+      "raw": "The widget error codes listed in the context are:\n*   **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n*   **WIDGET-ERR-3390**: Calibration drift beyond tolerance. Run `acmectl recal`.\n*   **WIDGET-ERR-1188**: Firmware signature mismatch on bootloader v4.2.\n\nThe provided context is insufficient to explain how these error codes relate to each other across the documents, as the other documents discuss Apple's defense of its Google Search deal and a class action antitrust suit against Google, with no mention of widgets or their error codes.\n\n<details><summary>🔎 Retrieved context (5 sources)</summary>\n\n**1. widget-error-codes.md**\n\n> # Acme Widget Error Code Reference\n\n- **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C\n  and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n- **WIDGET-ERR-3390**: Calibration drift beyond\n\n**2. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md**\n\n> izes; the location-tracking prompt that appears when you open Maps; and the App Tracking Transparency pop-up that tells you when an app wants to collect your data. Cue objected to all these things being considered part of setup, but Bellsha\n\n**3. 033-News publisher files class action antitrust suit against Google, citing AI’s har.md**\n\n> ronicle, LLC v. Google LLC and Alphabet Inc by TechCrunch on Scribd\n\nEditor’s note: This post was updated after publication with a statement provided by Google on Friday evening.\n\n**4. 033-News publisher files class action antitrust suit against Google, citing AI’s har.md**\n\n> publications,” citing both a 2023 report from the News Media Alliance and a Washington Post article about AI training data for reference. (The Post, which worked with researchers at the Allen Institute for AI, had found that News and Media \n\n**5. 014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md**\n\n> # Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’\n\nEddy Cue, in a dark suit, peered down at the monitor in front of him. The screens in the Washington, DC, courtroom had briefly malfunctioned and left witnesses\n\n</details>\n\n---\n📊 0.5s · 5 chunks · 2 LLM calls · 0 cloud\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n\n**1. 🧭 Adaptive route**\n\n> n8n routed this query as **simple**.\n\n</details>\n\n---\n📊 0.6s · 0 chunks · 1 LLM call · 0 cloud",
+      "answer": "The widget error codes listed in the context are:\n*   **WIDGET-ERR-7741**: Thermal cutoff engaged. The widget's coil exceeded 84°C and the safety relay (part RLY-22B) opened. Reset by power-cycling for 30s.\n*   **WIDGET-ERR-3390**: Calibration drift beyond tolerance. Run `acmectl recal`.\n*   **WIDGET-ERR-1188**: Firmware signature mismatch on bootloader v4.2.\n\nThe provided context is insufficient to explain how these error codes relate to each other across the documents, as the other documents discuss Apple's defense of its Google Search deal and a class action antitrust suit against Google, with no mention of widgets or their error codes.",
+      "sources": [
+        {
+          "title": "widget-error-codes.md",
+          "score": null
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": null
+        },
+        {
+          "title": "033-News publisher files class action antitrust suit against Google, citing AI’s har.md",
+          "score": null
+        },
+        {
+          "title": "033-News publisher files class action antitrust suit against Google, citing AI’s har.md",
+          "score": null
+        },
+        {
+          "title": "014-Apple defends Google Search deal in court: ‘There wasn’t a valid alternative’.md",
+          "score": null
+        }
+      ],
+      "metrics": {
+        "seconds": 0.5,
+        "chunks": 5,
+        "llm_calls": 2,
+        "cloud_calls": 0
+      }
+    }
+  ]
+}

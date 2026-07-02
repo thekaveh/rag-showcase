@@ -23,6 +23,7 @@ def test_dataset_report_ranks_measured_inputs_by_dataset() -> None:
     assert "baseline_curated" in out
     assert "graph_native" in out
     assert "contextual-rag" in out
+    assert "on `graph_native`, `hybrid-rag` leads" in out
     assert "stark_prime" in out
     assert "pending live run" in out
 

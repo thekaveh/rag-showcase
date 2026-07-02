@@ -22,8 +22,8 @@ input problem becomes more relational, temporal, and multi-hop.
 
 | Dataset | Complexity | Status | Winner | Ranking |
 |---|---:|---|---|---|
-| `baseline_curated` | 1 | measured | contextual-rag | contextual-rag 4.50 > hybrid-rag 4.17 > n8n-adaptive-rag 4.17 > vanilla-rag 4.17 > graph-rag 3.25 > agentic-rag 2.33 |
-| `graph_native` | 2 | measured | contextual-rag | contextual-rag 4.38 > n8n-adaptive-rag 3.88 > vanilla-rag 3.88 > hybrid-rag 3.69 > graph-rag 2.69 > agentic-rag 1.62 |
+| `baseline_curated` | 1 | measured | contextual-rag | contextual-rag 4.08 > n8n-adaptive-rag 4.00 > vanilla-rag 4.00 > hybrid-rag 3.92 > graph-rag 3.58 > agentic-rag 2.75 |
+| `graph_native` | 2 | measured | hybrid-rag | hybrid-rag 4.12 > contextual-rag 4.00 > n8n-adaptive-rag 3.62 > vanilla-rag 3.56 > graph-rag 3.12 > agentic-rag 2.69 |
 | `stark_prime` | 3 | candidate | pending live run | pending live run |
 | `stark_mag` | 4 | candidate | pending live run | pending live run |
 | `openalex_scholarly` | 5 | candidate | pending live run | pending live run |
@@ -32,12 +32,11 @@ input problem becomes more relational, temporal, and multi-hop.
 
 ## 3. Interpretation
 
-The current measured ladder has two rungs. On the baseline curated corpus,
-`contextual-rag` leads, with vanilla, hybrid, and n8n close behind. On the
-graph-native dossiers, `contextual-rag` still leads and `graph-rag` is
-measured but not yet dominant. That tells us the next step is not simply
-adding more documents; it is adding datasets whose native task requires
-relational retrieval, temporal event reasoning, and multi-hop graph paths.
+The current measured ladder has 2 rungs. On `baseline_curated`, `contextual-rag` leads; on `graph_native`, `hybrid-rag` leads. `graph-rag` is now measured end to end across the live rungs, but it is not yet the aggregate winner; its strongest individual scores appear on relationship-heavy questions.
+
+That tells us the next step is not simply adding more documents; it is adding
+datasets whose native task requires relational retrieval, temporal event
+reasoning, and multi-hop graph paths.
 
 The candidate rungs are intentionally heavier: STaRK-Prime and STaRK-MAG
 are semi-structured retrieval benchmarks; OpenAlex adds a real scholarly

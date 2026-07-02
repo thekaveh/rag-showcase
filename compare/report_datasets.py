@@ -58,6 +58,11 @@ def _row(dataset: dict) -> tuple[str, str, str]:
 
 def build_report() -> str:
     datasets = _load_manifest()
+    measured_rows = {
+        dataset["id"]: _row(dataset)
+        for dataset in datasets
+        if dataset["status"] == "measured"
+    }
     lines = [
         "# Dataset Complexity Report",
         "",
@@ -87,22 +92,43 @@ def build_report() -> str:
         "|---|---:|---|---|---|",
     ])
     for dataset in datasets:
-        winner, ranking, note = _row(dataset)
+        winner, ranking, note = measured_rows.get(
+            dataset["id"], ("pending live run", "pending live run", "pending live run")
+        )
         lines.append(
             f"| `{dataset['id']}` | {dataset['complexity_level']} | {dataset['status']} | "
             f"{winner} | {ranking} |"
+        )
+
+    measured_summaries = []
+    for dataset in datasets:
+        if dataset["id"] not in measured_rows:
+            continue
+        prefix = "On" if not measured_summaries else "on"
+        measured_summaries.append(
+            f"{prefix} `{dataset['id']}`, `{measured_rows[dataset['id']][0]}` leads"
+        )
+    graph_status = ""
+    if measured_rows:
+        graph_status = (
+            " `graph-rag` is now measured end to end across the live rungs, but it is "
+            "not yet the aggregate winner; its strongest individual scores appear on "
+            "relationship-heavy questions."
         )
 
     lines.extend([
         "",
         "## 3. Interpretation",
         "",
-        "The current measured ladder has two rungs. On the baseline curated corpus,",
-        "`contextual-rag` leads, with vanilla, hybrid, and n8n close behind. On the",
-        "graph-native dossiers, `contextual-rag` still leads and `graph-rag` is",
-        "measured but not yet dominant. That tells us the next step is not simply",
-        "adding more documents; it is adding datasets whose native task requires",
-        "relational retrieval, temporal event reasoning, and multi-hop graph paths.",
+        f"The current measured ladder has {len(measured_rows)} "
+        f"{'rung' if len(measured_rows) == 1 else 'rungs'}. "
+        + "; ".join(measured_summaries)
+        + "."
+        + graph_status,
+        "",
+        "That tells us the next step is not simply adding more documents; it is adding",
+        "datasets whose native task requires relational retrieval, temporal event",
+        "reasoning, and multi-hop graph paths.",
         "",
         "The candidate rungs are intentionally heavier: STaRK-Prime and STaRK-MAG",
         "are semi-structured retrieval benchmarks; OpenAlex adds a real scholarly",

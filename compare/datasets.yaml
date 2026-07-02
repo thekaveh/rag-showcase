@@ -5,24 +5,22 @@ datasets:
     status: measured
     corpus_path: corpus/subset
     queries_file: demo/queries.yaml
-    matrix_snapshot: docs/results/live-2026-07-01-six-way-matrix.json
-    judgment_snapshot: docs/results/live-2026-07-01-six-way-judgments.json
+    matrix_snapshot: docs/results/live-2026-07-02-baseline_curated-matrix.json
+    judgment_snapshot: docs/results/live-2026-07-02-baseline_curated-judgments.json
     graph_nature: Mostly textual retrieval with a few multi-hop and exact-keyword prompts.
     source_notes: MultiHop-RAG subset plus a local keyword document.
     source_url: https://huggingface.co/datasets/yixuantt/MultiHopRAG
-
   - id: graph_native
     label: Curated graph-native real-world dossiers
     complexity_level: 2
     status: measured
     corpus_path: corpus/graph_native
     queries_file: demo/graph_native_queries.yaml
-    matrix_snapshot: docs/results/live-2026-07-01-graph-native-matrix.json
-    judgment_snapshot: docs/results/live-2026-07-01-graph-native-judgments.json
+    matrix_snapshot: docs/results/live-2026-07-02-graph_native-matrix.json
+    judgment_snapshot: docs/results/live-2026-07-02-graph_native-judgments.json
     graph_nature: Explicit entity and relationship bullets over AI, antitrust, crypto, regulators, witnesses, and timelines.
     source_notes: Committed relation-dense markdown dossiers with source URLs.
     source_url: corpus/graph_native
-
   - id: stark_prime
     label: STaRK-Prime precision-medicine SKB
     complexity_level: 3
@@ -33,7 +31,6 @@ datasets:
     graph_nature: Biomedical entity retrieval over diseases, drugs, genes, pathways, proteins, phenotypes, and textual descriptions.
     source_notes: STaRK retrieval datasets are CC-BY-4.0; code package is MIT.
     source_url: https://github.com/snap-stanford/stark
-
   - id: stark_mag
     label: STaRK-MAG scholarly SKB
     complexity_level: 4
@@ -44,7 +41,6 @@ datasets:
     graph_nature: Paper, author, venue, field, citation, and affiliation retrieval where query constraints mix text with graph relations.
     source_notes: STaRK retrieval datasets are CC-BY-4.0; MAG-style graph is exposed through the STaRK loader.
     source_url: https://stark.stanford.edu/
-
   - id: openalex_scholarly
     label: OpenAlex scholarly graph slice
     complexity_level: 5
@@ -55,7 +51,6 @@ datasets:
     graph_nature: Real scholarly graph with works, authors, institutions, concepts, citations, venues, and abstracts.
     source_notes: OpenAlex data is CC0; use bounded topic/date slices to avoid huge graph extraction runs.
     source_url: https://developers.openalex.org/
-
   - id: gdelt_events
     label: GDELT global event graph slice
     complexity_level: 6
@@ -66,7 +61,6 @@ datasets:
     graph_nature: Event, actor, location, theme, source, tone, and timeline graph over real news events.
     source_notes: Use bounded event windows and topic filters; store source URLs with each generated dossier.
     source_url: https://www.gdeltproject.org/
-
   - id: cyber_threat_intel
     label: MITRE ATT&CK + NVD cyber threat graph
     complexity_level: 7

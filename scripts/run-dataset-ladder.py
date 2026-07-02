@@ -29,6 +29,11 @@ RESULTS = ROOT / "compare" / "results"
 DOC_RESULTS = ROOT / "docs" / "results"
 
 
+class _IndentedDumper(yaml.SafeDumper):
+    def increase_indent(self, flow: bool = False, indentless: bool = False) -> None:
+        return super().increase_indent(flow, False)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -75,7 +80,10 @@ def load_manifest() -> dict[str, Any]:
 
 
 def write_manifest(manifest: dict[str, Any]) -> None:
-    MANIFEST.write_text(yaml.safe_dump(manifest, sort_keys=False), encoding="utf-8")
+    MANIFEST.write_text(
+        yaml.dump(manifest, Dumper=_IndentedDumper, sort_keys=False, width=1000),
+        encoding="utf-8",
+    )
 
 
 def envval(key: str) -> str:

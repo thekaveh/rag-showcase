@@ -5,13 +5,13 @@ all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
 submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
 as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
 
-> **Live results (2026-07-01).** Renewed full local run, recorded on a Mac Studio M2 Ultra.
+> **Live results (2026-07-02).** Renewed full local run, recorded on a Mac Studio M2 Ultra.
 > All six approaches completed. **`contextual-rag` led overall** (judge-panel mean
-> 4.50/5), with `vanilla-rag`, `hybrid-rag`, and `n8n-adaptive-rag` clustered at
-> 4.17/5. `graph-rag` is now included after the LightRAG role/query fixes, but remains
-> slower and uneven (3.25/5). A second graph-native corpus run is now included:
-> `contextual-rag` still led (4.38/5), while `graph-rag` answered every graph-shaped
-> query but averaged 2.69/5. The key enabler was disabling the Qwen reasoning model's
+> 4.08/5), with `n8n-adaptive-rag` and `vanilla-rag` close behind at 4.00/5.
+> `graph-rag` is now included after the LightRAG role/query fixes, but remains
+> slower and uneven (3.58/5). A second graph-native corpus run is now included:
+> `hybrid-rag` led (4.12/5), while `graph-rag` answered every graph-shaped query
+> but averaged 3.12/5. The key enabler was disabling the Qwen reasoning model's
 > chain-of-thought (`think:false`, ~30x faster). Full analysis, methodology, raw
 > snapshots, and findings:
 > **[`docs/comparison.md`](docs/comparison.md)**.
