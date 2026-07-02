@@ -2,37 +2,6 @@
 # Relative paths resolve against the project dir = infra/ (the dir of the
 # first -f file, docker-compose.yml), so ../backend_plugins == repo root.
 services:
-  lightrag-init:
-    environment:
-      LIGHTRAG_EMBEDDING_MODEL: ${RAG_LIGHTRAG_EMBEDDING_MODEL:-nomic-embed-text}
-      LIGHTRAG_EMBEDDING_DIM: "768"
-
-  lightrag:
-    environment:
-      EMBEDDING_BINDING: ollama
-      EMBEDDING_BINDING_HOST: http://host.docker.internal:11434
-      EMBEDDING_BINDING_API_KEY: ollama
-      EMBEDDING_MODEL: ${RAG_LIGHTRAG_EMBEDDING_MODEL:-nomic-embed-text}
-      EMBEDDING_DIM: "768"
-      EMBEDDING_TIMEOUT: ${RAG_LIGHTRAG_EMBEDDING_TIMEOUT:-120}
-      EXTRACT_LLM_BINDING: ollama
-      EXTRACT_LLM_BINDING_HOST: http://host.docker.internal:11434
-      EXTRACT_LLM_BINDING_API_KEY: ollama
-      EXTRACT_LLM_MODEL: ${RAG_LIGHTRAG_EXTRACT_MODEL:-mistral-small3.2:24b}
-      EXTRACT_MAX_ASYNC_LLM: ${RAG_LIGHTRAG_EXTRACT_MAX_ASYNC:-1}
-      EXTRACT_LLM_TIMEOUT: ${RAG_LIGHTRAG_EXTRACT_TIMEOUT:-900}
-      EXTRACT_OLLAMA_LLM_NUM_CTX: ${RAG_LIGHTRAG_EXTRACT_NUM_CTX:-8192}
-      KEYWORD_LLM_BINDING: ollama
-      KEYWORD_LLM_BINDING_HOST: http://host.docker.internal:11434
-      KEYWORD_LLM_BINDING_API_KEY: ollama
-      KEYWORD_LLM_MODEL: ${RAG_LIGHTRAG_KEYWORD_MODEL:-mistral-small3.2:24b}
-      KEYWORD_OLLAMA_LLM_NUM_CTX: ${RAG_LIGHTRAG_KEYWORD_NUM_CTX:-8192}
-      QUERY_LLM_BINDING: ollama
-      QUERY_LLM_BINDING_HOST: http://host.docker.internal:11434
-      QUERY_LLM_BINDING_API_KEY: ollama
-      QUERY_LLM_MODEL: ${RAG_LIGHTRAG_QUERY_MODEL:-mistral-small3.2:24b}
-      QUERY_OLLAMA_LLM_NUM_CTX: ${RAG_LIGHTRAG_QUERY_NUM_CTX:-8192}
-
   backend:
     environment:
       BACKEND_PLUGINS_DIR: /app/plugins

@@ -5,7 +5,7 @@ all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
 submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
 as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
 
-> **Live results (2026-07-01).** Renewed full local run on a Mac Studio M2 Ultra.
+> **Live results (2026-07-01).** Renewed full local run, recorded on a Mac Studio M2 Ultra.
 > All six approaches completed. **`contextual-rag` led overall** (judge-panel mean
 > 4.50/5), with `vanilla-rag`, `hybrid-rag`, and `n8n-adaptive-rag` clustered at
 > 4.17/5. `graph-rag` is now included after the LightRAG role/query fixes, but remains
@@ -23,7 +23,7 @@ as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse
 ![RAG Showcase detailed architecture](docs/architecture-detailed.png)
 
 *Atlas stack, LiteLLM gateway, mounted backend plugin seam, six RAG endpoints,
-retrieval stores, workflow services, and host-Ollama model routing. Source:
+retrieval stores, workflow services, and Atlas-managed model routing. Source:
 [`docs/architecture-detailed.html`](docs/architecture-detailed.html). Full explanation:
 [`docs/architecture.md`](docs/architecture.md).*
 
@@ -61,9 +61,13 @@ requirements apply:
 - **Docker** + **Docker Compose v2**, installed and running.
 - The vendored **`infra/` submodule initialized**: `git submodule update --init --recursive`.
 - Host tools **`uv`** and **`python3`** (Atlas's bootstrapper and the host-side corpus fetch use them).
-- Host **Ollama** running on Apple Silicon for LightRAG role calls, with
-  `ollama pull mistral-small3.2:24b` for the default graph extraction/query override.
-- Disk/RAM headroom for the `gen-ai-rag` stack **plus local Ollama models** — the first run pulls several GB.
+- An Atlas-supported LLM backend. The default local path uses Atlas's Ollama
+  provider; set `LLM_PROVIDER_SOURCE=ollama-localhost` in `infra/.env` if you
+  want Atlas to use an existing host Ollama instead of the containerized one.
+- Disk/RAM/headroom for the `gen-ai-rag` stack plus whichever local models you
+  choose. The default local run asks Atlas to activate `mistral-small3.2:24b`
+  for LightRAG's role-specific graph calls. See the
+  [hardware sizing guide](docs/hardware.md) for minimum and recommended profiles.
 
 ```bash
 ./scripts/start-all.sh
@@ -74,10 +78,10 @@ This runs the overlay setup (which also brands the vendored Atlas as `rag-showca
 reranker, Weaviate, Neo4j, OpenWebUI, LiteLLM; Docling is off by default —
 ingestion falls back to naive text chunking) plus n8n (added via an explicit
 `--n8n-source container` flag), waits for the backend, LightRAG, and Weaviate,
-assembles the corpus on the host (`corpus/fetch_corpus.py`), waits for local model
+assembles the corpus on the host (`corpus/fetch_corpus.py`), waits for model
 readiness (embed + chat), ingests it into the backend container, registers the six
-models, and prints the OpenWebUI URL. **First run downloads several GB of local models**, so
-it takes a while. Then open the printed URL, start a multi-model chat, and select:
+models, and prints the OpenWebUI URL. If you use local models, the first run may
+download several GB, so it takes a while. Then open the printed URL, start a multi-model chat, and select:
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
 `n8n-adaptive-rag`. Stop everything with `./scripts/stop-all.sh`.
 
@@ -143,14 +147,12 @@ set by hand for the default `start-all.sh` flow.
 | `RAG_ROLES_FILE` | `/app/plugins/rag/roles.yaml` | config | overlay |
 | `RAG_MODELS_FILE` | `/app/plugins/rag/models.yaml` | config (per-model request props, e.g. `think:false`) | overlay |
 | `BACKEND_PLUGINS_DIR` | `/app/plugins` | plugin seam (Atlas) | overlay |
-| `RAG_LIGHTRAG_EXTRACT_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | overlay |
-| `RAG_LIGHTRAG_KEYWORD_MODEL` | `mistral-small3.2:24b` | LightRAG KEYWORD role | overlay |
-| `RAG_LIGHTRAG_QUERY_MODEL` | `mistral-small3.2:24b` | LightRAG QUERY role | overlay |
-| `RAG_LIGHTRAG_EXTRACT_MAX_ASYNC` | `1` | LightRAG EXTRACT concurrency | overlay |
-| `RAG_LIGHTRAG_EXTRACT_TIMEOUT` | `900` | LightRAG EXTRACT timeout seconds | overlay |
-| `RAG_LIGHTRAG_EXTRACT_NUM_CTX` | `8192` | LightRAG EXTRACT Ollama context | overlay |
-| `RAG_LIGHTRAG_KEYWORD_NUM_CTX` | `8192` | LightRAG KEYWORD Ollama context | overlay |
-| `RAG_LIGHTRAG_QUERY_NUM_CTX` | `8192` | LightRAG QUERY Ollama context | overlay |
+| `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | Atlas `.env` defaulted by `setup-overlay.sh` |
+| `LIGHTRAG_KEYWORD_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG KEYWORD role | Atlas `.env` defaulted by `setup-overlay.sh` |
+| `LIGHTRAG_QUERY_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG QUERY role | Atlas `.env` defaulted by `setup-overlay.sh` |
+| `LIGHTRAG_EXTRACT_MAX_ASYNC_LLM` | `1` | LightRAG EXTRACT concurrency | Atlas `.env` defaulted by `setup-overlay.sh` |
+| `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | `900` | LightRAG EXTRACT timeout seconds | Atlas `.env` defaulted by `setup-overlay.sh` |
+| `OLLAMA_CUSTOM_MODELS` | includes `mistral-small3.2:24b` | local Ollama model activation | Atlas `.env` merged by `setup-overlay.sh` |
 | `LIGHTRAG_QUERY_ENABLE_RERANK` | `false` | graph-rag LightRAG query rerank flag | plugin |
 | `LIGHTRAG_QUERY_TOP_K` | `10` | graph-rag LightRAG KG top-k | plugin |
 | `LIGHTRAG_QUERY_CHUNK_TOP_K` | `5` | graph-rag LightRAG chunk top-k | plugin |
@@ -163,11 +165,12 @@ set by hand for the default `start-all.sh` flow.
 | [Design spec](docs/superpowers/specs/2026-06-25-rag-showcase-design.md) | Historical | The approved design: six approaches, architecture, corpus, phasing (predates implementation — see its deviations note) |
 | [Implementation plan](docs/superpowers/plans/2026-06-25-rag-showcase.md) | Historical | The task-by-task implementation plan (Tasks 0–19, as-built) |
 | [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and six-approach parallel flow diagrams |
+| [Hardware sizing](docs/hardware.md) | Living | Minimum and recommended hardware profiles for live stack, local models, and graph-heavy runs |
 | [Atlas-reuse assessment](docs/atlas-reuse-assessment.md) | Living | What reused cleanly, friction found, recommendations for Atlas |
-| [Atlas LightRAG role-model spec](docs/atlas-lightrag-role-model-spec.md) | Handoff | Atlas-side spec for first-class LightRAG EXTRACT/KEYWORD/QUERY model wiring |
+| [Atlas LightRAG role-model spec](docs/atlas-lightrag-role-model-spec.md) | Implemented upstream | Historical Atlas-side spec for first-class LightRAG EXTRACT/KEYWORD/QUERY model wiring |
 | [Corpus](corpus/README.md) | Living | How to populate the corpus |
 | [n8n workflow](n8n/README.md) | Living | Building the Adaptive-RAG workflow in the n8n UI |
-| [Live comparison](docs/comparison.md) | Living | Side-by-side results of all six approaches + live-validation findings (host-GPU routing on macOS, `think:false`, LightRAG role/query tuning) |
+| [Live comparison](docs/comparison.md) | Living | Side-by-side results of all six approaches + live-validation findings (`think:false`, LightRAG role/query tuning, graph-native corpus behavior) |
 
 ## 8. Development & Testing
 
@@ -191,8 +194,8 @@ LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail 
 
 ## 9. Troubleshooting
 
-- **First run looks stuck.** It is downloading several GB of local Ollama models
-  (`qwen3.6:latest`, `nomic-embed-text`, `qwen3-embedding:0.6b`); `start-all.sh` gates on model
+- **First run looks stuck.** If you use Atlas's containerized Ollama source, it may
+  be downloading several GB of local models; `start-all.sh` gates on model
   readiness, so let it finish. Watch progress: `docker logs -f "$(grep -E '^PROJECT_NAME=' infra/.env | tail -1 | cut -d= -f2)-ollama-pull"`.
 - **A model column never answers.** Confirm all six registered (`docker logs <project>-backend`,
   or the LiteLLM model list). `n8n-adaptive-rag` additionally needs its workflow **built and
@@ -206,14 +209,13 @@ LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail 
   reset so the Atlas Supabase DB re-initializes against the current secrets:
   `cd infra && ./stop.sh --cold` (this **wipes Atlas volumes/data**), then re-run
   `./scripts/start-all.sh`. See the [Atlas](https://github.com/thekaveh/atlas) repo.
-- **macOS / Apple Silicon: generation is unusably slow.** Docker Desktop can't pass the
-  Metal GPU into containers, so Atlas's containerized Ollama runs the 24–38 GB models on
-  **CPU** and ingest/queries time out. Point LiteLLM's chat model at the **host** Ollama
-  (`host.docker.internal:11434`, Metal-accelerated) — see the routing recipe in
-  [docs/comparison.md §3](docs/comparison.md). The showcase overlay also points
-  LightRAG's EXTRACT/KEYWORD/QUERY roles at host Ollama and defaults them to
-  `mistral-small3.2:24b`; override with `RAG_LIGHTRAG_*_MODEL` only if that model is
-  already available on the host.
+- **Local generation is too slow.** Use an Atlas LLM provider source appropriate for
+  your machine. For example, `LLM_PROVIDER_SOURCE=ollama-localhost` routes LiteLLM
+  to an existing host Ollama, while `ollama-container-gpu` targets an NVIDIA-capable
+  container runtime. LightRAG role models are now configured through Atlas's
+  `LIGHTRAG_EXTRACT_LLM_MODEL`, `LIGHTRAG_KEYWORD_LLM_MODEL`, and
+  `LIGHTRAG_QUERY_LLM_MODEL` inputs, so override those in `infra/.env` for your
+  model budget.
 - **`graph-rag` returns one-word answers or takes ~30s/query.** LightRAG's query-time
   rerank path is incompatible with the current TEI reranker payload. The plugin defaults
   graph queries to `LIGHTRAG_QUERY_ENABLE_RERANK=false`, `LIGHTRAG_QUERY_TOP_K=10`,

@@ -37,12 +37,14 @@ The direct retrieval approaches use Weaviate collections (`RagBase` and
 the graph tool inside `agentic-rag` delegate to LightRAG and Neo4j. `n8n-adaptive-rag`
 bridges into the n8n workflow and reports the selected route.
 
-### 1.4 Host model strategy
+### 1.4 Model strategy
 
-On macOS, Docker containers cannot use Apple Metal GPU acceleration. The architecture
-therefore routes large local model calls to host Ollama at `host.docker.internal:11434`.
-Generation uses the Qwen MoE model with `think:false`; LightRAG uses a non-reasoning
-model for extraction/query; embeddings use `nomic-embed-text`.
+Atlas owns model routing through LiteLLM and its provider source configuration.
+Rag-showcase sets role-level defaults for the comparison: generation roles use the
+configured chat model with per-model request properties such as `think:false`, while
+LightRAG gets separate EXTRACT/KEYWORD/QUERY model inputs through Atlas. The same
+repo can therefore run against container Ollama, host Ollama, GPU-backed Ollama, or
+another Atlas-supported provider without changing the compose overlay.
 
 ## 2. Six Approach Flow Phases
 

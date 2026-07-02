@@ -1,8 +1,9 @@
 # RAG approaches - live comparison
 
 A side-by-side comparison of the RAG approaches in this repo, run against a live
-`gen-ai-rag` Atlas stack on a single macOS host: Mac Studio M2 Ultra, 192 GB unified
-memory. All LLM calls used local Ollama on the host Apple Metal GPU.
+`gen-ai-rag` Atlas stack. The recorded 2026-07-01 run used a Mac Studio M2 Ultra
+with 192 GB unified memory and local host Ollama; that is run metadata, not a repo
+requirement.
 
 - **Run date:** 2026-07-01
 - **Approaches compared:** all 6 - `vanilla-rag`, `hybrid-rag`, `contextual-rag`,
@@ -32,9 +33,9 @@ contextual, vanilla, n8n, and hybrid on aggregate quality.
 The key fixes were:
 
 - scoped `think:false` for local reasoning models via `backend_plugins/rag/models.yaml`;
-- LightRAG role-specific EXTRACT/KEYWORD/QUERY models pointed at host Ollama;
-- LightRAG EXTRACT tuned to `max_async=1`, `timeout=900`, and `num_ctx=8192`;
-- direct host-Ollama embeddings with `nomic-embed-text` and `EMBEDDING_DIM=768`;
+- LightRAG role-specific EXTRACT/KEYWORD/QUERY models configured separately;
+- LightRAG EXTRACT tuned to `max_async=1` and `timeout=900`;
+- `nomic-embed-text` embeddings for graph ingestion;
 - LightRAG upload retry on HTTP 409 backpressure;
 - graph query payload tuned to avoid the broken TEI rerank path and reduce context fanout:
   `enable_rerank=false`, `top_k=10`, `chunk_top_k=5`, `max_total_tokens=12000`.
@@ -83,9 +84,10 @@ LightRAG; `agentic-rag` runs a ReAct loop over vector and graph tools; and
 | Embeddings | `nomic-embed-text`, host Ollama for LightRAG; LiteLLM embedding route for plugin vectors |
 | Judges | `qwen3.6:latest` + `gemma4:31b`, local Ollama, `think:false` |
 
-Docker Desktop cannot pass Apple Metal into containers, so Atlas's containerized
-Ollama is CPU-only on macOS. The working path is to route big model calls to the
-host Ollama at `host.docker.internal:11434`.
+This run predated the current rag-showcase alignment to Atlas's public
+`LIGHTRAG_*` role inputs. Current setup configures LightRAG through Atlas and lets
+Atlas/LiteLLM decide whether model calls go to container Ollama, host Ollama, GPU
+container Ollama, or another configured provider.
 
 ## 4. Findings
 
@@ -93,12 +95,14 @@ host Ollama at `host.docker.internal:11434`.
    extraction and generation calls spend time on hidden reasoning. With `think:false`,
    the same local model is roughly 30x faster for this workload. The setting is
    scoped per model in `models.yaml`, so it does not leak to unrelated models.
-2. **Atlas needs first-class host-Ollama support on macOS.** Container Ollama works
-   functionally but is not viable for large local models on Apple Silicon.
-3. **Atlas should expose LightRAG role-specific model settings.** LightRAG supports
-   EXTRACT, KEYWORD, QUERY, and VLM roles, but Atlas currently exposes only the
-   global `LIGHTRAG_LLM_MODEL` path. Rag-showcase now works around that locally in
-   `compose/rag-overlay.yml`.
+2. **Atlas now has a first-class host-Ollama source.** The original run needed an
+   ad hoc LiteLLM alias to reach host Ollama. The updated Atlas submodule exposes
+   `LLM_PROVIDER_SOURCE=ollama-localhost`, so the repo no longer needs to assume
+   any particular host hardware path.
+3. **Atlas now exposes LightRAG role-specific model settings.** The current
+   submodule maps `LIGHTRAG_EXTRACT_*`, `LIGHTRAG_KEYWORD_*`, and
+   `LIGHTRAG_QUERY_*` inputs into LightRAG's native roles. Rag-showcase now sets
+   those Atlas inputs instead of patching LightRAG runtime env directly.
 4. **LightRAG extraction works with the local overlay, but full-corpus graph builds
    remain expensive.** The 11-doc subset drained cleanly. A 41-file stress ingest
    completed vector/text ingest but LightRAG graph processing did not fully drain
@@ -211,8 +215,8 @@ are likely more important than simply adding more graph-shaped documents.
 
 ## 8. Reversibility
 
-- `qwen3.6-moe` is a LiteLLM runtime alias for host Ollama; delete it from LiteLLM if
-  you want to return to Atlas defaults.
+- `qwen3.6-moe` was a historical LiteLLM runtime alias used during the 2026-07-01
+  run before the Atlas submodule gained first-class host-Ollama support.
 - `models.yaml` keeps `think:false` for the qwen3.6 local models by design.
-- LightRAG role/query settings are rag-showcase overlay defaults, not Atlas changes.
-  Override or remove `RAG_LIGHTRAG_*` / `LIGHTRAG_QUERY_*` env vars to experiment.
+- LightRAG role/query settings are Atlas `.env` inputs defaulted by rag-showcase
+  setup. Override `LIGHTRAG_*` env vars in `infra/.env` to experiment.

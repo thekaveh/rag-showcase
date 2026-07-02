@@ -93,16 +93,13 @@ been verified.** Workaround: after the stack is healthy, run ingest + register
 directly via `docker exec`. (First confirmed via the live process tree: a wedged
 `docker compose … logs -f` child of `start.py`.)
 
-### 2.8 No host-Ollama provider option (macOS / Apple Silicon)
+### 2.8 Host-Ollama provider option
 
-The `llm-provider` (Ollama) is `always_on` and **always containerized** — there is
-no `--llm-provider-source` among Atlas's `--*-source` flags. On macOS, Docker
-Desktop cannot pass through the Apple Metal GPU, so that container is **CPU-only**
-and the default 24–38 GB local models are unusably slow (a 6000-char contextualize
-call exceeded the 120 s client timeout). We re-pointed LiteLLM's chat model to the
-**host** Ollama (`host.docker.internal:11434`, Metal-accelerated) via a `/model/new`
-DB model (`qwen3.6-moe`). `OLLAMA_SCALE=0` can disable the container, but nothing
-wires the host instance in its place.
+> **Resolved upstream.** The updated Atlas submodule exposes
+> `LLM_PROVIDER_SOURCE=ollama-localhost`, resolves
+> `LITELLM_OLLAMA_UPSTREAM` to the host Ollama endpoint, and lets LiteLLM import
+> host-pulled models. Rag-showcase no longer needs the historical `qwen3.6-moe`
+> runtime alias to route around container Ollama.
 
 ### 2.9 LightRAG defaults extraction to the CPU model, then silently builds an empty graph
 
@@ -112,23 +109,18 @@ is set. On a CPU-only host this hits the extraction worker timeout (240-480 s),
 produces **zero entities**, yet `/health` reports healthy, so `graph-rag` can
 silently return "no context" with no surfaced error.
 
-The showcase now works around this locally by pointing LightRAG EXTRACT/KEYWORD/QUERY
-directly at host Ollama and using `mistral-small3.2:24b` with a capped 8192-token
-Ollama context. That successfully drained the 11-document curated graph build. The
-full 41-file corpus remains a separate capacity/stress test.
+The showcase now configures LightRAG role models through Atlas's public
+`LIGHTRAG_EXTRACT_LLM_MODEL`, `LIGHTRAG_KEYWORD_LLM_MODEL`, and
+`LIGHTRAG_QUERY_LLM_MODEL` inputs. That keeps role selection independent of the
+chosen provider source.
 
-### 2.10 Atlas does not expose LightRAG's role-specific model wiring
+### 2.10 LightRAG role-specific model wiring
 
-The deeper blocker (found 2026-06-30): Atlas configures LightRAG as a single-model
-service (`LIGHTRAG_LLM_MODEL` → `LLM_MODEL`), while the pinned LightRAG v1.5.4 image
-has native role-specific LLM settings: `EXTRACT_LLM_MODEL`, `KEYWORD_LLM_MODEL`, and
-`QUERY_LLM_MODEL`. The reliable fix is not another global model override; it is to
-expose LightRAG's native role variables so the call-heavy EXTRACT role can use a
-medium, non-reasoning model independently of QUERY.
-
-Rag-showcase carries a local compose override that sets those native role vars
-directly for this repo without changing Atlas defaults. A shareable Atlas-side spec
-is captured in [atlas-lightrag-role-model-spec.md](atlas-lightrag-role-model-spec.md).
+> **Resolved upstream.** Atlas now exposes `LIGHTRAG_EXTRACT_*`,
+> `LIGHTRAG_KEYWORD_*`, and `LIGHTRAG_QUERY_*` inputs and maps them to
+> LightRAG's native runtime role variables. Rag-showcase now sets those public
+> Atlas inputs in `infra/.env` instead of carrying a compose override that writes
+> native LightRAG variables directly.
 
 ### 2.11 LightRAG query rerank does not match Atlas's TEI reranker API
 
@@ -138,9 +130,10 @@ TEI endpoint with a Jina-style payload; TEI rejected it with `422 missing field
 texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
 (`top_k=10`, `chunk_top_k=5`, `max_total_tokens=12000`) produced usable answers.
 
-*Net effect:* Atlas should either expose a LightRAG-compatible reranker binding for
-the TEI service, disable LightRAG query rerank when the configured endpoint is TEI,
-or document the required `/rerank` payload adapter.
+> **Default fixed upstream.** Atlas now leaves direct LightRAG->TEI rerank disabled
+> by default and exposes concrete LightRAG query fanout defaults. A future TEI
+> adapter could still make rerank useful, but the boot-loop / 422-retry path is no
+> longer the default.
 
 ## 3. Recommendations for Atlas
 
@@ -165,22 +158,18 @@ or document the required `/rerank` payload adapter.
   `start.py`'s `show_container_logs(follow=True)` on `sys.stdout.isatty()`, or add a
   `--no-follow`/`--detach` flag, so scripted bring-ups return after the stack is
   healthy. This is the single change that unblocks automated end-to-end runs.
-- **(MED-HIGH) Add a host-Ollama provider option** (§2.8): a `--llm-provider-source
-  host` that points LiteLLM's ollama models' `api_base` at `host.docker.internal:11434`,
-  or document the macOS path. The containerized Ollama is CPU-only on macOS.
+- **(Resolved) Add a host-Ollama provider option** (§2.8): Atlas now supports
+  `LLM_PROVIDER_SOURCE=ollama-localhost`.
 - **(MED) Surface LightRAG extraction failures** (§2.9): a timed-out / empty-graph
   extraction should show in `/health` or as a loud error, not just a log WARNING.
   Document that graph extraction needs a GPU-class (ideally non-reasoning) model and
   how to set `LIGHTRAG_LLM_MODEL`.
-- **(HIGH) Expose LightRAG role-specific models** (§2.10): map Atlas variables such as
+- **(Resolved) Expose LightRAG role-specific models** (§2.10): Atlas now maps
   `LIGHTRAG_EXTRACT_LLM_MODEL`, `LIGHTRAG_KEYWORD_LLM_MODEL`, and
-  `LIGHTRAG_QUERY_LLM_MODEL` to LightRAG's native runtime vars. Keep the current
-  `LIGHTRAG_LLM_MODEL` fallback for backward compatibility. See the
-  [role-model spec](atlas-lightrag-role-model-spec.md).
-- **(MED-HIGH) Fix or disable LightRAG query rerank for TEI** (§2.11): the current
-  LightRAG/Jina rerank client does not speak the same payload shape as the Atlas TEI
-  reranker. Either provide an adapter, select a compatible rerank binding, or default
-  LightRAG query rerank off when Atlas wires TEI directly.
+  `LIGHTRAG_QUERY_LLM_MODEL` to LightRAG's native runtime vars.
+- **(Partially resolved) Fix or disable LightRAG query rerank for TEI** (§2.11):
+  Atlas now defaults direct LightRAG rerank off. A compatible adapter remains a
+  future enhancement.
 
 ## 4. Live End-to-End Run — Resolved (2026-07-01)
 
@@ -188,7 +177,7 @@ The first live e2e run was completed (see [comparison.md](comparison.md)). The
 previously-open items are now assessed:
 
 - **LightRAG graph extraction** — fixed locally for the 11-document curated subset by
-  using role-specific host-Ollama settings and a non-reasoning extraction model
+  using role-specific LightRAG settings and a non-reasoning extraction model
   (§2.10). The full corpus is still an expensive graph-indexing stress test.
 - **LightRAG graph query** — fixed locally enough to include `graph-rag` in the scored
   six-way run by disabling LightRAG query rerank and reducing graph query fanout

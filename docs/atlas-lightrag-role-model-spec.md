@@ -2,13 +2,17 @@
 
 Date: 2026-07-01
 
+Status: implemented upstream in Atlas and retained here as a historical handoff
+record. Rag-showcase now configures these Atlas inputs through `infra/.env`
+instead of patching LightRAG's runtime environment directly.
+
 ## Purpose
 
 Atlas should expose LightRAG v1.5 role-specific LLM configuration so graph indexing can use a fast, non-reasoning extraction model while query answering can use a stronger model. This avoids routing LightRAG's high-volume extraction calls through a slow reasoning model and gives downstream projects a supported way to tune graph RAG without patching Atlas internals.
 
 ## Problem
 
-Atlas currently models LightRAG with one chat model:
+Before the Atlas fix, Atlas modeled LightRAG with one chat model:
 
 - `LIGHTRAG_LLM_MODEL` is resolved during init.
 - Init writes `/app/data/.env` with `LLM_MODEL`, `EMBEDDING_MODEL`, and `EMBEDDING_DIM`.
@@ -21,7 +25,7 @@ LightRAG v1.5.4 supports separate roles:
 - `QUERY`: answer generation.
 - `VLM`: vision-language work.
 
-The native LightRAG server reads role-specific environment variables such as `EXTRACT_LLM_MODEL`, `KEYWORD_LLM_MODEL`, and `QUERY_LLM_MODEL`, then falls back to `LLM_MODEL` when a role is not set. Atlas does not currently expose or map those role variables, so all roles inherit one model.
+The native LightRAG server reads role-specific environment variables such as `EXTRACT_LLM_MODEL`, `KEYWORD_LLM_MODEL`, and `QUERY_LLM_MODEL`, then falls back to `LLM_MODEL` when a role is not set. Atlas now exposes and maps those role variables.
 
 That is the wrong shape for local graph RAG. Entity and relationship extraction makes many calls per document and needs strict structured output, not long reasoning traces. A reasoning model such as Qwen 3.6 MoE can be acceptable for user-facing answers with `think:false`, but it is a poor default for extraction because any missed thinking override or long context startup turns indexing into timeouts.
 
@@ -129,46 +133,22 @@ Atlas should add a focused integration test or smoke script that:
 
 The most reliable assertion is request-level observation through LiteLLM logs, an Ollama proxy, or a mocked OpenAI-compatible endpoint that records the requested `model` field.
 
-## Rag-Showcase Override
+## Rag-Showcase Configuration
 
-Rag-showcase can safely apply a local compose overlay that sets LightRAG role variables directly. That is not a replacement for the Atlas fix; it is a project-level override for this repo's local Mac/Ollama workflow.
+Rag-showcase now sets Atlas's public inputs in `infra/.env` during
+`scripts/setup-overlay.sh`:
 
-Preferred rag-showcase override:
-
-```yaml
-services:
-  lightrag-init:
-    environment:
-      LIGHTRAG_EMBEDDING_MODEL: ${RAG_LIGHTRAG_EMBEDDING_MODEL:-nomic-embed-text}
-      LIGHTRAG_EMBEDDING_DIM: "768"
-
-  lightrag:
-    environment:
-      EMBEDDING_BINDING: ollama
-      EMBEDDING_BINDING_HOST: http://host.docker.internal:11434
-      EMBEDDING_BINDING_API_KEY: ollama
-      EMBEDDING_MODEL: ${RAG_LIGHTRAG_EMBEDDING_MODEL:-nomic-embed-text}
-      EMBEDDING_DIM: "768"
-      EXTRACT_LLM_BINDING: ollama
-      EXTRACT_LLM_BINDING_HOST: http://host.docker.internal:11434
-      EXTRACT_LLM_BINDING_API_KEY: ollama
-      EXTRACT_LLM_MODEL: ${RAG_LIGHTRAG_EXTRACT_MODEL:-mistral-small3.2:24b}
-      EXTRACT_MAX_ASYNC_LLM: ${RAG_LIGHTRAG_EXTRACT_MAX_ASYNC:-1}
-      EXTRACT_LLM_TIMEOUT: ${RAG_LIGHTRAG_EXTRACT_TIMEOUT:-900}
-      EXTRACT_OLLAMA_LLM_NUM_CTX: ${RAG_LIGHTRAG_EXTRACT_NUM_CTX:-8192}
-      KEYWORD_LLM_BINDING: ollama
-      KEYWORD_LLM_BINDING_HOST: http://host.docker.internal:11434
-      KEYWORD_LLM_BINDING_API_KEY: ollama
-      KEYWORD_LLM_MODEL: ${RAG_LIGHTRAG_KEYWORD_MODEL:-mistral-small3.2:24b}
-      KEYWORD_OLLAMA_LLM_NUM_CTX: ${RAG_LIGHTRAG_KEYWORD_NUM_CTX:-8192}
-      QUERY_LLM_BINDING: ollama
-      QUERY_LLM_BINDING_HOST: http://host.docker.internal:11434
-      QUERY_LLM_BINDING_API_KEY: ollama
-      QUERY_LLM_MODEL: ${RAG_LIGHTRAG_QUERY_MODEL:-mistral-small3.2:24b}
-      QUERY_OLLAMA_LLM_NUM_CTX: ${RAG_LIGHTRAG_QUERY_NUM_CTX:-8192}
+```dotenv
+LIGHTRAG_EMBEDDING_MODEL=nomic-embed-text
+LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b
+LIGHTRAG_KEYWORD_LLM_MODEL=mistral-small3.2:24b
+LIGHTRAG_QUERY_LLM_MODEL=mistral-small3.2:24b
+LIGHTRAG_EXTRACT_MAX_ASYNC_LLM=1
+LIGHTRAG_EXTRACT_LLM_TIMEOUT=900
 ```
 
-This affects only rag-showcase and avoids changing Atlas defaults.
+Those defaults are written only when the variables are unset, so operators can
+choose different models or provider sources without editing the compose overlay.
 
 The rag-showcase graph wrapper also sends these `/query` defaults:
 
@@ -179,9 +159,8 @@ LIGHTRAG_QUERY_CHUNK_TOP_K=5
 LIGHTRAG_QUERY_MAX_TOTAL_TOKENS=12000
 ```
 
-Those are plugin-side request parameters rather than LightRAG container settings. They
-avoid the current TEI rerank mismatch and keep local graph query prompts within the
-8192-token Ollama context used by `mistral-small3.2:24b`.
+Those are plugin-side request parameters rather than LightRAG container settings.
+They avoid the TEI rerank mismatch and keep graph query prompts bounded.
 
 ## Acceptance Criteria
 
