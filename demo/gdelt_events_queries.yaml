@@ -1,0 +1,24 @@
+- id: gdelt_actor_event_chain
+  query: "Which actors are repeatedly connected across related events, locations, and source reports, and how does the chain evolve over time?"
+  expect_winner: graph-rag
+  rationale: "Requires temporal graph traversal across actors, events, locations, and sources."
+- id: gdelt_shared_location_timeline
+  query: "Find event clusters sharing locations but involving different actors, then explain the temporal sequence."
+  expect_winner: graph-rag
+  rationale: "Requires location-linked relationship and temporal reasoning."
+- id: gdelt_theme_actor_bridge
+  query: "Which themes connect otherwise separate actor groups, and which source articles support those connections?"
+  expect_winner: graph-rag
+  rationale: "Requires graph traversal from themes to actors to source documents."
+- id: gdelt_escalation_pattern
+  query: "Identify whether events show an escalation pattern by actor, location, event code, and report chronology."
+  expect_winner: graph-rag
+  rationale: "Requires temporal and relationship pattern detection."
+- id: gdelt_cross_border_spillover
+  query: "Which events suggest cross-border spillover based on actors, locations, themes, and follow-on reports?"
+  expect_winner: graph-rag
+  rationale: "Requires multi-hop relationship reasoning across geography and actors."
+- id: gdelt_source_disagreement
+  query: "Where do source reports describe the same actor-event relationship differently, and how do tone or theme labels diverge?"
+  expect_winner: graph-rag
+  rationale: "Requires graph alignment of shared actors/events plus textual comparison."

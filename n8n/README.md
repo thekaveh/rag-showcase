@@ -2,33 +2,44 @@
 
 ## 1. Overview
 
-Build the Adaptive-RAG workflow once in the n8n UI (`http://localhost:<N8N_PORT>`),
-then export it to `adaptive-rag.workflow.json` and re-import on other machines.
-The backend wrapper at `backend_plugins/rag/approaches/n8n.py` POSTs `{query}` to
-this workflow's webhook and surfaces the chosen `route` in the comparison column.
+The Adaptive-RAG workflow is checked in as `adaptive-rag.workflow.json`.
+`scripts/start-all.sh` imports it with `--activeState=fromJson`, then restarts n8n
+so the production webhook is registered. The backend wrapper at
+`backend_plugins/rag/approaches/n8n.py` POSTs `{query}` to this workflow's webhook
+and surfaces the chosen `route` in the comparison column.
 
 ## 2. Workflow Nodes
 
 1. **Webhook** (POST, path `adaptive-rag`) — receives `{ "query": "..." }`.
-2. **LLM Classify** (HTTP Request → `http://litellm:4000/v1/chat/completions`,
+2. **Classify** (HTTP Request → `http://litellm:4000/v1/chat/completions`,
    Authorization `Bearer {{ $env.LITELLM_API_KEY }}` — Atlas injects the master
    key into the n8n container under that name — model `qwen3.6:latest`, a name
    LiteLLM registers): prompt "Classify the query as
    `simple` or `complex`. Answer with one word." Output → `route`.
-3. **IF** node on `route == "complex"`.
-   - **true →** HTTP Request to `http://backend:8000/agentic-rag/v1/chat/completions`.
-   - **false →** HTTP Request to `http://backend:8000/vanilla-rag/v1/chat/completions`.
-4. **Set** node: build `{ "answer": <chosen answer text>, "route": <route> }`.
-5. **Respond to Webhook**: return the Set node's JSON.
+3. **Route** (Code node) maps `complex` to `agentic-rag`, everything else to
+   `vanilla-rag`, and builds the backend route URL.
+4. **Call Approach** (HTTP Request) calls
+   `http://backend:8000/<approach>/v1/chat/completions`.
+5. **Shape** (Code node) builds
+   `{ "answer": <chosen answer text>, "route": <route>, "approach": <approach> }`.
+6. **Respond to Webhook**: return the Shape node's JSON.
 
-After wiring the nodes, **toggle the workflow Active** (top-right switch in the
-editor). The backend POSTs to the *production* webhook `/webhook/adaptive-rag`,
-which n8n registers only for an active workflow — an inactive one returns 404 and
-the `n8n-adaptive-rag` column errors.
+The checked-in workflow has `"active": true`. The backend POSTs to the
+*production* webhook `/webhook/adaptive-rag`, which n8n registers only for active
+workflows. This is why startup imports the workflow and restarts n8n before model
+registration.
 
-## 3. Re-importing on Another Machine
+## 3. Editing the Workflow
 
-Import `adaptive-rag.workflow.json` via the n8n UI (Workflows → Import from File),
-then toggle it **Active** (the production webhook only registers for active
-workflows). The checked-in file is an empty placeholder until you export your
-built workflow over it.
+If you edit the workflow in the n8n UI, export it back over
+`adaptive-rag.workflow.json` before committing. Keep the top-level `id`, `name`,
+`active`, and webhook path stable unless you also update
+`N8N_ADAPTIVE_WEBHOOK_URL` and the startup import logic.
+
+Potential tuning variables live in the workflow JSON rather than Python:
+
+- classifier model;
+- classifier prompt;
+- simple/complex route mapping;
+- backend approach timeout;
+- response shaping.

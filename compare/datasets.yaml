@@ -1,0 +1,73 @@
+datasets:
+  - id: baseline_curated
+    label: Baseline curated news + keyword docs
+    complexity_level: 1
+    status: measured
+    corpus_path: corpus/subset
+    queries_file: demo/queries.yaml
+    matrix_snapshot: docs/results/live-2026-07-02-baseline_curated-matrix.json
+    judgment_snapshot: docs/results/live-2026-07-02-baseline_curated-judgments.json
+    graph_nature: Mostly textual retrieval with a few multi-hop and exact-keyword prompts.
+    source_notes: MultiHop-RAG subset plus a local keyword document.
+    source_url: https://huggingface.co/datasets/yixuantt/MultiHopRAG
+  - id: graph_native
+    label: Curated graph-native real-world dossiers
+    complexity_level: 2
+    status: measured
+    corpus_path: corpus/graph_native
+    queries_file: demo/graph_native_queries.yaml
+    matrix_snapshot: docs/results/live-2026-07-02-graph_native-matrix.json
+    judgment_snapshot: docs/results/live-2026-07-02-graph_native-judgments.json
+    graph_nature: Explicit entity and relationship bullets over AI, antitrust, crypto, regulators, witnesses, and timelines.
+    source_notes: Committed relation-dense markdown dossiers with source URLs.
+    source_url: corpus/graph_native
+  - id: stark_prime
+    label: STaRK-Prime precision-medicine SKB
+    complexity_level: 3
+    status: candidate
+    corpus_path: corpus/generated/stark_prime
+    queries_file: demo/stark_prime_queries.yaml
+    adapter: stark-qa package, dataset_name=prime
+    graph_nature: Biomedical entity retrieval over diseases, drugs, genes, pathways, proteins, phenotypes, and textual descriptions.
+    source_notes: STaRK retrieval datasets are CC-BY-4.0; code package is MIT.
+    source_url: https://github.com/snap-stanford/stark
+  - id: stark_mag
+    label: STaRK-MAG scholarly SKB
+    complexity_level: 4
+    status: candidate
+    corpus_path: corpus/generated/stark_mag
+    queries_file: demo/stark_mag_queries.yaml
+    adapter: stark-qa package, dataset_name=mag
+    graph_nature: Paper, author, venue, field, citation, and affiliation retrieval where query constraints mix text with graph relations.
+    source_notes: STaRK retrieval datasets are CC-BY-4.0; MAG-style graph is exposed through the STaRK loader.
+    source_url: https://stark.stanford.edu/
+  - id: openalex_scholarly
+    label: OpenAlex scholarly graph slice
+    complexity_level: 5
+    status: candidate
+    corpus_path: corpus/generated/openalex_scholarly
+    queries_file: demo/openalex_scholarly_queries.yaml
+    adapter: corpus/adapters/openalex_scholarly.py
+    graph_nature: Real scholarly graph with works, authors, institutions, concepts, citations, venues, and abstracts.
+    source_notes: OpenAlex data is CC0; use bounded topic/date slices to avoid huge graph extraction runs.
+    source_url: https://developers.openalex.org/
+  - id: gdelt_events
+    label: GDELT global event graph slice
+    complexity_level: 6
+    status: candidate
+    corpus_path: corpus/generated/gdelt_events
+    queries_file: demo/gdelt_events_queries.yaml
+    adapter: corpus/adapters/gdelt_events.py
+    graph_nature: Event, actor, location, theme, source, tone, and timeline graph over real news events.
+    source_notes: Use bounded event windows and topic filters; store source URLs with each generated dossier.
+    source_url: https://www.gdeltproject.org/
+  - id: cyber_threat_intel
+    label: MITRE ATT&CK + NVD cyber threat graph
+    complexity_level: 7
+    status: candidate
+    corpus_path: corpus/generated/cyber_threat_intel
+    queries_file: demo/cyber_threat_intel_queries.yaml
+    adapter: corpus/adapters/cyber_threat_intel.py
+    graph_nature: Threat groups, techniques, software, mitigations, CVEs, CWEs, CPE products, and campaign relationships.
+    source_notes: MITRE ATT&CK and NVD feeds are public; generated slices should retain source IDs and timestamps.
+    source_url: https://attack.mitre.org/

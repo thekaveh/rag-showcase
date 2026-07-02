@@ -1,0 +1,24 @@
+- id: prime_drug_gene_disease_bridge
+  query: "Which candidate therapies are connected to a disease through both gene targets and pathway evidence, and what are the relationship chains?"
+  expect_winner: graph-rag
+  rationale: "Requires multi-hop relationship traversal across disease, drug, gene, and pathway nodes plus textual support."
+- id: prime_shared_protein_mechanism
+  query: "Find diseases that share protein or gene mechanisms with a given phenotype cluster, then explain the shared biological relationships."
+  expect_winner: graph-rag
+  rationale: "Requires graph reasoning over shared biological entities and relationship types."
+- id: prime_contraindication_path
+  query: "Which drugs have useful evidence for one condition but are risky because they connect to adverse-event or contraindication paths?"
+  expect_winner: graph-rag
+  rationale: "Requires relationship paths from drug to indication and adverse-event evidence."
+- id: prime_repurposing_candidates
+  query: "Identify plausible repurposing candidates by connecting drugs, targets, pathways, and related diseases."
+  expect_winner: graph-rag
+  rationale: "Requires multi-hop graph traversal plus textual synthesis."
+- id: prime_gene_family_comparison
+  query: "Compare two gene families by the diseases, drugs, and pathways attached to each family."
+  expect_winner: graph-rag
+  rationale: "Requires relationship aggregation across graph neighborhoods."
+- id: prime_evidence_conflict
+  query: "Where does textual evidence suggest one mechanism while graph relations point to a different disease or pathway association?"
+  expect_winner: graph-rag
+  rationale: "Requires cross-checking graph paths against textual evidence."

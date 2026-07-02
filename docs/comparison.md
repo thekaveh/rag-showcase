@@ -1,10 +1,11 @@
 # RAG approaches - live comparison
 
 A side-by-side comparison of the RAG approaches in this repo, run against a live
-`gen-ai-rag` Atlas stack on a single macOS host: Mac Studio M2 Ultra, 192 GB unified
-memory. All LLM calls used local Ollama on the host Apple Metal GPU.
+`gen-ai-rag` Atlas stack. The recorded 2026-07-02 run used a Mac Studio M2 Ultra
+with 192 GB unified memory and local host Ollama; that is run metadata, not a repo
+requirement.
 
-- **Run date:** 2026-07-01
+- **Run date:** 2026-07-02
 - **Approaches compared:** all 6 - `vanilla-rag`, `hybrid-rag`, `contextual-rag`,
   `graph-rag`, `agentic-rag`, `n8n-adaptive-rag`.
 - **Baseline corpus:** 11-document curated subset of MultiHop-RAG plus `widget-error-codes.md`.
@@ -15,26 +16,26 @@ memory. All LLM calls used local Ollama on the host Apple Metal GPU.
 - **Harness:** [`compare/run_matrix.py`](../compare/run_matrix.py) and
   [`compare/judge.py`](../compare/judge.py). Raw working outputs are written under
   `compare/results/` and are intentionally gitignored; the committed snapshots for
-  this run are [`live-2026-07-01-six-way-matrix.json`](results/live-2026-07-01-six-way-matrix.json)
-  / [`live-2026-07-01-six-way-judgments.json`](results/live-2026-07-01-six-way-judgments.json)
-  plus [`live-2026-07-01-graph-native-matrix.json`](results/live-2026-07-01-graph-native-matrix.json)
-  / [`live-2026-07-01-graph-native-judgments.json`](results/live-2026-07-01-graph-native-judgments.json).
+  this run are [`live-2026-07-02-baseline_curated-matrix.json`](results/live-2026-07-02-baseline_curated-matrix.json)
+  / [`live-2026-07-02-baseline_curated-judgments.json`](results/live-2026-07-02-baseline_curated-judgments.json)
+  plus [`live-2026-07-02-graph_native-matrix.json`](results/live-2026-07-02-graph_native-matrix.json)
+  / [`live-2026-07-02-graph_native-judgments.json`](results/live-2026-07-02-graph_native-judgments.json).
 
 ## 0. Headline
 
 The renewed six-way runs completed on both the baseline corpus and a graph-native
 corpus built specifically around entities, relationships, shared actors, and causal
-chains. `contextual-rag` was the strongest overall result in both runs. `graph-rag`
-is now operational and participated in every cell, but remains slower and uneven:
-it answered every graph-native query, yet the judge panel still ranked it behind
-contextual, vanilla, n8n, and hybrid on aggregate quality.
+chains. `contextual-rag` led the baseline corpus, while `hybrid-rag` led the
+graph-native corpus. `graph-rag` is now operational and participated in every cell,
+but remains slower and uneven: it answered every graph-shaped query and won some
+individual judge votes, yet it is not the aggregate winner on either measured rung.
 
 The key fixes were:
 
 - scoped `think:false` for local reasoning models via `backend_plugins/rag/models.yaml`;
-- LightRAG role-specific EXTRACT/KEYWORD/QUERY models pointed at host Ollama;
-- LightRAG EXTRACT tuned to `max_async=1`, `timeout=900`, and `num_ctx=8192`;
-- direct host-Ollama embeddings with `nomic-embed-text` and `EMBEDDING_DIM=768`;
+- LightRAG role-specific EXTRACT/KEYWORD/QUERY models configured separately;
+- LightRAG EXTRACT tuned to `max_async=1` and `timeout=900`;
+- `nomic-embed-text` embeddings for graph ingestion;
 - LightRAG upload retry on HTTP 409 backpressure;
 - graph query payload tuned to avoid the broken TEI rerank path and reduce context fanout:
   `enable_rerank=false`, `top_k=10`, `chunk_top_k=5`, `max_total_tokens=12000`.
@@ -65,9 +66,20 @@ JUDGE_RESULTS_FILE=graph_native_judgments.json \
 uv run python compare/judge.py
 ```
 
+For the dataset-by-dataset view, use the dataset manifest and report generator:
+
+```bash
+python3 compare/report_datasets.py --output docs/dataset-complexity-report.md
+```
+
+That report is committed at [`docs/dataset-complexity-report.md`](dataset-complexity-report.md)
+and is organized by input dataset complexity rather than by vector/graph collection.
+
 ## 2. The approaches
 
-See the [README](../README.md#3-the-six-approaches). In one line each:
+See the [README](../README.md#4-the-six-approaches) for the entry table and
+[`docs/approaches.md`](approaches.md) for exact internal steps, dependencies,
+tuning variables, and measured behavior. In one line each:
 `vanilla-rag` is dense top-k; `hybrid-rag` adds BM25 and TEI rerank;
 `contextual-rag` retrieves context-prefixed chunks; `graph-rag` delegates to
 LightRAG; `agentic-rag` runs a ReAct loop over vector and graph tools; and
@@ -83,9 +95,10 @@ LightRAG; `agentic-rag` runs a ReAct loop over vector and graph tools; and
 | Embeddings | `nomic-embed-text`, host Ollama for LightRAG; LiteLLM embedding route for plugin vectors |
 | Judges | `qwen3.6:latest` + `gemma4:31b`, local Ollama, `think:false` |
 
-Docker Desktop cannot pass Apple Metal into containers, so Atlas's containerized
-Ollama is CPU-only on macOS. The working path is to route big model calls to the
-host Ollama at `host.docker.internal:11434`.
+This run uses the current rag-showcase alignment to Atlas's public `LIGHTRAG_*`
+role inputs. Current setup configures LightRAG through Atlas and lets Atlas/LiteLLM
+decide whether model calls go to container Ollama, host Ollama, GPU container
+Ollama, or another configured provider.
 
 ## 4. Findings
 
@@ -93,12 +106,14 @@ host Ollama at `host.docker.internal:11434`.
    extraction and generation calls spend time on hidden reasoning. With `think:false`,
    the same local model is roughly 30x faster for this workload. The setting is
    scoped per model in `models.yaml`, so it does not leak to unrelated models.
-2. **Atlas needs first-class host-Ollama support on macOS.** Container Ollama works
-   functionally but is not viable for large local models on Apple Silicon.
-3. **Atlas should expose LightRAG role-specific model settings.** LightRAG supports
-   EXTRACT, KEYWORD, QUERY, and VLM roles, but Atlas currently exposes only the
-   global `LIGHTRAG_LLM_MODEL` path. Rag-showcase now works around that locally in
-   `compose/rag-overlay.yml`.
+2. **Atlas now has a first-class host-Ollama source.** The original run needed an
+   ad hoc LiteLLM alias to reach host Ollama. The updated Atlas submodule exposes
+   `LLM_PROVIDER_SOURCE=ollama-localhost`, so the repo no longer needs to assume
+   any particular host hardware path.
+3. **Atlas now exposes LightRAG role-specific model settings.** The current
+   submodule maps `LIGHTRAG_EXTRACT_*`, `LIGHTRAG_KEYWORD_*`, and
+   `LIGHTRAG_QUERY_*` inputs into LightRAG's native roles. Rag-showcase now sets
+   those Atlas inputs instead of patching LightRAG runtime env directly.
 4. **LightRAG extraction works with the local overlay, but full-corpus graph builds
    remain expensive.** The 11-doc subset drained cleanly. A 41-file stress ingest
    completed vector/text ingest but LightRAG graph processing did not fully drain
@@ -117,32 +132,31 @@ All 36 cells returned without transport errors.
 
 | Approach | ok cells | avg latency | judge mean |
 |---|---:|---:|---:|
-| **contextual-rag** | 6/6 | 9.6s | **4.50** |
-| vanilla-rag | 6/6 | 4.7s | 4.17 |
-| hybrid-rag | 6/6 | 7.5s | 4.17 |
-| n8n-adaptive-rag | 6/6 | 0.6s | 4.17 |
-| graph-rag | 6/6 | 23.3s | 3.25 |
-| agentic-rag | 6/6 | 5.8s | 2.33 |
+| **contextual-rag** | 6/6 | 8.7s | **4.08** |
+| n8n-adaptive-rag | 6/6 | 0.5s | 4.00 |
+| vanilla-rag | 6/6 | 3.6s | 4.00 |
+| hybrid-rag | 6/6 | 6.5s | 3.92 |
+| graph-rag | 6/6 | 23.2s | 3.58 |
+| agentic-rag | 6/6 | 9.9s | 2.75 |
 
 ### 5.1 Per-query winners
 
 | Query | Winner | Notes |
 |---|---|---|
-| `keyword` | agentic-rag by tiebreak | all six scored 5.0 |
-| `thematic` | contextual-rag | best real synthesis; graph-rag improved but scored 2.0 |
-| `multihop` | contextual-rag | graph-rag still returned a weak one-word answer |
-| `factoid` | graph-rag by tiebreak | graph, vanilla, hybrid, contextual, and n8n all scored 5.0 |
-| `context_starved` | graph-rag by tiebreak | all six scored 4.5 |
-| `mixed_batch` | contextual-rag by tiebreak | vanilla/hybrid/contextual/n8n all scored 5.0 |
+| `keyword` | agentic-rag by tiebreak | agentic, graph, hybrid, n8n, and vanilla all scored 5.0 |
+| `thematic` | contextual-rag | best synthesis; graph-rag and n8n tied for second at 3.5 |
+| `multihop` | agentic-rag | agentic led at 3.5; graph-rag remained weak at 1.0 |
+| `factoid` | contextual-rag by tiebreak | graph, vanilla, hybrid, contextual, and n8n all scored 5.0 |
+| `context_starved` | agentic-rag by tiebreak | agentic and graph-rag both scored 5.0 |
+| `mixed_batch` | hybrid-rag by tiebreak | hybrid, n8n, and vanilla tied at 4.5 |
 
 ### 5.2 Interpretation
 
-`contextual-rag` is the best overall default in this run: it handled the thematic and
-mixed prompts well and stayed robust on exact fact questions. `hybrid-rag` remains a
-good production-style retriever because it is predictable and cheaper than graph-rag.
-`vanilla-rag` performed better on this renewed subset than in the earlier failed run
-because the widget document was present and retrieved. `n8n-adaptive-rag` mostly
-mirrors its selected route and benefits heavily from cache hits.
+`contextual-rag` is the best overall default on the baseline corpus: it handled the
+thematic prompt well and stayed robust on exact fact questions. `vanilla-rag` and
+`n8n-adaptive-rag` are close behind, with n8n benefiting from a fast route decision
+and cache hits. `hybrid-rag` remains a predictable production-style retriever, though
+it did not beat contextual retrieval on aggregate in this run.
 
 `graph-rag` is no longer excluded. It is included, indexed, and queried successfully.
 Its remaining weakness is query-time quality and latency, not indexing availability.
@@ -164,25 +178,25 @@ All 48 cells returned without transport errors.
 
 | Approach | ok cells | avg latency | judge mean |
 |---|---:|---:|---:|
-| **contextual-rag** | 8/8 | 12.3s | **4.38** |
-| vanilla-rag | 8/8 | 6.2s | 3.88 |
-| n8n-adaptive-rag | 8/8 | 1.9s | 3.88 |
-| hybrid-rag | 8/8 | 11.4s | 3.69 |
-| graph-rag | 8/8 | 26.2s | 2.69 |
-| agentic-rag | 8/8 | 34.0s | 1.62 |
+| **hybrid-rag** | 8/8 | 9.0s | **4.12** |
+| contextual-rag | 8/8 | 11.1s | 4.00 |
+| n8n-adaptive-rag | 8/8 | 0.7s | 3.62 |
+| vanilla-rag | 8/8 | 3.8s | 3.56 |
+| graph-rag | 8/8 | 25.0s | 3.12 |
+| agentic-rag | 8/8 | 34.5s | 2.69 |
 
 ### 6.1 Per-query winners
 
 | Query | Winner | Notes |
 |---|---|---|
-| `entity_bridge` | hybrid-rag | graph-rag received one judge-model win, but hybrid won on mean score |
-| `relationship_chain` | contextual-rag | vanilla, contextual, and n8n all scored 5.0; contextual won by tiebreak |
+| `entity_bridge` | contextual-rag by tiebreak | contextual and graph-rag both scored 4.5 |
+| `relationship_chain` | hybrid-rag by tiebreak | hybrid, n8n, and vanilla all scored 5.0 |
 | `shared_actor` | contextual-rag | strongest synthesis of common actors across Anthropic/Amazon/Google |
-| `timeline_cause` | n8n-adaptive-rag | routed answer handled the chronological cause/effect prompt best |
-| `witness_network` | contextual-rag | all approaches were weaker; contextual led at 3.0/5 |
-| `cloud_model_competition` | contextual-rag | best answer across cloud/provider/model relationships |
-| `default_search_ecosystem` | n8n-adaptive-rag | n8n, vanilla, and contextual tied at 5.0; n8n won by tiebreak |
-| `cross_domain_regulators` | vanilla-rag | direct retrieval gave the cleanest list of regulators and agencies |
+| `timeline_cause` | n8n-adaptive-rag by tiebreak | n8n and vanilla both scored 5.0 |
+| `witness_network` | agentic-rag by tiebreak | agentic and graph-rag both scored 4.5 |
+| `cloud_model_competition` | contextual-rag by tiebreak | contextual and hybrid both scored 5.0 |
+| `default_search_ecosystem` | contextual-rag by tiebreak | contextual and hybrid both scored 5.0 |
+| `cross_domain_regulators` | contextual-rag by tiebreak | contextual and hybrid both scored 3.0 |
 
 ### 6.2 Interpretation
 
@@ -190,7 +204,8 @@ The graph-native corpus confirms that the graph path is technically healthy: Lig
 indexed the corpus, drained extraction, and answered all eight graph-shaped prompts.
 It does not yet show that this LightRAG configuration is the best answerer for these
 prompts. The graph-rag column is still slower than all non-agentic retrievers and
-often under-synthesizes compared with contextual retrieval over the same source text.
+often under-synthesizes compared with hybrid/contextual retrieval over the same
+source text, though it tied for first on `entity_bridge` and `witness_network`.
 
 That suggests the remaining work is LightRAG query quality, not only corpus choice:
 prompt/mode selection, graph fanout, source-text inclusion, and rerank-provider wiring
@@ -200,6 +215,9 @@ are likely more important than simply adding more graph-shaped documents.
 
 - **Small corpus:** the scored run uses the curated 11-doc subset. The full 41-file
   corpus is useful as a stress test, but graph extraction is still expensive locally.
+- **Only two rungs measured so far:** the dataset complexity report includes heavier
+  real-world graph candidates, but their rankings are marked pending until live matrix
+  and judge snapshots are produced.
 - **Graph-native corpus is synthetic-curated:** the documents are real-world dossiers
   with source links and explicit relationship bullets, designed to make graph structure
   available. This is a better graph test than the baseline subset, but it is still not
@@ -211,8 +229,8 @@ are likely more important than simply adding more graph-shaped documents.
 
 ## 8. Reversibility
 
-- `qwen3.6-moe` is a LiteLLM runtime alias for host Ollama; delete it from LiteLLM if
-  you want to return to Atlas defaults.
+- `qwen3.6-moe` was a historical LiteLLM runtime alias used during the early live
+  run before the Atlas submodule gained first-class host-Ollama support.
 - `models.yaml` keeps `think:false` for the qwen3.6 local models by design.
-- LightRAG role/query settings are rag-showcase overlay defaults, not Atlas changes.
-  Override or remove `RAG_LIGHTRAG_*` / `LIGHTRAG_QUERY_*` env vars to experiment.
+- LightRAG role/query settings are Atlas `.env` inputs defaulted by rag-showcase
+  setup. Override `LIGHTRAG_*` env vars in `infra/.env` to experiment.

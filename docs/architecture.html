@@ -37,7 +37,7 @@
         <div class="pulse-dot"></div>
         <h1>RAG Showcase &mdash; End-to-End Flow</h1>
       </div>
-      <p class="subtitle">Six RAG approaches on Atlas &bull; one prompt fans out to six columns &bull; all-local on Apple Silicon (host Ollama, Metal GPU)</p>
+      <p class="subtitle">Six RAG approaches on Atlas &bull; one prompt fans out to six columns &bull; provider-neutral model routing through LiteLLM</p>
     </div>
 
     <div class="diagram-container">
@@ -57,9 +57,9 @@
         <rect x="40" y="68" width="16" height="10" rx="2" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1"/><text x="62" y="76" fill="#94a3b8" font-size="8">Frontend</text>
         <rect x="40" y="84" width="16" height="10" rx="2" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1"/><text x="62" y="92" fill="#94a3b8" font-size="8">Backend / approach</text>
         <rect x="40" y="100" width="16" height="10" rx="2" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1"/><text x="62" y="108" fill="#94a3b8" font-size="8">Vector / graph store</text>
-        <rect x="40" y="116" width="16" height="10" rx="2" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1"/><text x="62" y="124" fill="#94a3b8" font-size="8">Gateway / host GPU</text>
+        <rect x="40" y="116" width="16" height="10" rx="2" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1"/><text x="62" y="124" fill="#94a3b8" font-size="8">Gateway / model routing</text>
         <rect x="40" y="132" width="16" height="10" rx="2" fill="rgba(251,146,60,0.3)" stroke="#fb923c" stroke-width="1"/><text x="62" y="140" fill="#94a3b8" font-size="8">Low-code workflow</text>
-        <rect x="40" y="148" width="16" height="10" rx="2" fill="rgba(30,41,59,0.6)" stroke="#94a3b8" stroke-width="1"/><text x="62" y="156" fill="#94a3b8" font-size="8">Local model (Ollama)</text>
+        <rect x="40" y="148" width="16" height="10" rx="2" fill="rgba(30,41,59,0.6)" stroke="#94a3b8" stroke-width="1"/><text x="62" y="156" fill="#94a3b8" font-size="8">Model route</text>
 
         <!-- ===== Layer 1: OpenWebUI ===== -->
         <rect x="455" y="40" width="210" height="52" rx="6" fill="#0f172a"/>
@@ -123,24 +123,23 @@
         <rect x="746" y="384" width="200" height="64" rx="6" fill="#0f172a"/><rect x="746" y="384" width="200" height="64" rx="6" fill="rgba(251,146,60,0.3)" stroke="#fb923c" stroke-width="1.5"/>
         <text x="846" y="410" fill="white" font-size="11" font-weight="600" text-anchor="middle">n8n</text><text x="846" y="427" fill="#94a3b8" font-size="8" text-anchor="middle">Adaptive-RAG workflow</text><text x="846" y="439" fill="#94a3b8" font-size="8" text-anchor="middle">classify &rarr; vanilla | agentic</text>
 
-        <!-- store/approach -> host Ollama arrows -->
+        <!-- store/approach -> model layer arrows -->
         <line x1="603" y1="448" x2="430" y2="520" stroke="#fbbf24" stroke-width="1.3" marker-end="url(#ah)"/>
-        <text x="545" y="486" fill="#94a3b8" font-size="8">extract/query</text>
         <line x1="846" y1="448" x2="250" y2="520" stroke="#fbbf24" stroke-width="1.3" marker-end="url(#ah)"/>
 
-        <!-- generation routing on the left margin: backend boundary -> host Ollama -->
+        <!-- generation routing on the left margin: backend boundary -> model layer -->
         <path d="M 40 270 L 22 270 L 22 545 L 40 545" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#ah)"/>
-        <text x="28" y="408" fill="#fbbf24" font-size="8" transform="rotate(-90 28 408)" text-anchor="middle">generation &rarr; host GPU (think:false)</text>
+        <text x="28" y="408" fill="#fbbf24" font-size="8" transform="rotate(-90 28 408)" text-anchor="middle">generation &rarr; LiteLLM model route</text>
 
-        <!-- ===== Layer 5: Host Ollama (Metal GPU) ===== -->
+        <!-- ===== Layer 5: Atlas model routing ===== -->
         <rect x="40" y="494" width="1040" height="132" rx="12" fill="rgba(251,191,36,0.05)" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
-        <text x="54" y="512" fill="#fbbf24" font-size="10" font-weight="600">Host Ollama &mdash; Apple Metal GPU &bull; host.docker.internal:11434 (containers route here; container Ollama is CPU-only on macOS)</text>
+        <text x="54" y="512" fill="#fbbf24" font-size="10" font-weight="600">Atlas model layer</text>
 
         <rect x="58"  y="528" width="232" height="80" rx="6" fill="#0f172a"/><rect x="58" y="528" width="232" height="80" rx="6" fill="rgba(30,41,59,0.6)" stroke="#94a3b8" stroke-width="1.5"/>
-        <text x="174" y="554" fill="white" font-size="11" font-weight="600" text-anchor="middle">qwen3.6 35B-A3B MoE</text><text x="174" y="571" fill="#94a3b8" font-size="8" text-anchor="middle">generation (5 code approaches)</text><text x="174" y="585" fill="#fbbf24" font-size="8" text-anchor="middle">think:false &mdash; ~30&times; faster</text><text x="174" y="599" fill="#94a3b8" font-size="8" text-anchor="middle">via models.yaml (per-model)</text>
+        <text x="174" y="554" fill="white" font-size="11" font-weight="600" text-anchor="middle">Configured chat model</text><text x="174" y="571" fill="#94a3b8" font-size="8" text-anchor="middle">generation (5 code approaches)</text><text x="174" y="585" fill="#fbbf24" font-size="8" text-anchor="middle">per-model request props</text><text x="174" y="599" fill="#94a3b8" font-size="8" text-anchor="middle">models.yaml, e.g. think:false</text>
 
         <rect x="310" y="528" width="232" height="80" rx="6" fill="#0f172a"/><rect x="310" y="528" width="232" height="80" rx="6" fill="rgba(30,41,59,0.6)" stroke="#94a3b8" stroke-width="1.5"/>
-        <text x="426" y="554" fill="white" font-size="11" font-weight="600" text-anchor="middle">mistral-small3.2:24b</text><text x="426" y="571" fill="#94a3b8" font-size="8" text-anchor="middle">LightRAG extraction + query</text><text x="426" y="585" fill="#fbbf24" font-size="8" text-anchor="middle">non-reasoning (no CoT)</text><text x="426" y="599" fill="#94a3b8" font-size="8" text-anchor="middle">LIGHTRAG_LLM_MODEL</text>
+        <text x="426" y="554" fill="white" font-size="11" font-weight="600" text-anchor="middle">LightRAG role models</text><text x="426" y="571" fill="#94a3b8" font-size="8" text-anchor="middle">EXTRACT / KEYWORD / QUERY</text><text x="426" y="585" fill="#fbbf24" font-size="8" text-anchor="middle">Atlas LIGHTRAG_* inputs</text><text x="426" y="599" fill="#94a3b8" font-size="8" text-anchor="middle">non-reasoning default available</text>
 
         <rect x="562" y="528" width="180" height="80" rx="6" fill="#0f172a"/><rect x="562" y="528" width="180" height="80" rx="6" fill="rgba(30,41,59,0.6)" stroke="#94a3b8" stroke-width="1.5"/>
         <text x="652" y="554" fill="white" font-size="11" font-weight="600" text-anchor="middle">nomic-embed-text</text><text x="652" y="571" fill="#94a3b8" font-size="8" text-anchor="middle">embeddings (768-dim)</text><text x="652" y="589" fill="#94a3b8" font-size="8" text-anchor="middle">base + contextual</text>
@@ -163,13 +162,13 @@
         </ul>
       </div>
       <div class="card">
-        <div class="card-header"><div class="card-dot amber"></div><h3>Local-LLM routing (Apple Silicon)</h3></div>
+        <div class="card-header"><div class="card-dot amber"></div><h3>Model routing</h3></div>
         <ul>
-          <li>&bull; All LLM calls route to the host Ollama (Metal GPU)</li>
-          <li>&bull; Generation: qwen3.6 MoE with think:false (the MoE is a reasoning model; CoT was ~30&times; slower)</li>
-          <li>&bull; think:false scoped per-model via models.yaml</li>
-          <li>&bull; LightRAG: a non-reasoning model (mistral-small) &mdash; reasoning CoT made extraction time out</li>
-          <li>&bull; Embeddings: nomic-embed-text (768-dim)</li>
+          <li>&bull; LiteLLM routes to the active Atlas provider source</li>
+          <li>&bull; Generation model choices live in roles.yaml</li>
+          <li>&bull; Request properties stay scoped per model via models.yaml</li>
+          <li>&bull; LightRAG role models use Atlas LIGHTRAG_* inputs</li>
+          <li>&bull; Embeddings default to nomic-embed-text (768-dim)</li>
         </ul>
       </div>
       <div class="card">
@@ -184,7 +183,7 @@
       </div>
     </div>
 
-    <p class="footer">RAG Showcase &bull; six approaches on Atlas (vendored submodule) &bull; 100% local on a Mac Studio M2 Ultra</p>
+    <p class="footer">RAG Showcase &bull; six approaches on Atlas (vendored submodule) &bull; endpoints run in the Atlas backend and are invoked through LiteLLM</p>
   </div>
 </body>
 </html>

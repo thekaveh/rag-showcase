@@ -1,0 +1,24 @@
+- id: mag_citation_concept_bridge
+  query: "Which papers bridge two research concepts through citation paths, and what author or venue relationships make the bridge credible?"
+  expect_winner: graph-rag
+  rationale: "Requires graph traversal across papers, concepts, citations, authors, and venues."
+- id: mag_institution_topic_lineage
+  query: "Trace how a topic moved across institutions using author affiliations, citation relationships, and paper abstracts."
+  expect_winner: graph-rag
+  rationale: "Requires temporal and relationship reasoning over paper-author-institution paths."
+- id: mag_shared_author_clusters
+  query: "Find research clusters that share authors but diverge by concepts or venues, then explain the relationship pattern."
+  expect_winner: graph-rag
+  rationale: "Requires shared-actor graph reasoning and textual synthesis."
+- id: mag_foundational_work
+  query: "Which foundational papers connect a newer method to older fields through citation and concept relationships?"
+  expect_winner: graph-rag
+  rationale: "Requires multi-hop citation path discovery."
+- id: mag_competing_venues
+  query: "Compare venues that publish related methods but cite different foundational communities."
+  expect_winner: graph-rag
+  rationale: "Requires relationship aggregation over venues, concepts, and citations."
+- id: mag_author_influence_path
+  query: "Identify author influence paths where one author's work is cited by another group through intermediate papers."
+  expect_winner: graph-rag
+  rationale: "Requires graph path reasoning over authorship and citation edges."
