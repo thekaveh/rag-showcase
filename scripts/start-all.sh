@@ -49,6 +49,32 @@ trap - EXIT
 PROJECT_NAME="$(envval PROJECT_NAME)"
 [ -n "$PROJECT_NAME" ] || { echo "PROJECT_NAME not found in infra/.env; aborting."; exit 1; }
 
+echo "==> Waiting for n8n to report healthy…"
+n8n_ready=0
+for _ in $(seq 1 60); do
+  if docker exec "${PROJECT_NAME}-backend" python -c \
+       "import httpx,sys; sys.exit(0 if httpx.get('http://n8n:5678/healthz',timeout=5).status_code < 500 else 1)" \
+       >/dev/null 2>&1; then n8n_ready=1; break; fi
+  sleep 5
+done
+[ "$n8n_ready" = 1 ] || { echo "n8n did not become healthy after 5 minutes; aborting before workflow import."; exit 1; }
+
+echo "==> Importing and activating the n8n adaptive-rag workflow…"
+docker exec "${PROJECT_NAME}-n8n" \
+  n8n import:workflow --input=/showcase-n8n/adaptive-rag.workflow.json --activeState=fromJson
+# n8n's CLI updates the database, but the long-running n8n process only registers
+# production webhooks at startup. Restart it after import so /webhook/adaptive-rag
+# is live before the n8n-adaptive-rag plugin route is used.
+docker restart "${PROJECT_NAME}-n8n" >/dev/null
+n8n_ready=0
+for _ in $(seq 1 60); do
+  if docker exec "${PROJECT_NAME}-backend" python -c \
+       "import httpx,sys; sys.exit(0 if httpx.get('http://n8n:5678/healthz',timeout=5).status_code < 500 else 1)" \
+       >/dev/null 2>&1; then n8n_ready=1; break; fi
+  sleep 5
+done
+[ "$n8n_ready" = 1 ] || { echo "n8n did not become healthy after workflow import restart."; exit 1; }
+
 # The backend healthcheck does NOT depend on LightRAG, and LightRAG (graph
 # extraction) often comes up slower; without this gate, ingest's first upload
 # could fail mid-run and leave graph-rag empty. Probe LightRAG /health over the
@@ -119,6 +145,35 @@ echo "==> Registering the six models in LiteLLM (inside the backend container)�
 # also avoids shell-sourcing Atlas's .env (which has unquoted values).
 docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
   python /app/register/register_models.py
+
+echo "==> Verifying the six LiteLLM model routes are available…"
+routes_ready=0
+for _ in $(seq 1 30); do
+  if docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" python - <<'PY' >/dev/null 2>&1
+import os
+import sys
+import httpx
+
+required = {
+    "vanilla-rag",
+    "hybrid-rag",
+    "contextual-rag",
+    "graph-rag",
+    "agentic-rag",
+    "n8n-adaptive-rag",
+}
+headers = {"Authorization": f"Bearer {os.environ.get('LITELLM_API_KEY', '')}"}
+r = httpx.get("http://litellm:4000/v1/models", headers=headers, timeout=10)
+r.raise_for_status()
+found = {item.get("id") for item in r.json().get("data", [])}
+sys.exit(0 if required <= found else 1)
+PY
+  then routes_ready=1; break; fi
+  docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
+    python /app/register/register_models.py >/dev/null 2>&1 || true
+  sleep 2
+done
+[ "$routes_ready" = 1 ] || { echo "LiteLLM did not expose all six RAG model routes after registration."; exit 1; }
 
 OWUI="$(envval OPEN_WEB_UI_PORT)"
 [ -n "$OWUI" ] || { echo "OPEN_WEB_UI_PORT not found in infra/.env; aborting."; exit 1; }

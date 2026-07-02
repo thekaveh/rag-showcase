@@ -3,11 +3,17 @@ from pathlib import Path
 import yaml
 
 
-def test_lightrag_overlay_delegates_lightrag_service_config_to_atlas() -> None:
+def test_lightrag_overlay_only_adds_optional_lightrag_ollama_context_caps() -> None:
     overlay = yaml.safe_load(Path("compose/rag-overlay.yml").read_text())
+    env = overlay["services"]["lightrag"]["environment"]
 
-    assert "lightrag" not in overlay["services"]
     assert "lightrag-init" not in overlay["services"]
+    assert env == {
+        "OLLAMA_LLM_NUM_CTX": "${LIGHTRAG_OLLAMA_LLM_NUM_CTX:-8192}",
+        "EXTRACT_OLLAMA_LLM_NUM_CTX": "${LIGHTRAG_EXTRACT_OLLAMA_LLM_NUM_CTX:-8192}",
+        "KEYWORD_OLLAMA_LLM_NUM_CTX": "${LIGHTRAG_KEYWORD_OLLAMA_LLM_NUM_CTX:-8192}",
+        "QUERY_OLLAMA_LLM_NUM_CTX": "${LIGHTRAG_QUERY_OLLAMA_LLM_NUM_CTX:-8192}",
+    }
 
 
 def test_setup_overlay_sets_atlas_lightrag_inputs_not_native_runtime_envs() -> None:

@@ -176,6 +176,20 @@ def wait_for_lightrag(dataset_id: str, timeout_s: int = 3600) -> None:
     raise TimeoutError(f"LightRAG did not drain for {dataset_id} within {timeout_s}s")
 
 
+def validate_matrix_cells(matrix: dict[str, Any], *, dataset_id: str) -> None:
+    failed = [cell for cell in matrix.get("cells", []) if not cell.get("ok")]
+    if not failed:
+        return
+    preview = "; ".join(
+        f"{cell.get('query_id', '?')}/{cell.get('model', '?')}: {cell.get('error', 'unknown error')}"
+        for cell in failed[:5]
+    )
+    suffix = "" if len(failed) <= 5 else f"; ... {len(failed) - 5} more"
+    raise RuntimeError(
+        f"Matrix had {len(failed)} failed cells for {dataset_id}: {preview}{suffix}"
+    )
+
+
 def run_matrix_and_judge(dataset: dict[str, Any], date_stamp: str, approaches: str) -> tuple[Path, Path]:
     dataset_id = dataset["id"]
     matrix_name = f"live-{date_stamp}-{dataset_id}-matrix.json"
@@ -186,6 +200,8 @@ def run_matrix_and_judge(dataset: dict[str, Any], date_stamp: str, approaches: s
     if approaches:
         env["MATRIX_MODELS"] = approaches
     run(["uv", "run", "python", "compare/run_matrix.py"], env=env)
+    matrix_src = RESULTS / matrix_name
+    validate_matrix_cells(json.loads(matrix_src.read_text(encoding="utf-8")), dataset_id=dataset_id)
 
     env = os.environ.copy()
     env["JUDGE_MATRIX_FILE"] = matrix_name
@@ -193,7 +209,6 @@ def run_matrix_and_judge(dataset: dict[str, Any], date_stamp: str, approaches: s
     run(["uv", "run", "python", "compare/judge.py"], env=env)
 
     DOC_RESULTS.mkdir(parents=True, exist_ok=True)
-    matrix_src = RESULTS / matrix_name
     judgments_src = RESULTS / judgments_name
     matrix_dst = DOC_RESULTS / matrix_name
     judgments_dst = DOC_RESULTS / judgments_name

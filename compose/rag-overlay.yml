@@ -2,6 +2,20 @@
 # Relative paths resolve against the project dir = infra/ (the dir of the
 # first -f file, docker-compose.yml), so ../backend_plugins == repo root.
 services:
+  n8n:
+    volumes:
+      - ../n8n:/showcase-n8n:ro
+
+  lightrag:
+    environment:
+      # Used only when a LightRAG role is bound directly to Ollama. The default
+      # Atlas path still uses LiteLLM/OpenAI-compatible routing, where these
+      # role-specific Ollama option variables are ignored.
+      OLLAMA_LLM_NUM_CTX: ${LIGHTRAG_OLLAMA_LLM_NUM_CTX:-8192}
+      EXTRACT_OLLAMA_LLM_NUM_CTX: ${LIGHTRAG_EXTRACT_OLLAMA_LLM_NUM_CTX:-8192}
+      KEYWORD_OLLAMA_LLM_NUM_CTX: ${LIGHTRAG_KEYWORD_OLLAMA_LLM_NUM_CTX:-8192}
+      QUERY_OLLAMA_LLM_NUM_CTX: ${LIGHTRAG_QUERY_OLLAMA_LLM_NUM_CTX:-8192}
+
   backend:
     environment:
       BACKEND_PLUGINS_DIR: /app/plugins
