@@ -23,7 +23,16 @@ echo "==> Starting Atlas (gen-ai-rag track)…"
 # it on the non-interactive launch path.
 ( cd infra && ./start.sh --track gen-ai-rag --lightrag-source container \
     --tei-reranker-source container-cpu --doc-processor-source disabled \
-    --n8n-source container )
+    --n8n-source container ) &
+ATLAS_START_PID=$!
+cleanup_atlas_start() {
+  if kill -0 "$ATLAS_START_PID" >/dev/null 2>&1; then
+    pkill -P "$ATLAS_START_PID" >/dev/null 2>&1 || true
+    kill "$ATLAS_START_PID" >/dev/null 2>&1 || true
+    wait "$ATLAS_START_PID" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup_atlas_start EXIT
 
 echo "==> Waiting for the backend to report healthy…"
 BP="$(envval BACKEND_PORT)"
@@ -34,6 +43,8 @@ for _ in $(seq 1 60); do
   sleep 5
 done
 [ "$healthy" = 1 ] || { echo "Backend did not become healthy after 5 minutes; aborting before ingest."; exit 1; }
+cleanup_atlas_start
+trap - EXIT
 
 PROJECT_NAME="$(envval PROJECT_NAME)"
 [ -n "$PROJECT_NAME" ] || { echo "PROJECT_NAME not found in infra/.env; aborting."; exit 1; }
@@ -65,12 +76,16 @@ for _ in $(seq 1 60); do
 done
 [ "$wv_ready" = 1 ] || { echo "Weaviate did not become ready after 5 minutes; aborting before ingest."; exit 1; }
 
-echo "==> Assembling corpus on the host (corpus/raw/)…"
-# host python3 on purpose: fetch_corpus is stdlib-only, and using the host
-# interpreter (not the uv env, which omits `datasets`) lets an optional host-side
-# `python3 -m pip install datasets` take effect. python3, not bare `python`, for
-# portability (stock macOS — the documented platform — ships only python3).
-python3 corpus/fetch_corpus.py
+if [ "${RAG_SHOWCASE_SKIP_DEFAULT_INGEST:-0}" != "1" ]; then
+  echo "==> Assembling corpus on the host (corpus/raw/)…"
+  # host python3 on purpose: fetch_corpus is stdlib-only, and using the host
+  # interpreter (not the uv env, which omits `datasets`) lets an optional host-side
+  # `python3 -m pip install datasets` take effect. python3, not bare `python`, for
+  # portability (stock macOS — the documented platform — ships only python3).
+  python3 corpus/fetch_corpus.py
+else
+  echo "==> Skipping default corpus ingest (RAG_SHOWCASE_SKIP_DEFAULT_INGEST=1)…"
+fi
 
 # The backend/LightRAG health gates do NOT guarantee Ollama has finished pulling
 # the embed + chat models (a cold first run downloads several GB), and ingest's
@@ -92,9 +107,11 @@ asyncio.run(_probe())
 done
 [ "$models_ready" = 1 ] || { echo "Local models not ready after ~30 min; aborting before ingest."; exit 1; }
 
-echo "==> Ingesting corpus inside the backend container…"
-docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
-  python /app/ingest/ingest.py /app/corpus/raw
+if [ "${RAG_SHOWCASE_SKIP_DEFAULT_INGEST:-0}" != "1" ]; then
+  echo "==> Ingesting corpus inside the backend container…"
+  docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
+    python /app/ingest/ingest.py /app/corpus/raw
+fi
 
 echo "==> Registering the six models in LiteLLM (inside the backend container)…"
 # Run in-container: LiteLLM is reachable at http://litellm:4000 there, the key
