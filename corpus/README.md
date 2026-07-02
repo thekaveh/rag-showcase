@@ -32,3 +32,20 @@ If `datasets` is unavailable, the script degrades gracefully to keyword-docs onl
 The graph-native corpus is already committed and does not need a fetch step. Use
 [`demo/graph_native_queries.yaml`](../demo/graph_native_queries.yaml) with the
 comparison harness to run that evaluation set.
+
+## 3. Real-world graph dataset ladder
+
+The next evaluation layer is tracked in [`compare/datasets.yaml`](../compare/datasets.yaml)
+and summarized in [`docs/dataset-complexity-report.md`](../docs/dataset-complexity-report.md).
+It orders input datasets by graph complexity so the project can show how approach
+rankings change as the corpus moves from curated text to real semi-structured
+knowledge bases.
+
+Candidate heavy datasets are generated, not committed:
+
+- STaRK-Prime and STaRK-MAG via the optional `stark-qa` package;
+- OpenAlex scholarly graph slices;
+- GDELT event/news graph slices;
+- MITRE ATT&CK cyber-threat graph slices.
+
+Adapter commands and evaluation steps live in [`corpus/adapters/README.md`](adapters/README.md).

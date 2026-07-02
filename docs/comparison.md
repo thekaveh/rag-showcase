@@ -66,6 +66,15 @@ JUDGE_RESULTS_FILE=graph_native_judgments.json \
 uv run python compare/judge.py
 ```
 
+For the dataset-by-dataset view, use the dataset manifest and report generator:
+
+```bash
+python3 compare/report_datasets.py --output docs/dataset-complexity-report.md
+```
+
+That report is committed at [`docs/dataset-complexity-report.md`](dataset-complexity-report.md)
+and is organized by input dataset complexity rather than by vector/graph collection.
+
 ## 2. The approaches
 
 See the [README](../README.md#3-the-six-approaches). In one line each:
@@ -204,6 +213,9 @@ are likely more important than simply adding more graph-shaped documents.
 
 - **Small corpus:** the scored run uses the curated 11-doc subset. The full 41-file
   corpus is useful as a stress test, but graph extraction is still expensive locally.
+- **Only two rungs measured so far:** the dataset complexity report includes heavier
+  real-world graph candidates, but their rankings are marked pending until live matrix
+  and judge snapshots are produced.
 - **Graph-native corpus is synthetic-curated:** the documents are real-world dossiers
   with source links and explicit relationship bullets, designed to make graph structure
   available. This is a better graph test than the baseline subset, but it is still not

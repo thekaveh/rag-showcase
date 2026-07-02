@@ -1,0 +1,24 @@
+- id: openalex_citation_bridge
+  query: "Which works connect GraphRAG evaluation to knowledge-graph construction through citation paths, shared concepts, and abstracts?"
+  expect_winner: graph-rag
+  rationale: "Requires graph traversal across works, citations, concepts, and textual abstracts."
+- id: openalex_author_institution_network
+  query: "Which authors and institutions form bridges between retrieval-augmented generation and biomedical knowledge-graph research?"
+  expect_winner: graph-rag
+  rationale: "Requires multi-hop author-institution-concept relationships."
+- id: openalex_concept_drift
+  query: "How did the concepts attached to graph retrieval papers change over time, and which papers caused the shift?"
+  expect_winner: graph-rag
+  rationale: "Requires temporal graph and concept relationship reasoning."
+- id: openalex_cross_venue_lineage
+  query: "Which venues host papers that cite the same foundational works but apply them to different domains?"
+  expect_winner: graph-rag
+  rationale: "Requires graph aggregation over venues, citations, and concepts."
+- id: openalex_shared_reference_cluster
+  query: "Find clusters of papers with shared references and explain the technical theme tying each cluster together."
+  expect_winner: graph-rag
+  rationale: "Requires relationship clustering over citation neighborhoods."
+- id: openalex_institution_competition
+  query: "Which institutions appear to compete in the same research area based on author affiliations, concepts, and citation overlap?"
+  expect_winner: graph-rag
+  rationale: "Requires multi-hop graph comparison across institutions."
