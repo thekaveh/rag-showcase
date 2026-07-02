@@ -27,6 +27,10 @@ retrieval stores, workflow services, and host-Ollama model routing. Source:
 [`docs/architecture-detailed.html`](docs/architecture-detailed.html). Full explanation:
 [`docs/architecture.md`](docs/architecture.md).*
 
+The six RAG approaches are mounted FastAPI routes inside the Atlas backend container;
+LiteLLM registers each route as a model alias, and OpenWebUI or the comparison harness
+invoke them through LiteLLM's OpenAI-compatible `/v1/chat/completions` surface.
+
 ### 1.2 Six approach flow phases
 
 ![RAG Showcase six approach flow phases](docs/approach-flows.png)

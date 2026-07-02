@@ -25,6 +25,11 @@ plugin under `backend_plugins/rag`, where each approach exposes an OpenAI-compat
 `/<approach>/v1/chat/completions` endpoint. `register/register_models.py` registers
 those endpoints into LiteLLM as selectable model names.
 
+The six approach endpoints are deployed inside the Atlas backend container, not as
+six separate containers. OpenWebUI and `compare/run_matrix.py` invoke them through
+LiteLLM's `/v1/chat/completions` surface after LiteLLM maps the selected model name
+to the corresponding backend route.
+
 ### 1.3 Retrieval stores and workflow services
 
 The direct retrieval approaches use Weaviate collections (`RagBase` and
@@ -69,6 +74,10 @@ call vector search or graph query tools before returning a final answer and tool
 `n8n-adaptive-rag` is a workflow bridge. The n8n workflow classifies the query,
 routes it to a selected approach, shapes the response, and returns the answer plus
 route metadata to the OpenAI-compatible wrapper.
+
+All six lanes are invoked the same way from the outside: the caller chooses a model
+alias in LiteLLM, and LiteLLM forwards to the mounted FastAPI route in the Atlas
+backend container.
 
 ## 3. Regeneration Notes
 
