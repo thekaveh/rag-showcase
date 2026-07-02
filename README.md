@@ -5,11 +5,6 @@ all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
 submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
 as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
 
-![RAG Showcase architecture — end-to-end flow](docs/architecture.png)
-
-*End-to-end flow: one prompt fans out across the six approaches; all LLM calls route to the
-host Ollama on Apple Silicon (Metal GPU). Source: [`docs/architecture.html`](docs/architecture.html).*
-
 > **Live results (2026-07-01).** Renewed full local run on a Mac Studio M2 Ultra.
 > All six approaches completed. **`contextual-rag` led overall** (judge-panel mean
 > 4.50/5), with `vanilla-rag`, `hybrid-rag`, and `n8n-adaptive-rag` clustered at
@@ -21,7 +16,27 @@ host Ollama on Apple Silicon (Metal GPU). Source: [`docs/architecture.html`](doc
 > snapshots, and findings:
 > **[`docs/comparison.md`](docs/comparison.md)**.
 
-## 1. Overview
+## 1. Architecture Diagrams
+
+### 1.1 Detailed project architecture
+
+![RAG Showcase detailed architecture](docs/architecture-detailed.png)
+
+*Atlas stack, LiteLLM gateway, mounted backend plugin seam, six RAG endpoints,
+retrieval stores, workflow services, and host-Ollama model routing. Source:
+[`docs/architecture-detailed.html`](docs/architecture-detailed.html). Full explanation:
+[`docs/architecture.md`](docs/architecture.md).*
+
+### 1.2 Six approach flow phases
+
+![RAG Showcase six approach flow phases](docs/approach-flows.png)
+
+*Parallel lane view of all six approaches from shared corpus preparation through
+retrieval, augmentation, generation, output shaping, and observed tradeoffs. Source:
+[`docs/approach-flows.html`](docs/approach-flows.html). Full explanation:
+[`docs/architecture.md`](docs/architecture.md).*
+
+## 2. Overview
 
 Each approach is an OpenAI-compatible `/<name>/v1/chat/completions` endpoint in a
 self-contained plugin package (`backend_plugins/rag/`) that is bind-mounted into
@@ -34,7 +49,7 @@ answer + retrieved-context + metrics surface.
 The six approaches embed via the same LiteLLM model and read the same corpus, so
 the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/roles.yaml`).
 
-## 2. Quick Start
+## 3. Quick Start
 
 **Prerequisites.** This runs entirely on [Atlas](https://github.com/thekaveh/atlas), so Atlas's
 requirements apply:
@@ -70,7 +85,7 @@ on the host before running; without it, ingestion uses only the bundled keyword 
 the thematic / multi-hop demo queries have little to work with — see
 [`corpus/README.md`](corpus/README.md).
 
-## 3. The Six Approaches
+## 4. The Six Approaches
 
 | Model | Approach | Visibly wins on |
 |-------|----------|-----------------|
@@ -81,7 +96,7 @@ the thematic / multi-hop demo queries have little to work with — see
 | `agentic-rag` | ReAct loop over vector + graph tools | multi-hop / comparative questions |
 | `n8n-adaptive-rag` | low-code Adaptive-RAG workflow (routes by complexity) | mixed simple+complex batches |
 
-## 4. Repository Layout
+## 5. Repository Layout
 
 ```
 rag-showcase/
@@ -103,7 +118,7 @@ rag-showcase/
 └── docs/                    # design spec, plan, Atlas-reuse assessment
 ```
 
-## 5. Configuration (environment variables)
+## 6. Configuration (environment variables)
 
 The plugin reads these at runtime. Most are already injected by Atlas's backend
 or by the showcase's compose overlay (`compose/rag-overlay.yml`); none need to be
@@ -137,19 +152,20 @@ set by hand for the default `start-all.sh` flow.
 | `LIGHTRAG_QUERY_CHUNK_TOP_K` | `5` | graph-rag LightRAG chunk top-k | plugin |
 | `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS` | `12000` | graph-rag LightRAG query context budget | plugin |
 
-## 6. Documentation Index
+## 7. Documentation Index
 
 | Document | Status | What it covers |
 |----------|--------|----------------|
 | [Design spec](docs/superpowers/specs/2026-06-25-rag-showcase-design.md) | Historical | The approved design: six approaches, architecture, corpus, phasing (predates implementation — see its deviations note) |
 | [Implementation plan](docs/superpowers/plans/2026-06-25-rag-showcase.md) | Historical | The task-by-task implementation plan (Tasks 0–19, as-built) |
+| [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and six-approach parallel flow diagrams |
 | [Atlas-reuse assessment](docs/atlas-reuse-assessment.md) | Living | What reused cleanly, friction found, recommendations for Atlas |
 | [Atlas LightRAG role-model spec](docs/atlas-lightrag-role-model-spec.md) | Handoff | Atlas-side spec for first-class LightRAG EXTRACT/KEYWORD/QUERY model wiring |
 | [Corpus](corpus/README.md) | Living | How to populate the corpus |
 | [n8n workflow](n8n/README.md) | Living | Building the Adaptive-RAG workflow in the n8n UI |
 | [Live comparison](docs/comparison.md) | Living | Side-by-side results of all six approaches + live-validation findings (host-GPU routing on macOS, `think:false`, LightRAG role/query tuning) |
 
-## 7. Development & Testing
+## 8. Development & Testing
 
 ```bash
 uv run pytest                 # unit suite (mocked I/O) + integration tests (skip without the stack)
@@ -169,7 +185,7 @@ LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail 
   uv run pytest tests
 ```
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 - **First run looks stuck.** It is downloading several GB of local Ollama models
   (`qwen3.6:latest`, `nomic-embed-text`, `qwen3-embedding:0.6b`); `start-all.sh` gates on model
@@ -205,6 +221,6 @@ LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail 
   backend is healthy (`docker exec … ingest.py` / `register_models.py`) — see
   [docs/comparison.md §4](docs/comparison.md). (Tracked for Atlas in the reuse assessment.)
 - **Integration tests skip.** `tests/test_demo_matrix.py` self-skips unless a live LiteLLM is
-  reachable; point it at the published port + master key (see §7).
+  reachable; point it at the published port + master key (see §8).
 - **Stop / reset:** `./scripts/stop-all.sh` to stop; `cd infra && ./stop.sh --cold` to stop **and**
   wipe all Atlas data.
