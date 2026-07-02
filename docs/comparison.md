@@ -77,7 +77,9 @@ and is organized by input dataset complexity rather than by vector/graph collect
 
 ## 2. The approaches
 
-See the [README](../README.md#3-the-six-approaches). In one line each:
+See the [README](../README.md#4-the-six-approaches) for the entry table and
+[`docs/approaches.md`](approaches.md) for exact internal steps, dependencies,
+tuning variables, and measured behavior. In one line each:
 `vanilla-rag` is dense top-k; `hybrid-rag` adds BM25 and TEI rerank;
 `contextual-rag` retrieves context-prefixed chunks; `graph-rag` delegates to
 LightRAG; `agentic-rag` runs a ReAct loop over vector and graph tools; and

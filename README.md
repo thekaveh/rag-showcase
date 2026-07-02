@@ -38,7 +38,8 @@ invoke them through LiteLLM's OpenAI-compatible `/v1/chat/completions` surface.
 *Parallel lane view of all six approaches from shared corpus preparation through
 retrieval, augmentation, generation, output shaping, and observed tradeoffs. Source:
 [`docs/approach-flows.html`](docs/approach-flows.html). Full explanation:
-[`docs/architecture.md`](docs/architecture.md).*
+[`docs/architecture.md`](docs/architecture.md); approach-by-approach internals:
+[`docs/approaches.md`](docs/approaches.md).*
 
 ## 2. Overview
 
@@ -85,8 +86,10 @@ download several GB, so it takes a while. Then open the printed URL, start a mul
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
 `n8n-adaptive-rag`. Stop everything with `./scripts/stop-all.sh`.
 
-The `n8n-adaptive-rag` column also requires building and activating its workflow
-once in the n8n UI — see [`n8n/README.md`](n8n/README.md).
+The `n8n-adaptive-rag` workflow is checked in at
+[`n8n/adaptive-rag.workflow.json`](n8n/adaptive-rag.workflow.json). `start-all.sh`
+imports it, preserves its active state, and restarts n8n so the production webhook
+is registered. See [`n8n/README.md`](n8n/README.md) for the workflow shape.
 
 For the full corpus (MultiHop-RAG + keyword docs), `python3 -m pip install datasets`
 on the host before running; without it, ingestion uses only the bundled keyword docs, so
@@ -97,12 +100,15 @@ the thematic / multi-hop demo queries have little to work with — see
 
 | Model | Approach | Visibly wins on |
 |-------|----------|-----------------|
-| `vanilla-rag` | dense top-k → stuff → one call (baseline) | — (the control) |
-| `hybrid-rag` | Weaviate hybrid (BM25+dense) → TEI rerank | exact keyword / ID queries |
-| `contextual-rag` | Anthropic Contextual Retrieval over context-prefixed chunks | context-starved chunks (clearest under Docling chunking) |
-| `graph-rag` | wraps Atlas's LightRAG (graph + vector) | thematic / whole-corpus questions |
-| `agentic-rag` | ReAct loop over vector + graph tools | multi-hop / comparative questions |
-| `n8n-adaptive-rag` | low-code Adaptive-RAG workflow (routes by complexity) | mixed simple+complex batches |
+| [`vanilla-rag`](docs/approaches.md#3-vanilla-rag) | dense top-k → stuff → one call (baseline) | — (the control) |
+| [`hybrid-rag`](docs/approaches.md#4-hybrid-rag) | Weaviate hybrid retrieval (BM25+dense) → TEI rerank; **not graph RAG** | exact keyword / ID queries |
+| [`contextual-rag`](docs/approaches.md#5-contextual-rag) | Anthropic Contextual Retrieval over context-prefixed chunks | context-starved chunks |
+| [`graph-rag`](docs/approaches.md#6-graph-rag) | Atlas LightRAG over extracted entities, relationships, and vector context | graph-shaped relationship questions |
+| [`agentic-rag`](docs/approaches.md#7-agentic-rag) | ReAct loop over vector + graph tools | multi-hop / comparative questions |
+| [`n8n-adaptive-rag`](docs/approaches.md#8-n8n-adaptive-rag) | low-code Adaptive-RAG workflow (routes by complexity) | mixed simple+complex batches |
+
+For exact internal steps, dependencies, tuning variables, and current measured
+performance for each approach, see [`docs/approaches.md`](docs/approaches.md).
 
 ## 5. Repository Layout
 
@@ -165,12 +171,13 @@ set by hand for the default `start-all.sh` flow.
 | [Design spec](docs/superpowers/specs/2026-06-25-rag-showcase-design.md) | Historical | The approved design: six approaches, architecture, corpus, phasing (predates implementation — see its deviations note) |
 | [Implementation plan](docs/superpowers/plans/2026-06-25-rag-showcase.md) | Historical | The task-by-task implementation plan (Tasks 0–19, as-built) |
 | [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and six-approach parallel flow diagrams |
+| [Approach internals](docs/approaches.md) | Living | Step-by-step flow, dependencies, tuning variables, tradeoffs, and measured performance for every approach |
 | [Hardware sizing](docs/hardware.md) | Living | Minimum and recommended hardware profiles for live stack, local models, and graph-heavy runs |
 | [Atlas-reuse assessment](docs/atlas-reuse-assessment.md) | Living | What reused cleanly, friction found, recommendations for Atlas |
 | [Atlas LightRAG role-model spec](docs/atlas-lightrag-role-model-spec.md) | Implemented upstream | Historical Atlas-side spec for first-class LightRAG EXTRACT/KEYWORD/QUERY model wiring |
 | [Corpus](corpus/README.md) | Living | How to populate the corpus |
 | [Dataset complexity report](docs/dataset-complexity-report.md) | Living | Approach rankings by input dataset complexity, plus candidate real-world graph datasets |
-| [n8n workflow](n8n/README.md) | Living | Building the Adaptive-RAG workflow in the n8n UI |
+| [n8n workflow](n8n/README.md) | Living | Checked-in Adaptive-RAG workflow, startup import behavior, and workflow tuning knobs |
 | [Live comparison](docs/comparison.md) | Living | Side-by-side results of all six approaches + live-validation findings (`think:false`, LightRAG role/query tuning, graph-native corpus behavior) |
 
 ## 8. Development & Testing

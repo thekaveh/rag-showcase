@@ -5,6 +5,10 @@ the project architecture map and the parallel flow map for all six RAG approache
 Both diagrams are checked in as high-resolution PNGs and as standalone HTML/SVG
 source files.
 
+For exact per-approach steps, dependencies, tuning variables, and measured
+performance, see [`approaches.md`](approaches.md). This page focuses on where the
+approaches are deployed and how their lanes connect to the Atlas stack.
+
 ## 1. Detailed Project Architecture
 
 ![RAG Showcase detailed architecture](architecture-detailed.png)
@@ -63,7 +67,9 @@ register the six approach endpoints into LiteLLM.
 
 `vanilla-rag`, `hybrid-rag`, and `contextual-rag` all finish with one generation call
 over selected evidence. They differ mainly in how evidence is selected: dense top-k,
-hybrid retrieval plus reranking, or contextualized chunks plus reranking.
+hybrid retrieval plus reranking, or contextualized chunks plus reranking. Here
+"hybrid retrieval" means BM25 keyword search plus dense vector search over chunks;
+it is separate from graph RAG.
 
 ### 2.3 Graph and agentic lanes
 
