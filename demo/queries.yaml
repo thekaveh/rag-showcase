@@ -1,4 +1,6 @@
-# Each query is engineered so `expect_winner` visibly outperforms the others.
+# Most queries are engineered so their `expect_winner` visibly outperforms the others;
+# `factoid` (expect_winner: any) and the Docling-gated `context_starved` (contextual-rag
+# only wins with structure-aware chunking, which is off by default) are deliberate exceptions.
 - id: keyword
   query: "What does error code WIDGET-ERR-7741 mean and how do I reset it?"
   expect_winner: hybrid-rag
