@@ -2,6 +2,10 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
 corpus/raw/
 corpus/subset/
 corpus/generated/
