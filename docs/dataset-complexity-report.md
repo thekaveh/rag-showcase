@@ -6,6 +6,11 @@ It deliberately reports by dataset rather than by vector/graph collection,
 because the comparison question is how each RAG approach behaves as the
 input problem becomes more relational, temporal, and multi-hop.
 
+For the run protocol, model roles, approach invocation details, and
+judge-panel design, see [`evaluation-methodology.md`](evaluation-methodology.md).
+For approach-by-approach internals and tuning surfaces, see
+[`approaches.md`](approaches.md).
+
 ## 1. Dataset Complexity Ladder
 
 | Dataset | Complexity | Status | Graph nature | Query file | Source |

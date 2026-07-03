@@ -28,6 +28,9 @@ with host Ollama; that is run metadata, not a repo requirement. See
   [`graph-native judgments`](results/live-2026-07-03-graph_native-judgments.json),
   and [`cyber matrix`](results/live-2026-07-03-cyber_threat_intel-matrix.json) /
   [`cyber judgments`](results/live-2026-07-03-cyber_threat_intel-judgments.json).
+- **Methodology:** the full protocol, model-role map, judge-panel design, and
+  dataset-ladder process are documented in
+  [`evaluation-methodology.md`](evaluation-methodology.md).
 
 ## 0. Headline
 
@@ -94,6 +97,20 @@ python3 compare/report_datasets.py --output docs/dataset-complexity-report.md
 That report is committed at [`docs/dataset-complexity-report.md`](dataset-complexity-report.md)
 and is organized by input dataset complexity rather than by vector/graph collection.
 
+The committed 2026-07-03 ladder used the end-to-end runner so every measured
+dataset got a fresh ingest, LightRAG drain, matrix run, judge run, result snapshot,
+manifest update, and report regeneration:
+
+```bash
+uv run python scripts/run-dataset-ladder.py \
+  --date-stamp 2026-07-03 \
+  --dataset baseline_curated \
+  --dataset graph_native \
+  --dataset cyber_threat_intel \
+  --include-candidates \
+  --flavors default,vanilla-rag,hybrid-rag,contextual-rag,graph-rag,agentic-rag,n8n-adaptive-rag
+```
+
 ## 2. The approaches
 
 See the [README](../README.md#4-the-six-approaches) for the entry table and
@@ -109,7 +126,7 @@ LightRAG; `agentic-rag` runs a ReAct loop over vector and graph tools; and
 | Concern | This run |
 |---|---|
 | Hardware | Mac Studio M2 Ultra, 192 GB unified memory |
-| Generation | host Ollama model alias `qwen3.6-moe` -> `qwen3.6:35b-a3b-coding-mxfp8`, with `think:false` |
+| Generation | local Ollama `qwen3.6:latest`, with scoped `think:false` from `models.yaml` |
 | LightRAG extraction/query | host Ollama `mistral-small3.2:24b`, non-reasoning, `num_ctx=8192` |
 | Embeddings | `nomic-embed-text`, host Ollama for LightRAG; LiteLLM embedding route for plugin vectors |
 | Judges | `qwen3.6:latest` + `gemma4:31b`, local Ollama, `think:false` |
@@ -161,7 +178,21 @@ The dataset-by-dataset rankings and per-query winners are generated in
 [`docs/dataset-complexity-report.md`](dataset-complexity-report.md). That report
 is the canonical scored summary for the current run.
 
-## 6. Graph-RAG and Flavor Findings
+## 6. Judgment Panel
+
+The scoring pass used `compare/judge.py`, which evaluates stored matrix answers
+after all approaches have already run. The judges were local Ollama models:
+`qwen3.6:latest` and `gemma4:31b`, both called with `temperature=0` and
+`think:false`.
+
+The panel was chosen to keep evaluation local and repeatable while avoiding a
+single-model judge. For each query, the harness anonymizes and deterministically
+shuffles the approach answers, gives the judges the query-specific scoring
+rationale from the query YAML, asks for 1-5 scores plus a best-answer letter, and
+then aggregates mean score by approach with best-answer votes as the tiebreaker.
+The judgment files in `docs/results/` keep the per-judge scores and reasons.
+
+## 7. Graph-RAG and Flavor Findings
 
 The renewed run shows that the graph path is technically healthy: LightRAG indexed
 the baseline, graph-native, and cyber corpora, drained extraction, and answered
@@ -181,7 +212,7 @@ points to query-time LightRAG tuning, not only corpus choice, as the next target
 mode selection, fanout, prompt shaping, source-text inclusion, and rerank-provider
 wiring are likely more important than adding still more graph-shaped documents.
 
-## 7. Caveats
+## 8. Caveats
 
 - **Bounded corpora:** the scored run uses bounded corpora: 11 baseline docs,
   10 graph-native dossiers, and 60 ATT&CK cyber dossiers. Larger graph builds are
@@ -200,7 +231,7 @@ wiring are likely more important than adding still more graph-shaped documents.
 - **Graph-wide caveat:** `graph-rag-wide` is measured but currently a poor tuning;
   it frequently returned truncated answers.
 
-## 8. Reversibility
+## 9. Reversibility
 
 - `qwen3.6-moe` was a historical LiteLLM runtime alias used during the early live
   run before the Atlas submodule gained first-class host-Ollama support.

@@ -12,7 +12,8 @@ as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse
 > `contextual-rag-high-recall` led cyber. `graph-rag-fast` won several individual
 > baseline/graph-native questions; `graph-rag-wide` ranked last and is a bad current
 > tuning. Full analysis, per-query winners, methodology, raw snapshots, and findings:
-> **[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md)** and
+> **[`docs/evaluation-methodology.md`](docs/evaluation-methodology.md)**,
+> **[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md)**, and
 > **[`docs/comparison.md`](docs/comparison.md)**.
 
 ## 1. Architecture Diagrams
@@ -177,6 +178,7 @@ set by hand for the default `start-all.sh` flow.
 | [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and six-approach parallel flow diagrams |
 | [Approach internals](docs/approaches.md) | Living | Step-by-step flow, dependencies, tuning variables, tradeoffs, and measured performance for every approach |
 | [Approach flavor tuning](docs/approach-flavor-tuning.md) | Living | OpenWebUI model aliases, benchmark flavor selection, and query-time versus index-time tuning knobs |
+| [Evaluation methodology](docs/evaluation-methodology.md) | Living | Dataset ladder protocol, model roles, approach invocation flow, judge panel design, and result artifacts |
 | [Hardware sizing](docs/hardware.md) | Living | Minimum and recommended hardware profiles for live stack, local models, and graph-heavy runs |
 | [Atlas-reuse assessment](docs/atlas-reuse-assessment.md) | Living | What reused cleanly, friction found, recommendations for Atlas |
 | [Atlas LightRAG role-model spec](docs/atlas-lightrag-role-model-spec.md) | Implemented upstream | Historical Atlas-side spec for first-class LightRAG EXTRACT/KEYWORD/QUERY model wiring |

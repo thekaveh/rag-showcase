@@ -35,6 +35,30 @@ All approaches use the same ingested corpus and the same response wrapper:
 5. Full source text is uploaded to LightRAG so it can build its own graph index.
 6. Each approach returns a normalized answer, source block, and metrics footer.
 
+### 1.1 Shared Model Roles
+
+The selectable OpenWebUI model name is the approach alias, not necessarily the
+underlying LLM. The approach then calls one or more configured roles.
+
+| Role | Default model | Used by | Notes |
+|---|---|---|---|
+| `embed` | `nomic-embed-text` | Weaviate-backed retrieval and the agent vector tool | Same embedding role across chunk-based approaches for fair vector comparison. |
+| `light_gen` | `qwen3.6:latest` | `vanilla-rag`, `hybrid-rag`, `contextual-rag` | Shared final answer model for chunk-based approaches. |
+| `contextual_blurb` | `qwen3.6:latest` | `contextual-rag` ingest | Generates short context blurbs before embedding contextual chunks. |
+| `agentic` | `qwen3.6:latest` | `agentic-rag` | Controls the ReAct loop and tool selection. |
+| LightRAG EXTRACT | `mistral-small3.2:24b` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for entity and relationship extraction. |
+| LightRAG KEYWORD | `mistral-small3.2:24b` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for LightRAG keyword/query decomposition. |
+| LightRAG QUERY | `mistral-small3.2:24b` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for final LightRAG graph answers. |
+| n8n classifier | `qwen3.6:latest` | `n8n-adaptive-rag` | Workflow-level simple/complex classifier. |
+
+`models.yaml` currently applies `think:false` to `qwen3.6:latest` and the
+historical `qwen3.6-moe` alias only. The setting does not apply globally; if a
+role is changed to a different local or cloud model, that model keeps its default
+request behavior unless it is explicitly listed.
+
+The full evaluation protocol, including judge models and result aggregation, is
+documented in [`evaluation-methodology.md`](evaluation-methodology.md).
+
 ## 2. Current Measured Results
 
 The current committed live run measured three dataset-ladder rungs. The table
@@ -82,7 +106,14 @@ followed by one answer-generation call.
 - Weaviate collection `RagBase`.
 - LiteLLM chat route for `light_gen`.
 
-### 3.4 Tuning Surface
+### 3.4 Models Used
+
+- Query embedding: `embed` role, default `nomic-embed-text`.
+- Answer generation: `light_gen` role, default `qwen3.6:latest`.
+- Judge evaluation: outside the approach, `compare/judge.py` scores stored
+  answers with `qwen3.6:latest` and `gemma4:31b`.
+
+### 3.5 Tuning Surface
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
@@ -92,7 +123,7 @@ followed by one answer-generation call.
 | Prompt template | shared `stuff` prompt | No | Shared with hybrid/contextual. |
 | Generation model | `roles.yaml` `light_gen` | Yes, via roles file | Per-model props come from `models.yaml`. |
 
-### 3.5 Observed Behavior
+### 3.6 Observed Behavior
 
 Fast and surprisingly competitive on simple fact and exact-context questions. It
 declined on the graph-native corpus because dense top-k alone does not reliably
@@ -128,7 +159,16 @@ It does not query LightRAG or use extracted graph entities/relations.
 - TEI reranker endpoint.
 - LiteLLM chat route for `light_gen`.
 
-### 4.4 Tuning Surface
+### 4.4 Models Used
+
+- Query embedding: `embed` role, default `nomic-embed-text`.
+- Reranking: Atlas TEI reranker service, default endpoint
+  `http://tei-reranker:80`.
+- Answer generation: `light_gen` role, default `qwen3.6:latest`.
+- Judge evaluation: outside the approach, `compare/judge.py` scores stored
+  answers with `qwen3.6:latest` and `gemma4:31b`.
+
+### 4.5 Tuning Surface
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
@@ -139,7 +179,7 @@ It does not query LightRAG or use extracted graph entities/relations.
 | TEI endpoint | `http://tei-reranker:80` | Yes, `TEI_RERANKER_ENDPOINT` | Reranker quality/model can materially affect results. |
 | Collection | `RagBase` | No | Plain chunks only. |
 
-### 4.5 Observed Behavior
+### 4.6 Observed Behavior
 
 The high-recall hybrid flavor won the graph-native corpus at 4.25/5, while the
 canonical `hybrid-rag` route scored 3.88/5. That does not mean it used a graph;
@@ -183,7 +223,18 @@ Query-time:
 - TEI reranker endpoint.
 - LiteLLM chat route for `light_gen`.
 
-### 5.4 Tuning Surface
+### 5.4 Models Used
+
+- Ingest-time contextualization: `contextual_blurb` role, default
+  `qwen3.6:latest`.
+- Query embedding: `embed` role, default `nomic-embed-text`.
+- Reranking: Atlas TEI reranker service, default endpoint
+  `http://tei-reranker:80`.
+- Answer generation: `light_gen` role, default `qwen3.6:latest`.
+- Judge evaluation: outside the approach, `compare/judge.py` scores stored
+  answers with `qwen3.6:latest` and `gemma4:31b`.
+
+### 5.5 Tuning Surface
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
@@ -194,7 +245,7 @@ Query-time:
 | `TOP_N` | 5 | No | Same as `hybrid-rag`. |
 | Hybrid `alpha` | 0.5 | No | Same search helper as `hybrid-rag`. |
 
-### 5.5 Observed Behavior
+### 5.6 Observed Behavior
 
 This was the most stable all-around approach: it won the baseline corpus and
 placed second on graph-native. It benefits when chunks are ambiguous without their
@@ -234,7 +285,25 @@ Query-time:
 - LightRAG role models for EXTRACT, KEYWORD, and QUERY.
 - LightRAG embedding model.
 
-### 6.4 Tuning Surface
+### 6.4 Models Used
+
+- Graph extraction: Atlas LightRAG EXTRACT role, setup default
+  `mistral-small3.2:24b`.
+- Graph keyword/query decomposition: Atlas LightRAG KEYWORD role, setup default
+  `mistral-small3.2:24b`.
+- Graph answer generation: Atlas LightRAG QUERY role, setup default
+  `mistral-small3.2:24b`.
+- LightRAG embeddings: setup default `nomic-embed-text`.
+- Judge evaluation: outside the approach, `compare/judge.py` scores stored
+  answers with `qwen3.6:latest` and `gemma4:31b`.
+
+These LightRAG role models are configured through Atlas `LIGHTRAG_*` inputs, not
+through this plugin's `roles.yaml` `extraction` entry. The shipped default uses a
+non-reasoning Mistral model because LightRAG extraction makes many structured
+entity/relationship calls and reasoning-model chain-of-thought overhead was too
+slow for that phase.
+
+### 6.5 Tuning Surface
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
@@ -250,7 +319,7 @@ Query-time:
 | `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | 900 | Yes, Atlas `.env` | Prevents slow extraction calls from failing too early. |
 | Ollama role context caps | 8192 defaults when native Ollama binding is used | Yes | Passed through overlay as `*_OLLAMA_LLM_NUM_CTX`. |
 
-### 6.5 Observed Behavior
+### 6.6 Observed Behavior
 
 `graph-rag` is now operational: it indexed all three measured datasets and answered
 every query cell. It still did not win any dataset on aggregate. The `graph-rag-fast`
@@ -260,7 +329,7 @@ last. The weakest graph scores were broader synthesis and cyber path questions
 where current LightRAG query settings under-synthesized compared with
 hybrid/contextual chunk retrieval.
 
-### 6.6 Untested Fine-Tuning Opportunities
+### 6.7 Untested Fine-Tuning Opportunities
 
 The current results should not be read as the ceiling for LightRAG. We have not
 yet swept:
@@ -298,7 +367,16 @@ vector search or graph search, instead of following a fixed retrieval path.
 - Weaviate `RagBase`.
 - LightRAG for graph tool calls.
 
-### 7.4 Tuning Surface
+### 7.4 Models Used
+
+- Agent controller: `agentic` role, default `qwen3.6:latest`.
+- Vector tool embedding: `embed` role, default `nomic-embed-text`.
+- Graph tool: LightRAG EXTRACT/KEYWORD/QUERY roles, setup default
+  `mistral-small3.2:24b`.
+- Judge evaluation: outside the approach, `compare/judge.py` scores stored
+  answers with `qwen3.6:latest` and `gemma4:31b`.
+
+### 7.5 Tuning Surface
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
@@ -309,7 +387,7 @@ vector search or graph search, instead of following a fixed retrieval path.
 | System prompt | fixed | No | Affects whether it searches, answers early, or loops. |
 | Agent model | `roles.yaml` `agentic` | Yes, via roles file | Larger/cheaper/non-reasoning choices change behavior. |
 
-### 7.5 Observed Behavior
+### 7.6 Observed Behavior
 
 The agent occasionally won individual multi-step questions, but the hard step
 limit caused frequent incomplete answers. It also became the slowest approach on
@@ -339,7 +417,17 @@ or complex, sends it to another approach, then normalizes the response.
 - LiteLLM from inside n8n for classification.
 - Atlas backend approach routes.
 
-### 8.4 Tuning Surface
+### 8.4 Models Used
+
+- Workflow classifier: `qwen3.6:latest` in
+  `n8n/adaptive-rag.workflow.json`.
+- Downstream answer model: inherited from the selected route. In the current
+  workflow, `simple` routes to `vanilla-rag` and `complex` routes to
+  `agentic-rag`.
+- Judge evaluation: outside the approach, `compare/judge.py` scores stored
+  answers with `qwen3.6:latest` and `gemma4:31b`.
+
+### 8.5 Tuning Surface
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
@@ -350,7 +438,7 @@ or complex, sends it to another approach, then normalizes the response.
 | Approach-call timeout | 175000 ms | Workflow JSON | Workflow HTTP node timeout. |
 | Workflow activation/import | startup script | Yes, via checked-in workflow | `start-all.sh` imports active workflow and restarts n8n. |
 
-### 8.5 Observed Behavior
+### 8.6 Observed Behavior
 
 Very fast in the measured runs because it often delegates to `vanilla-rag` and
 benefits from warm caches. It is not a better retriever by itself; its quality is
@@ -362,7 +450,7 @@ bounded by the classifier and selected downstream route.
 |---|---|
 | Cheapest useful baseline? | `vanilla-rag` |
 | Best current default? | `contextual-rag` |
-| Best measured graph-native aggregate? | `hybrid-rag` |
+| Best measured graph-native aggregate? | `hybrid-rag-high-recall` flavor; `contextual-rag` among canonical defaults |
 | True knowledge-graph path? | `graph-rag` |
 | Best place to test tool-use/multi-hop planning? | `agentic-rag` |
 | Best low-code routing demonstration? | `n8n-adaptive-rag` |
