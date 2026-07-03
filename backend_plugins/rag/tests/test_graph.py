@@ -7,6 +7,15 @@ from httpx import AsyncClient, ASGITransport
 from rag.approaches import graph
 from rag.common import lightrag
 
+
+@pytest.fixture(autouse=True)
+def _clear_flavor_cache():
+    # A per-test flavors.yaml override loads into the module-global cache; clear
+    # before AND after so a tmp table can't leak across tests (mirrors test_flavors.py).
+    graph.flavors._CACHE.clear()
+    yield
+    graph.flavors._CACHE.clear()
+
 # NOTE: these tests scope respx via `with respx.mock:` inside each test body
 # rather than the `@respx.mock` decorator. Several tests here mock the SAME
 # LightRAG URL (/query) with different responses; the body-scoped context
@@ -61,7 +70,6 @@ flavors:
 """,
         encoding="utf-8",
     )
-    graph.flavors._CACHE.clear()
     monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
     monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
     with respx.mock:

@@ -44,3 +44,21 @@ def test_dataset_report_write_mode_updates_documentation() -> None:
     assert "## 1. Dataset Complexity Ladder" in report
     assert "## 2. Ranking Drift by Input Dataset" in report
     assert "## 3. Per-Query Winners" in report
+
+
+def test_dataset_report_write_mode_accepts_absolute_out_of_repo_path(tmp_path) -> None:
+    # An absolute --output outside the repo used to crash the confirmation print via
+    # Path.relative_to(ROOT) — AFTER the file was already written. The guard must keep
+    # the CLI at exit 0 and fall back to printing the full path.
+    out = tmp_path / "report.md"  # absolute, outside ROOT
+    result = subprocess.run(
+        [sys.executable, "compare/report_datasets.py", "--output", str(out)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+
+    assert result.returncode == 0
+    assert out.read_text(encoding="utf-8").startswith("# Dataset Complexity Report")
+    assert f"wrote {out}" in result.stdout
