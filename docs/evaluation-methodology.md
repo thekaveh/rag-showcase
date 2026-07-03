@@ -210,7 +210,7 @@ The measured results show ranking drift as the input becomes more relational:
 
 - On `baseline_curated`, wider dense retrieval was enough to lead the aggregate.
 - On `graph_native`, high-recall hybrid retrieval won the aggregate even though
-  `graph-rag-fast` won several relationship-heavy individual questions.
+  `graph-rag-fast` won a relationship-heavy individual question (`entity_bridge`).
 - On `cyber_threat_intel`, contextual high-recall retrieval won the aggregate,
   suggesting the current LightRAG query settings still under-synthesize some
   graph-shaped cyber paths.
