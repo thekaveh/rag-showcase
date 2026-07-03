@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Judge panel: score each approach's answer per query using a panel of LOCAL
 models on the host Ollama (qwen3.6:latest + gemma4:31b) via the OpenAI-compatible
-/v1 endpoint. Answers are shown shuffled and anonymized (Answer A..F) so judges
-cannot bias by approach order or name.
+/v1 endpoint. Answers are shown shuffled and anonymized (one letter per answer —
+A, B, C, …) so judges cannot bias by approach order or name.
 
 Batched by judge model — all of a dataset's queries for one judge before switching —
 so each ~20-38 GB model loads ONCE instead of swapping every call (Ollama keeps only
