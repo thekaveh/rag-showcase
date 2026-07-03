@@ -45,6 +45,8 @@ def test_main_docs_link_to_approach_internals() -> None:
     assert "docs/approaches.md" in readme
     assert "approaches.md" in architecture
     assert "approaches.md" in comparison
+    assert "docs/evaluation-methodology.md" in readme
+    assert "evaluation-methodology.md" in comparison
 
 
 def test_flavor_tuning_doc_is_linked_and_covers_invocation() -> None:
@@ -56,3 +58,22 @@ def test_flavor_tuning_doc_is_linked_and_covers_invocation() -> None:
     assert "graph-rag-wide" in doc
     assert "MATRIX_FLAVORS" in doc
     assert "compare/flavors.yaml" in doc
+
+
+def test_evaluation_methodology_documents_models_judges_and_ladder() -> None:
+    doc = (ROOT / "docs" / "evaluation-methodology.md").read_text(encoding="utf-8")
+
+    for phrase in [
+        "Model Roles",
+        "Approach Processes",
+        "Dataset-Ladder Procedure",
+        "Judgment Panel",
+        "qwen3.6:latest",
+        "gemma4:31b",
+        "mistral-small3.2:24b",
+        "nomic-embed-text",
+        "baseline_curated",
+        "graph_native",
+        "cyber_threat_intel",
+    ]:
+        assert phrase in doc

@@ -1,0 +1,221 @@
+# Evaluation Methodology
+
+This document explains how the committed RAG comparison run was organized, which
+models were used, how every approach was invoked, and how answer quality was
+judged. It is the protocol companion to the generated score report in
+[`dataset-complexity-report.md`](dataset-complexity-report.md).
+
+## 1. Evaluation Goal
+
+The comparison asks a narrow question:
+
+> Given the same input corpus, the same query set, and the same OpenAI-compatible
+> invocation surface, how do the six rag-showcase approaches and their named
+> flavors behave as the input data becomes more relational and graph-shaped?
+
+The run is not a universal benchmark of RAG systems. It is a live, reproducible
+showcase test of this repo's six deployed approaches on top of Atlas.
+
+## 2. Evaluated Artifacts
+
+The 2026-07-03 committed run measured three dataset-ladder rungs.
+
+| Dataset | Status | Corpus | Queries | Result snapshots |
+|---|---|---|---|---|
+| `baseline_curated` | measured | `corpus/subset` | `demo/queries.yaml` | `docs/results/live-2026-07-03-baseline_curated-*.json` |
+| `graph_native` | measured | `corpus/graph_native` | `demo/graph_native_queries.yaml` | `docs/results/live-2026-07-03-graph_native-*.json` |
+| `cyber_threat_intel` | measured | `corpus/cyber_threat_intel` | `demo/cyber_threat_intel_queries.yaml` | `docs/results/live-2026-07-03-cyber_threat_intel-*.json` |
+
+Candidate future rungs are tracked in `compare/datasets.yaml` and surfaced in the
+dataset report, but they are not ranked until matrix and judgment snapshots exist.
+
+## 3. Stack and Invocation Surface
+
+All approaches run inside the Atlas `gen-ai-rag` stack vendored at `infra/`.
+Rag-showcase contributes a mounted FastAPI plugin under `backend_plugins/rag/`.
+Each approach exposes an OpenAI-compatible route:
+
+```text
+/<approach>/v1/chat/completions
+```
+
+`register/register_models.py` registers those routes in LiteLLM as model aliases.
+OpenWebUI and the automated harness both call LiteLLM's `/v1/chat/completions`
+endpoint, so interactive and measured runs exercise the same deployment path.
+
+The six canonical aliases are:
+
+- `vanilla-rag`
+- `hybrid-rag`
+- `contextual-rag`
+- `graph-rag`
+- `agentic-rag`
+- `n8n-adaptive-rag`
+
+The current flavor run also measured:
+
+- `vanilla-rag-wide`
+- `hybrid-rag-high-recall`
+- `hybrid-rag-fast`
+- `contextual-rag-high-recall`
+- `graph-rag-fast`
+- `graph-rag-wide`
+- `agentic-rag-deeper`
+- `n8n-adaptive-rag-default`
+
+## 4. Model Roles
+
+The repo separates approach aliases from underlying model roles. A user selects a
+RAG approach such as `contextual-rag`; the approach then calls the configured
+embedding, generation, graph, workflow, or judge models internally.
+
+| Role | Default model in this repo | Used by | Why this model/role exists |
+|---|---|---|---|
+| `embed` | `nomic-embed-text` | `vanilla-rag`, `hybrid-rag`, `contextual-rag`, vector tool inside `agentic-rag` | Small, local embedding model used consistently across Weaviate-backed approaches so their vector retrieval is comparable. |
+| `light_gen` | `qwen3.6:latest` | `vanilla-rag`, `hybrid-rag`, `contextual-rag` | Shared answer-generation role for chunk-based approaches, keeping answer synthesis constant while retrieval strategy changes. |
+| `contextual_blurb` | `qwen3.6:latest` | `contextual-rag` ingest | Generates short chunk context blurbs once during ingest; same local model family as generation for reproducibility. |
+| `agentic` | `qwen3.6:latest` | `agentic-rag` | Tool-using ReAct controller; needs instruction following and tool-call reliability more than raw retrieval speed. |
+| LightRAG EXTRACT | `mistral-small3.2:24b` by setup default | `graph-rag`, graph tool inside `agentic-rag` | Non-reasoning, instruction-tuned model for high-volume entity and relationship extraction. Reasoning models were too slow for this call-heavy phase. |
+| LightRAG KEYWORD | `mistral-small3.2:24b` by setup default | `graph-rag`, graph tool inside `agentic-rag` | Keeps graph keyword/query decomposition on the same non-reasoning local model as extraction. |
+| LightRAG QUERY | `mistral-small3.2:24b` by setup default | `graph-rag`, graph tool inside `agentic-rag` | Produces final LightRAG answers while avoiding chain-of-thought overhead during graph queries. |
+| n8n classifier | `qwen3.6:latest` in workflow JSON | `n8n-adaptive-rag` | Classifies a query as `simple` or `complex` before routing to another approach. |
+| Judges | `qwen3.6:latest` and `gemma4:31b` | `compare/judge.py` | Two local judge families reduce single-model scoring bias without sending answers to a cloud service. |
+
+`backend_plugins/rag/models.yaml` applies `think: false` only to listed Qwen
+models. This is deliberately scoped: if a role is changed to a cloud model or a
+non-reasoning local model, no extra request property is added unless that exact
+model name is listed.
+
+## 5. Approach Processes
+
+Each approach receives the same user query but performs a different retrieval or
+routing process.
+
+| Approach | Retrieval or routing process | Internal LLM/model calls | Evidence surfaced |
+|---|---|---|---|
+| `vanilla-rag` | Embed query -> dense vector search over `RagBase` -> stuff top chunks into one prompt. | One `embed` call and one `light_gen` call. | Retrieved plain chunks from Weaviate. |
+| `hybrid-rag` | Embed query -> Weaviate BM25+dense hybrid search over `RagBase` -> TEI rerank -> stuff top chunks. | One `embed` call, one TEI rerank call, one `light_gen` call. | Reranked plain chunks with scores. |
+| `contextual-rag` | Ingest-time context blurbs create `RagContextual`; query-time uses hybrid search + TEI rerank over context-prefixed chunks. | Ingest-time `contextual_blurb` calls per chunk; query-time `embed`, TEI rerank, and `light_gen`. | Reranked contextual chunks. |
+| `graph-rag` | Upload full documents to LightRAG; LightRAG extracts entities/relationships and answers through its graph/vector query path. | LightRAG EXTRACT/KEYWORD/QUERY model calls managed by the LightRAG service. | LightRAG knowledge-graph source marker and answer. |
+| `agentic-rag` | Bounded ReAct loop decides between vector search and LightRAG graph query tools. | Up to the configured agent step limit of `agentic` model calls, plus tool calls to vector search or LightRAG. | Tool trace. |
+| `n8n-adaptive-rag` | n8n classifies query as simple/complex, routes to another approach, and normalizes the response. | One n8n classifier call, then the model calls of the selected downstream route. | Selected route and normalized downstream answer. |
+
+The important contrast is that `hybrid-rag` is not graph RAG. It is hybrid
+chunk retrieval: BM25 keyword search plus dense vector search. Only `graph-rag`
+and the graph tool inside `agentic-rag` query LightRAG's extracted graph.
+
+## 6. Dataset-Ladder Procedure
+
+The measured ladder was run dataset by dataset so each corpus got a clean ingest
+and its own result snapshots.
+
+For each dataset, `scripts/run-dataset-ladder.py` performs this sequence:
+
+1. Cold-reset the Atlas stack unless `--no-cold-reset` is set.
+2. Start rag-showcase with default ingest skipped.
+3. Ingest the selected dataset into Weaviate and LightRAG.
+4. Wait for LightRAG graph extraction to drain.
+5. Run `compare/run_matrix.py` against the dataset's query file.
+6. Validate that every matrix cell returned successfully.
+7. Run `compare/judge.py` over the stored matrix.
+8. Copy matrix and judgment files into `docs/results/`.
+9. Update `compare/datasets.yaml` with snapshot paths.
+10. Regenerate `docs/dataset-complexity-report.md`.
+
+The flavor ladder command shape is:
+
+```bash
+uv run python scripts/run-dataset-ladder.py \
+  --date-stamp 2026-07-03 \
+  --dataset baseline_curated \
+  --dataset graph_native \
+  --dataset cyber_threat_intel \
+  --include-candidates \
+  --flavors default,vanilla-rag,hybrid-rag,contextual-rag,graph-rag,agentic-rag,n8n-adaptive-rag
+```
+
+`MATRIX_MODELS` selects an exact comma-separated set of model aliases.
+`MATRIX_FLAVORS` expands named profiles from `compare/flavors.yaml`. The dataset
+runner treats those modes as mutually exclusive to keep result metadata clear.
+
+## 7. Matrix Collection
+
+`compare/run_matrix.py` is the answer collector.
+
+For every query and every selected approach/flavor, it:
+
+1. Posts the query to LiteLLM `/v1/chat/completions`.
+2. Uses the selected alias as the OpenAI `model`.
+3. Lets LiteLLM route the request to the mounted Atlas backend endpoint.
+4. Parses the common answer/source/metrics response wrapper.
+5. Records latency, success/error state, base approach, flavor metadata, answer
+   text, source text, and metrics.
+
+The resulting matrix JSON is a factual record of what each deployed approach
+actually returned before scoring.
+
+## 8. Judgment Panel
+
+`compare/judge.py` scores matrix answers with two local judge models:
+
+- `qwen3.6:latest`
+- `gemma4:31b`
+
+Both are called through host Ollama's OpenAI-compatible `/v1/chat/completions`
+endpoint. Requests use `temperature: 0` and `think: false`.
+
+The judges were chosen for pragmatic reasons:
+
+- They run locally, so evaluation answers and corpus snippets do not leave the
+  machine.
+- They represent different model families, reducing dependence on one judge's
+  preferences.
+- Qwen gives a strong instruction-following local judge, while Gemma provides a
+  second, independent scoring signal.
+- The pair is fast enough for repeated ladder runs on a local stack.
+
+For every query, the judge harness:
+
+1. Groups all approach answers for that query.
+2. Applies a deterministic hash-based shuffle so answer letters are stable but
+   not tied to approach order.
+3. Hides approach names from the judge prompt.
+4. Caps answer text at 1200 characters to keep judge prompts bounded.
+5. Supplies the query-specific rationale from the query YAML.
+6. Asks each judge to score every answer from 1 to 5 and choose the best answer.
+7. Parses strict JSON from the judge response.
+8. Aggregates mean score by approach and best-answer vote count.
+9. Chooses the observed winner by mean score, with votes as the tiebreaker.
+
+The judge scores are directional, not ground truth. They are useful for comparing
+many local runs consistently, but they should be read together with the raw matrix
+answers and source traces.
+
+## 9. Report Structure
+
+The documentation is intentionally split by purpose:
+
+| Document | Purpose |
+|---|---|
+| [`README.md`](../README.md) | Entry point, architecture images, quick start, and top-level result summary. |
+| [`approaches.md`](approaches.md) | Detailed internals, dependencies, model roles, tuning surface, and observed behavior for each approach. |
+| [`approach-flavor-tuning.md`](approach-flavor-tuning.md) | How named OpenWebUI and benchmark aliases map to query-time parameter changes. |
+| [`comparison.md`](comparison.md) | Narrative report for the current live run and its operational findings. |
+| [`dataset-complexity-report.md`](dataset-complexity-report.md) | Generated ranking table by dataset complexity plus per-query winners. |
+| [`results/`](results/) | Committed raw matrix and judgment snapshots for the documented run. |
+
+## 10. Current Reading
+
+The measured results show ranking drift as the input becomes more relational:
+
+- On `baseline_curated`, wider dense retrieval was enough to lead the aggregate.
+- On `graph_native`, high-recall hybrid retrieval won the aggregate even though
+  `graph-rag-fast` won several relationship-heavy individual questions.
+- On `cyber_threat_intel`, contextual high-recall retrieval won the aggregate,
+  suggesting the current LightRAG query settings still under-synthesize some
+  graph-shaped cyber paths.
+
+The graph result should not be read as a failure of graph RAG as a concept. It
+shows that the current LightRAG endpoint is operational but still sensitive to
+query mode, fanout, reranking compatibility, source-text inclusion, and model-role
+choices.

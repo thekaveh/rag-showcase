@@ -149,21 +149,32 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
     if not hits:
         return []
     endpoint = os.environ.get("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80").rstrip("/")
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        resp = await client.post(f"{endpoint}/rerank",
-                                 json={"query": query, "texts": [h.text for h in hits]})
-        resp.raise_for_status()
-        ranking = resp.json()
-    if not isinstance(ranking, list):
-        return hits[:top_n]  # unexpected reranker shape — fall back to input order
+    try:
+        max_batch = max(1, int(os.environ.get("TEI_RERANKER_MAX_BATCH", "32")))
+    except ValueError:
+        max_batch = 32
     ordered: list[Hit] = []
-    for row in ranking[:top_n]:
-        idx = row.get("index")
-        if not isinstance(idx, int) or not (0 <= idx < len(hits)):
-            continue  # ignore out-of-range indices from a misbehaving reranker
-        h = hits[idx]
-        ordered.append(Hit(title=h.title, text=h.text,
-                           score=float(row.get("score", 0.0))))
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        for start in range(0, len(hits), max_batch):
+            batch = hits[start:start + max_batch]
+            resp = await client.post(
+                f"{endpoint}/rerank",
+                json={"query": query, "texts": [h.text for h in batch]},
+            )
+            resp.raise_for_status()
+            ranking = resp.json()
+            if not isinstance(ranking, list):
+                return hits[:top_n]  # unexpected reranker shape — fall back to input order
+            for row in ranking:
+                idx = row.get("index")
+                if not isinstance(idx, int) or not (0 <= idx < len(batch)):
+                    continue  # ignore out-of-range indices from a misbehaving reranker
+                h = batch[idx]
+                ordered.append(Hit(title=h.title, text=h.text,
+                                   score=float(row.get("score", 0.0))))
     # if every ranked index was out of range (or the list was empty), fall back
     # to input order rather than dropping all sources
-    return ordered or hits[:top_n]
+    if not ordered:
+        return hits[:top_n]
+    ordered.sort(key=lambda h: h.score if h.score is not None else 0.0, reverse=True)
+    return ordered[:top_n]

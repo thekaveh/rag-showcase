@@ -2,8 +2,9 @@
 
 This directory documents the external dataset adapters used by the dataset
 complexity ladder in [`compare/datasets.yaml`](../../compare/datasets.yaml).
-The heavy datasets are intentionally generated into `corpus/generated/*` rather
-than committed directly.
+Most heavy datasets are intentionally generated into `corpus/generated/*` rather
+than committed directly. The bounded cyber-threat slice is committed under
+`corpus/cyber_threat_intel/` because it is the next repeatable graph-native rung.
 
 ## 1. STaRK
 
@@ -75,18 +76,18 @@ Use [`demo/gdelt_events_queries.yaml`](../../demo/gdelt_events_queries.yaml).
 
 ## 4. Cyber Threat Intelligence
 
-The cyber dataset should join MITRE ATT&CK and NVD into a single markdown corpus
-with retained IDs:
+The committed cyber dataset is a bounded MITRE ATT&CK Enterprise export with
+retained ATT&CK and STIX IDs:
 
-- ATT&CK groups, software, techniques, campaigns, mitigations;
-- NVD CVEs, CPE product identifiers, CWE weaknesses, references.
+- ATT&CK intrusion groups, campaigns, malware, tools, techniques, and mitigations;
+- explicit `uses` and `mitigates` relation lines with human-readable target names.
 
 Suggested command shape:
 
 ```bash
 python3 corpus/adapters/cyber_threat_intel.py \
-  --limit 200 \
-  --output corpus/generated/cyber_threat_intel
+  --limit 60 \
+  --output corpus/cyber_threat_intel
 ```
 
 Use [`demo/cyber_threat_intel_queries.yaml`](../../demo/cyber_threat_intel_queries.yaml).
@@ -98,7 +99,7 @@ For each generated dataset:
 ```bash
 ./scripts/start-all.sh
 docker exec -e PYTHONPATH=/app/plugins rag-showcase-backend \
-  python /app/ingest/ingest.py /app/corpus/generated/<dataset>
+  python /app/ingest/ingest.py /app/<corpus_path-from-compare-datasets.yaml>
 
 MATRIX_QUERIES_FILE=demo/<dataset>_queries.yaml \
 MATRIX_RESULTS_FILE=<dataset>_matrix.json \

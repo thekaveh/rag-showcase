@@ -1,24 +1,24 @@
 - id: cyber_group_technique_software_chain
-  query: "Which intrusion groups connect to the same ATT&CK techniques through shared software, and which CVEs or mitigations are relevant?"
+  query: "Which intrusion groups in this slice share credential-access or discovery techniques, and what software or tools connect them?"
   expect_winner: graph-rag
-  rationale: "Requires graph paths across groups, software, techniques, CVEs, and mitigations."
-- id: cyber_cve_product_weakness_path
-  query: "Trace CVEs from affected products to CWE weaknesses and ATT&CK techniques that could exploit the same weakness pattern."
+  rationale: "Requires graph paths across intrusion groups, tools, malware, and ATT&CK techniques."
+- id: cyber_credential_access_path
+  query: "Trace the relationship path from Cleaver, Carbanak, Mimikatz, Windows Credential Editor, and LSASS Memory. Which actors and software converge on credential access?"
   expect_winner: graph-rag
-  rationale: "Requires multi-hop relationship traversal over CVE, CPE, CWE, and technique nodes."
+  rationale: "Requires multi-hop path traversal over intrusion sets, software tools, and techniques."
 - id: cyber_campaign_overlap
-  query: "Which campaigns overlap by tooling or technique even when attributed to different groups?"
+  query: "Which campaigns overlap by tooling or technique, especially around PowerShell, Reg, spearphishing, discovery, or exfiltration?"
   expect_winner: graph-rag
   rationale: "Requires shared-entity graph reasoning across campaigns, groups, tools, and techniques."
 - id: cyber_mitigation_coverage
-  query: "Which mitigations cover the broadest set of related techniques and software behaviors in this slice?"
+  query: "Which mitigations cover credential, Active Directory, web-content, or registry-related techniques, and which techniques do they mitigate?"
   expect_winner: graph-rag
   rationale: "Requires relationship aggregation over mitigation-to-technique paths."
-- id: cyber_timeline_intrusion_set
-  query: "Build a timeline linking intrusion groups, newly disclosed vulnerabilities, and observed technique usage."
+- id: cyber_campaign_timeline_context
+  query: "Compare Frankenstein, Operation CuckooBees, Operation Honeybee, and Night Dragon by timeframe, target context, and the techniques or tools each used."
   expect_winner: graph-rag
   rationale: "Requires temporal graph reasoning plus textual evidence."
-- id: cyber_vendor_risk_cluster
-  query: "Which vendors or products sit in the densest risk clusters based on CVEs, weaknesses, exploit techniques, and mitigations?"
+- id: cyber_protocol_and_web_mitigation_path
+  query: "Connect protocol impersonation, web-based content restrictions, spearphishing links, and command-and-control style techniques. Which groups, campaigns, or software are involved?"
   expect_winner: graph-rag
-  rationale: "Requires graph-density reasoning over products, vulnerabilities, and techniques."
+  rationale: "Requires graph path reasoning across techniques, mitigations, campaigns, groups, and software."

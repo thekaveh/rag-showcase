@@ -1,0 +1,413 @@
+{
+  "judges": [
+    "qwen3.6:latest",
+    "gemma4:31b"
+  ],
+  "queries": [
+    {
+      "query_id": "keyword",
+      "query": "What does error code WIDGET-ERR-7741 mean and how do I reset it?",
+      "expect_winner": "hybrid-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "graph-rag-wide": 1,
+            "graph-rag-fast": 5,
+            "agentic-rag-deeper": 5,
+            "hybrid-rag-fast": 5,
+            "vanilla-rag-wide": 5,
+            "n8n-adaptive-rag": 5,
+            "hybrid-rag": 5,
+            "hybrid-rag-high-recall": 5,
+            "graph-rag": 5,
+            "contextual-rag-high-recall": 5,
+            "n8n-adaptive-rag-default": 5,
+            "vanilla-rag": 5,
+            "contextual-rag": 5,
+            "agentic-rag": 5
+          },
+          "best": "graph-rag-fast",
+          "reason": "All responses except A correctly identify the specific error details and reset procedure, with B providing the clearest structure and supporting references."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "graph-rag-wide": 1,
+            "graph-rag-fast": 5,
+            "agentic-rag-deeper": 5,
+            "hybrid-rag-fast": 5,
+            "vanilla-rag-wide": 5,
+            "n8n-adaptive-rag": 5,
+            "hybrid-rag": 5,
+            "hybrid-rag-high-recall": 5,
+            "graph-rag": 5,
+            "contextual-rag-high-recall": 5,
+            "n8n-adaptive-rag-default": 5,
+            "vanilla-rag": 5,
+            "contextual-rag": 4,
+            "agentic-rag": 5
+          },
+          "best": "graph-rag-fast",
+          "reason": "Answer B is comprehensive, providing the exact error meaning, specific technical details (84°C and part RLY-22B), clear reset instructions, and a reference."
+        }
+      },
+      "mean_by_approach": {
+        "graph-rag-wide": 1.0,
+        "graph-rag-fast": 5.0,
+        "agentic-rag-deeper": 5.0,
+        "hybrid-rag-fast": 5.0,
+        "vanilla-rag-wide": 5.0,
+        "n8n-adaptive-rag": 5.0,
+        "hybrid-rag": 5.0,
+        "hybrid-rag-high-recall": 5.0,
+        "graph-rag": 5.0,
+        "contextual-rag-high-recall": 5.0,
+        "n8n-adaptive-rag-default": 5.0,
+        "vanilla-rag": 5.0,
+        "contextual-rag": 4.5,
+        "agentic-rag": 5.0
+      },
+      "votes": {
+        "graph-rag-fast": 2
+      },
+      "observed_winner": "graph-rag-fast"
+    },
+    {
+      "query_id": "thematic",
+      "query": "What are the main recurring themes across all the documents?",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "hybrid-rag": 2,
+            "n8n-adaptive-rag-default": 3,
+            "contextual-rag": 4,
+            "agentic-rag-deeper": 4,
+            "graph-rag-wide": 1,
+            "n8n-adaptive-rag": 3,
+            "agentic-rag": 1,
+            "hybrid-rag-high-recall": 2,
+            "graph-rag": 3,
+            "vanilla-rag-wide": 5,
+            "graph-rag-fast": 4,
+            "contextual-rag-high-recall": 4,
+            "hybrid-rag-fast": 2,
+            "vanilla-rag": 3
+          },
+          "best": "vanilla-rag-wide",
+          "reason": "Effectively groups the disjointed corpus into coherent thematic communities and synthesizes their specific topics without forcing artificial cross-document connections."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "hybrid-rag": 3,
+            "n8n-adaptive-rag-default": 5,
+            "contextual-rag": 2,
+            "agentic-rag-deeper": 3,
+            "graph-rag-wide": 1,
+            "n8n-adaptive-rag": 5,
+            "agentic-rag": 1,
+            "hybrid-rag-high-recall": 3,
+            "graph-rag": 2,
+            "vanilla-rag-wide": 5,
+            "graph-rag-fast": 3,
+            "contextual-rag-high-recall": 2,
+            "hybrid-rag-fast": 4,
+            "vanilla-rag": 5
+          },
+          "best": "vanilla-rag-wide",
+          "reason": "Answer J correctly identifies that no single theme exists across the entire corpus and successfully synthesizes the documents into three distinct thematic communities (AI, Google antitrust, and SBF/FTX)."
+        }
+      },
+      "mean_by_approach": {
+        "hybrid-rag": 2.5,
+        "n8n-adaptive-rag-default": 4.0,
+        "contextual-rag": 3.0,
+        "agentic-rag-deeper": 3.5,
+        "graph-rag-wide": 1.0,
+        "n8n-adaptive-rag": 4.0,
+        "agentic-rag": 1.0,
+        "hybrid-rag-high-recall": 2.5,
+        "graph-rag": 2.5,
+        "vanilla-rag-wide": 5.0,
+        "graph-rag-fast": 3.5,
+        "contextual-rag-high-recall": 3.0,
+        "hybrid-rag-fast": 3.0,
+        "vanilla-rag": 4.0
+      },
+      "votes": {
+        "vanilla-rag-wide": 2
+      },
+      "observed_winner": "vanilla-rag-wide"
+    },
+    {
+      "query_id": "multihop",
+      "query": "Compare what two different sources concluded on the same event and reconcile them.",
+      "expect_winner": "agentic-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "vanilla-rag-wide": 2,
+            "contextual-rag-high-recall": 2,
+            "graph-rag-wide": 1,
+            "agentic-rag-deeper": 2,
+            "n8n-adaptive-rag": 2,
+            "contextual-rag": 2,
+            "graph-rag-fast": 4,
+            "hybrid-rag": 2,
+            "hybrid-rag-fast": 2,
+            "vanilla-rag": 2,
+            "hybrid-rag-high-recall": 2,
+            "n8n-adaptive-rag-default": 2,
+            "graph-rag": 1,
+            "agentic-rag": 2
+          },
+          "best": "graph-rag-fast",
+          "reason": "Only answer that demonstrates the required decomposition and retrieval loop by explicitly analyzing specific documents."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "vanilla-rag-wide": 3,
+            "contextual-rag-high-recall": 3,
+            "graph-rag-wide": 1,
+            "agentic-rag-deeper": 2,
+            "n8n-adaptive-rag": 3,
+            "contextual-rag": 4,
+            "graph-rag-fast": 2,
+            "hybrid-rag": 4,
+            "hybrid-rag-fast": 3,
+            "vanilla-rag": 3,
+            "hybrid-rag-high-recall": 5,
+            "n8n-adaptive-rag-default": 3,
+            "graph-rag": 1,
+            "agentic-rag": 2
+          },
+          "best": "hybrid-rag-high-recall",
+          "reason": "Answer K provides the most comprehensive analysis of the provided context, specifically identifying all major topics and explaining why conflicting legal arguments do not satisfy the requirement for two distinct sources concluding on an event."
+        }
+      },
+      "mean_by_approach": {
+        "vanilla-rag-wide": 2.5,
+        "contextual-rag-high-recall": 2.5,
+        "graph-rag-wide": 1.0,
+        "agentic-rag-deeper": 2.0,
+        "n8n-adaptive-rag": 2.5,
+        "contextual-rag": 3.0,
+        "graph-rag-fast": 3.0,
+        "hybrid-rag": 3.0,
+        "hybrid-rag-fast": 2.5,
+        "vanilla-rag": 2.5,
+        "hybrid-rag-high-recall": 3.5,
+        "n8n-adaptive-rag-default": 2.5,
+        "graph-rag": 1.0,
+        "agentic-rag": 2.0
+      },
+      "votes": {
+        "graph-rag-fast": 1,
+        "hybrid-rag-high-recall": 1
+      },
+      "observed_winner": "hybrid-rag-high-recall"
+    },
+    {
+      "query_id": "factoid",
+      "query": "What is the firmware version referenced in the widget bootloader error?",
+      "expect_winner": "any",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "n8n-adaptive-rag-default": 5,
+            "graph-rag-wide": 1,
+            "graph-rag-fast": 5,
+            "vanilla-rag-wide": 5,
+            "graph-rag": 5,
+            "agentic-rag-deeper": 1,
+            "agentic-rag": 1,
+            "hybrid-rag": 5,
+            "hybrid-rag-fast": 5,
+            "vanilla-rag": 5,
+            "hybrid-rag-high-recall": 5,
+            "contextual-rag-high-recall": 5,
+            "n8n-adaptive-rag": 5,
+            "contextual-rag": 5
+          },
+          "best": "graph-rag-fast",
+          "reason": "Directly provides the specific version and includes grounded references."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "n8n-adaptive-rag-default": 5,
+            "graph-rag-wide": 1,
+            "graph-rag-fast": 5,
+            "vanilla-rag-wide": 5,
+            "graph-rag": 5,
+            "agentic-rag-deeper": 1,
+            "agentic-rag": 1,
+            "hybrid-rag": 5,
+            "hybrid-rag-fast": 5,
+            "vanilla-rag": 5,
+            "hybrid-rag-high-recall": 5,
+            "contextual-rag-high-recall": 5,
+            "n8n-adaptive-rag": 5,
+            "contextual-rag": 5
+          },
+          "best": "graph-rag-fast",
+          "reason": "Answer C provides the correct version along with additional grounding details and a reference."
+        }
+      },
+      "mean_by_approach": {
+        "n8n-adaptive-rag-default": 5.0,
+        "graph-rag-wide": 1.0,
+        "graph-rag-fast": 5.0,
+        "vanilla-rag-wide": 5.0,
+        "graph-rag": 5.0,
+        "agentic-rag-deeper": 1.0,
+        "agentic-rag": 1.0,
+        "hybrid-rag": 5.0,
+        "hybrid-rag-fast": 5.0,
+        "vanilla-rag": 5.0,
+        "hybrid-rag-high-recall": 5.0,
+        "contextual-rag-high-recall": 5.0,
+        "n8n-adaptive-rag": 5.0,
+        "contextual-rag": 5.0
+      },
+      "votes": {
+        "graph-rag-fast": 2
+      },
+      "observed_winner": "graph-rag-fast"
+    },
+    {
+      "query_id": "context_starved",
+      "query": "What does the safety relay do when the coil overheats, and how do I clear it?",
+      "expect_winner": "contextual-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "n8n-adaptive-rag": 5,
+            "vanilla-rag-wide": 5,
+            "hybrid-rag": 5,
+            "graph-rag": 5,
+            "graph-rag-fast": 5,
+            "contextual-rag-high-recall": 5,
+            "n8n-adaptive-rag-default": 5,
+            "agentic-rag-deeper": 5,
+            "contextual-rag": 5,
+            "graph-rag-wide": 1,
+            "hybrid-rag-fast": 5,
+            "agentic-rag": 5,
+            "vanilla-rag": 5,
+            "hybrid-rag-high-recall": 5
+          },
+          "best": "n8n-adaptive-rag",
+          "reason": "All answers except J directly and accurately address both parts of the question with correct technical details."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "n8n-adaptive-rag": 3,
+            "vanilla-rag-wide": 3,
+            "hybrid-rag": 3,
+            "graph-rag": 5,
+            "graph-rag-fast": 5,
+            "contextual-rag-high-recall": 3,
+            "n8n-adaptive-rag-default": 3,
+            "agentic-rag-deeper": 5,
+            "contextual-rag": 3,
+            "graph-rag-wide": 1,
+            "hybrid-rag-fast": 3,
+            "agentic-rag": 5,
+            "vanilla-rag": 3,
+            "hybrid-rag-high-recall": 3
+          },
+          "best": "agentic-rag",
+          "reason": "Answer L provides the most complete context (including the specific error code) and a clear structure without including irrelevant references."
+        }
+      },
+      "mean_by_approach": {
+        "n8n-adaptive-rag": 4.0,
+        "vanilla-rag-wide": 4.0,
+        "hybrid-rag": 4.0,
+        "graph-rag": 5.0,
+        "graph-rag-fast": 5.0,
+        "contextual-rag-high-recall": 4.0,
+        "n8n-adaptive-rag-default": 4.0,
+        "agentic-rag-deeper": 5.0,
+        "contextual-rag": 4.0,
+        "graph-rag-wide": 1.0,
+        "hybrid-rag-fast": 4.0,
+        "agentic-rag": 5.0,
+        "vanilla-rag": 4.0,
+        "hybrid-rag-high-recall": 4.0
+      },
+      "votes": {
+        "n8n-adaptive-rag": 1,
+        "agentic-rag": 1
+      },
+      "observed_winner": "agentic-rag"
+    },
+    {
+      "query_id": "mixed_batch",
+      "query": "List the widget error codes, then explain how they relate to each other across the docs.",
+      "expect_winner": "n8n-adaptive-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "graph-rag-fast": 2,
+            "graph-rag": 2,
+            "hybrid-rag-fast": 5,
+            "agentic-rag": 2,
+            "hybrid-rag-high-recall": 5,
+            "agentic-rag-deeper": 2,
+            "graph-rag-wide": 1,
+            "contextual-rag": 5,
+            "n8n-adaptive-rag": 5,
+            "n8n-adaptive-rag-default": 5,
+            "contextual-rag-high-recall": 5,
+            "hybrid-rag": 5,
+            "vanilla-rag": 5,
+            "vanilla-rag-wide": 5
+          },
+          "best": "hybrid-rag-fast",
+          "reason": "Correctly lists the codes and accurately notes the absence of cross-document relationships due to unrelated source material."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "graph-rag-fast": 2,
+            "graph-rag": 2,
+            "hybrid-rag-fast": 5,
+            "agentic-rag": 2,
+            "hybrid-rag-high-recall": 4,
+            "agentic-rag-deeper": 2,
+            "graph-rag-wide": 1,
+            "contextual-rag": 5,
+            "n8n-adaptive-rag": 5,
+            "n8n-adaptive-rag-default": 5,
+            "contextual-rag-high-recall": 5,
+            "hybrid-rag": 5,
+            "vanilla-rag": 5,
+            "vanilla-rag-wide": 5
+          },
+          "best": "vanilla-rag-wide",
+          "reason": "Answer N provides a complete list of error codes and correctly identifies that no relationships exist across the documents, providing specific details about the irrelevant content to prove grounding."
+        }
+      },
+      "mean_by_approach": {
+        "graph-rag-fast": 2.0,
+        "graph-rag": 2.0,
+        "hybrid-rag-fast": 5.0,
+        "agentic-rag": 2.0,
+        "hybrid-rag-high-recall": 4.5,
+        "agentic-rag-deeper": 2.0,
+        "graph-rag-wide": 1.0,
+        "contextual-rag": 5.0,
+        "n8n-adaptive-rag": 5.0,
+        "n8n-adaptive-rag-default": 5.0,
+        "contextual-rag-high-recall": 5.0,
+        "hybrid-rag": 5.0,
+        "vanilla-rag": 5.0,
+        "vanilla-rag-wide": 5.0
+      },
+      "votes": {
+        "hybrid-rag-fast": 1,
+        "vanilla-rag-wide": 1
+      },
+      "observed_winner": "hybrid-rag-fast"
+    }
+  ]
+}
