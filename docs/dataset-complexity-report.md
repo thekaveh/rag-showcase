@@ -16,7 +16,7 @@ input problem becomes more relational, temporal, and multi-hop.
 | `stark_mag` | 4 | candidate | Paper, author, venue, field, citation, and affiliation retrieval where query constraints mix text with graph relations. | [`demo/stark_mag_queries.yaml`](../demo/stark_mag_queries.yaml) | https://stark.stanford.edu/ |
 | `openalex_scholarly` | 5 | candidate | Real scholarly graph with works, authors, institutions, concepts, citations, venues, and abstracts. | [`demo/openalex_scholarly_queries.yaml`](../demo/openalex_scholarly_queries.yaml) | https://developers.openalex.org/ |
 | `gdelt_events` | 6 | candidate | Event, actor, location, theme, source, tone, and timeline graph over real news events. | [`demo/gdelt_events_queries.yaml`](../demo/gdelt_events_queries.yaml) | https://www.gdeltproject.org/ |
-| `cyber_threat_intel` | 7 | candidate | Threat groups, techniques, software, mitigations, CVEs, CWEs, CPE products, and campaign relationships. | [`demo/cyber_threat_intel_queries.yaml`](../demo/cyber_threat_intel_queries.yaml) | https://attack.mitre.org/ |
+| `cyber_threat_intel` | 7 | candidate | Intrusion groups, campaigns, malware, tools, ATT&CK techniques, mitigations, and explicit uses/mitigates relationships. | [`demo/cyber_threat_intel_queries.yaml`](../demo/cyber_threat_intel_queries.yaml) | https://attack.mitre.org/ |
 
 ## 2. Ranking Drift by Input Dataset
 

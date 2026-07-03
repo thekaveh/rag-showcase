@@ -52,3 +52,27 @@ def test_candidate_dataset_queries_are_graph_heavy() -> None:
             assert query["expect_winner"] == "graph-rag"
             rationale = query.get("rationale", "").lower()
             assert any(word in rationale for word in ["relationship", "multi-hop", "graph", "path", "temporal"])
+
+
+def test_cyber_dataset_has_committed_attack_corpus() -> None:
+    manifest = _manifest()
+    dataset = next(d for d in manifest["datasets"] if d["id"] == "cyber_threat_intel")
+    corpus = ROOT / dataset["corpus_path"]
+
+    assert corpus == ROOT / "corpus/cyber_threat_intel"
+    docs = sorted(corpus.glob("*.md"))
+    assert len(docs) >= 20
+    joined = "\n".join(doc.read_text(encoding="utf-8") for doc in docs[:10])
+    assert "MITRE ATT&CK Enterprise" in joined
+    assert "Relations:" in joined
+
+
+def test_cyber_queries_match_committed_attack_corpus_scope() -> None:
+    queries = yaml.safe_load((ROOT / "demo/cyber_threat_intel_queries.yaml").read_text())
+    text = "\n".join(q["query"] for q in queries).lower()
+
+    assert "intrusion" in text
+    assert "technique" in text
+    assert "mitigation" in text
+    assert "cve" not in text
+    assert "product" not in text

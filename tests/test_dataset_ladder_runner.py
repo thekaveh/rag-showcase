@@ -33,6 +33,7 @@ def test_ladder_runner_exposes_measured_dataset_selection() -> None:
     assert "--date-stamp" in result.stdout
     assert "--no-cold-reset" in result.stdout
     assert "--flavors" in result.stdout
+    assert "--include-candidates" in result.stdout
 
 
 def test_overlay_passes_lightrag_ollama_context_caps() -> None:
@@ -68,3 +69,24 @@ def test_ladder_runner_rejects_failed_matrix_cells() -> None:
         assert "bad" in str(exc)
     else:
         raise AssertionError("validate_matrix_cells accepted a failed matrix cell")
+
+
+def test_ladder_runner_can_select_candidate_dataset_when_enabled(monkeypatch) -> None:
+    spec = importlib.util.spec_from_file_location(
+        "run_dataset_ladder", ROOT / "scripts/run-dataset-ladder.py"
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    manifest = {
+        "datasets": [
+            {"id": "measured_a", "status": "measured"},
+            {"id": "candidate_b", "status": "candidate"},
+        ]
+    }
+    monkeypatch.setattr(module, "load_manifest", lambda: manifest)
+
+    selected = module.selected_datasets(["candidate_b"], include_candidates=True)
+
+    assert [d["id"] for d in selected] == ["candidate_b"]

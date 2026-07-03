@@ -61,6 +61,11 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Comma-separated MATRIX_FLAVORS selection, e.g. default,graph-rag-wide.",
     )
+    parser.add_argument(
+        "--include-candidates",
+        action="store_true",
+        help="Allow --dataset to select candidate datasets with committed/generated corpus paths.",
+    )
     return parser.parse_args()
 
 
@@ -251,8 +256,11 @@ def regenerate_report() -> None:
     run(["python3", "compare/report_datasets.py", "--output", "docs/dataset-complexity-report.md"])
 
 
-def selected_datasets(ids: list[str] | None) -> list[dict[str, Any]]:
-    datasets = [d for d in load_manifest()["datasets"] if d["status"] == "measured"]
+def selected_datasets(
+    ids: list[str] | None, *, include_candidates: bool = False
+) -> list[dict[str, Any]]:
+    allowed = {"measured", "candidate"} if include_candidates else {"measured"}
+    datasets = [d for d in load_manifest()["datasets"] if d["status"] in allowed]
     if not ids:
         return datasets
     wanted = set(ids)
@@ -267,7 +275,7 @@ def main() -> None:
     args = parse_args()
     if args.approaches and args.flavors:
         raise SystemExit("--approaches and --flavors are mutually exclusive")
-    datasets = selected_datasets(args.dataset)
+    datasets = selected_datasets(args.dataset, include_candidates=args.include_candidates)
     for index, dataset in enumerate(datasets, start=1):
         print(f"\n==> Dataset {index}/{len(datasets)}: {dataset['id']}", flush=True)
         if not args.no_cold_reset:

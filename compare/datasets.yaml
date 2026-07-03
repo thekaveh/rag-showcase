@@ -62,12 +62,12 @@ datasets:
     source_notes: Use bounded event windows and topic filters; store source URLs with each generated dossier.
     source_url: https://www.gdeltproject.org/
   - id: cyber_threat_intel
-    label: MITRE ATT&CK + NVD cyber threat graph
+    label: MITRE ATT&CK cyber threat graph slice
     complexity_level: 7
     status: candidate
-    corpus_path: corpus/generated/cyber_threat_intel
+    corpus_path: corpus/cyber_threat_intel
     queries_file: demo/cyber_threat_intel_queries.yaml
     adapter: corpus/adapters/cyber_threat_intel.py
-    graph_nature: Threat groups, techniques, software, mitigations, CVEs, CWEs, CPE products, and campaign relationships.
-    source_notes: MITRE ATT&CK and NVD feeds are public; generated slices should retain source IDs and timestamps.
+    graph_nature: Intrusion groups, campaigns, malware, tools, ATT&CK techniques, mitigations, and explicit uses/mitigates relationships.
+    source_notes: Committed bounded export from the public MITRE ATT&CK Enterprise STIX bundle.
     source_url: https://attack.mitre.org/
