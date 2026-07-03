@@ -253,7 +253,7 @@ def update_dataset_snapshots(dataset_id: str, matrix_path: Path, judgments_path:
 
 
 def regenerate_report() -> None:
-    run(["python3", "compare/report_datasets.py", "--output", "docs/dataset-complexity-report.md"])
+    run(["uv", "run", "python", "compare/report_datasets.py", "--output", "docs/dataset-complexity-report.md"])
 
 
 def selected_datasets(
