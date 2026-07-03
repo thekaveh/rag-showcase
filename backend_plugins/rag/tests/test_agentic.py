@@ -219,6 +219,52 @@ async def test_agentic_empty_final_content_is_not_max_steps(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_agentic_flavor_overrides_max_steps_and_vector_top_k(tmp_path, monkeypatch):
+    f = tmp_path / "flavors.yaml"
+    f.write_text(
+        """
+flavors:
+  - alias: agentic-rag-deeper
+    base: agentic-rag
+    params:
+      max_steps: 6
+      vector_top_k: 8
+""",
+        encoding="utf-8",
+    )
+    agentic.flavors._CACHE.clear()
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
+    turns = []
+    calls = {}
+    async def fake_chat(model, messages, tools=None, **kw):
+        turns.append(1)
+        if len(turns) == 1:
+            return {"choices": [{"message": {"role": "assistant", "content": None,
+                "tool_calls": [{"id": "c1", "type": "function",
+                  "function": {"name": "search_vectors",
+                               "arguments": json.dumps({"query": "alpha"})}}]}}]}
+        return {"choices": [{"message": {"role": "assistant", "content": "done"}}]}
+    async def fake_embed(texts, model=None): return [[1.0]]
+    def fake_search(c, q, v, k):
+        calls["top_k"] = k
+        return [Hit("D", "alpha body", 0.5)]
+    monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
+    monkeypatch.setattr(agentic.litellm, "embed", fake_embed)
+    monkeypatch.setattr(agentic.vectors, "search_hybrid", fake_search)
+    monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
+
+    app = FastAPI(); app.include_router(agentic.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/agentic-rag/v1/chat/completions",
+                          json={"model": "agentic-rag-deeper",
+                                "messages": [{"role": "user", "content": "q"}]})
+
+    assert r.status_code == 200
+    assert calls["top_k"] == 8
+    assert len(turns) == 2
+
+
+@pytest.mark.asyncio
 async def test_agentic_tolerates_choice_without_message(monkeypatch):
     # a 2xx whose first choice lacks a "message" key must degrade (empty answer),
     # like the other approaches — not raise KeyError into a 500.

@@ -45,3 +45,14 @@ def test_main_docs_link_to_approach_internals() -> None:
     assert "docs/approaches.md" in readme
     assert "approaches.md" in architecture
     assert "approaches.md" in comparison
+
+
+def test_flavor_tuning_doc_is_linked_and_covers_invocation() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    doc = (ROOT / "docs" / "approach-flavor-tuning.md").read_text(encoding="utf-8")
+
+    assert "docs/approach-flavor-tuning.md" in readme
+    assert "OpenWebUI" in doc
+    assert "graph-rag-wide" in doc
+    assert "MATRIX_FLAVORS" in doc
+    assert "compare/flavors.yaml" in doc

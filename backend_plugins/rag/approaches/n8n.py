@@ -12,6 +12,7 @@ import time
 import httpx
 from fastapi import APIRouter
 
+from ..common import flavors
 from ..common.openai_io import ChatRequest, Source, Metrics, build_response
 
 router = APIRouter()
@@ -21,6 +22,7 @@ _TIMEOUT = httpx.Timeout(180.0, connect=10.0)
 @router.post("/n8n-adaptive-rag/v1/chat/completions")
 async def n8n_adaptive_rag(req: ChatRequest):
     t0 = time.monotonic()
+    flavor = flavors.get_for_base(req.model, "n8n-adaptive-rag")
     url = os.environ.get("N8N_ADAPTIVE_WEBHOOK_URL", "http://n8n:5678/webhook/adaptive-rag")
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.post(url, json={"query": req.last_user()})
@@ -37,4 +39,4 @@ async def n8n_adaptive_rag(req: ChatRequest):
     route = data.get("route") or "unknown"   # tolerate a null/missing route
     sources = [Source("🧭 Adaptive route", f"n8n routed this query as **{route}**.", None)]
     metrics = Metrics(time.monotonic() - t0, 0, 1, 0)
-    return build_response("n8n-adaptive-rag", answer, sources, metrics)
+    return build_response(flavor.alias, answer, sources, metrics)

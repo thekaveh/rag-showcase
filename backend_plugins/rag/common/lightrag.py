@@ -36,18 +36,22 @@ def _env_int(name: str, default: int) -> int:
     return int(raw)
 
 
-def _query_payload(question: str, mode: str) -> dict:
+def _query_payload(question: str, mode: str, options: dict | None = None) -> dict:
+    options = options or {}
     return {
         "query": question,
         "mode": mode,
-        "enable_rerank": _env_bool("LIGHTRAG_QUERY_ENABLE_RERANK", False),
-        "top_k": _env_int("LIGHTRAG_QUERY_TOP_K", 10),
-        "chunk_top_k": _env_int("LIGHTRAG_QUERY_CHUNK_TOP_K", 5),
-        "max_total_tokens": _env_int("LIGHTRAG_QUERY_MAX_TOTAL_TOKENS", 12000),
+        "enable_rerank": options.get(
+            "enable_rerank", _env_bool("LIGHTRAG_QUERY_ENABLE_RERANK", False)),
+        "top_k": options.get("top_k", _env_int("LIGHTRAG_QUERY_TOP_K", 10)),
+        "chunk_top_k": options.get(
+            "chunk_top_k", _env_int("LIGHTRAG_QUERY_CHUNK_TOP_K", 5)),
+        "max_total_tokens": options.get(
+            "max_total_tokens", _env_int("LIGHTRAG_QUERY_MAX_TOTAL_TOKENS", 12000)),
     }
 
 
-async def query(question: str, mode: str = "hybrid") -> str:
+async def query(question: str, mode: str = "hybrid", options: dict | None = None) -> str:
     # LightRAG's /query rejects very short queries (min_length=3) with a 422, and
     # a 0–2 char string isn't a meaningful graph question anyway — degrade with a
     # clear message instead of surfacing an unhandled 500.
@@ -55,7 +59,7 @@ async def query(question: str, mode: str = "hybrid") -> str:
         return "(query too short for the knowledge graph)"
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.post(f"{_base()}/query", headers=_headers(),
-                                 json=_query_payload(question, mode))
+                                 json=_query_payload(question, mode, options))
         resp.raise_for_status()
         data = resp.json()
         answer = data.get("response") or data.get("data") or ""

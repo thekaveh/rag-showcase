@@ -10,25 +10,47 @@ import asyncio
 import os
 
 import httpx
+from rag.common import flavors
 
 _NAMES = ["vanilla-rag", "hybrid-rag", "contextual-rag",
           "graph-rag", "agentic-rag", "n8n-adaptive-rag"]
 
 
-def _model_spec(name: str) -> dict:
+def _model_spec(name: str, base: str | None = None, description: str | None = None) -> dict:
+    base = base or name
     # api_key is injected at run() time (read from env then), not at import,
     # so a spec built at import never captures a stale/missing key.
     return {
         "model_name": name,
         "litellm_params": {
             "model": f"openai/{name}",
-            "api_base": f"http://backend:8000/{name}/v1",
+            "api_base": f"http://backend:8000/{base}/v1",
         },
-        "model_info": {"description": f"RAG showcase: {name}"},
+        "model_info": {"description": description or f"RAG showcase: {name}"},
     }
 
 
 MODELS = [_model_spec(n) for n in _NAMES]
+
+
+def _model_specs() -> list[dict]:
+    specs: list[dict] = []
+    seen: set[str] = set()
+    for base in _NAMES:
+        for alias in flavors.aliases_for_base(base):
+            if alias in seen:
+                continue
+            profile = flavors.get(alias)
+            label = profile.label if profile.alias != profile.base else profile.alias
+            specs.append(
+                _model_spec(
+                    profile.alias,
+                    profile.base,
+                    f"RAG showcase: {label} ({profile.base})",
+                )
+            )
+            seen.add(alias)
+    return specs
 
 
 def _base() -> str:
@@ -47,11 +69,12 @@ def _headers() -> dict:
 
 
 async def run() -> None:
+    specs = _model_specs()
     async with httpx.AsyncClient(timeout=30.0) as client:
         info = await client.get(f"{_base()}/model/info", headers=_headers())
         info.raise_for_status()
         existing = info.json().get("data", [])
-        ours = {m["model_name"] for m in MODELS}
+        ours = {m["model_name"] for m in specs}
         for row in existing:
             if row.get("model_name") in ours:
                 mid = (row.get("model_info") or {}).get("id")
@@ -62,7 +85,7 @@ async def run() -> None:
                                               headers=_headers(), json={"id": mid})
                     dresp.raise_for_status()
         key = _key()
-        for spec in MODELS:
+        for spec in specs:
             payload = {**spec, "litellm_params":
                        {**spec["litellm_params"], "api_key": key}}
             resp = await client.post(f"{_base()}/model/new",

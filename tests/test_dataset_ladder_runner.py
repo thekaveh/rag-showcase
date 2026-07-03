@@ -14,7 +14,7 @@ def test_start_all_supports_service_only_mode() -> None:
 
     assert "RAG_SHOWCASE_SKIP_DEFAULT_INGEST" in script
     assert "Skipping default corpus ingest" in script
-    assert "Registering the six models" in script
+    assert "Registering RAG models and flavor aliases" in script
     assert "import:workflow" in script
     assert "--activeState=fromJson" in script
     assert "adaptive-rag.workflow.json" in script
@@ -32,6 +32,7 @@ def test_ladder_runner_exposes_measured_dataset_selection() -> None:
     assert "--dataset" in result.stdout
     assert "--date-stamp" in result.stdout
     assert "--no-cold-reset" in result.stdout
+    assert "--flavors" in result.stdout
 
 
 def test_overlay_passes_lightrag_ollama_context_caps() -> None:
@@ -40,6 +41,7 @@ def test_overlay_passes_lightrag_ollama_context_caps() -> None:
     assert "EXTRACT_OLLAMA_LLM_NUM_CTX" in overlay
     assert "KEYWORD_OLLAMA_LLM_NUM_CTX" in overlay
     assert "QUERY_OLLAMA_LLM_NUM_CTX" in overlay
+    assert "RAG_FLAVORS_FILE" in overlay
     assert "../n8n:/showcase-n8n:ro" in overlay
 
 

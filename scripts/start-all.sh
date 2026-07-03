@@ -139,7 +139,7 @@ if [ "${RAG_SHOWCASE_SKIP_DEFAULT_INGEST:-0}" != "1" ]; then
     python /app/ingest/ingest.py /app/corpus/raw
 fi
 
-echo "==> Registering the six models in LiteLLM (inside the backend container)…"
+echo "==> Registering RAG models and flavor aliases in LiteLLM (inside the backend container)…"
 # Run in-container: LiteLLM is reachable at http://litellm:4000 there, the key
 # is present (LITELLM_API_KEY), and httpx is installed by the plugin seam. This
 # also avoids shell-sourcing Atlas's .env (which has unquoted values).
