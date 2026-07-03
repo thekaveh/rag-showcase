@@ -143,6 +143,17 @@ async def test_chunk_document_falls_back_when_docling_errors(monkeypatch, tmp_pa
     assert all(c["title"] == "d.md" and c["text"] for c in chunks)  # naive chunks
 
 
+def test_naive_chunks_logs_and_skips_unreadable_file(tmp_path, caplog):
+    # An unreadable corpus file degrades to "no chunks" (like a genuinely empty file)
+    # but MUST log a warning — otherwise run() drops it from the index while still
+    # counting it in `files`, hiding the failure. Mirrors the Docling-unreachable log.
+    missing = tmp_path / "nope.md"  # never created -> OSError on read
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        out = ing._naive_chunks(str(missing), "nope.md")
+    assert out == []
+    assert "could not read" in caplog.text
+
+
 @pytest.mark.asyncio
 async def test_run_skips_files_yielding_no_chunks(monkeypatch, tmp_path):
     # a file that produces no chunks (e.g. a textless PDF) is skipped, never

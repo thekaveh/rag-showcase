@@ -150,6 +150,11 @@ def build_report() -> str:
         "",
         "## 3. Per-Query Winners",
         "",
+        "The **Winner** column is the judge panel's `observed_winner`: the approach with the",
+        "highest mean score, breaking ties by best-answer votes. The **Top 3 mean scores**",
+        "column ranks by mean only (ties ordered by name), so when several approaches tie on",
+        "mean the vote-decided winner can fall outside the listed top three.",
+        "",
         "| Dataset | Query | Winner | Top 3 mean scores |",
         "|---|---|---|---|",
     ])
@@ -212,7 +217,13 @@ def main() -> None:
         output = ROOT / output
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(report, encoding="utf-8")
-    print(f"wrote {output.relative_to(ROOT)}")
+    # The write already succeeded; don't let a nicety crash the CLI. relative_to
+    # raises when --output points outside the repo, so fall back to the full path.
+    try:
+        rel = output.relative_to(ROOT)
+    except ValueError:
+        rel = output
+    print(f"wrote {rel}")
 
 
 if __name__ == "__main__":

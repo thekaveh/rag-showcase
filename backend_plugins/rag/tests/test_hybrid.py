@@ -5,6 +5,15 @@ from rag.common.vectors import Hit
 from rag.approaches import hybrid
 
 
+@pytest.fixture(autouse=True)
+def _clear_flavor_cache():
+    # A per-test flavors.yaml override loads into the module-global cache; clear
+    # before AND after so a tmp table can't leak across tests (mirrors test_flavors.py).
+    hybrid.flavors._CACHE.clear()
+    yield
+    hybrid.flavors._CACHE.clear()
+
+
 @pytest.mark.asyncio
 async def test_hybrid_uses_hybrid_search_then_rerank(monkeypatch):
     calls = {}
@@ -63,7 +72,6 @@ flavors:
 """,
         encoding="utf-8",
     )
-    hybrid.flavors._CACHE.clear()
     monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
     calls = {}
     async def fake_embed(texts, model=None): return [[1.0]]

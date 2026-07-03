@@ -1,4 +1,4 @@
-"""Idempotently register the six showcase approaches as LiteLLM models.
+"""Idempotently register the showcase RAG approaches (and their flavor aliases) as LiteLLM models.
 
 Uses LiteLLM's admin API (STORE_MODEL_IN_DB=True in Atlas), so registrations
 persist and survive restarts. Re-running deletes our existing rows first, so

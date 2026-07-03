@@ -117,7 +117,7 @@ followed by one answer-generation call.
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
-| `K` | 5 | No | Hardcoded in `backend_plugins/rag/approaches/vanilla.py`. |
+| `K` | 5 | Via flavor | Default 5 in `vanilla.py`; overridable per flavor via `k` (e.g. `vanilla-rag-wide` uses 8). |
 | Collection | `RagBase` | No | Uses plain chunks only. |
 | Chunk size / overlap | 800 / 100 | No | In ingest fallback and Docling request. |
 | Prompt template | shared `stuff` prompt | No | Shared with hybrid/contextual. |
@@ -172,9 +172,10 @@ It does not query LightRAG or use extracted graph entities/relations.
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
-| `RETRIEVE_K` | 20 | No | Candidate pool before rerank. |
-| `TOP_N` | 5 | No | Final chunks sent to generation. |
-| Hybrid `alpha` | 0.5 | No | Equal BM25/vector weighting in `vectors.search_hybrid`. |
+| `RETRIEVE_K` | 20 | Via flavor | Candidate pool before rerank; overridable via `retrieve_k` (e.g. `hybrid-rag-high-recall` uses 40). |
+| `TOP_N` | 5 | Via flavor | Final chunks sent to generation; overridable via `top_n` (e.g. `hybrid-rag-high-recall` uses 8). |
+| Hybrid `alpha` | 0.5 | Via flavor | Equal BM25/vector weighting in `vectors.search_hybrid`; overridable via `alpha`. |
+| Rerank | on | Via flavor | TEI cross-encoder rerank; disable via `rerank: false` (e.g. `hybrid-rag-fast`). |
 | Fusion type | Weaviate default | No | Current code relies on Weaviate default relative score fusion. |
 | TEI endpoint | `http://tei-reranker:80` | Yes, `TEI_RERANKER_ENDPOINT` | Reranker quality/model can materially affect results. |
 | Collection | `RagBase` | No | Plain chunks only. |
@@ -241,14 +242,17 @@ Query-time:
 | Context blurb model | `roles.yaml` `contextual_blurb` | Yes, via roles file | Quality/speed tradeoff. |
 | Context prompt | fixed | No | Prompt asks for 1-2 situating sentences. |
 | Document context cap | 6000 chars | No | `doc_text[:6000]` in contextualizer. |
-| `RETRIEVE_K` | 20 | No | Same as `hybrid-rag`. |
-| `TOP_N` | 5 | No | Same as `hybrid-rag`. |
-| Hybrid `alpha` | 0.5 | No | Same search helper as `hybrid-rag`. |
+| `RETRIEVE_K` | 20 | Via flavor | Same as `hybrid-rag`; overridable via `retrieve_k` (e.g. `contextual-rag-high-recall` uses 40). |
+| `TOP_N` | 5 | Via flavor | Same as `hybrid-rag`; overridable via `top_n` (e.g. `contextual-rag-high-recall` uses 8). |
+| Hybrid `alpha` | 0.5 | Via flavor | Same search helper as `hybrid-rag`; overridable via `alpha`. |
+| Rerank | on | Via flavor | Same TEI rerank as `hybrid-rag`; disable via `rerank: false`. |
 
 ### 5.6 Observed Behavior
 
-This was the most stable all-around approach: it won the baseline corpus and
-placed second on graph-native. It benefits when chunks are ambiguous without their
+This was the strongest canonical default on the harder rungs: the best canonical
+approach on graph-native (3.94, second overall) and on cyber threat intel (3.17,
+second overall), while only mid-pack on the simplest baseline corpus (4.08, where
+`vanilla-rag-wide` led at 4.42). It benefits when chunks are ambiguous without their
 document-level context.
 
 ## 6. `graph-rag`
@@ -271,7 +275,8 @@ Ingest-time:
 Query-time:
 
 1. The wrapper sends the user question to LightRAG `/query`.
-2. The wrapper fixes `mode="hybrid"`.
+2. The query mode defaults to `hybrid`, overridable per flavor via `mode` (e.g.
+   `graph-rag-fast` uses `local`).
 3. The query payload includes `enable_rerank`, `top_k`, `chunk_top_k`, and
    `max_total_tokens`.
 4. LightRAG performs its graph/vector retrieval and generation internally.
@@ -307,7 +312,7 @@ slow for that phase.
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
-| Query mode | `hybrid` | No | Hardcoded in `graph.py`; should be tunable for experiments. |
+| Query mode | `hybrid` | Via flavor | Default `hybrid` in `graph.py`; overridable via `mode` (`graph-rag-fast` uses `local`). |
 | `LIGHTRAG_QUERY_ENABLE_RERANK` | `false` | Yes | Disabled because current TEI payload is incompatible with LightRAG's Jina-style rerank client. |
 | `LIGHTRAG_QUERY_TOP_K` | 10 | Yes | Knowledge-graph candidate fanout. |
 | `LIGHTRAG_QUERY_CHUNK_TOP_K` | 5 | Yes | Chunk context fanout. |
@@ -334,8 +339,8 @@ hybrid/contextual chunk retrieval.
 The current results should not be read as the ceiling for LightRAG. We have not
 yet swept:
 
-- LightRAG query mode.
-- `top_k`, `chunk_top_k`, and `max_total_tokens`.
+- LightRAG query modes beyond the `local`/`hybrid` already sampled by flavors.
+- `top_k`, `chunk_top_k`, and `max_total_tokens` swept systematically.
 - Re-enabling rerank with a LightRAG-compatible reranker adapter.
 - Using a stronger QUERY model while keeping a cheaper EXTRACT model.
 - Different graph extraction models and extraction concurrency.
@@ -380,9 +385,9 @@ vector search or graph search, instead of following a fixed retrieval path.
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
-| `MAX_STEPS` | 4 | No | Major quality limiter on complex prompts. |
-| Vector tool candidate count | 5 | No | Hardcoded inside `search_vectors`. |
-| Graph tool mode | `hybrid` | No | Same fixed mode as `graph-rag`. |
+| `MAX_STEPS` | 4 | Via flavor | Major quality limiter; overridable via `max_steps` (e.g. `agentic-rag-deeper` uses 8). |
+| Vector tool candidate count | 5 | Via flavor | Default 5; overridable via `vector_top_k` (e.g. `agentic-rag-deeper` uses 8). |
+| Graph tool mode | `hybrid` | Via flavor | Default `hybrid`; overridable via `graph_mode`. |
 | Tool descriptions | fixed | No | Affects model's routing/tool choice. |
 | System prompt | fixed | No | Affects whether it searches, answers early, or loops. |
 | Agent model | `roles.yaml` `agentic` | Yes, via roles file | Larger/cheaper/non-reasoning choices change behavior. |
@@ -460,12 +465,14 @@ bounded by the classifier and selected downstream route.
 The current results are a measured baseline, not the end of the search space.
 The highest-leverage tuning work is:
 
-1. Expose `graph-rag` query mode as configuration and run a mode/fanout sweep.
+1. Run a systematic `graph-rag` mode/fanout sweep — `mode`, `top_k`, `chunk_top_k`,
+   and `max_total_tokens` are already flavor-overridable.
 2. Fix or adapt LightRAG query rerank so reranking can be evaluated instead of
    disabled.
-3. Expose `hybrid-rag` and `contextual-rag` `RETRIEVE_K`, `TOP_N`, and hybrid
-   `alpha` as runtime config, then sweep them by dataset.
-4. Raise or configure `agentic-rag` `MAX_STEPS` and improve the tool prompt.
+3. Sweep `hybrid-rag` and `contextual-rag` `retrieve_k`, `top_n`, and hybrid
+   `alpha` by dataset — all already flavor-overridable.
+4. Sweep `agentic-rag` `max_steps` and `vector_top_k` (already flavor-overridable)
+   and improve the tool prompt.
 5. Tune the n8n route map so graph-native queries can route to `hybrid-rag` or
    `graph-rag`, not only `vanilla-rag` or `agentic-rag`.
 6. Treat chunk size/overlap and contextual blurb model/prompt as dataset-level

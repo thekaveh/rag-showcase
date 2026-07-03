@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 import compare.run_matrix as run_matrix
 import compare.judge as judge
 
@@ -50,3 +52,32 @@ def test_judge_uses_env_selected_input_and_result_files(monkeypatch) -> None:
 
     assert judge.matrix_file() == judge.RESULTS / "graph_native_matrix.json"
     assert judge.judgments_file() == judge.RESULTS / "graph_native_judgments.json"
+
+
+@pytest.mark.parametrize("chunks,calls", [(5, 2), (1, 1)])
+def test_parse_content_round_trips_build_response(chunks, calls) -> None:
+    # run_matrix.parse_content re-parses the backend's rendered answer/sources/metrics
+    # with regexes that mirror openai_io._render_footer/_render_sources across the
+    # process boundary (the host harness only ever sees rendered text over HTTP, it
+    # cannot import the container module). Guard the two against silent drift: a change
+    # to either the renderer or the parser must keep this round-trip green. The (1, 1)
+    # case covers the singular "1 chunk"/"1 LLM call" -> `s?` regex coupling.
+    from rag.common.openai_io import Metrics, Source, build_response
+
+    payload = build_response(
+        "hybrid-rag",
+        "The answer text.",
+        [Source("Doc A", "snippet a", 0.512), Source("Doc B", "snippet b", None)],
+        Metrics(seconds=1.2, chunks=chunks, llm_calls=calls, cloud_calls=0),
+    )
+    content = payload["choices"][0]["message"]["content"]
+
+    parsed = run_matrix.parse_content(content)
+
+    assert parsed["answer"] == "The answer text."
+    assert parsed["metrics"] == {
+        "seconds": 1.2, "chunks": chunks, "llm_calls": calls, "cloud_calls": 0,
+    }
+    assert [s["title"] for s in parsed["sources"]] == ["Doc A", "Doc B"]
+    assert parsed["sources"][0]["score"] == 0.512
+    assert parsed["sources"][1]["score"] is None

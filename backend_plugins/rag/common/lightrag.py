@@ -15,7 +15,7 @@ def _base() -> str:
 
 
 def _headers() -> dict[str, str]:
-    # LightRAG v1.5.0 authenticates the API key via the X-API-Key header;
+    # LightRAG v1.5.4 authenticates the API key via the X-API-Key header;
     # Authorization: Bearer is reserved for JWT login tokens there, so a raw
     # key sent as Bearer 401s whenever LightRAG auth is enabled.
     key = os.environ.get("LIGHTRAG_API_KEY", "")
@@ -79,7 +79,7 @@ async def upload_text(title: str, text: str) -> None:
     retries = int(os.environ.get("LIGHTRAG_UPLOAD_RETRIES", "60"))
     delay = float(os.environ.get("LIGHTRAG_UPLOAD_RETRY_DELAY", "5"))
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        # LightRAG v1.5.0 InsertTextRequest accepts text / file_source / chunking
+        # LightRAG v1.5.4 InsertTextRequest accepts text / file_source / chunking
         # (the optional source label is "file_source", not "description").
         for attempt in range(retries + 1):
             resp = await client.post(f"{_base()}/documents/text", headers=_headers(),

@@ -14,8 +14,9 @@ and surfaces the chosen `route` in the comparison column.
 2. **Classify** (HTTP Request → `http://litellm:4000/v1/chat/completions`,
    Authorization `Bearer {{ $env.LITELLM_API_KEY }}` — Atlas injects the master
    key into the n8n container under that name — model `qwen3.6:latest`, a name
-   LiteLLM registers): prompt "Classify the query as
-   `simple` or `complex`. Answer with one word." Output → `route`.
+   LiteLLM registers): the prompt classifies the *question* as one word —
+   `simple`, or `complex` when it needs multi-step reasoning or synthesis across
+   sources. Output → `route`.
 3. **Route** (Code node) maps `complex` to `agentic-rag`, everything else to
    `vanilla-rag`, and builds the backend route URL.
 4. **Call Approach** (HTTP Request) calls

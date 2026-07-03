@@ -6,11 +6,11 @@ Status: implemented upstream in Atlas and retained here as a historical handoff
 record. Rag-showcase now configures these Atlas inputs through `infra/.env`
 instead of patching LightRAG's runtime environment directly.
 
-## Purpose
+## 1. Purpose
 
 Atlas should expose LightRAG v1.5 role-specific LLM configuration so graph indexing can use a fast, non-reasoning extraction model while query answering can use a stronger model. This avoids routing LightRAG's high-volume extraction calls through a slow reasoning model and gives downstream projects a supported way to tune graph RAG without patching Atlas internals.
 
-## Problem
+## 2. Problem
 
 Before the Atlas fix, Atlas modeled LightRAG with one chat model:
 
@@ -29,7 +29,7 @@ The native LightRAG server reads role-specific environment variables such as `EX
 
 That is the wrong shape for local graph RAG. Entity and relationship extraction makes many calls per document and needs strict structured output, not long reasoning traces. A reasoning model such as Qwen 3.6 MoE can be acceptable for user-facing answers with `think:false`, but it is a poor default for extraction because any missed thinking override or long context startup turns indexing into timeouts.
 
-## Desired Behavior
+## 3. Desired Behavior
 
 Atlas should make role-specific LightRAG model selection first-class while preserving the existing single-model behavior as the default fallback.
 
@@ -58,7 +58,7 @@ LightRAG's Jina rerank client called Atlas's TEI reranker with an incompatible p
 and TEI returned `422 missing field texts`. The local fix was to disable LightRAG
 query rerank and lower query fanout for graph-rag.
 
-## Recommended Atlas Change
+## 4. Recommended Atlas Change
 
 Add Atlas service inputs for the native LightRAG role variables:
 
@@ -108,7 +108,7 @@ For reranking, Atlas has three viable options:
 2. Select a LightRAG rerank binding whose payload matches the configured service.
 3. Default LightRAG query rerank off when wiring Atlas TEI directly, and document how to re-enable it.
 
-## Defaults
+## 5. Defaults
 
 Atlas should not hard-code `mistral-small3.2:24b` globally because Atlas is a reusable platform. It should expose the knobs and keep current behavior when the knobs are unset.
 
@@ -120,7 +120,7 @@ For a local Ollama profile, Atlas may document this recommended profile:
 
 This gives graph extraction a cheaper, non-thinking model without forcing every Atlas deployment to use that model.
 
-## Validation
+## 6. Validation
 
 Atlas should add a focused integration test or smoke script that:
 
@@ -133,7 +133,7 @@ Atlas should add a focused integration test or smoke script that:
 
 The most reliable assertion is request-level observation through LiteLLM logs, an Ollama proxy, or a mocked OpenAI-compatible endpoint that records the requested `model` field.
 
-## Rag-Showcase Configuration
+## 7. Rag-Showcase Configuration
 
 Rag-showcase now sets Atlas's public inputs in `infra/.env` during
 `scripts/setup-overlay.sh`:
@@ -162,7 +162,7 @@ LIGHTRAG_QUERY_MAX_TOTAL_TOKENS=12000
 Those are plugin-side request parameters rather than LightRAG container settings.
 They avoid the TEI rerank mismatch and keep graph query prompts bounded.
 
-## Acceptance Criteria
+## 8. Acceptance Criteria
 
 - Existing Atlas deployments remain compatible when role-specific variables are unset.
 - LightRAG role variables are visible in the rendered compose/runtime environment.

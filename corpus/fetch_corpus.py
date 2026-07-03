@@ -16,6 +16,11 @@ MAX_DOCS = 40
 
 def main() -> None:
     RAW.mkdir(parents=True, exist_ok=True)
+    # Idempotent re-assembly: drop prior-run docs so a smaller MAX_DOCS or a
+    # changed MultiHop-RAG slice can't leave stale higher-index files behind for
+    # ingest's **/*.md glob to pick up (mirrors the corpus/adapters/* exporters).
+    for stale in RAW.glob("*.md"):
+        stale.unlink()
     # Keyword docs (always included)
     for p in KEYWORD.glob("*.md"):
         shutil.copy(p, RAW / p.name)
@@ -31,8 +36,9 @@ def main() -> None:
             (RAW / f"{i:03d}-{title}.md").write_text(f"# {title}\n\n{body}", encoding="utf-8")
         print(f"Wrote {min(MAX_DOCS, len(ds))} MultiHop-RAG docs + keyword docs to {RAW}")
     except Exception as e:  # offline / dataset unavailable
-        print(f"⚠ MultiHop-RAG fetch skipped ({e}). Keyword docs only — "
-              f"add your own .md files to {RAW} for a richer demo.")
+        print(f"⚠ MultiHop-RAG fetch skipped ({e}). Keyword docs only — add "
+              f"durable .md files under {KEYWORD} for a richer demo ({RAW} is "
+              f"purged and rebuilt on every run).")
 
 
 if __name__ == "__main__":

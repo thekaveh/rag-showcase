@@ -69,3 +69,16 @@ def test_backend_and_compare_flavors_have_same_aliases():
     compare_aliases = {row["alias"] for row in compare["flavors"]}
 
     assert backend_aliases == compare_aliases
+
+    # base + params must also match per alias, not just the alias set. Otherwise a
+    # tuning change in one manifest (e.g. graph-rag-wide.top_k) silently diverges the
+    # deployed backend from the benchmark harness while this test stays green — the
+    # exact drift the aliases-only check misses.
+    backend_by_alias = {
+        row["alias"]: (row["base"], row.get("params") or {}) for row in backend["flavors"]
+    }
+    compare_by_alias = {
+        row["alias"]: (row["base"], row.get("params") or {}) for row in compare["flavors"]
+    }
+
+    assert backend_by_alias == compare_by_alias

@@ -16,7 +16,11 @@ from ..common import flavors
 from ..common.openai_io import ChatRequest, Source, Metrics, build_response
 
 router = APIRouter()
-_TIMEOUT = httpx.Timeout(180.0, connect=10.0)
+# 240s read budget: the workflow's own two HTTP nodes run sequentially and can take
+# up to Classify(60s) + Call Approach(175s) ≈ 235s before n8n returns its shaped
+# response (or fallback). The wrapper must wait at least that long — a shorter outer
+# timeout would spuriously 500 a slow-but-valid route (e.g. a deep agentic answer).
+_TIMEOUT = httpx.Timeout(240.0, connect=10.0)
 
 
 @router.post("/n8n-adaptive-rag/v1/chat/completions")

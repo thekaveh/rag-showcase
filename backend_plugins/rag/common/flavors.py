@@ -60,38 +60,44 @@ def _load() -> dict[str, FlavorProfile]:
     if _CACHE:
         return _CACHE
 
-    for base in sorted(BASE_APPROACHES):
-        _CACHE[base] = _default(base)
+    # Build the full table in a local dict and publish it to the module cache only
+    # after the whole file validates. A malformed flavors.yaml then raises on EVERY
+    # call (consistently) instead of poisoning _CACHE with a partial table that the
+    # `if _CACHE` short-circuit above would silently return on later calls — dropping
+    # every flavor defined after the bad row. Mirrors config._load's atomic .update().
+    table: dict[str, FlavorProfile] = {
+        base: _default(base) for base in sorted(BASE_APPROACHES)
+    }
 
     path = _path()
-    if not path.is_file():
-        return _CACHE
+    if path.is_file():
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        rows = data.get("flavors") or []
+        if not isinstance(rows, list):
+            raise ValueError(f"{path} must contain a list under 'flavors'")
 
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    rows = data.get("flavors") or []
-    if not isinstance(rows, list):
-        raise ValueError(f"{path} must contain a list under 'flavors'")
+        for row in rows:
+            if not isinstance(row, dict):
+                raise ValueError(f"{path} contains a non-object flavor entry")
+            alias = str(row.get("alias") or "").strip()
+            base = str(row.get("base") or "").strip()
+            if not alias:
+                raise ValueError(f"{path} contains a flavor without alias")
+            if base not in BASE_APPROACHES:
+                raise KeyError(f"flavor {alias!r} uses unknown base approach {base!r}")
+            params = row.get("params") or {}
+            if not isinstance(params, dict):
+                raise ValueError(f"flavor {alias!r} params must be an object")
+            table[alias] = FlavorProfile(
+                alias=alias,
+                base=base,
+                label=str(row.get("label") or alias),
+                description=str(row.get("description") or ""),
+                requires_reingest=bool(row.get("requires_reingest", False)),
+                params=dict(params),
+            )
 
-    for row in rows:
-        if not isinstance(row, dict):
-            raise ValueError(f"{path} contains a non-object flavor entry")
-        alias = str(row.get("alias") or "").strip()
-        base = str(row.get("base") or "").strip()
-        if not alias:
-            raise ValueError(f"{path} contains a flavor without alias")
-        if base not in BASE_APPROACHES:
-            raise KeyError(f"flavor {alias!r} uses unknown base approach {base!r}")
-        params = row.get("params") or {}
-        if not isinstance(params, dict):
-            raise ValueError(f"flavor {alias!r} params must be an object")
-        _CACHE[alias] = FlavorProfile(
-            alias=alias,
-            base=base,
-            label=str(row.get("label") or alias),
-            description=str(row.get("description") or ""),
-            requires_reingest=bool(row.get("requires_reingest", False)),
-            params=dict(params),
-        )
+    _CACHE.update(table)
     return _CACHE
 
 

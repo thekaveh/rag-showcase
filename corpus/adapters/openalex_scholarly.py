@@ -62,6 +62,10 @@ def _write_work(out: Path, idx: int, work: dict) -> None:
 
 def export(search: str, output: Path, limit: int) -> int:
     output.mkdir(parents=True, exist_ok=True)
+    # Idempotent re-export: drop prior-run docs so a shrinking slice can't leave
+    # stale higher-index files behind for ingest to pick up (mirrors cyber_threat_intel).
+    for stale in output.glob("*.md"):
+        stale.unlink()
     params = {"search": search, "per-page": min(limit, 200), "sort": "cited_by_count:desc"}
     with httpx.Client(timeout=60.0) as client:
         resp = client.get(API, params=params)

@@ -43,8 +43,8 @@ async def test_chat_forwards_tools_and_omits_when_absent(monkeypatch):
     # agentic-rag depends on the model actually receiving its tool schemas: chat()
     # must place `tools` in the POST body when given, and omit the key entirely when
     # not. Drop the forwarding (or send tools=None unconditionally) and agentic-rag
-    # silently degrades to "answered without retrieval" while all nine agentic tests
-    # — which fabricate tool_calls via a mocked chat — stay green. So assert the wire.
+    # silently degrades to "answered without retrieval" while the entire agentic suite
+    # — which fabricates tool_calls via a mocked chat — stays green. So assert the wire.
     monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
     monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
     route = respx.post("http://litellm:4000/v1/chat/completions").mock(
