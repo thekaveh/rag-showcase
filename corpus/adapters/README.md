@@ -24,8 +24,14 @@ python3 -m pip install stark-qa
 Suggested materialization command shape:
 
 ```bash
-python3 corpus/adapters/stark_export.py --dataset prime --limit 200
-python3 corpus/adapters/stark_export.py --dataset mag --limit 200
+python3 corpus/adapters/stark_export.py \
+  --dataset prime \
+  --limit 200 \
+  --output corpus/generated/stark_prime
+python3 corpus/adapters/stark_export.py \
+  --dataset mag \
+  --limit 200 \
+  --output corpus/generated/stark_mag
 ```
 
 The generated markdown should go under:
