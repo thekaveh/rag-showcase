@@ -273,7 +273,8 @@ Ingest-time:
 Query-time:
 
 1. The wrapper sends the user question to LightRAG `/query`.
-2. The wrapper fixes `mode="hybrid"`.
+2. The query mode defaults to `hybrid`, overridable per flavor via `mode` (e.g.
+   `graph-rag-fast` uses `local`).
 3. The query payload includes `enable_rerank`, `top_k`, `chunk_top_k`, and
    `max_total_tokens`.
 4. LightRAG performs its graph/vector retrieval and generation internally.
