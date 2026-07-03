@@ -2,11 +2,11 @@
 
 Date: 2026-07-02
 
-## Goal
+## 1. Goal
 
 Align rag-showcase with the updated Atlas LightRAG and RAG-track contracts while keeping this repo hardware-neutral.
 
-## Context
+## 2. Context
 
 Atlas now exposes LightRAG role-specific model inputs as first-class `.env` variables:
 
@@ -24,7 +24,7 @@ Atlas also now owns LightRAG query defaults for rerank and fanout:
 
 Finally, Atlas now supports `LLM_PROVIDER_SOURCE=ollama-localhost`, but rag-showcase must not assume any particular host hardware. The default path should work through Atlas and LiteLLM regardless of whether the active model backend is container CPU, container GPU, host Ollama, or another supported provider.
 
-## Design
+## 3. Design
 
 Rag-showcase will stop setting LightRAG's native runtime variables directly in its compose overlay. Instead, it will configure Atlas's public `.env` inputs during `scripts/setup-overlay.sh`, then let Atlas render those inputs into the LightRAG service.
 
@@ -36,13 +36,13 @@ The compose overlay remains responsible only for rag-showcase-specific integrati
 
 The setup script will set default LightRAG role model choices only when the corresponding Atlas variables are absent or empty. This keeps the default comparison reproducible while allowing users to override models, providers, and hardware paths in `infra/.env`.
 
-## Hardware Neutrality
+## 4. Hardware Neutrality
 
 The repo will not describe the default architecture as Mac-specific or host-Ollama-specific. Documentation may mention host Ollama as one supported Atlas source option, but it must not be presented as a requirement.
 
 The default LightRAG role model remains configurable. If the default Ollama model is used, `scripts/setup-overlay.sh` adds it to `OLLAMA_CUSTOM_MODELS` so Atlas can register/pull it for container Ollama sources. Host-Ollama users remain responsible for pulling models on the host, matching Atlas's `ollama-localhost` contract.
 
-## Acceptance Criteria
+## 5. Acceptance Criteria
 
 - `infra/` submodule points at the latest Atlas `main` containing LightRAG role support.
 - `compose/rag-overlay.yml` no longer sets `lightrag` / `lightrag-init` runtime overrides.
