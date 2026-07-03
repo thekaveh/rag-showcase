@@ -56,6 +56,11 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Comma-separated MATRIX_MODELS override. Defaults to all six approaches.",
     )
+    parser.add_argument(
+        "--flavors",
+        default="",
+        help="Comma-separated MATRIX_FLAVORS selection, e.g. default,graph-rag-wide.",
+    )
     return parser.parse_args()
 
 
@@ -198,7 +203,9 @@ def validate_matrix_cells(matrix: dict[str, Any], *, dataset_id: str) -> None:
     )
 
 
-def run_matrix_and_judge(dataset: dict[str, Any], date_stamp: str, approaches: str) -> tuple[Path, Path]:
+def run_matrix_and_judge(
+    dataset: dict[str, Any], date_stamp: str, approaches: str, flavors: str
+) -> tuple[Path, Path]:
     dataset_id = dataset["id"]
     matrix_name = f"live-{date_stamp}-{dataset_id}-matrix.json"
     judgments_name = f"live-{date_stamp}-{dataset_id}-judgments.json"
@@ -207,6 +214,8 @@ def run_matrix_and_judge(dataset: dict[str, Any], date_stamp: str, approaches: s
     env["MATRIX_RESULTS_FILE"] = matrix_name
     if approaches:
         env["MATRIX_MODELS"] = approaches
+    if flavors:
+        env["MATRIX_FLAVORS"] = flavors
     run(["uv", "run", "python", "compare/run_matrix.py"], env=env)
     matrix_src = RESULTS / matrix_name
     validate_matrix_cells(json.loads(matrix_src.read_text(encoding="utf-8")), dataset_id=dataset_id)
@@ -256,6 +265,8 @@ def selected_datasets(ids: list[str] | None) -> list[dict[str, Any]]:
 
 def main() -> None:
     args = parse_args()
+    if args.approaches and args.flavors:
+        raise SystemExit("--approaches and --flavors are mutually exclusive")
     datasets = selected_datasets(args.dataset)
     for index, dataset in enumerate(datasets, start=1):
         print(f"\n==> Dataset {index}/{len(datasets)}: {dataset['id']}", flush=True)
@@ -264,7 +275,8 @@ def main() -> None:
         start_service_only()
         ingest_dataset(dataset)
         wait_for_lightrag(dataset["id"])
-        matrix, judgments = run_matrix_and_judge(dataset, args.date_stamp, args.approaches)
+        matrix, judgments = run_matrix_and_judge(
+            dataset, args.date_stamp, args.approaches, args.flavors)
         update_dataset_snapshots(dataset["id"], matrix, judgments)
         regenerate_report()
 

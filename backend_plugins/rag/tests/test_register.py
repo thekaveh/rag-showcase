@@ -6,6 +6,13 @@ import pytest
 import register.register_models as reg
 
 
+@pytest.fixture(autouse=True)
+def _clear_flavor_cache():
+    reg.flavors._CACHE.clear()
+    yield
+    reg.flavors._CACHE.clear()
+
+
 @pytest.mark.asyncio
 @respx.mock
 async def test_register_deletes_existing_then_adds(monkeypatch):
@@ -33,6 +40,42 @@ async def test_register_deletes_existing_then_adds(monkeypatch):
     # (b) the api_key (read from env at run-time) is merged into litellm_params —
     #     drop the merge and all six register keyless, so every routed call fails
     assert all(p["litellm_params"]["api_key"] == "sk-master" for p in payloads)
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_register_adds_flavor_aliases_from_manifest(tmp_path, monkeypatch):
+    f = tmp_path / "flavors.yaml"
+    f.write_text(
+        """
+flavors:
+  - alias: graph-rag-wide
+    base: graph-rag
+    label: Graph Wide
+  - alias: hybrid-rag-high-recall
+    base: hybrid-rag
+    label: Hybrid High Recall
+""",
+        encoding="utf-8",
+    )
+    reg.flavors._CACHE.clear()
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_MASTER_KEY", "sk-master")
+    respx.get("http://litellm:4000/model/info").mock(
+        return_value=httpx.Response(200, json={"data": []}))
+    new = respx.post("http://litellm:4000/model/new").mock(
+        return_value=httpx.Response(200, json={}))
+
+    await reg.run()
+
+    payloads = [json.loads(c.request.read().decode()) for c in new.calls]
+    by_name = {p["model_name"]: p for p in payloads}
+    assert "graph-rag-wide" in by_name
+    assert by_name["graph-rag-wide"]["litellm_params"]["model"] == "openai/graph-rag-wide"
+    assert by_name["graph-rag-wide"]["litellm_params"]["api_base"] == "http://backend:8000/graph-rag/v1"
+    assert "hybrid-rag-high-recall" in by_name
+    assert by_name["hybrid-rag-high-recall"]["litellm_params"]["api_base"] == "http://backend:8000/hybrid-rag/v1"
 
 
 @pytest.mark.asyncio

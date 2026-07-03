@@ -48,8 +48,9 @@ async def test_contextual_route_uses_contextual_collection(monkeypatch):
     # assert the route queries RagContextual (not RagBase).
     seen = {}
     async def fake_embed(texts, model=None): return [[1.0]]
-    def fake_hybrid(collection, q, v, k):
+    def fake_hybrid(collection, q, v, k, alpha=0.5):
         seen["collection"] = collection; seen["k"] = k
+        seen["alpha"] = alpha
         return [Hit("Doc", "ctx body", 0.5)]
     async def fake_rerank(q, hits, top_n): seen["top_n"] = top_n; return hits
     async def fake_answer(model, q, hits): return ("ok", 1)
@@ -71,6 +72,7 @@ async def test_contextual_route_uses_contextual_collection(monkeypatch):
     # same retrieval wiring as hybrid: the full RETRIEVE_K pool feeds the reranker, which
     # runs at TOP_N — passing TOP_N to search_hybrid would silently shrink the pool 20->5.
     assert seen["k"] == contextual_app.RETRIEVE_K
+    assert seen["alpha"] == 0.5
     assert seen["top_n"] == contextual_app.TOP_N
     # generation uses the light_gen role (a wrong key misroutes once roles diverge from the
     # uniform default); cost footer = 1 embed + 1 generation = 2 (the "+1 = embed" convention).

@@ -47,9 +47,11 @@ Each approach is an OpenAI-compatible `/<name>/v1/chat/completions` endpoint in 
 self-contained plugin package (`backend_plugins/rag/`) that is bind-mounted into
 Atlas's FastAPI backend through a generic "plugin seam". Each is registered into
 Atlas's LiteLLM gateway via its `/model/new` admin API, so the six approaches
-appear automatically as selectable models in OpenWebUI. Open a multi-model chat,
-select all six, and one prompt fans out to every approach with a uniform
-answer + retrieved-context + metrics surface.
+appear automatically as selectable models in OpenWebUI. Named tuning flavors such
+as `graph-rag-wide` can also appear as model aliases; they route to the same base
+approach with reproducible parameter overrides. Open a multi-model chat, select
+the approaches or flavors you want, and one prompt fans out with a uniform answer,
+retrieved-context, and metrics surface.
 
 The six approaches embed via the same LiteLLM model and read the same corpus, so
 the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/roles.yaml`).
@@ -80,8 +82,9 @@ reranker, Weaviate, Neo4j, OpenWebUI, LiteLLM; Docling is off by default —
 ingestion falls back to naive text chunking) plus n8n (added via an explicit
 `--n8n-source container` flag), waits for the backend, LightRAG, and Weaviate,
 assembles the corpus on the host (`corpus/fetch_corpus.py`), waits for model
-readiness (embed + chat), ingests it into the backend container, registers the six
-models, and prints the OpenWebUI URL. If you use local models, the first run may
+readiness (embed + chat), ingests it into the backend container, registers the
+canonical models plus any configured flavor aliases, and prints the OpenWebUI URL.
+If you use local models, the first run may
 download several GB, so it takes a while. Then open the printed URL, start a multi-model chat, and select:
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
 `n8n-adaptive-rag`. Stop everything with `./scripts/stop-all.sh`.
@@ -120,7 +123,8 @@ rag-showcase/
 │   ├── approaches/          # vanilla, hybrid, contextual, graph, agentic, n8n
 │   ├── tests/               # unit tests (mocked I/O)
 │   ├── roles.yaml           # role→model map (local-first)
-│   └── models.yaml          # per-model request props (e.g. think:false)
+│   ├── models.yaml          # per-model request props (e.g. think:false)
+│   └── flavors.yaml         # OpenWebUI/benchmark aliases with tuning overrides
 ├── ingest/                  # corpus → chunk (Docling optional) → Weaviate(base+contextual) + LightRAG
 ├── register/                # idempotent LiteLLM /model/new registration
 ├── corpus/                  # curated corpora (MultiHop-RAG + keyword docs + graph-native dossiers)
@@ -152,6 +156,7 @@ set by hand for the default `start-all.sh` flow.
 | `N8N_ADAPTIVE_WEBHOOK_URL` | `http://n8n:5678/webhook/adaptive-rag` | n8n approach | overlay |
 | `RAG_ROLES_FILE` | `/app/plugins/rag/roles.yaml` | config | overlay |
 | `RAG_MODELS_FILE` | `/app/plugins/rag/models.yaml` | config (per-model request props, e.g. `think:false`) | overlay |
+| `RAG_FLAVORS_FILE` | `/app/plugins/rag/flavors.yaml` | config (approach flavor aliases) | overlay |
 | `BACKEND_PLUGINS_DIR` | `/app/plugins` | plugin seam (Atlas) | overlay |
 | `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | Atlas `.env` defaulted by `setup-overlay.sh` |
 | `LIGHTRAG_KEYWORD_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG KEYWORD role | Atlas `.env` defaulted by `setup-overlay.sh` |
@@ -172,6 +177,7 @@ set by hand for the default `start-all.sh` flow.
 | [Implementation plan](docs/superpowers/plans/2026-06-25-rag-showcase.md) | Historical | The task-by-task implementation plan (Tasks 0–19, as-built) |
 | [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and six-approach parallel flow diagrams |
 | [Approach internals](docs/approaches.md) | Living | Step-by-step flow, dependencies, tuning variables, tradeoffs, and measured performance for every approach |
+| [Approach flavor tuning](docs/approach-flavor-tuning.md) | Living | OpenWebUI model aliases, benchmark flavor selection, and query-time versus index-time tuning knobs |
 | [Hardware sizing](docs/hardware.md) | Living | Minimum and recommended hardware profiles for live stack, local models, and graph-heavy runs |
 | [Atlas-reuse assessment](docs/atlas-reuse-assessment.md) | Living | What reused cleanly, friction found, recommendations for Atlas |
 | [Atlas LightRAG role-model spec](docs/atlas-lightrag-role-model-spec.md) | Implemented upstream | Historical Atlas-side spec for first-class LightRAG EXTRACT/KEYWORD/QUERY model wiring |

@@ -45,6 +45,43 @@ async def test_graph_queries_lightrag(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_graph_flavor_overrides_query_payload(tmp_path, monkeypatch):
+    f = tmp_path / "flavors.yaml"
+    f.write_text(
+        """
+flavors:
+  - alias: graph-rag-wide
+    base: graph-rag
+    params:
+      mode: hybrid
+      top_k: 30
+      chunk_top_k: 12
+      max_total_tokens: 24000
+      enable_rerank: false
+""",
+        encoding="utf-8",
+    )
+    graph.flavors._CACHE.clear()
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    with respx.mock:
+        route = respx.post("http://lightrag:9621/query").mock(
+            return_value=httpx.Response(200, json={"response": "wide graph answer"})
+        )
+        app = FastAPI(); app.include_router(graph.router)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+            r = await ac.post("/graph-rag/v1/chat/completions",
+                              json={"model": "graph-rag-wide",
+                                    "messages": [{"role": "user", "content": "themes?"}]})
+    assert r.status_code == 200
+    sent = json.loads(route.calls.last.request.content)
+    assert sent["mode"] == "hybrid"
+    assert sent["top_k"] == 30
+    assert sent["chunk_top_k"] == 12
+    assert sent["max_total_tokens"] == 24000
+
+
+@pytest.mark.asyncio
 async def test_lightrag_upload_text_posts_to_documents_text(monkeypatch):
     monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
     with respx.mock:

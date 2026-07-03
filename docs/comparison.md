@@ -54,6 +54,13 @@ uv run python compare/judge.py
 MATRIX_MODELS=vanilla-rag,graph-rag uv run python compare/run_matrix.py
 ```
 
+`MATRIX_FLAVORS` expands named profiles from `compare/flavors.yaml`, which is the
+benchmark-side companion to the backend `flavors.yaml` used for OpenWebUI aliases:
+
+```bash
+MATRIX_FLAVORS=default,graph-rag-wide uv run python compare/run_matrix.py
+```
+
 The graph-native comparison uses the same harness with alternate input/output files:
 
 ```bash

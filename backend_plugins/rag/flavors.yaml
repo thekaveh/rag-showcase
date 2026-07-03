@@ -1,0 +1,80 @@
+flavors:
+  - alias: vanilla-rag-wide
+    base: vanilla-rag
+    label: Vanilla Wide
+    description: Dense retrieval with a larger stuffed context window.
+    requires_reingest: false
+    params:
+      k: 8
+
+  - alias: hybrid-rag-high-recall
+    base: hybrid-rag
+    label: Hybrid High Recall
+    description: Larger BM25+dense candidate pool before TEI rerank.
+    requires_reingest: false
+    params:
+      retrieve_k: 40
+      top_n: 8
+      alpha: 0.5
+
+  - alias: hybrid-rag-fast
+    base: hybrid-rag
+    label: Hybrid Fast
+    description: Smaller hybrid candidate pool and no TEI rerank.
+    requires_reingest: false
+    params:
+      retrieve_k: 10
+      top_n: 5
+      alpha: 0.5
+      rerank: false
+
+  - alias: contextual-rag-high-recall
+    base: contextual-rag
+    label: Contextual High Recall
+    description: Contextual retrieval with a larger candidate pool before rerank.
+    requires_reingest: false
+    params:
+      retrieve_k: 40
+      top_n: 8
+      alpha: 0.5
+
+  - alias: graph-rag-fast
+    base: graph-rag
+    label: Graph Fast
+    description: Lower LightRAG fanout for quicker graph answers.
+    requires_reingest: false
+    params:
+      mode: local
+      top_k: 5
+      chunk_top_k: 3
+      max_total_tokens: 8000
+      enable_rerank: false
+
+  - alias: graph-rag-wide
+    base: graph-rag
+    label: Graph Wide
+    description: Wider LightRAG graph and chunk fanout for relationship-heavy queries.
+    requires_reingest: false
+    params:
+      mode: hybrid
+      top_k: 30
+      chunk_top_k: 12
+      max_total_tokens: 24000
+      enable_rerank: false
+
+  - alias: agentic-rag-deeper
+    base: agentic-rag
+    label: Agentic Deeper
+    description: More ReAct steps and wider vector tool retrieval.
+    requires_reingest: false
+    params:
+      max_steps: 8
+      vector_top_k: 8
+      graph_mode: hybrid
+
+  - alias: n8n-adaptive-rag-default
+    base: n8n-adaptive-rag
+    label: n8n Default
+    description: Explicit alias for the current n8n adaptive workflow.
+    requires_reingest: false
+    params: {}

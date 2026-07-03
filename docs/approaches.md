@@ -20,6 +20,10 @@ All six approaches expose an OpenAI-compatible
 `/<approach>/v1/chat/completions` route inside the Atlas backend container. The
 routes are registered as LiteLLM model aliases, so OpenWebUI and the comparison
 harness invoke every approach through the same `/v1/chat/completions` surface.
+Named flavors such as `graph-rag-wide` are also registered as LiteLLM model
+aliases, but they point at the same base route and are resolved from the incoming
+request model. See [`approach-flavor-tuning.md`](approach-flavor-tuning.md) for
+the current flavor manifest and benchmark invocation rules.
 
 All approaches use the same ingested corpus and the same response wrapper:
 

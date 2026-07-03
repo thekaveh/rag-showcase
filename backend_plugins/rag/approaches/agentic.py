@@ -14,7 +14,7 @@ import time
 
 from fastapi import APIRouter
 
-from ..common import config, litellm, lightrag, vectors
+from ..common import config, flavors, litellm, lightrag, vectors
 from ..common.openai_io import ChatRequest, Source, Metrics, build_response
 
 router = APIRouter()
@@ -38,7 +38,7 @@ _SYSTEM = ("You are a research agent. Use the tools to gather evidence before "
            "answering. Call a tool when you need information; otherwise answer.")
 
 
-async def _run_tool(name: str, args: dict) -> tuple[str, int]:
+async def _run_tool(name: str, args: dict, params: dict) -> tuple[str, int]:
     """Run a tool. Returns (observation, llm_calls) where llm_calls counts the
     LiteLLM/LLM work the tool did — the query embedding for search_vectors, the
     delegated graph generation for query_graph — so agentic-rag's footer counts
@@ -48,24 +48,29 @@ async def _run_tool(name: str, args: dict) -> tuple[str, int]:
     q = raw if isinstance(raw, str) else ""  # non-string query (malformed) -> empty
     if name == "search_vectors":
         vec = (await litellm.embed([q]))[0]
-        hits = await asyncio.to_thread(vectors.search_hybrid, COLLECTION, q, vec, 5)
+        top_k = int(params.get("vector_top_k", 5))
+        hits = await asyncio.to_thread(vectors.search_hybrid, COLLECTION, q, vec, top_k)
         obs = "\n".join(f"- {h.title}: {h.text[:200]}" for h in hits) or "(no results)"
         return obs, 1  # +1 = the query embedding
     if name == "query_graph":
-        return await lightrag.query(q, mode="hybrid"), 1  # +1 = delegated graph call
+        mode = str(params.get("graph_mode", "hybrid"))
+        return await lightrag.query(q, mode=mode), 1  # +1 = delegated graph call
     return f"(unknown tool {name})", 0
 
 
 @router.post("/agentic-rag/v1/chat/completions")
 async def agentic_rag(req: ChatRequest):
     t0 = time.monotonic()
+    flavor = flavors.get_for_base(req.model, "agentic-rag")
+    params = flavor.params
+    max_steps = int(params.get("max_steps", MAX_STEPS))
     model = config.role("agentic")
     messages = [{"role": "system", "content": _SYSTEM},
                 {"role": "user", "content": req.last_user()}]
     trace: list[str] = []
     llm_calls = 0
     answer = None
-    for step_i in range(MAX_STEPS):
+    for step_i in range(max_steps):
         resp = await litellm.chat(model, messages, tools=_TOOLS)
         llm_calls += 1
         # We harden against malformed VALUES the local model controls (content,
@@ -109,7 +114,7 @@ async def agentic_rag(req: ChatRequest):
                 args = {}
             if not isinstance(args, dict):  # valid JSON but not an object
                 args = {}                   # (null/number/string/array/bool)
-            observation, tool_llm_calls = await _run_tool(name, args)
+            observation, tool_llm_calls = await _run_tool(name, args, params)
             llm_calls += tool_llm_calls  # count the tool's embed / delegated call too
             step = ""
             if thought:
@@ -129,4 +134,4 @@ async def agentic_rag(req: ChatRequest):
     # flat stuffed-chunk count — consistent with the other delegating
     # approaches (graph-rag, n8n-adaptive-rag).
     metrics = Metrics(time.monotonic() - t0, 0, llm_calls, 0)
-    return build_response("agentic-rag", answer, sources, metrics)
+    return build_response(flavor.alias, answer, sources, metrics)

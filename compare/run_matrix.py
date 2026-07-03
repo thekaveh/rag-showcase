@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import time
 from pathlib import Path
 
@@ -22,12 +23,13 @@ import httpx
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from compare import flavors as flavor_config  # noqa: E402
+
 RESULTS = ROOT / "compare" / "results"
-_ALL = ["vanilla-rag", "hybrid-rag", "contextual-rag",
-        "graph-rag", "agentic-rag", "n8n-adaptive-rag"]
-# Default to all six; MATRIX_MODELS (comma-separated) overrides — e.g. to exclude an
-# approach whose backend isn't reliably available in a given run.
-MODELS = [m.strip() for m in os.environ.get("MATRIX_MODELS", "").split(",") if m.strip()] or _ALL
+ALL_MODELS = ["vanilla-rag", "hybrid-rag", "contextual-rag",
+              "graph-rag", "agentic-rag", "n8n-adaptive-rag"]
 
 # build_response() renders: answer + optional "<details>…Retrieved context…</details>"
 # + "\n\n---\n📊 {s}s · {n} chunks · {n} LLM calls · {n} cloud". Parse that back.
@@ -55,6 +57,22 @@ def results_file() -> Path:
     return RESULTS / os.environ.get("MATRIX_RESULTS_FILE", "matrix.json")
 
 
+def _csv_env(name: str) -> list[str]:
+    return [m.strip() for m in os.environ.get(name, "").split(",") if m.strip()]
+
+
+def flavors_file() -> Path:
+    return Path(os.environ.get("MATRIX_FLAVORS_FILE", str(flavor_config.DEFAULT_MANIFEST)))
+
+
+def selected_profiles() -> list[flavor_config.FlavorProfile]:
+    if models := _csv_env("MATRIX_MODELS"):
+        return [flavor_config.profile_for_model(model, manifest=flavors_file()) for model in models]
+    if selection := _csv_env("MATRIX_FLAVORS"):
+        return flavor_config.expand_selection(selection, manifest=flavors_file())
+    return [flavor_config.profile_for_model(model, manifest=flavors_file()) for model in ALL_MODELS]
+
+
 def parse_content(content: str) -> dict:
     """Split a uniform build_response payload into answer / sources / metrics."""
     body = content
@@ -78,18 +96,35 @@ def main() -> None:
     base = f"http://localhost:{port}"
     query_path = ROOT / queries_file()
     queries = yaml.safe_load(query_path.read_text(encoding="utf-8"))
+    profiles = selected_profiles()
     RESULTS.mkdir(parents=True, exist_ok=True)
-    out: dict = {"base": base, "models": MODELS,
+    out: dict = {"base": base, "models": [p.alias for p in profiles],
+                 "model_profiles": [
+                     {
+                         "model": p.alias,
+                         "base_model": p.base,
+                         "flavor": p.flavor,
+                         "requires_reingest": p.requires_reingest,
+                     }
+                     for p in profiles
+                 ],
                  "queries_file": str(queries_file()),
                  "queries": [{k: q.get(k) for k in ("id", "query", "expect_winner", "rationale")}
                              for q in queries],
                  "cells": []}
-    print(f"matrix: {len(queries)} queries x {len(MODELS)} approaches @ {base}")
+    print(f"matrix: {len(queries)} queries x {len(profiles)} approaches/flavors @ {base}")
     with httpx.Client(timeout=httpx.Timeout(420.0, connect=10.0)) as client:
         for q in queries:
-            for model in MODELS:
+            for profile in profiles:
+                model = profile.alias
                 t0 = time.monotonic()
-                cell = {"query_id": q["id"], "model": model}
+                cell = {
+                    "query_id": q["id"],
+                    "model": model,
+                    "base_model": profile.base,
+                    "flavor": profile.flavor,
+                    "requires_reingest": profile.requires_reingest,
+                }
                 try:
                     r = client.post(f"{base}/v1/chat/completions",
                                     headers={"Authorization": f"Bearer {key}"},
