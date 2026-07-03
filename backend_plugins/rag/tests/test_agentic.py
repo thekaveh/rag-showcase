@@ -6,6 +6,16 @@ from rag.common.vectors import Hit
 from rag.approaches import agentic
 
 
+@pytest.fixture(autouse=True)
+def _clear_flavor_cache():
+    # Some agentic tests load a per-test flavors.yaml into the module-global
+    # flavors._CACHE; clear before AND after so a test's tmp table can never leak
+    # into another test's ordering (mirrors test_flavors.py's fixture).
+    agentic.flavors._CACHE.clear()
+    yield
+    agentic.flavors._CACHE.clear()
+
+
 @pytest.mark.asyncio
 async def test_agentic_runs_tool_then_answers(monkeypatch):
     turns = []
@@ -232,7 +242,6 @@ flavors:
 """,
         encoding="utf-8",
     )
-    agentic.flavors._CACHE.clear()
     monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
     turns = []
     calls = {}

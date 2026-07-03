@@ -217,7 +217,13 @@ def main() -> None:
         output = ROOT / output
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(report, encoding="utf-8")
-    print(f"wrote {output.relative_to(ROOT)}")
+    # The write already succeeded; don't let a nicety crash the CLI. relative_to
+    # raises when --output points outside the repo, so fall back to the full path.
+    try:
+        rel = output.relative_to(ROOT)
+    except ValueError:
+        rel = output
+    print(f"wrote {rel}")
 
 
 if __name__ == "__main__":
