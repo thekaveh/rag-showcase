@@ -198,6 +198,7 @@ by hand for the default `start-all.sh` flow.
 | [Dataset complexity report](docs/dataset-complexity-report.md) | Living | Approach rankings by input dataset complexity, plus candidate real-world graph datasets |
 | [n8n workflow](n8n/README.md) | Living | Checked-in Adaptive-RAG workflow, startup import behavior, and workflow tuning knobs |
 | [Live comparison](docs/comparison.md) | Living | Side-by-side results of all six approaches + live-validation findings (`think:false`, LightRAG role/query tuning, graph-native corpus behavior) |
+| [Result snapshots](docs/results/README.md) | Living | Index of the committed live-run matrix/judgment JSON snapshots — which set is current vs historical |
 
 ## 8. Development & Testing
 
