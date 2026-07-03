@@ -3,9 +3,10 @@
 stack's LiteLLM gateway, capturing answer + retrieved sources + server metrics +
 client-side latency. Writes compare/results/matrix.json by default.
 
-Host-run. Reads LITELLM_PORT + LITELLM_MASTER_KEY from infra/.env (the published
-gateway; the in-repo tests' localhost:4000 default is the in-network address, not
-the published one). Per-cell try/except so one slow/failed approach is recorded,
+Host-run. Reads LITELLM_PORT + LITELLM_MASTER_KEY from infra/.env (the host-
+published gateway; the in-repo tests' localhost:4000 default is LiteLLM's
+container-internal port, reachable in-network as litellm:4000 but not published on
+the host at 4000). Per-cell try/except so one slow/failed approach is recorded,
 not fatal.
 
     uv run python compare/run_matrix.py
