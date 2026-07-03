@@ -39,7 +39,7 @@ async def test_graph_queries_lightrag(monkeypatch):
         assert sent["top_k"] == 10
         assert sent["chunk_top_k"] == 5
         assert sent["max_total_tokens"] == 12000
-        # auth must use X-API-Key (v1.5.0), not Authorization: Bearer
+        # auth must use X-API-Key (v1.5.4), not Authorization: Bearer
         assert route.calls.last.request.headers.get("x-api-key") == "k"
         assert "authorization" not in route.calls.last.request.headers
 
