@@ -4,7 +4,7 @@ models on the host Ollama (qwen3.6:latest + gemma4:31b) via the OpenAI-compatibl
 /v1 endpoint. Answers are shown shuffled and anonymized (Answer A..F) so judges
 cannot bias by approach order or name.
 
-Batched by judge model — all 6 queries for one judge before switching to the next —
+Batched by judge model — all of a dataset's queries for one judge before switching —
 so each ~20-38 GB model loads ONCE instead of swapping every call (Ollama keeps only
 a couple models resident, so per-call alternation thrashes/stalls). Reads
 compare/results/matrix.json, writes compare/results/judgments.json by default.
@@ -104,7 +104,7 @@ def main() -> None:
         meta[qid] = {"q": q, "labeled": labeled, "letter_to_model": letter_to_model,
                      "prompt": build_prompt(q["query"], q.get("rationale") or "A direct, correct answer.", labeled)}
 
-    # Batch by judge model: each big model loads once, then scores all 6 queries.
+    # Batch by judge model: each big model loads once, then scores every query in the matrix.
     raw: dict[tuple[str, str], dict] = {}
     with httpx.Client(timeout=httpx.Timeout(200.0, connect=10.0)) as client:
         for jm in JUDGES:
