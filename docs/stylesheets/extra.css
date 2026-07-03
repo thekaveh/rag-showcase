@@ -1,0 +1,24 @@
+/* RAG Showcase — small polish over the Material defaults. */
+
+/* Slightly wider content column for the big comparison/result tables. */
+.md-grid {
+  max-width: 1240px;
+}
+
+/* Dense data tables (results, config, ledgers) read better a touch smaller. */
+.md-typeset table:not([class]) {
+  font-size: 0.72rem;
+}
+
+/* Give the embedded diagram iframes a white canvas + subtle frame in both palettes. */
+.md-typeset iframe.diagram {
+  width: 100%;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+/* Tighten the home-page hero buttons. */
+.md-typeset .md-button + .md-button {
+  margin-left: 0.4rem;
+}
