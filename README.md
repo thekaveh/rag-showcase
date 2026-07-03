@@ -119,7 +119,7 @@ performance for each approach, see [`docs/approaches.md`](docs/approaches.md).
 rag-showcase/
 ├── infra/                   # Atlas — vendored Git submodule (DO NOT edit here)
 ├── backend_plugins/rag/     # the plugin package mounted into Atlas's backend
-│   ├── common/              # config, litellm, vectors, openai_io, pipeline, contextual, lightrag
+│   ├── common/              # config, litellm, vectors, openai_io, pipeline, contextual, lightrag, flavors
 │   ├── approaches/          # vanilla, hybrid, contextual, graph, agentic, n8n
 │   ├── tests/               # unit tests (mocked I/O)
 │   ├── roles.yaml           # role→model map (local-first)

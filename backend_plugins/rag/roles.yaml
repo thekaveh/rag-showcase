@@ -8,5 +8,5 @@
 embed: nomic-embed-text
 light_gen: qwen3.6:latest
 contextual_blurb: qwen3.6:latest
-extraction: qwen3.6:latest   # LightRAG's extraction LLM is set Atlas-side; indicative only, not read by this plugin
+extraction: mistral-small3.2:24b   # LightRAG's extraction LLM is set Atlas-side; indicative only, not read by this plugin
 agentic: qwen3.6:latest
