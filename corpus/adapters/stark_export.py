@@ -55,6 +55,10 @@ def export(dataset: str, output: Path, limit: int) -> int:
 
     skb = load_skb(dataset, download_processed=True, root=None)
     output.mkdir(parents=True, exist_ok=True)
+    # Idempotent re-export: drop prior-run docs so a shrinking slice can't leave
+    # stale higher-index files behind for ingest to pick up (mirrors cyber_threat_intel).
+    for stale in output.glob("*.md"):
+        stale.unlink()
 
     node_ids = list(getattr(skb, "node_info", {}).keys())[:limit]
     if not node_ids and hasattr(skb, "candidate_ids"):

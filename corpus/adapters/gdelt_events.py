@@ -44,6 +44,10 @@ def _write_article(out: Path, idx: int, article: dict, query: str) -> None:
 
 def export(query: str, start: str, end: str, output: Path, limit: int) -> int:
     output.mkdir(parents=True, exist_ok=True)
+    # Idempotent re-export: drop prior-run docs so a shrinking slice can't leave
+    # stale higher-index files behind for ingest to pick up (mirrors cyber_threat_intel).
+    for stale in output.glob("*.md"):
+        stale.unlink()
     params = {
         "query": query,
         "mode": "artlist",
