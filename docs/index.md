@@ -1,91 +1,92 @@
 # RAG Showcase
 
-**Six modern RAG strategies, compared side-by-side** — each served as an
-OpenAI-compatible endpoint on a fully-local [Atlas](https://github.com/thekaveh/atlas)
-stack. Open a multi-model chat in **Open WebUI**, ask one question, and watch the
-approaches answer in parallel with a uniform **answer + retrieved-context + metrics**
-surface.
+<div class="hero-tagline" markdown>
+Six modern RAG strategies, compared side by side — each served as an OpenAI-compatible
+endpoint on a fully-local [Atlas](https://github.com/thekaveh/atlas) stack. Ask one
+question in Open WebUI and watch the approaches answer in parallel, with a uniform
+answer, retrieved-context, and metrics surface. It doubles as a reproducible evaluation
+harness that measures *which approach wins on which kind of question*.
+</div>
 
-It doubles as a reproducible **evaluation harness**: a query × approach matrix, a
-local LLM **judge panel**, and a dataset **complexity ladder** that measures *which
-approach wins on which kind of question*.
+[Quick Start](guide/quickstart.md){ .md-button .md-button--primary }
+[Measured Results](comparison.md){ .md-button }
 
-[Get running in one command](guide/quickstart.md){ .md-button .md-button--primary }
-[See the measured results](comparison.md){ .md-button }
-
-## The six approaches
+## 1. The six approaches
 
 | Endpoint | Strategy | Shines on |
 |----------|----------|-----------|
-| [`vanilla-rag`](approaches.md#3-vanilla-rag) | Dense top-k → stuff → one call (the control) | simple factoids / the baseline |
-| [`hybrid-rag`](approaches.md#4-hybrid-rag) | Weaviate hybrid (BM25 + dense) → TEI rerank | exact keyword / identifier queries |
-| [`contextual-rag`](approaches.md#5-contextual-rag) | Anthropic Contextual Retrieval over context-prefixed chunks | context-starved chunks |
-| [`graph-rag`](approaches.md#6-graph-rag) | LightRAG over extracted entities, relationships + vector context | graph-shaped relationship questions |
-| [`agentic-rag`](approaches.md#7-agentic-rag) | ReAct loop over vector + graph retrieval tools | multi-hop / comparative questions |
-| [`n8n-adaptive-rag`](approaches.md#8-n8n-adaptive-rag) | Low-code workflow that routes by query complexity | mixed simple + complex batches |
+| [`vanilla-rag`](approaches.md#3-vanilla-rag) | Dense top-k retrieval, then a single generation call (the control) | Simple factoids; the baseline |
+| [`hybrid-rag`](approaches.md#4-hybrid-rag) | Weaviate hybrid retrieval (BM25 + dense), then TEI reranking | Exact keyword and identifier queries |
+| [`contextual-rag`](approaches.md#5-contextual-rag) | Anthropic Contextual Retrieval over context-prefixed chunks | Context-starved chunks |
+| [`graph-rag`](approaches.md#6-graph-rag) | LightRAG over extracted entities, relationships, and vector context | Graph-shaped relationship questions |
+| [`agentic-rag`](approaches.md#7-agentic-rag) | ReAct loop over vector and graph retrieval tools | Multi-hop and comparative questions |
+| [`n8n-adaptive-rag`](approaches.md#8-n8n-adaptive-rag) | Low-code workflow that routes by query complexity | Mixed simple-and-complex batches |
 
-Any approach can also expose tuned **flavors** (e.g. `hybrid-rag-high-recall`,
-`graph-rag-fast`) — same base approach, reproducible parameter overrides, its own
-selectable model alias. See [Flavor Tuning](approach-flavor-tuning.md).
+Any approach can also expose tuned **flavors** — for example `hybrid-rag-high-recall`
+or `graph-rag-fast` — that route to the same base approach with reproducible parameter
+overrides and their own selectable model alias. See [Flavor Tuning](approach-flavor-tuning.md).
 
-!!! abstract "Headline result — 2026-07-03 ladder (14 aliases × 3 datasets)"
-    Winners shift with input complexity, which is the whole point:
+## 2. Headline result
 
-    - **Baseline curated** → `vanilla-rag-wide` (4.42) — wide dense retrieval is enough.
-    - **Graph-native dossiers** → `hybrid-rag-high-recall` (4.25) — high-recall hybrid leads the aggregate.
-    - **Cyber-threat graph (MITRE ATT&CK)** → `contextual-rag-high-recall` (3.58) — context-prefixing pulls ahead.
+The 2026-07-03 ladder ran fourteen approach and flavor aliases across three datasets of
+increasing structure. The winner shifts with input complexity, which is the point:
 
-    Full per-query winners, judge methodology, and raw snapshots live under
-    [Evaluation & Results](evaluation-methodology.md).
+| Dataset | Winning configuration | Judge score |
+|---------|-----------------------|:-----------:|
+| Baseline curated | `vanilla-rag-wide` | 4.42 |
+| Graph-native dossiers | `hybrid-rag-high-recall` | 4.25 |
+| Cyber-threat graph (MITRE ATT&CK) | `contextual-rag-high-recall` | 3.58 |
 
-## Explore
+Full per-query winners, judge methodology, and raw snapshots are in
+[Evaluation and Results](evaluation-methodology.md).
+
+## 3. Documentation
 
 <div class="grid cards" markdown>
 
--   :material-rocket-launch:{ .lg .middle } **Get Started**
+-   **Get Started**
 
     ---
 
-    Prerequisites, one-command bring-up, and how to drive the comparison in Open WebUI.
+    Prerequisites, one-command bring-up, and driving the comparison in Open WebUI.
 
-    [:octicons-arrow-right-24: Quick Start](guide/quickstart.md)
+    [Quick Start](guide/quickstart.md)
 
--   :material-sitemap:{ .lg .middle } **The Approaches**
+-   **The Approaches**
 
     ---
 
     Step-by-step internals, dependencies, and tuning knobs for each of the six.
 
-    [:octicons-arrow-right-24: Approach Internals](approaches.md)
+    [Approach Internals](approaches.md)
 
--   :material-scale-balance:{ .lg .middle } **Evaluation & Results**
-
-    ---
-
-    The judge-panel methodology, the dataset complexity ladder, and the measured rankings.
-
-    [:octicons-arrow-right-24: Methodology](evaluation-methodology.md)
-
--   :material-graph-outline:{ .lg .middle } **Architecture**
+-   **Evaluation and Results**
 
     ---
 
-    How the plugin seam, LiteLLM, retrieval stores, and workflow services fit together.
+    Judge-panel methodology, the dataset complexity ladder, and the measured rankings.
 
-    [:octicons-arrow-right-24: System Architecture](architecture.md)
+    [Methodology](evaluation-methodology.md)
+
+-   **Architecture**
+
+    ---
+
+    The plugin seam, LiteLLM, retrieval stores, and workflow services.
+
+    [System Architecture](architecture.md)
 
 </div>
 
-## Fully local by default
+## 4. Fully local by default
 
-Everything runs on your machine — local models via Atlas's Ollama provider
-(`qwen3.6:latest` for chat, `nomic-embed-text` for embeddings, `mistral-small3.2:24b`
-for LightRAG's graph roles), Weaviate + LightRAG for retrieval, a TEI reranker, and a
-**local** judge panel. No cloud calls are required to run the showcase or reproduce
-its results. See the [Hardware Sizing](hardware.md) guide for minimum and recommended
-profiles.
+Everything runs on your own machine: local models through Atlas's Ollama provider
+(`qwen3.6:latest` for chat, `nomic-embed-text` for embeddings, and `mistral-small3.2:24b`
+for LightRAG's graph roles), Weaviate and LightRAG for retrieval, a TEI reranker, and a
+local judge panel. No cloud calls are required to run the showcase or reproduce its
+results. See the [Hardware Sizing](hardware.md) guide for minimum and recommended profiles.
 
-The project is also a deliberate test-drive of Atlas as reusable infrastructure — the
+The project is also a deliberate test-drive of Atlas as reusable infrastructure. The
 [Atlas Reuse Assessment](atlas-reuse-assessment.md) records what reused cleanly, the
 seams that were added, and the [pinned dependency contracts](dependency-contracts.md)
 each integration was verified against.

@@ -3,7 +3,7 @@
 The whole showcase runs on [Atlas](https://github.com/thekaveh/atlas) (vendored as a
 Git submodule at `infra/`) and comes up with **one command**.
 
-## Prerequisites
+## 1. Prerequisites
 
 Atlas's requirements apply:
 
@@ -20,7 +20,7 @@ Atlas's requirements apply:
   default local run activates `mistral-small3.2:24b` for LightRAG's graph roles — see
   [Hardware Sizing](../hardware.md) for minimum and recommended profiles.
 
-## Bring it up
+## 2. Bring it up
 
 ```bash
 ./scripts/start-all.sh
@@ -53,7 +53,7 @@ Stop everything with:
 ./scripts/stop-all.sh
 ```
 
-## Corpus note
+## 3. Corpus note
 
 For the full corpus (MultiHop-RAG + keyword docs), install the `datasets` library on
 the host before running:
@@ -65,14 +65,14 @@ python3 -m pip install datasets
 Without it, ingestion uses only the bundled keyword docs, so the thematic / multi-hop
 demo queries have little to work with. See the [Corpus Overview](../components/corpus.md).
 
-## The n8n workflow
+## 4. The n8n workflow
 
 The `n8n-adaptive-rag` workflow is checked in and imported automatically by
 `start-all.sh`, which preserves its active state and restarts n8n so the production
 webhook is registered. See the [n8n Adaptive Workflow](../components/n8n.md) page for
 the workflow shape and tuning knobs.
 
-## Development & testing
+## 5. Development and testing
 
 ```bash
 uv run pytest                 # unit suite (mocked I/O) + integration tests (skip without the stack)
