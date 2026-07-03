@@ -1,34 +1,44 @@
 # RAG approaches - live comparison
 
 A side-by-side comparison of the RAG approaches in this repo, run against a live
-`gen-ai-rag` Atlas stack. The recorded 2026-07-02 run used a Mac Studio M2 Ultra
-with 192 GB unified memory and local host Ollama; that is run metadata, not a repo
-requirement.
+`gen-ai-rag` Atlas stack. The recorded 2026-07-03 run used a local workstation
+with host Ollama; that is run metadata, not a repo requirement. See
+[`hardware.md`](hardware.md) for hardware guidance without assuming one host shape.
 
-- **Run date:** 2026-07-02
-- **Approaches compared:** all 6 - `vanilla-rag`, `hybrid-rag`, `contextual-rag`,
-  `graph-rag`, `agentic-rag`, `n8n-adaptive-rag`.
+- **Run date:** 2026-07-03
+- **Approaches compared:** all 6 canonical approaches plus 8 named flavors:
+  `vanilla-rag-wide`, `hybrid-rag-high-recall`, `hybrid-rag-fast`,
+  `contextual-rag-high-recall`, `graph-rag-fast`, `graph-rag-wide`,
+  `agentic-rag-deeper`, and `n8n-adaptive-rag-default`.
 - **Baseline corpus:** 11-document curated subset of MultiHop-RAG plus `widget-error-codes.md`.
 - **Graph-native corpus:** 10 committed relation-dense dossiers in
   [`corpus/graph_native/`](../corpus/graph_native/).
-- **Queries:** baseline prompts in [`demo/queries.yaml`](../demo/queries.yaml) and
-  graph-native prompts in [`demo/graph_native_queries.yaml`](../demo/graph_native_queries.yaml).
+- **Cyber corpus:** 60 committed MITRE ATT&CK dossiers in
+  [`corpus/cyber_threat_intel/`](../corpus/cyber_threat_intel/).
+- **Queries:** baseline prompts in [`demo/queries.yaml`](../demo/queries.yaml),
+  graph-native prompts in [`demo/graph_native_queries.yaml`](../demo/graph_native_queries.yaml),
+  and cyber prompts in [`demo/cyber_threat_intel_queries.yaml`](../demo/cyber_threat_intel_queries.yaml).
 - **Harness:** [`compare/run_matrix.py`](../compare/run_matrix.py) and
   [`compare/judge.py`](../compare/judge.py). Raw working outputs are written under
   `compare/results/` and are intentionally gitignored; the committed snapshots for
-  this run are [`live-2026-07-02-baseline_curated-matrix.json`](results/live-2026-07-02-baseline_curated-matrix.json)
-  / [`live-2026-07-02-baseline_curated-judgments.json`](results/live-2026-07-02-baseline_curated-judgments.json)
-  plus [`live-2026-07-02-graph_native-matrix.json`](results/live-2026-07-02-graph_native-matrix.json)
-  / [`live-2026-07-02-graph_native-judgments.json`](results/live-2026-07-02-graph_native-judgments.json).
+  this run are:
+  [`baseline matrix`](results/live-2026-07-03-baseline_curated-matrix.json) /
+  [`baseline judgments`](results/live-2026-07-03-baseline_curated-judgments.json),
+  [`graph-native matrix`](results/live-2026-07-03-graph_native-matrix.json) /
+  [`graph-native judgments`](results/live-2026-07-03-graph_native-judgments.json),
+  and [`cyber matrix`](results/live-2026-07-03-cyber_threat_intel-matrix.json) /
+  [`cyber judgments`](results/live-2026-07-03-cyber_threat_intel-judgments.json).
 
 ## 0. Headline
 
-The renewed six-way runs completed on both the baseline corpus and a graph-native
-corpus built specifically around entities, relationships, shared actors, and causal
-chains. `contextual-rag` led the baseline corpus, while `hybrid-rag` led the
-graph-native corpus. `graph-rag` is now operational and participated in every cell,
-but remains slower and uneven: it answered every graph-shaped query and won some
-individual judge votes, yet it is not the aggregate winner on either measured rung.
+The current ladder completed on all three measured datasets. Winners changed as
+the corpus became more relational: `vanilla-rag-wide` led the baseline corpus,
+`hybrid-rag-high-recall` led the graph-native dossiers, and
+`contextual-rag-high-recall` led the cyber-threat graph slice. `graph-rag` is now
+operational and participates in every measured dataset, but tuning matters:
+`graph-rag-fast` was useful and won several individual baseline/graph-native
+questions, while `graph-rag-wide` frequently returned truncated one-token or
+heading-only answers and ranked last on every measured dataset.
 
 The key fixes were:
 
@@ -37,6 +47,8 @@ The key fixes were:
 - LightRAG EXTRACT tuned to `max_async=1` and `timeout=900`;
 - `nomic-embed-text` embeddings for graph ingestion;
 - LightRAG upload retry on HTTP 409 backpressure;
+- TEI rerank batching for high-recall flavors, capped to the reranker's 32-item
+  client batch limit;
 - graph query payload tuned to avoid the broken TEI rerank path and reduce context fanout:
   `enable_rerank=false`, `top_k=10`, `chunk_top_k=5`, `max_total_tokens=12000`.
 
@@ -133,98 +145,50 @@ Ollama, or another configured provider.
    synthesis prompts; it does well on single-hop tool use and often stops early on
    multi-step tasks.
 
-## 5. Results
+## 5. Current Flavor Ladder Results
 
-All 36 cells returned without transport errors.
+The 2026-07-03 ladder ran three datasets, 20 queries, and 14 aliases, producing
+280 matrix cells and judge scores for every dataset. All three dataset runs
+completed and wrote committed snapshots under [`docs/results/`](results/).
 
-| Approach | ok cells | avg latency | judge mean |
-|---|---:|---:|---:|
-| **contextual-rag** | 6/6 | 8.7s | **4.08** |
-| n8n-adaptive-rag | 6/6 | 0.5s | 4.00 |
-| vanilla-rag | 6/6 | 3.6s | 4.00 |
-| hybrid-rag | 6/6 | 6.5s | 3.92 |
-| graph-rag | 6/6 | 23.2s | 3.58 |
-| agentic-rag | 6/6 | 9.9s | 2.75 |
+| Dataset | Matrix cells | Winner | Current reading |
+|---|---:|---|---|
+| `baseline_curated` | 84 | `vanilla-rag-wide` | Wider dense retrieval was enough on the simplest mixed text corpus. |
+| `graph_native` | 112 | `hybrid-rag-high-recall` | Hybrid BM25+dense retrieval with larger rerank pools handled explicit relationship dossiers best on aggregate. |
+| `cyber_threat_intel` | 84 | `contextual-rag-high-recall` | Context-prefixed chunks plus high-recall retrieval beat the current graph query settings on the ATT&CK slice. |
 
-### 5.1 Per-query winners
+The dataset-by-dataset rankings and per-query winners are generated in
+[`docs/dataset-complexity-report.md`](dataset-complexity-report.md). That report
+is the canonical scored summary for the current run.
 
-| Query | Winner | Notes |
-|---|---|---|
-| `keyword` | agentic-rag by tiebreak | agentic, graph, hybrid, n8n, and vanilla all scored 5.0 |
-| `thematic` | contextual-rag | best synthesis; graph-rag and n8n tied for second at 3.5 |
-| `multihop` | agentic-rag | agentic led at 3.5; graph-rag remained weak at 1.0 |
-| `factoid` | contextual-rag by tiebreak | graph, vanilla, hybrid, contextual, and n8n all scored 5.0 |
-| `context_starved` | agentic-rag by tiebreak | agentic and graph-rag both scored 5.0 |
-| `mixed_batch` | hybrid-rag by tiebreak | hybrid, n8n, and vanilla tied at 4.5 |
+## 6. Graph-RAG and Flavor Findings
 
-### 5.2 Interpretation
+The renewed run shows that the graph path is technically healthy: LightRAG indexed
+the baseline, graph-native, and cyber corpora, drained extraction, and answered
+through the same LiteLLM/OpenWebUI route as the other approaches.
 
-`contextual-rag` is the best overall default on the baseline corpus: it handled the
-thematic prompt well and stayed robust on exact fact questions. `vanilla-rag` and
-`n8n-adaptive-rag` are close behind, with n8n benefiting from a fast route decision
-and cache hits. `hybrid-rag` remains a predictable production-style retriever, though
-it did not beat contextual retrieval on aggregate in this run.
+The quality story is more nuanced. `graph-rag-fast` was the best graph flavor:
+it won individual baseline and graph-native questions such as `keyword`,
+`factoid`, `entity_bridge`, and sometimes gave stronger answers than default
+`graph-rag` with lower latency. `graph-rag-wide`, however, is too broad for the
+current LightRAG query setup. It frequently returned truncated strings such as
+`The`, `Based`, or `###`, and ranked last on every measured dataset.
 
-`graph-rag` is no longer excluded. It is included, indexed, and queried successfully.
-Its remaining weakness is query-time quality and latency, not indexing availability.
-The rerank/query tuning moved it from unusable one-word answers to useful answers on
-keyword, thematic, factoid, context-starved, and mixed-batch prompts, but it still
-missed the multihop question.
-
-## 6. Graph-native corpus run
-
-To test whether the earlier graph-rag results were partly a corpus mismatch, the
-repo now includes a second corpus under [`corpus/graph_native/`](../corpus/graph_native/).
-It contains 10 concise real-world dossiers with explicit entity and relationship
-statements covering AI partnerships, search antitrust, browser-search economics,
-AI competition inquiries, FTX/Alameda, Binance/DOJ, and campaign-finance links.
-The query set asks for bridges, shared actors, relationship chains, witnesses,
-timelines, and cross-domain regulators.
-
-All 48 cells returned without transport errors.
-
-| Approach | ok cells | avg latency | judge mean |
-|---|---:|---:|---:|
-| **hybrid-rag** | 8/8 | 9.0s | **4.12** |
-| contextual-rag | 8/8 | 11.1s | 4.00 |
-| n8n-adaptive-rag | 8/8 | 0.7s | 3.62 |
-| vanilla-rag | 8/8 | 3.8s | 3.56 |
-| graph-rag | 8/8 | 25.0s | 3.12 |
-| agentic-rag | 8/8 | 34.5s | 2.69 |
-
-### 6.1 Per-query winners
-
-| Query | Winner | Notes |
-|---|---|---|
-| `entity_bridge` | contextual-rag by tiebreak | contextual and graph-rag both scored 4.5 |
-| `relationship_chain` | hybrid-rag by tiebreak | hybrid, n8n, and vanilla all scored 5.0 |
-| `shared_actor` | contextual-rag | strongest synthesis of common actors across Anthropic/Amazon/Google |
-| `timeline_cause` | n8n-adaptive-rag by tiebreak | n8n and vanilla both scored 5.0 |
-| `witness_network` | agentic-rag by tiebreak | agentic and graph-rag both scored 4.5 |
-| `cloud_model_competition` | contextual-rag by tiebreak | contextual and hybrid both scored 5.0 |
-| `default_search_ecosystem` | contextual-rag by tiebreak | contextual and hybrid both scored 5.0 |
-| `cross_domain_regulators` | contextual-rag by tiebreak | contextual and hybrid both scored 3.0 |
-
-### 6.2 Interpretation
-
-The graph-native corpus confirms that the graph path is technically healthy: LightRAG
-indexed the corpus, drained extraction, and answered all eight graph-shaped prompts.
-It does not yet show that this LightRAG configuration is the best answerer for these
-prompts. The graph-rag column is still slower than all non-agentic retrievers and
-often under-synthesizes compared with hybrid/contextual retrieval over the same
-source text, though it tied for first on `entity_bridge` and `witness_network`.
-
-That suggests the remaining work is LightRAG query quality, not only corpus choice:
-prompt/mode selection, graph fanout, source-text inclusion, and rerank-provider wiring
-are likely more important than simply adding more graph-shaped documents.
+The cyber corpus is the clearest warning against assuming that a graph-shaped
+input automatically favors the graph endpoint. The ATT&CK docs are highly
+relational, but the judges favored `contextual-rag-high-recall` overall. That
+points to query-time LightRAG tuning, not only corpus choice, as the next target:
+mode selection, fanout, prompt shaping, source-text inclusion, and rerank-provider
+wiring are likely more important than adding still more graph-shaped documents.
 
 ## 7. Caveats
 
-- **Small corpus:** the scored run uses the curated 11-doc subset. The full 41-file
-  corpus is useful as a stress test, but graph extraction is still expensive locally.
-- **Only two rungs measured so far:** the dataset complexity report includes heavier
-  real-world graph candidates, but their rankings are marked pending until live matrix
-  and judge snapshots are produced.
+- **Bounded corpora:** the scored run uses bounded corpora: 11 baseline docs,
+  10 graph-native dossiers, and 60 ATT&CK cyber dossiers. Larger graph builds are
+  still a separate capacity test.
+- **Three rungs measured so far:** the dataset complexity report still includes
+  heavier candidates such as STaRK, OpenAlex, and GDELT, but their rankings remain
+  pending until live matrix and judge snapshots are produced.
 - **Graph-native corpus is synthetic-curated:** the documents are real-world dossiers
   with source links and explicit relationship bullets, designed to make graph structure
   available. This is a better graph test than the baseline subset, but it is still not
@@ -233,6 +197,8 @@ are likely more important than simply adding more graph-shaped documents.
   and anonymized, but both judges are local models.
 - **Cache effects:** n8n and graph-rag include cache hits in some cells.
 - **Agentic cap:** `MAX_STEPS=4` materially limits `agentic-rag`.
+- **Graph-wide caveat:** `graph-rag-wide` is measured but currently a poor tuning;
+  it frequently returned truncated answers.
 
 ## 8. Reversibility
 

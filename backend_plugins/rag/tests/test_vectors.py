@@ -32,6 +32,33 @@ async def test_rerank_reorders_by_tei_score(monkeypatch):
 
 
 @pytest.mark.asyncio
+@respx.mock
+async def test_rerank_splits_batches_over_tei_client_limit(monkeypatch):
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    monkeypatch.setenv("TEI_RERANKER_MAX_BATCH", "32")
+    hits = [Hit(f"H{i}", f"text {i}", 0.0) for i in range(40)]
+    route = respx.post("http://tei-reranker:80/rerank").mock(
+        side_effect=[
+            httpx.Response(200, json=[
+                {"index": 31, "score": 0.50},
+                {"index": 0, "score": 0.10},
+            ]),
+            httpx.Response(200, json=[
+                {"index": 7, "score": 0.99},
+            ]),
+        ])
+
+    out = await rerank("q", hits, top_n=3)
+
+    assert [h.title for h in out] == ["H39", "H31", "H0"]
+    assert len(route.calls) == 2
+    first = json.loads(route.calls[0].request.content)
+    second = json.loads(route.calls[1].request.content)
+    assert len(first["texts"]) == 32
+    assert len(second["texts"]) == 8
+
+
+@pytest.mark.asyncio
 async def test_rerank_empty_hits_short_circuits():
     # early-return guard: no TEI call is made, so no HTTP mock is needed
     assert await rerank("q", [], top_n=5) == []

@@ -5,15 +5,14 @@ all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
 submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
 as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
 
-> **Live results (2026-07-02).** Renewed full local run, recorded on a Mac Studio M2 Ultra.
-> All six approaches completed. **`contextual-rag` led overall** (judge-panel mean
-> 4.08/5), with `n8n-adaptive-rag` and `vanilla-rag` close behind at 4.00/5.
-> `graph-rag` is now included after the LightRAG role/query fixes, but remains
-> slower and uneven (3.58/5). A second graph-native corpus run is now included:
-> `hybrid-rag` led (4.12/5), while `graph-rag` answered every graph-shaped query
-> but averaged 3.12/5. The key enabler was disabling the Qwen reasoning model's
-> chain-of-thought (`think:false`, ~30x faster). Full analysis, methodology, raw
-> snapshots, and findings:
+> **Live results (2026-07-03).** The current committed ladder ran 14 approach/flavor
+> aliases across three datasets: baseline curated, graph-native dossiers, and a
+> MITRE ATT&CK cyber-threat graph slice. Winners shifted with complexity:
+> `vanilla-rag-wide` led baseline, `hybrid-rag-high-recall` led graph-native, and
+> `contextual-rag-high-recall` led cyber. `graph-rag-fast` won several individual
+> baseline/graph-native questions; `graph-rag-wide` ranked last and is a bad current
+> tuning. Full analysis, per-query winners, methodology, raw snapshots, and findings:
+> **[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md)** and
 > **[`docs/comparison.md`](docs/comparison.md)**.
 
 ## 1. Architecture Diagrams

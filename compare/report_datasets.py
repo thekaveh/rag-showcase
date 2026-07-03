@@ -25,13 +25,17 @@ def _load_manifest() -> list[dict]:
 
 
 def _mean_scores(judgment_path: Path) -> dict[str, float]:
-    judgments = json.loads(judgment_path.read_text(encoding="utf-8"))
+    judgments = _load_judgments(judgment_path)
     buckets: dict[str, list[float]] = {}
     for query in judgments["queries"]:
         for approach, score in query.get("mean_by_approach", {}).items():
             buckets.setdefault(approach, []).append(float(score))
     return {approach: round(sum(scores) / len(scores), 2)
             for approach, scores in buckets.items() if scores}
+
+
+def _load_judgments(judgment_path: Path) -> dict:
+    return json.loads(judgment_path.read_text(encoding="utf-8"))
 
 
 def _ranking(scores: dict[str, float]) -> list[tuple[str, float]]:
@@ -54,6 +58,27 @@ def _row(dataset: dict) -> tuple[str, str, str]:
         return "pending live run", "pending live run", "pending live run"
     scores = _mean_scores(ROOT / dataset["judgment_snapshot"])
     return _winner(scores), _ranking_text(scores), f"{len(scores)} approaches scored"
+
+
+def _top3_text(scores: dict[str, float]) -> str:
+    ranked = _ranking(scores)[:3]
+    return " > ".join(f"{approach} {score:.2f}" for approach, score in ranked)
+
+
+def _query_rows(dataset: dict) -> list[tuple[str, str, str]]:
+    if dataset["status"] != "measured":
+        return []
+    judgments = _load_judgments(ROOT / dataset["judgment_snapshot"])
+    rows = []
+    for query in judgments["queries"]:
+        scores = {
+            approach: float(score)
+            for approach, score in query.get("mean_by_approach", {}).items()
+        }
+        query_id = query.get("query_id") or query.get("id") or query.get("query", "")
+        winner = str(query.get("observed_winner") or _winner(scores))
+        rows.append((str(query_id), winner, _top3_text(scores)))
+    return rows
 
 
 def build_report() -> str:
@@ -118,7 +143,18 @@ def build_report() -> str:
 
     lines.extend([
         "",
-        "## 3. Interpretation",
+        "## 3. Per-Query Winners",
+        "",
+        "| Dataset | Query | Winner | Top 3 mean scores |",
+        "|---|---|---|---|",
+    ])
+    for dataset in datasets:
+        for query_id, winner, top3 in _query_rows(dataset):
+            lines.append(f"| `{dataset['id']}` | `{query_id}` | {winner} | {top3} |")
+
+    lines.extend([
+        "",
+        "## 4. Interpretation",
         "",
         f"The current measured ladder has {len(measured_rows)} "
         f"{'rung' if len(measured_rows) == 1 else 'rungs'}. "
@@ -130,19 +166,26 @@ def build_report() -> str:
         "datasets whose native task requires relational retrieval, temporal event",
         "reasoning, and multi-hop graph paths.",
         "",
+        "The live flavor run also surfaced one clear tuning result: `graph-rag-wide`",
+        "is too broad for the current LightRAG query setup. It frequently returned",
+        "truncated one-token or heading-only answers and ranked last on every",
+        "measured dataset. `graph-rag-fast` was the stronger graph flavor, winning",
+        "several baseline and graph-native questions while reducing latency.",
+        "",
         "The candidate rungs are intentionally heavier: STaRK-Prime and STaRK-MAG",
         "are semi-structured retrieval benchmarks; OpenAlex adds a real scholarly",
         "citation/author/institution graph; GDELT adds event-time actor/location",
-        "graphs; and the cyber slice adds threat-technique-vulnerability-product",
-        "relationships. Scores for those rungs should be added only after live",
+        "graphs; and the measured cyber slice adds threat-technique, software,",
+        "campaign, intrusion-group, and mitigation relationships. Scores for",
+        "candidate rungs should be added only after live",
         "matrix and judge runs produce committed snapshots.",
         "",
-        "## 4. Candidate Dataset Sources",
+        "## 5. Candidate Dataset Sources",
         "",
         "- STaRK: semi-structured textual + relational retrieval benchmark with Amazon, MAG, and Prime domains.",
         "- OpenAlex: CC0 scholarly graph of works, authors, institutions, concepts, venues, and citations.",
         "- GDELT: global event/news graph with actors, events, locations, themes, sources, and timelines.",
-        "- MITRE ATT&CK + NVD: public cyber graph over groups, software, techniques, mitigations, CVEs, CWEs, and CPE products.",
+        "- MITRE ATT&CK: measured bounded cyber graph over intrusion groups, campaigns, software, techniques, and mitigations.",
         "",
     ])
     return "\n".join(lines)

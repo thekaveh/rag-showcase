@@ -2,7 +2,7 @@
 
 This document is the canonical guide to how each approach in rag-showcase works,
 what it depends on, what can be tuned, and how it performed in the committed
-2026-07-02 live dataset-ladder run.
+2026-07-03 live dataset-ladder run.
 
 The important terminology distinction:
 
@@ -37,23 +37,27 @@ All approaches use the same ingested corpus and the same response wrapper:
 
 ## 2. Current Measured Results
 
-The current committed live run measured two dataset-ladder rungs.
+The current committed live run measured three dataset-ladder rungs. The table
+below shows the six canonical approaches only; named flavors are ranked separately
+in [`dataset-complexity-report.md`](dataset-complexity-report.md).
 
-| Approach | Baseline curated | Graph-native | Direction |
-|---|---:|---:|---|
-| `vanilla-rag` | 4.00 | 3.56 | Drops as relational complexity rises. |
-| `hybrid-rag` | 3.92 | **4.12** | Improves and wins graph-native. |
-| `contextual-rag` | **4.08** | 4.00 | Most stable general default. |
-| `graph-rag` | 3.58 | 3.12 | Operational, slower, uneven. |
-| `agentic-rag` | 2.75 | 2.69 | Step-limited and inconsistent. |
-| `n8n-adaptive-rag` | 4.00 | 3.62 | Very fast, inherits route quality. |
+| Approach | Baseline curated | Graph-native | Cyber threat intel | Direction |
+|---|---:|---:|---:|---|
+| `vanilla-rag` | 4.25 | 3.38 | 3.08 | Strong simple baseline; loses ground as relation/path constraints grow. |
+| `hybrid-rag` | 4.08 | 3.88 | 2.50 | Reliable text retriever; high-recall flavor improves graph-native aggregate. |
+| `contextual-rag` | 4.08 | **3.94** | **3.17** | Best canonical default across the harder rungs. |
+| `graph-rag` | 3.42 | 2.75 | 1.92 | Operational end to end, but current query settings are uneven. |
+| `agentic-rag` | 2.67 | 2.62 | 2.00 | Step-limited and latency-heavy on complex prompts. |
+| `n8n-adaptive-rag` | 4.25 | 3.56 | 3.08 | Very fast, inherits route-map quality. |
 
 Snapshot files:
 
-- Baseline matrix: [`results/live-2026-07-02-baseline_curated-matrix.json`](results/live-2026-07-02-baseline_curated-matrix.json)
-- Baseline judgments: [`results/live-2026-07-02-baseline_curated-judgments.json`](results/live-2026-07-02-baseline_curated-judgments.json)
-- Graph-native matrix: [`results/live-2026-07-02-graph_native-matrix.json`](results/live-2026-07-02-graph_native-matrix.json)
-- Graph-native judgments: [`results/live-2026-07-02-graph_native-judgments.json`](results/live-2026-07-02-graph_native-judgments.json)
+- Baseline matrix: [`results/live-2026-07-03-baseline_curated-matrix.json`](results/live-2026-07-03-baseline_curated-matrix.json)
+- Baseline judgments: [`results/live-2026-07-03-baseline_curated-judgments.json`](results/live-2026-07-03-baseline_curated-judgments.json)
+- Graph-native matrix: [`results/live-2026-07-03-graph_native-matrix.json`](results/live-2026-07-03-graph_native-matrix.json)
+- Graph-native judgments: [`results/live-2026-07-03-graph_native-judgments.json`](results/live-2026-07-03-graph_native-judgments.json)
+- Cyber matrix: [`results/live-2026-07-03-cyber_threat_intel-matrix.json`](results/live-2026-07-03-cyber_threat_intel-matrix.json)
+- Cyber judgments: [`results/live-2026-07-03-cyber_threat_intel-judgments.json`](results/live-2026-07-03-cyber_threat_intel-judgments.json)
 
 ## 3. `vanilla-rag`
 
@@ -137,9 +141,10 @@ It does not query LightRAG or use extracted graph entities/relations.
 
 ### 4.5 Observed Behavior
 
-`hybrid-rag` won the graph-native corpus at 4.12/5. That does not mean it used a
-graph; it means keyword+dense retrieval plus reranking found the right supporting
-chunks more reliably than the current LightRAG query configuration.
+The high-recall hybrid flavor won the graph-native corpus at 4.25/5, while the
+canonical `hybrid-rag` route scored 3.88/5. That does not mean it used a graph;
+it means keyword+dense retrieval plus reranking found the right supporting chunks
+more reliably than the current LightRAG query configuration.
 
 ## 5. `contextual-rag`
 
@@ -247,12 +252,13 @@ Query-time:
 
 ### 6.5 Observed Behavior
 
-`graph-rag` is now operational: it indexed both measured datasets and answered
-every query cell. It still did not win either dataset on aggregate. Its strongest
-individual graph-native scores were on `entity_bridge` and `witness_network`,
-where relationship structure matters. Its weakest scores were broader synthesis
-questions where the current LightRAG query settings under-synthesized compared
-with hybrid/contextual chunk retrieval.
+`graph-rag` is now operational: it indexed all three measured datasets and answered
+every query cell. It still did not win any dataset on aggregate. The `graph-rag-fast`
+flavor was stronger than default and won individual baseline and graph-native
+questions, while `graph-rag-wide` frequently returned truncated answers and ranked
+last. The weakest graph scores were broader synthesis and cyber path questions
+where current LightRAG query settings under-synthesized compared with
+hybrid/contextual chunk retrieval.
 
 ### 6.6 Untested Fine-Tuning Opportunities
 
