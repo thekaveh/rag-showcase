@@ -104,3 +104,30 @@ def test_unknown_base_raises_key_error(tmp_path, monkeypatch):
 
     with pytest.raises(KeyError):
         flavors.get("not-a-rag-approach")
+
+
+def test_malformed_flavor_row_raises_consistently_not_just_once(tmp_path, monkeypatch):
+    # A bad row must raise on EVERY call. The regression this guards: seeding _CACHE
+    # before validation let the first call raise while later calls hit the `if _CACHE`
+    # short-circuit and silently returned a partial table (dropping every flavor after
+    # the bad row). The parse must be atomic — nothing published unless the whole file
+    # validates.
+    f = tmp_path / "flavors.yaml"
+    f.write_text(
+        """
+flavors:
+  - alias: good-one
+    base: hybrid-rag
+  - alias: bad-one
+    base: not-a-real-base
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
+
+    with pytest.raises(KeyError):
+        flavors.get("good-one")
+    # second call must ALSO raise — the cache was not poisoned with a partial table
+    with pytest.raises(KeyError):
+        flavors.get("good-one")
+    assert flavors._CACHE == {}  # nothing published on the failed parse

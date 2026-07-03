@@ -26,7 +26,13 @@ def _naive_chunks(path: str, name: str, size: int = 800, overlap: int = 100) -> 
     file's text into overlapping windows. Adequate for the .md/.txt corpus."""
     try:
         text = Path(path).read_text(encoding="utf-8", errors="replace").strip()
-    except OSError:
+    except OSError as e:
+        # Degrade to "no chunks" like a genuinely empty file, but log it — otherwise
+        # an unreadable corpus file is dropped from the index silently while run()
+        # still counts it in `files`, hiding a real operational problem. Matches the
+        # warning chunk_document() already emits when Docling is unreachable.
+        logging.getLogger("uvicorn.error").warning(
+            "could not read %s (%s); skipping", path, e)
         return []
     out: list[dict] = []
     step = max(1, size - overlap)
