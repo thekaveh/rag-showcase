@@ -10,7 +10,7 @@ with host Ollama; that is run metadata, not a repo requirement. See
   `vanilla-rag-wide`, `hybrid-rag-high-recall`, `hybrid-rag-fast`,
   `contextual-rag-high-recall`, `graph-rag-fast`, `graph-rag-wide`,
   `agentic-rag-deeper`, and `n8n-adaptive-rag-default`.
-- **Baseline corpus:** 11-document curated subset of MultiHop-RAG plus `widget-error-codes.md`.
+- **Baseline corpus:** 11-document curated corpus — a MultiHop-RAG subset plus `widget-error-codes.md`.
 - **Graph-native corpus:** 10 committed relation-dense dossiers in
   [`corpus/graph_native/`](../corpus/graph_native/).
 - **Cyber corpus:** 60 committed MITRE ATT&CK dossiers in

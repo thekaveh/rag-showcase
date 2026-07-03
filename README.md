@@ -250,11 +250,14 @@ LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail 
   graph queries to `LIGHTRAG_QUERY_ENABLE_RERANK=false`, `LIGHTRAG_QUERY_TOP_K=10`,
   `LIGHTRAG_QUERY_CHUNK_TOP_K=5`, and `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS=12000`; keep those
   unless you have fixed the LightRAG rerank provider path.
-- **`start-all.sh` hangs after the stack is up and never ingests/registers.** Atlas's
-  `start.py` ends by following logs (`docker compose … logs -f`), which blocks the
-  non-interactive path before the ingest/register steps. Run them manually once the
-  backend is healthy (`docker exec … ingest.py` / `register_models.py`) — see
-  [docs/comparison.md §4](docs/comparison.md). (Tracked for Atlas in the reuse assessment.)
+- **A manual `cd infra && ./start.sh` blocks before ingest/register.** Atlas's
+  `start.py` ends by following logs (`docker compose … logs -f`), which blocks a
+  non-interactive run. `start-all.sh` handles this for you — it backgrounds Atlas's
+  start, gates on backend/n8n/LightRAG/Weaviate/model health, then stops the
+  backgrounded start and runs ingest + register itself. If you bring the stack up by
+  hand instead, run ingest/register yourself once the backend is healthy
+  (`docker exec … ingest.py` / `register_models.py`). (Atlas's `logs -f` behavior is
+  tracked in the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).)
 - **Integration tests skip.** `tests/test_demo_matrix.py` self-skips unless a live LiteLLM is
   reachable; point it at the published port + master key (see §8).
 - **Stop / reset:** `./scripts/stop-all.sh` to stop; `cd infra && ./stop.sh --cold` to stop **and**
