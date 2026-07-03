@@ -127,31 +127,38 @@ rag-showcase/
 │   └── flavors.yaml         # OpenWebUI/benchmark aliases with tuning overrides
 ├── ingest/                  # corpus → chunk (Docling optional) → Weaviate(base+contextual) + LightRAG
 ├── register/                # idempotent LiteLLM /model/new registration
-├── corpus/                  # curated corpora (MultiHop-RAG + keyword docs + graph-native dossiers)
+├── corpus/                  # curated corpora + fetch/adapter scripts (MultiHop-RAG, keyword, graph-native, cyber-threat)
 ├── compose/                 # backend plugin compose overlay
-├── scripts/                 # start-all / stop-all / setup-overlay
+├── brand/                   # rag-showcase block-art logo (startup banner)
+├── scripts/                 # start-all / stop-all / setup-overlay / run-dataset-ladder
 ├── n8n/                     # Adaptive-RAG workflow recipe
-├── demo/                    # contrasting query matrix (queries.yaml)
+├── demo/                    # contrasting query matrices (queries.yaml + per-dataset)
+├── compare/                 # host comparison harness (run_matrix, judge, report_datasets, flavors/datasets)
 ├── tests/                   # end-to-end integration harness (skips without the stack)
-└── docs/                    # design spec, plan, Atlas-reuse assessment
+└── docs/                    # architecture, approaches, evaluation, comparison, results, specs & plans
 ```
 
 ## 6. Configuration (environment variables)
 
-The plugin reads these at runtime. Most are already injected by Atlas's backend
-or by the showcase's compose overlay (`compose/rag-overlay.yml`); none need to be
-set by hand for the default `start-all.sh` flow.
+These environment variables configure the showcase at runtime. The plugin reads
+most of them; the LightRAG role/model and Ollama entries are consumed by Atlas
+(defaulted by `setup-overlay.sh`). Most are already injected by Atlas's backend or
+by the showcase's compose overlay (`compose/rag-overlay.yml`); none need to be set
+by hand for the default `start-all.sh` flow.
 
 | Variable | Default | Read by | Source |
 |----------|---------|---------|--------|
 | `LITELLM_BASE_URL` | `http://litellm:4000` | litellm client, register | Atlas backend env |
-| `LITELLM_API_KEY` | — | litellm client, register (fallback) | Atlas backend env |
-| `LITELLM_MASTER_KEY` | `sk-noauth` (register fallback) | register; n8n UI node | Atlas `.env` (not auto-sourced; mapped to `LITELLM_API_KEY` in-container) |
+| `LITELLM_API_KEY` | — | litellm client, register (fallback), n8n workflow node | Atlas backend env |
+| `LITELLM_MASTER_KEY` | `sk-noauth` (register fallback) | register | Atlas `.env` (not auto-sourced; mapped to `LITELLM_API_KEY` in-container, which the n8n node reads) |
 | `WEAVIATE_URL` | `http://weaviate:8080` | vectors | Atlas backend env |
 | `WEAVIATE_GRPC_PORT` | `50051` | vectors | optional override |
 | `TEI_RERANKER_ENDPOINT` | `http://tei-reranker:80` | vectors (rerank) | overlay |
+| `TEI_RERANKER_MAX_BATCH` | `32` | vectors (rerank request batch cap) | optional override |
 | `LIGHTRAG_ENDPOINT` | `http://lightrag:9621` | lightrag client | Atlas backend env |
 | `LIGHTRAG_API_KEY` | — | lightrag client | Atlas backend env |
+| `LIGHTRAG_UPLOAD_RETRIES` | `60` | ingest → LightRAG (409 backpressure retries) | optional override |
+| `LIGHTRAG_UPLOAD_RETRY_DELAY` | `5` | ingest → LightRAG (retry delay seconds) | optional override |
 | `DOCLING_ENDPOINT` | `""` (unset → naive chunking) | ingest | Atlas backend env (set only when Docling is enabled) |
 | `N8N_ADAPTIVE_WEBHOOK_URL` | `http://n8n:5678/webhook/adaptive-rag` | n8n approach | overlay |
 | `RAG_ROLES_FILE` | `/app/plugins/rag/roles.yaml` | config | overlay |
@@ -161,6 +168,8 @@ set by hand for the default `start-all.sh` flow.
 | `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | Atlas `.env` defaulted by `setup-overlay.sh` |
 | `LIGHTRAG_KEYWORD_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG KEYWORD role | Atlas `.env` defaulted by `setup-overlay.sh` |
 | `LIGHTRAG_QUERY_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG QUERY role | Atlas `.env` defaulted by `setup-overlay.sh` |
+| `LIGHTRAG_EMBEDDING_MODEL` | `nomic-embed-text` | LightRAG embedding model | Atlas `.env` defaulted by `setup-overlay.sh` |
+| `RAG_SHOWCASE_LIGHTRAG_ROLE_MODEL` | `mistral-small3.2:24b` | `setup-overlay.sh` (default for the 3 LightRAG role models above) | host env / `infra/.env` override |
 | `LIGHTRAG_EXTRACT_MAX_ASYNC_LLM` | `1` | LightRAG EXTRACT concurrency | Atlas `.env` defaulted by `setup-overlay.sh` |
 | `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | `900` | LightRAG EXTRACT timeout seconds | Atlas `.env` defaulted by `setup-overlay.sh` |
 | `OLLAMA_CUSTOM_MODELS` | includes `mistral-small3.2:24b` | local Ollama model activation | Atlas `.env` merged by `setup-overlay.sh` |
@@ -175,6 +184,9 @@ set by hand for the default `start-all.sh` flow.
 |----------|--------|----------------|
 | [Design spec](docs/superpowers/specs/2026-06-25-rag-showcase-design.md) | Historical | The approved design: six approaches, architecture, corpus, phasing (predates implementation — see its deviations note) |
 | [Implementation plan](docs/superpowers/plans/2026-06-25-rag-showcase.md) | Historical | The task-by-task implementation plan (Tasks 0–19, as-built) |
+| [Approach flavors plan](docs/superpowers/plans/2026-07-02-approach-flavors.md) | Historical | Follow-on plan that added the tunable flavor alias system |
+| [Atlas LightRAG alignment plan](docs/superpowers/plans/2026-07-02-atlas-lightrag-alignment.md) + [design](docs/superpowers/specs/2026-07-02-atlas-lightrag-alignment-design.md) | Historical | Follow-on plan/design that wired LightRAG role models through Atlas inputs |
+| [Cyber threat dataset plan](docs/superpowers/plans/2026-07-03-cyber-threat-dataset.md) | Historical | Follow-on plan that added the bounded MITRE ATT&CK cyber-threat corpus rung |
 | [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and six-approach parallel flow diagrams |
 | [Approach internals](docs/approaches.md) | Living | Step-by-step flow, dependencies, tuning variables, tradeoffs, and measured performance for every approach |
 | [Approach flavor tuning](docs/approach-flavor-tuning.md) | Living | OpenWebUI model aliases, benchmark flavor selection, and query-time versus index-time tuning knobs |
