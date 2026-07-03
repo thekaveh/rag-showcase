@@ -5,7 +5,7 @@ under **identical conditions** — same corpus, same embedding model, same gener
 model — so the only variable is the *retrieval-and-reasoning strategy* itself. That
 makes the comparison fair and the differences attributable.
 
-## How it runs
+## 1. How it runs
 
 Each approach is an OpenAI-compatible `/<name>/v1/chat/completions` endpoint in a
 self-contained plugin package (`backend_plugins/rag/`) that is **bind-mounted** into
@@ -32,7 +32,7 @@ Open a multi-model chat, select the approaches (or flavors) you want, and one pr
 fans out — every answer comes back with a uniform **answer**, **retrieved-context**,
 and **metrics** footer so they are directly comparable.
 
-## Flavors
+## 2. Flavors
 
 Named tuning **flavors** such as `graph-rag-wide` or `hybrid-rag-high-recall` can also
 appear as model aliases. They route to the same base approach with **reproducible
@@ -40,7 +40,7 @@ parameter overrides** (retrieval depth, rerank on/off, graph query mode, agent s
 budget, …). One base approach can therefore be benchmarked at several operating points
 without code changes. See [Flavor Tuning](../approach-flavor-tuning.md).
 
-## Fair-comparison guarantees
+## 3. Fair-comparison guarantees
 
 - **One corpus, ingested once** into both a plain vector collection (`RagBase`) and a
   context-prefixed collection (`RagContextual`), plus a LightRAG knowledge graph.
@@ -49,7 +49,7 @@ without code changes. See [Flavor Tuning](../approach-flavor-tuning.md).
 - **Uniform output contract** — every approach returns the same answer/context/metrics
   shape, which the [evaluation harness](../evaluation-methodology.md) parses and scores.
 
-## What to read next
+## 4. Further reading
 
 - [Quick Start](quickstart.md) — bring the whole stack up with one command.
 - [Approach Internals](../approaches.md) — the exact steps, dependencies, and knobs per approach.

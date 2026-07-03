@@ -6,8 +6,7 @@ each strategy.
 
 <iframe class="diagram" src="../approach-flows.html" title="RAG Showcase — six approach flow phases" height="860" loading="lazy"></iframe>
 
-[:octicons-link-external-24: Open full size](../approach-flows.html){ target=_blank } ·
-[:octicons-image-24: PNG version](../approach-flows.png){ target=_blank }
+[Open full size](../approach-flows.html){ target=_blank } · [PNG version](../approach-flows.png){ target=_blank }
 
 Approach-by-approach internals (exact steps, dependencies, tuning variables, measured
 performance) are in [Approach Internals](../approaches.md); the overall topology is in
