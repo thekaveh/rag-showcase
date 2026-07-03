@@ -17,3 +17,6 @@ compare/results/
 
 # SDD process scratch
 .superpowers/
+
+# MkDocs site build output
+site/
