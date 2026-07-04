@@ -5,6 +5,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient, ASGITransport
 from rag.approaches import graph
+from rag.common import flavors
 from rag.common import lightrag
 
 
@@ -12,9 +13,9 @@ from rag.common import lightrag
 def _clear_flavor_cache():
     # A per-test flavors.yaml override loads into the module-global cache; clear
     # before AND after so a tmp table can't leak across tests (mirrors test_flavors.py).
-    graph.flavors._CACHE.clear()
+    flavors._CACHE.clear()
     yield
-    graph.flavors._CACHE.clear()
+    flavors._CACHE.clear()
 
 # NOTE: these tests scope respx via `with respx.mock:` inside each test body
 # rather than the `@respx.mock` decorator. Several tests here mock the SAME
@@ -186,3 +187,47 @@ async def test_lightrag_query_options_are_env_overridable(monkeypatch):
         assert sent["top_k"] == 7
         assert sent["chunk_top_k"] == 3
         assert sent["max_total_tokens"] == 4096
+
+
+@pytest.mark.asyncio
+async def test_lightrag_upload_text_raises_after_retry_exhaustion(monkeypatch):
+    # Permanent 409 backpressure must raise after retries+1 attempts — not loop
+    # forever and not silently return with the document never ingested.
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    monkeypatch.setenv("LIGHTRAG_UPLOAD_RETRIES", "1")
+    monkeypatch.setenv("LIGHTRAG_UPLOAD_RETRY_DELAY", "0")
+    with respx.mock:
+        upload = respx.post("http://lightrag:9621/documents/text").mock(
+            return_value=httpx.Response(409, json={"status": "busy"}))
+        with pytest.raises(httpx.HTTPStatusError):
+            await lightrag.upload_text("My Doc", "some content")
+        assert upload.call_count == 2  # initial attempt + 1 retry, then raise
+
+
+@pytest.mark.asyncio
+async def test_lightrag_empty_endpoint_env_falls_back_to_default(monkeypatch):
+    # Atlas's backend compose always SETS LIGHTRAG_ENDPOINT — empty string when
+    # LightRAG is disabled — so a plain .get() default never applies in-container
+    # and "" produced an opaque UnsupportedProtocol 500 on the first graph query.
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "")
+    with respx.mock:
+        route = respx.post("http://lightrag:9621/query").mock(
+            return_value=httpx.Response(200, json={"response": "graph answer"}))
+        out = await lightrag.query("a real graph question")
+        assert route.called
+        assert out == "graph answer"
+
+
+@pytest.mark.asyncio
+async def test_lightrag_malformed_int_env_degrades_to_default(monkeypatch):
+    # A typo'd LIGHTRAG_QUERY_TOP_K must degrade to the default with a warning,
+    # not turn every graph query into a per-request ValueError 500.
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    monkeypatch.setenv("LIGHTRAG_QUERY_TOP_K", "abc")
+    with respx.mock:
+        route = respx.post("http://lightrag:9621/query").mock(
+            return_value=httpx.Response(200, json={"response": "ok"}))
+        out = await lightrag.query("a real graph question")
+        assert out == "ok"
+        sent = json.loads(route.calls[0].request.content)
+        assert sent["top_k"] == 10  # module default, not a crash

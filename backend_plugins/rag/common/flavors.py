@@ -36,6 +36,14 @@ class FlavorProfile:
 
 _CACHE: dict[str, FlavorProfile] = {}
 
+# Params the handlers coerce with int()/float() per request. Validate the types at
+# load time so a typo'd value (e.g. retrieve_k: "4o") fails fast and consistently
+# instead of turning into an unexplained per-request 500 hours after the edit.
+_NUMERIC_PARAMS: dict[str, type] = {
+    "k": int, "retrieve_k": int, "top_n": int, "alpha": float, "max_steps": int,
+    "vector_top_k": int, "top_k": int, "chunk_top_k": int, "max_total_tokens": int,
+}
+
 
 def _path() -> Path:
     return Path(os.getenv("RAG_FLAVORS_FILE", "/app/plugins/rag/flavors.yaml"))
@@ -83,18 +91,35 @@ def _load() -> dict[str, FlavorProfile]:
             base = str(row.get("base") or "").strip()
             if not alias:
                 raise ValueError(f"{path} contains a flavor without alias")
+            if alias in BASE_APPROACHES:
+                # Enforce the module contract stated above: the canonical six always
+                # resolve to their default profile. A row shadowing a base name would
+                # silently change what the stable endpoints mean (and a cross-base
+                # shadow would 500 that canonical endpoint outright).
+                raise ValueError(f"flavor alias {alias!r} shadows a canonical base approach")
+            if alias in table:
+                raise ValueError(f"duplicate flavor alias {alias!r}")
             if base not in BASE_APPROACHES:
                 raise KeyError(f"flavor {alias!r} uses unknown base approach {base!r}")
             params = row.get("params") or {}
             if not isinstance(params, dict):
                 raise ValueError(f"flavor {alias!r} params must be an object")
+            params = dict(params)
+            for key, cast in _NUMERIC_PARAMS.items():
+                if key in params:
+                    try:
+                        params[key] = cast(params[key])
+                    except (TypeError, ValueError) as e:
+                        raise ValueError(
+                            f"flavor {alias!r} param {key!r} must be "
+                            f"{cast.__name__}-compatible, got {params[key]!r}") from e
             table[alias] = FlavorProfile(
                 alias=alias,
                 base=base,
                 label=str(row.get("label") or alias),
                 description=str(row.get("description") or ""),
                 requires_reingest=bool(row.get("requires_reingest", False)),
-                params=dict(params),
+                params=params,
             )
 
     _CACHE.update(table)

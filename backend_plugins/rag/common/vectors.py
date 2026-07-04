@@ -15,6 +15,11 @@ import httpx
 
 _TIMEOUT = httpx.Timeout(60.0, connect=10.0)
 
+# Single source of truth for the two collection names, shared by the approaches
+# and the ingest tool (renaming a collection was previously a six-site edit).
+BASE_COLLECTION = "RagBase"
+CONTEXTUAL_COLLECTION = "RagContextual"
+
 
 @dataclass
 class Hit:

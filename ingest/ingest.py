@@ -16,8 +16,8 @@ from rag.common import litellm, vectors
 from rag.common.contextual import contextualize
 from rag.common import lightrag
 
-BASE = "RagBase"
-CONTEXTUAL = "RagContextual"
+BASE = vectors.BASE_COLLECTION
+CONTEXTUAL = vectors.CONTEXTUAL_COLLECTION
 _TIMEOUT = httpx.Timeout(300.0, connect=10.0)
 # Single source of truth for chunking geometry — _naive_chunks and the Docling
 # request below must stay in agreement or the two chunking paths drift.
