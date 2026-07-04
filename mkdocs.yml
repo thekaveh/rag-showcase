@@ -21,25 +21,21 @@ theme:
     code: JetBrains Mono
   icon:
     repo: fontawesome/brands/github
+  # Dark-first: the sci-fi register lives in the dark scheme (default on load);
+  # a clean light scheme is available via the toggle.
   palette:
-    - media: "(prefers-color-scheme)"
+    - scheme: slate
+      primary: black
+      accent: cyan
       toggle:
-        icon: material/circle-half-full
+        icon: material/weather-sunny
         name: Switch to light mode
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
+    - scheme: default
       primary: white
-      accent: indigo
+      accent: cyan
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: black
-      accent: indigo
-      toggle:
-        icon: material/weather-sunny
-        name: Switch to system preference
   features:
     - navigation.tabs
     - navigation.tabs.sticky
