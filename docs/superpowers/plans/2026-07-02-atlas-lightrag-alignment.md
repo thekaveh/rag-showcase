@@ -1,5 +1,12 @@
 # Atlas LightRAG Alignment Implementation Plan
 
+**Status:** Historical artifact — implemented, as-built. Not a live task list.
+One post-implementation deviation: a minimal `services.lightrag` section with
+optional `*_OLLAMA_LLM_NUM_CTX` context caps was re-added to the overlay
+(commit 15c1c8d) because Atlas exposes no public input for them; see
+`tests/test_lightrag_overlay.py` for the pinned shape.
+**Section numbering:** primary sections use the domain-specific `Task N` scheme this plan was executed under; kept as-built rather than renumbered.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Update rag-showcase to use Atlas's first-class LightRAG role/query configuration instead of local runtime overrides.
@@ -17,7 +24,7 @@
 
 ---
 
-### Task 1: Move LightRAG Role Defaults To Atlas Inputs
+## Task 1: Move LightRAG Role Defaults To Atlas Inputs
 
 **Files:**
 - Modify: `scripts/setup-overlay.sh`
@@ -34,7 +41,7 @@
 - [ ] Remove `lightrag` and `lightrag-init` sections from `compose/rag-overlay.yml`.
 - [ ] Update `tests/test_lightrag_overlay.py` to assert the overlay delegates LightRAG service config to Atlas.
 
-### Task 2: Refresh Documentation
+## Task 2: Refresh Documentation
 
 **Files:**
 - Modify: `README.md`
@@ -51,7 +58,7 @@
 - [ ] Replace `RAG_LIGHTRAG_*` docs with Atlas `LIGHTRAG_*` variables.
 - [ ] Mark the Atlas role-model spec as implemented upstream.
 
-### Task 3: Validate And Publish Metadata
+## Task 3: Validate And Publish Metadata
 
 **Files:**
 - Modify: GitHub repository About metadata.

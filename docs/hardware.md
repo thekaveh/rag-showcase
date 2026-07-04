@@ -20,7 +20,7 @@ the real requirement up or down.
 
 ## 2. What Uses Resources
 
-- **Atlas services:** Supabase/Postgres, Redis, LiteLLM, OpenWebUI, backend,
+- **Atlas services:** Supabase/Postgres, Redis, LiteLLM, Open WebUI, backend,
   Weaviate, Neo4j, LightRAG, TEI reranker, and n8n all run together for the
   default showcase path.
 - **Vector and graph stores:** Weaviate and Neo4j need enough memory to keep the
@@ -47,8 +47,9 @@ LIGHTRAG_EXTRACT_MAX_ASYNC_LLM=1
 LIGHTRAG_EXTRACT_LLM_TIMEOUT=900
 ```
 
-If Atlas is using a containerized Ollama source, `setup-overlay.sh` also appends
-that model to `OLLAMA_CUSTOM_MODELS` so Atlas can activate it. If Atlas is using
+`setup-overlay.sh` appends that model to `OLLAMA_CUSTOM_MODELS` idempotently on
+every run; when Atlas uses a containerized Ollama source, Atlas activates it from
+that list. If Atlas is using
 `LLM_PROVIDER_SOURCE=ollama-localhost`, pull models on the host yourself; Atlas
 does not mutate a host-managed Ollama installation.
 

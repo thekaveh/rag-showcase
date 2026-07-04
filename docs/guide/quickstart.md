@@ -20,7 +20,7 @@ Atlas's requirements apply:
   default local run activates `mistral-small3.2:24b` for LightRAG's graph roles — see
   [Hardware Sizing](../hardware.md) for minimum and recommended profiles.
 
-## 2. Bring it up
+## 2. Bring It Up
 
 ```bash
 ./scripts/start-all.sh
@@ -53,7 +53,7 @@ Stop everything with:
 ./scripts/stop-all.sh
 ```
 
-## 3. Corpus note
+## 3. Corpus Note
 
 For the full corpus (MultiHop-RAG + keyword docs), install the `datasets` library on
 the host before running:
@@ -65,14 +65,14 @@ python3 -m pip install datasets
 Without it, ingestion uses only the bundled keyword docs, so the thematic / multi-hop
 demo queries have little to work with. See the [Corpus Overview](../components/corpus.md).
 
-## 4. The n8n workflow
+## 4. The n8n Workflow
 
 The `n8n-adaptive-rag` workflow is checked in and imported automatically by
 `start-all.sh`, which preserves its active state and restarts n8n so the production
 webhook is registered. See the [n8n Adaptive Workflow](../components/n8n.md) page for
 the workflow shape and tuning knobs.
 
-## 5. Development and testing
+## 5. Development and Testing
 
 ```bash
 uv run pytest                 # unit suite (mocked I/O) + integration tests (skip without the stack)
@@ -81,13 +81,13 @@ uv run pytest backend_plugins # unit tests only
 
 The unit tests mock all external I/O and run without the stack. The
 `tests/test_demo_matrix.py` integration tests exercise the live stack and self-skip
-when LiteLLM is unreachable. They default to `http://localhost:4000`, which is not
-where the stack publishes LiteLLM, so to run them from the host against a running
-stack, point them at the published port and master key:
+when LiteLLM is unreachable. With a started stack they derive the published gateway
+and master key from `infra/.env` automatically, so a plain `uv run pytest tests`
+works; export `LITELLM_BASE_URL` / `LITELLM_MASTER_KEY` only to target a
+non-default gateway:
 
 ```bash
-LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail -1 | cut -d= -f2)" \
-  LITELLM_MASTER_KEY="$(grep -E '^LITELLM_MASTER_KEY=' infra/.env | tail -1 | cut -d= -f2)" \
+LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
   uv run pytest tests
 ```
 

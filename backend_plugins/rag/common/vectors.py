@@ -15,6 +15,11 @@ import httpx
 
 _TIMEOUT = httpx.Timeout(60.0, connect=10.0)
 
+# Single source of truth for the two collection names, shared by the approaches
+# and the ingest tool (renaming a collection was previously a six-site edit).
+BASE_COLLECTION = "RagBase"
+CONTEXTUAL_COLLECTION = "RagContextual"
+
 
 @dataclass
 class Hit:
@@ -152,6 +157,9 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
     try:
         max_batch = max(1, int(os.environ.get("TEI_RERANKER_MAX_BATCH", "32")))
     except ValueError:
+        logging.getLogger("uvicorn.error").warning(
+            "TEI_RERANKER_MAX_BATCH=%r is not an integer; using default 32",
+            os.environ.get("TEI_RERANKER_MAX_BATCH"))
         max_batch = 32
     ordered: list[Hit] = []
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
@@ -166,6 +174,8 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
             if not isinstance(ranking, list):
                 return hits[:top_n]  # unexpected reranker shape — fall back to input order
             for row in ranking:
+                if not isinstance(row, dict):
+                    continue  # ignore non-object rows from a misbehaving reranker
                 idx = row.get("index")
                 if not isinstance(idx, int) or not (0 <= idx < len(batch)):
                     continue  # ignore out-of-range indices from a misbehaving reranker

@@ -54,7 +54,7 @@ def test_flavor_tuning_doc_is_linked_and_covers_invocation() -> None:
     doc = (ROOT / "docs" / "approach-flavor-tuning.md").read_text(encoding="utf-8")
 
     assert "docs/approach-flavor-tuning.md" in readme
-    assert "OpenWebUI" in doc
+    assert "Open WebUI" in doc
     assert "graph-rag-wide" in doc
     assert "MATRIX_FLAVORS" in doc
     assert "compare/flavors.yaml" in doc

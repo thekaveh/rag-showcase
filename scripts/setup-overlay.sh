@@ -21,9 +21,13 @@ echo "Linked $SLOT/compose.yml -> compose/rag-overlay.yml"
 [ -f "$ENV_FILE" ] || cp "$ROOT/infra/.env.example" "$ENV_FILE"
 
 set_env() {  # set_env KEY VALUE — replace the key (every occurrence) or append.
-  local key="$1" val="$2"
+  local key="$1" val="$2" val_esc
   if grep -qE "^${key}=" "$ENV_FILE"; then
-    sed -i.bak "s|^${key}=.*|${key}=${val}|" "$ENV_FILE" && rm -f "$ENV_FILE.bak"
+    # Escape sed-replacement metacharacters (\, &, and the | delimiter): an
+    # unescaped & expands to the whole match, and BRAND_LOGO_FILE embeds the
+    # checkout path, which may legally contain & or | on macOS.
+    val_esc="$(printf '%s' "$val" | sed -e 's/[\\&|]/\\&/g')"
+    sed -i.bak "s|^${key}=.*|${key}=${val_esc}|" "$ENV_FILE" && rm -f "$ENV_FILE.bak"
   else
     printf '%s=%s\n' "$key" "$val" >> "$ENV_FILE"
   fi

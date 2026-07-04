@@ -16,7 +16,7 @@ and consumed by [`compare/report_datasets.py`](../../compare/report_datasets.py)
 [`../dataset-complexity-report.md`](../dataset-complexity-report.md), and
 [`../comparison.md`](../comparison.md).
 
-## 1. Current snapshots
+## 1. Current Snapshots
 
 The live set is whatever [`compare/datasets.yaml`](../../compare/datasets.yaml)
 points each measured dataset at — currently the 2026-07-03 run:
@@ -28,7 +28,7 @@ points each measured dataset at — currently the 2026-07-03 run:
 These are the only snapshots the manifest and reports reference. When a dataset
 is re-measured, the ladder writes a new dated snapshot and repoints the manifest.
 
-## 2. Historical snapshots
+## 2. Historical Snapshots
 
 Earlier dated runs are retained as a provenance trail and are **not** referenced
 by the manifest or reports — each is superseded by the latest dated run for its

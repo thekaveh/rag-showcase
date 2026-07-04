@@ -19,12 +19,12 @@ specific parameter overrides. For example, `graph-rag-wide` is still the
 `graph-rag` backend route, but the request model tells the plugin to use wider
 LightRAG query fanout.
 
-This gives users a clean OpenWebUI interface and gives the benchmark harness a
+This gives users a clean Open WebUI interface and gives the benchmark harness a
 reproducible experiment surface.
 
-## 2. OpenWebUI Invocation
+## 2. Open WebUI Invocation
 
-After startup registration, OpenWebUI sees canonical approaches and flavor aliases
+After startup registration, Open WebUI sees canonical approaches and flavor aliases
 as selectable models. A user invokes a tuned LightRAG path by selecting the alias:
 
 ```text

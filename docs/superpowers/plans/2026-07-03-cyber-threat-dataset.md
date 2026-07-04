@@ -1,5 +1,9 @@
 # Cyber Threat Dataset Implementation Plan
 
+**Status:** Historical artifact — implemented, as-built (the dataset is
+committed and measured). Not a live task list.
+**Section numbering:** primary sections use the domain-specific `Task N` scheme this plan was executed under; kept as-built rather than renumbered.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a bounded, committed cyber-threat-intel dataset rung before running the expanded RAG flavor comparison.

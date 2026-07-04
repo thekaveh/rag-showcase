@@ -62,3 +62,16 @@ def test_cyber_adapter_writes_named_relationships(tmp_path) -> None:
     text = next(tmp_path.glob("*.md")).read_text(encoding="utf-8")
     assert "Alpha Group -> uses -> Spearphishing Attachment" in text
     assert "attack-pattern--spearphishing" not in text
+
+
+def test_adapter_slugs_normalize_identically() -> None:
+    # _slug is deliberately quadruplicated (the adapters are standalone dual-mode
+    # scripts); this drift guard keeps the four normalizations byte-identical for
+    # non-empty input (only the empty-input fallback word differs by design).
+    from corpus.adapters import (cyber_threat_intel, gdelt_events,
+                                 openalex_scholarly, stark_export)
+
+    modules = (cyber_threat_intel, gdelt_events, openalex_scholarly, stark_export)
+    for text in ["Hello World!", "A--B  c", "Café au lait", "x" * 100, "MITRE ATT&CK"]:
+        slugs = {m._slug(text) for m in modules}
+        assert len(slugs) == 1, f"slug drift for {text!r}: {slugs}"

@@ -3,6 +3,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient, ASGITransport
 from rag.common.vectors import Hit
+from rag.common import flavors
 from rag.approaches import agentic
 
 
@@ -11,9 +12,9 @@ def _clear_flavor_cache():
     # Some agentic tests load a per-test flavors.yaml into the module-global
     # flavors._CACHE; clear before AND after so a test's tmp table can never leak
     # into another test's ordering (mirrors test_flavors.py's fixture).
-    agentic.flavors._CACHE.clear()
+    flavors._CACHE.clear()
     yield
-    agentic.flavors._CACHE.clear()
+    flavors._CACHE.clear()
 
 
 @pytest.mark.asyncio
@@ -123,6 +124,38 @@ async def test_agentic_uses_query_graph_tool(monkeypatch):
     assert "3 LLM calls" in content
     assert seen["role"] == "agentic"  # the agent uses the "agentic" role (wrong key misroutes)
     assert seen["q"] == "themes"      # the extracted tool query reaches the graph backend
+
+
+@pytest.mark.asyncio
+async def test_agentic_query_graph_empty_query_counts_no_delegated_call(monkeypatch):
+    # An empty/malformed tool query never does delegated graph work (lightrag's
+    # <3-char guard short-circuits with no HTTP/LLM call), so the pinned cost
+    # footer must not bill +1 for it — sibling of search_vectors' empty-query 0.
+    # 2 chat turns + 0 = "2 LLM calls", and lightrag.query is never invoked.
+    turns = []
+    async def fake_chat(model, messages, tools=None, **kw):
+        turns.append(messages)
+        if len(turns) == 1:
+            return {"choices": [{"message": {"role": "assistant", "content": None,
+                "tool_calls": [{"id": "g1", "type": "function",
+                  "function": {"name": "query_graph",
+                               "arguments": json.dumps({"query": ""})}}]}}]}
+        return {"choices": [{"message": {"role": "assistant", "content": "answer without graph"}}]}
+    async def forbidden_graph(q, mode="hybrid"):
+        raise AssertionError("lightrag.query must not be called for an empty query")
+    monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
+    monkeypatch.setattr(agentic.lightrag, "query", forbidden_graph)
+    monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
+
+    app = FastAPI(); app.include_router(agentic.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/agentic-rag/v1/chat/completions",
+                          json={"model": "agentic-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200
+    content = r.json()["choices"][0]["message"]["content"]
+    assert "too short" in content   # the guard observation is surfaced in the trace
+    assert "2 LLM calls" in content  # 2 chat turns + 0 — no delegated graph call
 
 
 @pytest.mark.asyncio
@@ -308,11 +341,12 @@ async def test_agentic_empty_choices_degrades(monkeypatch):
     assert "(no response from model)" in r.json()["choices"][0]["message"]["content"]
 
 
-@pytest.mark.parametrize("bad_args", ["null", "5", '"hi"', "[1, 2]", "true"])
+@pytest.mark.parametrize("bad_args", ["null", "5", '"hi"', "[1, 2]", "true", "{bad"])
 @pytest.mark.asyncio
 async def test_agentic_tolerates_non_object_tool_args(monkeypatch, bad_args):
     # tool-call arguments that are valid JSON but NOT an object (null/number/
-    # string/array/bool) must be coerced to {} — not crash args.get(...) -> 500.
+    # string/array/bool), or not JSON at all ("{bad"), must be coerced to {} —
+    # not crash args.get(...)/json.loads -> 500.
     turns = []
     async def fake_chat(model, messages, tools=None, **kw):
         turns.append(1)
@@ -360,3 +394,117 @@ async def test_agentic_tolerates_non_string_query_value(monkeypatch, bad_query):
                           json={"model": "agentic-rag",
                                 "messages": [{"role": "user", "content": "q"}]})
     assert r.status_code == 200  # non-string query coerced to "", degrades cleanly
+
+
+@pytest.mark.asyncio
+async def test_agentic_flavor_max_steps_actually_bounds_the_loop(tmp_path, monkeypatch):
+    # A tool-EVERY-turn model with a max_steps:2 flavor must stop after exactly 2
+    # LLM turns with the exhaustion message. (The other flavor test's model answers
+    # on turn 2, so it never observes the max_steps plumb — this one does.)
+    manifest = tmp_path / "flavors.yaml"
+    manifest.write_text(
+        "flavors:\n"
+        "  - alias: agentic-rag-two\n"
+        "    base: agentic-rag\n"
+        "    params:\n"
+        "      max_steps: 2\n",
+        encoding="utf-8")
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(manifest))
+    flavors._CACHE.clear()
+    turns = []
+    async def fake_chat(model, messages, tools=None, **kw):
+        turns.append(1)
+        return {"choices": [{"message": {"role": "assistant", "content": None,
+            "tool_calls": [{"id": f"c{len(turns)}", "type": "function",
+              "function": {"name": "search_vectors",
+                           "arguments": json.dumps({"query": "x"})}}]}}]}
+    async def fake_embed(texts, model=None): return [[1.0]]
+    monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
+    monkeypatch.setattr(agentic.litellm, "embed", fake_embed)
+    monkeypatch.setattr(agentic.vectors, "search_hybrid",
+                        lambda c, q, v, k: [Hit("D", "body", 0.5)])
+    monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
+    app = FastAPI(); app.include_router(agentic.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/agentic-rag/v1/chat/completions",
+                          json={"model": "agentic-rag-two",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200
+    assert "MAX_STEPS" in r.json()["choices"][0]["message"]["content"]
+    assert len(turns) == 2  # the flavor override, not the module default of 4
+
+
+@pytest.mark.asyncio
+async def test_agentic_handles_parallel_tool_calls_in_one_turn(monkeypatch):
+    # Local models do emit multiple tool_calls in a single assistant turn. Both
+    # must run, both observations must be traced, the turn's thought must render
+    # exactly once, and each tool reply must link its own call id.
+    turns = []
+    tool_msgs = []
+    async def fake_chat(model, messages, tools=None, **kw):
+        turns.append(1)
+        if len(turns) == 1:
+            return {"choices": [{"message": {"role": "assistant", "content": "I will use both tools.",
+                "tool_calls": [
+                    {"id": "cv", "type": "function",
+                     "function": {"name": "search_vectors",
+                                  "arguments": json.dumps({"query": "alpha"})}},
+                    {"id": "cg", "type": "function",
+                     "function": {"name": "query_graph",
+                                  "arguments": json.dumps({"query": "beta graph"})}},
+                ]}}]}
+        tool_msgs.extend(m for m in messages if m.get("role") == "tool")
+        return {"choices": [{"message": {"role": "assistant", "content": "done"}}]}
+    async def fake_embed(texts, model=None): return [[1.0]]
+    async def fake_graph(q, mode="hybrid", options=None): return "GRAPH-OBS"
+    monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
+    monkeypatch.setattr(agentic.litellm, "embed", fake_embed)
+    monkeypatch.setattr(agentic.lightrag, "query", fake_graph)
+    monkeypatch.setattr(agentic.vectors, "search_hybrid",
+                        lambda c, q, v, k: [Hit("D", "VEC-OBS body", 0.5)])
+    monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
+    app = FastAPI(); app.include_router(agentic.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/agentic-rag/v1/chat/completions",
+                          json={"model": "agentic-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200
+    content = r.json()["choices"][0]["message"]["content"]
+    assert "VEC-OBS" in content and "GRAPH-OBS" in content  # both observations traced
+    assert content.count("I will use both tools.") == 1     # thought rendered once
+    # one tool reply per call, ids linked to the assistant turn's call ids
+    assert [m["tool_call_id"] for m in tool_msgs] == ["cv", "cg"]
+    # 2 chat turns + 1 embed (search_vectors) + 1 delegated graph call = 4
+    assert "4 LLM calls" in content
+
+
+@pytest.mark.asyncio
+async def test_agentic_tool_failure_becomes_observation_not_500(monkeypatch):
+    # A tool-side outage (Weaviate/embed/LightRAG down) must not abort the episode
+    # as a bare 500 — it becomes an observation the model can react to.
+    turns = []
+    async def fake_chat(model, messages, tools=None, **kw):
+        turns.append(1)
+        if len(turns) == 1:
+            return {"choices": [{"message": {"role": "assistant", "content": None,
+                "tool_calls": [{"id": "c1", "type": "function",
+                  "function": {"name": "search_vectors",
+                               "arguments": json.dumps({"query": "alpha"})}}]}}]}
+        # the model sees the failure observation and still answers
+        assert any(m.get("role") == "tool" and "failed" in m.get("content", "")
+                   for m in messages)
+        return {"choices": [{"message": {"role": "assistant", "content": "recovered"}}]}
+    async def broken_embed(texts, model=None):
+        raise RuntimeError("embedding backend down")
+    monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
+    monkeypatch.setattr(agentic.litellm, "embed", broken_embed)
+    monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
+    app = FastAPI(); app.include_router(agentic.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/agentic-rag/v1/chat/completions",
+                          json={"model": "agentic-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200
+    content = r.json()["choices"][0]["message"]["content"]
+    assert "recovered" in content
+    assert "failed: RuntimeError" in content  # trace surfaces the failure

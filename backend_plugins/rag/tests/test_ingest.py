@@ -123,14 +123,15 @@ async def test_run_raises_on_contextual_embedding_mismatch(monkeypatch, tmp_path
     monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
     monkeypatch.setattr(ing.vectors, "delete_collection", lambda n: None)
     monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
-    monkeypatch.setattr(ing.lightrag, "upload_text", lambda t, x: None)
+    async def fake_upload(t, x): return None
+    monkeypatch.setattr(ing.lightrag, "upload_text", fake_upload)
     with pytest.raises(RuntimeError, match="contextual embedding count mismatch"):
         await ing.run(str(tmp_path))
 
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_chunk_document_falls_back_when_docling_errors(monkeypatch, tmp_path):
+async def test_chunk_document_falls_back_when_docling_errors(monkeypatch, tmp_path, caplog):
     # Docling configured but unreachable -> graceful degrade to naive chunking
     # (the exception path, distinct from the DOCLING_ENDPOINT-unset path).
     monkeypatch.setenv("DOCLING_ENDPOINT", "http://docling-gpu:8000")
@@ -138,9 +139,13 @@ async def test_chunk_document_falls_back_when_docling_errors(monkeypatch, tmp_pa
     doc.write_text("# T\n\n" + ("y" * 900), encoding="utf-8")
     respx.post("http://docling-gpu:8000/v1/document/convert").mock(
         side_effect=httpx.ConnectError("docling down"))
-    chunks = await ing.chunk_document(str(doc))
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        chunks = await ing.chunk_document(str(doc))
     assert len(chunks) >= 1
     assert all(c["title"] == "d.md" and c["text"] for c in chunks)  # naive chunks
+    # pin the exception-path wording: it must say the fallback is being ATTEMPTED
+    # (for a PDF the fallback then still skips), not promise naive chunking.
+    assert "attempting fallback" in caplog.text
 
 
 def test_naive_chunks_logs_and_skips_unreadable_file(tmp_path, caplog):
@@ -178,3 +183,100 @@ async def test_run_skips_files_yielding_no_chunks(monkeypatch, tmp_path):
     assert result == {"files": 2, "base_chunks": 1, "contextual_chunks": 1}
     assert uploads == ["good.txt"]            # empty file never uploaded
     assert all(len(t) > 0 for t in embedded)  # embed never called with []
+
+
+@pytest.mark.asyncio
+async def test_run_refuses_missing_or_empty_corpus_dir(monkeypatch, tmp_path):
+    # glob() on a nonexistent path yields nothing without error; run() must refuse to
+    # reach the destructive phase-2 swap rather than rebuild both collections empty
+    # (the "typo'd path wipes a warm demo corpus" regression).
+    deleted = []
+    monkeypatch.setattr(ing.vectors, "delete_collection", lambda n: deleted.append(n))
+    monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
+    with pytest.raises(RuntimeError, match="no ingestable documents"):
+        await ing.run(str(tmp_path / "typo-subdir"))     # nonexistent path
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    with pytest.raises(RuntimeError, match="no ingestable documents"):
+        await ing.run(str(empty))                        # exists but holds no documents
+    assert deleted == []  # the swap was never reached
+
+
+@pytest.mark.asyncio
+async def test_run_refuses_when_all_files_chunk_to_nothing(monkeypatch, tmp_path):
+    # Files exist but none yields content (unreadable files, skipped PDFs): still
+    # refuse the swap — rebuilding from zero rows would wipe the live collections.
+    (tmp_path / "a.txt").write_text("", encoding="utf-8")
+    deleted = []
+    async def no_chunks(path): return []
+    monkeypatch.setattr(ing, "chunk_document", no_chunks)
+    monkeypatch.setattr(ing.vectors, "delete_collection", lambda n: deleted.append(n))
+    monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
+    with pytest.raises(RuntimeError, match="no ingestable content"):
+        await ing.run(str(tmp_path))
+    assert deleted == []
+
+
+@pytest.mark.asyncio
+async def test_chunk_document_skips_pdf_when_docling_unavailable(monkeypatch, tmp_path, caplog):
+    # Without Docling, the naive fallback must not read a binary PDF as text — that
+    # would silently embed mojibake chunks. The file is dropped with a warning.
+    monkeypatch.delenv("DOCLING_ENDPOINT", raising=False)
+    pdf = tmp_path / "doc.pdf"
+    pdf.write_bytes(b"%PDF-1.4 \x00\x01binary")
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        chunks = await ing.chunk_document(str(pdf))
+    assert chunks == []
+    assert "skipping PDF" in caplog.text
+    # the unavailable-skip wording specifically — not the empty-chunks message,
+    # which shares the "skipping PDF" substring.
+    assert "no Docling available" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_run_feeds_pristine_source_text_to_lightrag_and_contextualize(monkeypatch, tmp_path):
+    # For .txt/.md the ORIGINAL file text must reach LightRAG extraction and the
+    # contextualize window — a chunk-join would duplicate every overlap span and
+    # inject paragraph breaks at arbitrary offsets. (Chunk-join remains the
+    # fallback for binary formats only.)
+    source = "first paragraph of the pristine document.\n\nsecond paragraph."
+    (tmp_path / "d.md").write_text(source, encoding="utf-8")
+    uploads, ctx_docs = [], []
+    async def fake_chunk(path):
+        return [{"title": "t", "text": "CHUNK-A"}, {"title": "t", "text": "CHUNK-B"}]
+    async def fake_embed(texts, model=None): return [[0.0] for _ in texts]
+    async def fake_ctx(doc, chunk):
+        ctx_docs.append(doc)
+        return "blurb"
+    async def fake_upload(title, text): uploads.append(text)
+    monkeypatch.setattr(ing, "chunk_document", fake_chunk)
+    monkeypatch.setattr(ing.litellm, "embed", fake_embed)
+    monkeypatch.setattr(ing, "contextualize", fake_ctx)
+    monkeypatch.setattr(ing.lightrag, "upload_text", fake_upload)
+    monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "delete_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
+
+    await ing.run(str(tmp_path))
+
+    assert uploads == [source]                     # pristine text, not "CHUNK-A\n\nCHUNK-B"
+    assert all(doc == source for doc in ctx_docs)  # contextualize sees the same
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_chunk_document_pdf_skip_names_docling_empty_result(monkeypatch, tmp_path, caplog):
+    # Docling answered 200 but yielded no usable chunks (e.g. a scanned PDF): the
+    # skip warning must point the operator at the DOCUMENT, not the service wiring.
+    monkeypatch.setenv("DOCLING_ENDPOINT", "http://docling-gpu:8000")
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(b"%PDF-1.4 \x00")
+    respx.post("http://docling-gpu:8000/v1/document/convert").mock(
+        return_value=httpx.Response(200, json={"chunks": []}))
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        chunks = await ing.chunk_document(str(pdf))
+    assert chunks == []
+    assert "returned no usable chunks" in caplog.text
+    assert "no Docling available" not in caplog.text

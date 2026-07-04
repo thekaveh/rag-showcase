@@ -18,7 +18,7 @@ PNG: [`architecture-detailed.png`](architecture-detailed.png).
 
 ### 1.1 User and evaluation surface
 
-OpenWebUI and the comparison harness both call the same LiteLLM gateway. OpenWebUI
+Open WebUI and the comparison harness both call the same LiteLLM gateway. Open WebUI
 is the interactive multi-model chat surface; `compare/run_matrix.py` is the repeatable
 test runner; `compare/judge.py` scores stored answer matrices with local judge models.
 
@@ -30,7 +30,7 @@ plugin under `backend_plugins/rag`, where each approach exposes an OpenAI-compat
 those endpoints into LiteLLM as selectable model names.
 
 The six approach endpoints are deployed inside the Atlas backend container, not as
-six separate containers. OpenWebUI and `compare/run_matrix.py` invoke them through
+six separate containers. Open WebUI and `compare/run_matrix.py` invoke them through
 LiteLLM's `/v1/chat/completions` surface after LiteLLM maps the selected model name
 to the corresponding backend route.
 
@@ -87,7 +87,86 @@ All six lanes are invoked the same way from the outside: the caller chooses a mo
 alias in LiteLLM, and LiteLLM forwards to the mounted FastAPI route in the Atlas
 backend container.
 
-## 3. Regeneration Notes
+## 3. One Query, End to End (Sequence)
+
+The two diagrams above show structure and per-approach phases; this sequence shows
+temporal order and call counts for a single `hybrid-rag` request — the pattern the
+metrics footer counts (`2 LLM calls` = one embedding + one generation; the TEI
+rerank is a cross-encoder, not an LLM call).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Open WebUI / run_matrix.py
+    participant L as LiteLLM gateway
+    participant H as /hybrid-rag endpoint (plugin)
+    participant W as Weaviate
+    participant T as TEI reranker
+    participant M as Chat model (light_gen role)
+
+    C->>L: POST /v1/chat/completions (model=hybrid-rag)
+    L->>H: forward to registered api_base
+    H->>L: POST /v1/embeddings (query)
+    L-->>H: query vector
+    H->>W: hybrid search (BM25 + dense, alpha, retrieve_k)
+    W-->>H: candidate chunks
+    H->>T: POST /rerank (query, candidate texts)
+    T-->>H: scored order (top_n kept)
+    H->>L: POST /v1/chat/completions (stuffed context)
+    L->>M: route to provider source
+    M-->>L: answer
+    L-->>H: answer
+    H-->>L: uniform payload (answer + sources + metrics footer)
+    L-->>C: chat.completion (or single-chunk SSE when stream=true)
+```
+
+`vanilla-rag` skips the rerank leg; `contextual-rag` is identical but queries the
+`RagContextual` collection; `graph-rag` and `agentic-rag` delegate the middle to
+LightRAG / a ReAct tool loop; `n8n-adaptive-rag` inserts the n8n workflow between
+the endpoint and a routed approach.
+
+## 4. Deployment Topology (Containers and Mounts)
+
+The project's central mechanism — vendored Atlas plus a non-invasive overlay —
+shown as the compose-level view. Everything in the `Atlas stack` subgraph is
+Atlas-owned; the showcase contributes only the overlay file, the mounted
+directories, and `.env` values written by `scripts/setup-overlay.sh`.
+
+```mermaid
+flowchart LR
+    subgraph host["Host (this repository)"]
+        overlay["compose/rag-overlay.yml<br/>symlinked into infra/services/_user/"]
+        plugdir["backend_plugins/rag/"]
+        tooling["ingest/ · corpus/ · register/"]
+        n8ndir["n8n/ (workflow JSON)"]
+        harness["compare/*.py + scripts/run-dataset-ladder.py<br/>host-run via uv"]
+        ollamahost["Ollama (host) — judge panel models"]
+    end
+
+    subgraph atlas["Atlas stack (infra/ submodule, docker compose)"]
+        backend["backend (FastAPI)<br/>plugin seam mounts /app/plugins"]
+        litellm["litellm :4000<br/>(host-published on LITELLM_PORT)"]
+        owui["open-webui"]
+        weaviate["weaviate :8080/:50051"]
+        tei["tei-reranker :80"]
+        lightrag["lightrag :9621 + neo4j"]
+        n8n["n8n :5678 (queue mode)"]
+        ollama["ollama (container provider source)"]
+    end
+
+    overlay -. "auto-discovered by the<br/>bootstrapper's _user glob" .-> atlas
+    plugdir -- "bind mount :ro → /app/plugins" --> backend
+    tooling -- "bind mounts :ro → /app/*" --> backend
+    n8ndir -- "bind mount :ro → /showcase-n8n" --> n8n
+    harness -- "OpenAI API over localhost" --> litellm
+    harness -- "judge calls" --> ollamahost
+    owui --> litellm
+    litellm --> backend
+    backend --> weaviate & tei & lightrag & n8n
+    litellm --> ollama
+```
+
+## 5. Regeneration Notes
 
 The diagrams are standalone HTML files with inline SVG. To regenerate the PNGs from
 Chrome on macOS:

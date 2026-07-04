@@ -10,16 +10,18 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import time
 
 from fastapi import APIRouter
 
-from ..common import config, flavors, litellm, lightrag, vectors
-from ..common.openai_io import ChatRequest, Source, Metrics, build_response
+from ..common import config, litellm, lightrag, vectors
+from ..common.openai_io import ChatRequest, Source, Metrics, resolve_flavor, respond
 
 router = APIRouter()
-COLLECTION = "RagBase"
+COLLECTION = vectors.BASE_COLLECTION
 MAX_STEPS = 4
+_log = logging.getLogger("uvicorn.error")
 
 _TOOLS = [
     {"type": "function", "function": {
@@ -47,12 +49,22 @@ async def _run_tool(name: str, args: dict, params: dict) -> tuple[str, int]:
     raw = args.get("query")
     q = raw if isinstance(raw, str) else ""  # non-string query (malformed) -> empty
     if name == "search_vectors":
+        if not q.strip():
+            # Mirror query_graph's short-query guard (lightrag enforces min length
+            # server-side): don't embed + search the empty string.
+            return "(no results — empty search query)", 0
         vec = (await litellm.embed([q]))[0]
         top_k = int(params.get("vector_top_k", 5))
         hits = await asyncio.to_thread(vectors.search_hybrid, COLLECTION, q, vec, top_k)
         obs = "\n".join(f"- {h.title}: {h.text[:200]}" for h in hits) or "(no results)"
         return obs, 1  # +1 = the query embedding
     if name == "query_graph":
+        if len(q.strip()) < 3:
+            # Mirror lightrag.query's short-query guard locally: it would return
+            # this same message having done NO delegated LLM work, so billing +1
+            # would over-report the pinned cost footer (search_vectors' empty-query
+            # 0 is the sibling; malformed args coerce to "" above and land here).
+            return "(query too short for the knowledge graph)", 0
         mode = str(params.get("graph_mode", "hybrid"))
         return await lightrag.query(q, mode=mode), 1  # +1 = delegated graph call
     return f"(unknown tool {name})", 0
@@ -61,7 +73,7 @@ async def _run_tool(name: str, args: dict, params: dict) -> tuple[str, int]:
 @router.post("/agentic-rag/v1/chat/completions")
 async def agentic_rag(req: ChatRequest):
     t0 = time.monotonic()
-    flavor = flavors.get_for_base(req.model, "agentic-rag")
+    flavor = resolve_flavor(req, "agentic-rag")
     params = flavor.params
     max_steps = int(params.get("max_steps", MAX_STEPS))
     model = config.role("agentic")
@@ -114,7 +126,17 @@ async def agentic_rag(req: ChatRequest):
                 args = {}
             if not isinstance(args, dict):  # valid JSON but not an object
                 args = {}                   # (null/number/string/array/bool)
-            observation, tool_llm_calls = await _run_tool(name, args, params)
+            try:
+                observation, tool_llm_calls = await _run_tool(name, args, params)
+            except Exception as e:
+                # A failed tool (Weaviate down, embed failure, LightRAG 5xx) must
+                # not abort the whole multi-step episode as a bare 500 — feed the
+                # failure back as an observation the model can react to (standard
+                # ReAct practice). Broad catch is deliberate: this loop is the
+                # resilience boundary and the log carries the specifics.
+                _log.warning("agentic tool %s failed: %s: %s",
+                             name, type(e).__name__, e)
+                observation, tool_llm_calls = f"(tool {name} failed: {type(e).__name__})", 0
             llm_calls += tool_llm_calls  # count the tool's embed / delegated call too
             step = ""
             if thought:
@@ -134,4 +156,4 @@ async def agentic_rag(req: ChatRequest):
     # flat stuffed-chunk count — consistent with the other delegating
     # approaches (graph-rag, n8n-adaptive-rag).
     metrics = Metrics(time.monotonic() - t0, 0, llm_calls, 0)
-    return build_response(flavor.alias, answer, sources, metrics)
+    return respond(req, flavor.alias, answer, sources, metrics)

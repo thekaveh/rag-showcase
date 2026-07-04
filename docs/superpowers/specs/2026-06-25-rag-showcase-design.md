@@ -3,6 +3,7 @@
 - **Date:** 2026-06-25
 - **Status:** Historical design artifact — implemented (see deviations below). The code and the [Atlas-reuse assessment](../../atlas-reuse-assessment.md) are authoritative where they differ from this snapshot.
 - **Author:** Kaveh (with Claude Code)
+- **Numbering:** Appendices A/B keep their as-built letter scheme rather than joining the numbered hierarchy.
 - **Related infra:** [Atlas](https://github.com/thekaveh/atlas) — reused as a Git submodule
 
 > **Implementation deviations from this design (the code is authoritative):**
@@ -113,7 +114,7 @@ We reuse and **override/extend** Atlas's backend *without bloating it*, via a ge
 - **Showcase change = a self-contained, high-cohesion package** in *this* repo: `backend_plugins/rag/` (the six approaches + a shared response helper). It runs *inside* the backend process, so it reuses the backend's pre-wired env (`WEAVIATE_URL`, `NEO4J_URI`, `LITELLM_BASE_URL`, `LIGHTRAG_ENDPOINT`, `DOCLING_ENDPOINT`, `REDIS_URL`, …) with **zero re-plumbing**. The package reads the backend's **env**, not its internals → decoupled and portable.
 - **Wiring:** a compose override fragment augments the existing `backend` service with the mount + any extra env. It lives in this repo and is exposed to Atlas through the `services/_user/` overlay slot as a **symlink** (showcase owns the file; Atlas auto-discovers it via its existing `_user/*/compose.yml` glob).
 
-This keeps Atlas-as-submodule ✓, reuse+override the backend ✓, **no bloat** (RAG logic stays in this repo; Atlas gains only a generic seam) ✓, and makes future promotion-into-Atlas a copy-paste if a piece proves broadly useful ✓.
+This satisfies all four constraints: Atlas stays a submodule; the backend is reused and overridden rather than forked; **no bloat** (RAG logic stays in this repo; Atlas gains only a generic seam); and future promotion-into-Atlas is a copy-paste if a piece proves broadly useful.
 
 ### 4.3 Repo shape
 
@@ -222,7 +223,7 @@ agentic:           qwen3.6            # local (orchestrator / n8n) — cloud fal
 rerank:            <TEI service>      # not an LLM; mxbai-rerank-base-v1 cross-encoder
 ```
 
-> **Deviation (corrected in `roles.yaml`):** Atlas's catalog has no `gemma4:31b`, and its LiteLLM registers the default chat model as `qwen3.6:latest` (bare `qwen3.6` does not resolve). The implementation therefore uses `qwen3.6:latest` for every chat role (`light_gen`, `contextual_blurb`, `extraction`, `agentic`) and `nomic-embed-text` for `embed`. To use distinct/heavier per-role models, activate them via `start.sh --ollama-models` and name them exactly in `roles.yaml`.
+> **Deviation (corrected in `roles.yaml`):** Atlas's catalog has no `gemma4:31b`, and its LiteLLM registers the default chat model as `qwen3.6:latest` (bare `qwen3.6` does not resolve). The implementation therefore uses `qwen3.6:latest` for the plugin chat roles (`light_gen`, `contextual_blurb`, `agentic`; the LightRAG-side extraction role was later moved to `mistral-small3.2:24b` via Atlas's `LIGHTRAG_*` inputs) and `nomic-embed-text` for `embed`. To use distinct/heavier per-role models, activate them via `start.sh --ollama-models` and name them exactly in `roles.yaml`.
 
 Adding a cloud key is optional and only needed if local extraction/agentic quality is insufficient. (Optional future enhancement: expose `*-local` vs `*-cloud` variants as separate columns to compare *brains*, not just *methods*.)
 

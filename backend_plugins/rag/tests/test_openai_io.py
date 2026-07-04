@@ -61,3 +61,50 @@ def test_build_response_coerces_non_string_answer(bad_answer):
     resp = build_response("m", bad_answer, [], Metrics(0.5, 0, 1, 0))
     assert resp["object"] == "chat.completion"
     assert isinstance(resp["choices"][0]["message"]["content"], str)
+
+
+def test_build_response_carries_created_and_unique_ids():
+    # `created` is required by the OpenAI chat.completion schema (strict SDK
+    # consumers reject its absence) and ids must not repeat across responses.
+    a = build_response("m", "x", [], Metrics(0.5, 0, 1, 0))
+    b = build_response("m", "x", [], Metrics(0.5, 0, 1, 0))
+    assert isinstance(a["created"], int) and a["created"] > 0
+    assert a["id"] != b["id"]
+    assert a["id"].startswith("ragshow-m-")
+
+
+def test_chat_request_last_user_null_content_is_empty_not_none_string():
+    req = ChatRequest(model="x", messages=[{"role": "user", "content": None}])
+    assert req.last_user() == ""  # not the literal string "None"
+
+
+def test_chat_request_last_user_joins_multimodal_text_parts():
+    # OpenAI content-parts arrays must yield the text, not a Python repr —
+    # this string drives embedding, BM25, and the LLM prompt.
+    req = ChatRequest(model="x", messages=[{
+        "role": "user",
+        "content": [
+            {"type": "text", "text": "what is"},
+            {"type": "image_url", "image_url": {"url": "http://img"}},
+            {"type": "text", "text": "alpha?"},
+        ],
+    }])
+    assert req.last_user() == "what is alpha?"
+
+
+@pytest.mark.asyncio
+async def test_build_stream_response_emits_single_chunk_sse():
+    import json as _json
+    from rag.common.openai_io import build_stream_response
+
+    sr = build_stream_response("m", "hello", [Source("T", "snip")],
+                               Metrics(0.5, 1, 1, 0))
+    assert sr.media_type == "text/event-stream"
+    events = [part async for part in sr.body_iterator]
+    assert events[-1] == "data: [DONE]\n\n"
+    first = _json.loads(events[0].removeprefix("data: ").strip())
+    assert first["object"] == "chat.completion.chunk"
+    assert first["choices"][0]["finish_reason"] == "stop"
+    content = first["choices"][0]["delta"]["content"]
+    assert "hello" in content and "T" in content  # full rendered body in one chunk
+    assert isinstance(first["created"], int)

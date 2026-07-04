@@ -28,7 +28,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'qwen3.6:latest', messages: [ { role: 'user', content: 'Classify the question as exactly one word, simple or complex. complex = needs multi-step reasoning, comparing or reconciling multiple sources, or synthesis across documents; otherwise simple. Answer with only the one word. Question: ' + $json.body.query } ], temperature: 0 }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'qwen3.6:latest', messages: [ { role: 'user', content: 'Classify the question as exactly one word, simple or complex. complex = needs multi-step reasoning, comparing or reconciling multiple sources, or synthesis across documents; otherwise simple. Answer with only the one word. Question: ' + $json.body.query } ], temperature: 0, think: false }) }}",
         "options": { "timeout": 60000 }
       },
       "id": "b2222222-2222-4222-8222-222222222222",

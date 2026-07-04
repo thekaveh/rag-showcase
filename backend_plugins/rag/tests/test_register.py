@@ -7,7 +7,11 @@ import register.register_models as reg
 
 
 @pytest.fixture(autouse=True)
-def _clear_flavor_cache():
+def _clear_flavor_cache(monkeypatch, tmp_path):
+    # Pin the flavors manifest to a missing file: these tests assert exactly six
+    # base registrations, and a developer's exported RAG_FLAVORS_FILE would
+    # otherwise add flavor rows and break the counts confusingly.
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(tmp_path / "missing.yaml"))
     reg.flavors._CACHE.clear()
     yield
     reg.flavors._CACHE.clear()
@@ -27,16 +31,16 @@ async def test_register_deletes_existing_then_adds(monkeypatch):
         return_value=httpx.Response(200, json={}))
     await reg.run()
     assert delete.called                       # removed the stale vanilla-rag
-    assert new.call_count == len(reg.MODELS)   # added all six
+    assert new.call_count == len(reg._NAMES)   # added all six
     # decode EVERY /model/new payload (not just calls[0]) and assert the full set —
-    # call_count alone would pass a bug that registers MODELS[0] six times.
+    # call_count alone would pass a bug that registers _NAMES[0] six times.
     payloads = [json.loads(c.request.read().decode()) for c in new.calls]
     # (a) each approach registers under its OWN name, as an openai/ provider whose
     #     api_base is its OWN distinct backend route (not all pointing at one path)
-    assert sorted(p["model_name"] for p in payloads) == sorted(m["model_name"] for m in reg.MODELS)
+    assert sorted(p["model_name"] for p in payloads) == sorted(reg._NAMES)
     assert all(p["litellm_params"]["model"].startswith("openai/") for p in payloads)
     assert all("backend:8000" in p["litellm_params"]["api_base"] for p in payloads)
-    assert len({p["litellm_params"]["api_base"] for p in payloads}) == len(reg.MODELS)
+    assert len({p["litellm_params"]["api_base"] for p in payloads}) == len(reg._NAMES)
     # (b) the api_key (read from env at run-time) is merged into litellm_params —
     #     drop the merge and all six register keyless, so every routed call fails
     assert all(p["litellm_params"]["api_key"] == "sk-master" for p in payloads)
@@ -91,7 +95,7 @@ async def test_register_skips_delete_when_clean(monkeypatch):
         return_value=httpx.Response(200, json={}))
     await reg.run()
     assert not delete.called                       # nothing to remove on a clean slate
-    assert new.call_count == len(reg.MODELS)       # still registers all six
+    assert new.call_count == len(reg._NAMES)       # still registers all six
 
 
 @pytest.mark.asyncio
@@ -129,3 +133,22 @@ async def test_register_deletes_only_its_own_models(monkeypatch):
     deleted_ids = [json.loads(c.request.read().decode())["id"] for c in delete.calls]
     assert "ours-1" in deleted_ids        # our stale row was removed
     assert "keep-1" not in deleted_ids    # the foreign model was left untouched
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_register_surfaces_failed_delete(monkeypatch):
+    # The model provably exists (we just listed it), so a failed delete is a real
+    # error worth surfacing — the in-code comment marks this path deliberate; pin it.
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_MASTER_KEY", "sk-master")
+    respx.get("http://litellm:4000/model/info").mock(
+        return_value=httpx.Response(200, json={"data": [
+            {"model_name": "vanilla-rag", "model_info": {"id": "old-1"}}]}))
+    respx.post("http://litellm:4000/model/delete").mock(
+        return_value=httpx.Response(500, json={"error": "db locked"}))
+    new = respx.post("http://litellm:4000/model/new").mock(
+        return_value=httpx.Response(200, json={}))
+    with pytest.raises(httpx.HTTPStatusError):
+        await reg.run()
+    assert not new.called  # aborted before re-registering anything

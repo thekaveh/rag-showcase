@@ -131,3 +131,89 @@ flavors:
     with pytest.raises(KeyError):
         flavors.get("good-one")
     assert flavors._CACHE == {}  # nothing published on the failed parse
+
+
+def test_get_strips_litellm_openai_prefix(tmp_path, monkeypatch):
+    # LiteLLM registers our endpoints as openai/-provider models; a gateway that
+    # forwards the prefixed name must still resolve.
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(tmp_path / "missing.yaml"))
+    assert flavors.get("openai/vanilla-rag").base == "vanilla-rag"
+
+
+def test_get_for_base_rejects_flavor_of_another_base(tmp_path, monkeypatch):
+    # e.g. model=hybrid-rag posted to the vanilla endpoint: must raise, not
+    # silently run vanilla with foreign params.
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(tmp_path / "missing.yaml"))
+    with pytest.raises(KeyError, match="hybrid-rag"):
+        flavors.get_for_base("hybrid-rag", "vanilla-rag")
+
+
+def test_alias_shadowing_a_canonical_base_is_rejected(tmp_path, monkeypatch):
+    # The module contract: the canonical six always resolve to their default
+    # profile. A manifest row named like a base would silently redefine a stable
+    # endpoint (and a cross-base shadow would 500 it outright).
+    f = tmp_path / "flavors.yaml"
+    f.write_text(
+        """
+flavors:
+  - alias: vanilla-rag
+    base: hybrid-rag
+    params: {}
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
+    with pytest.raises(ValueError, match="shadows a canonical base"):
+        flavors.get("vanilla-rag")
+
+
+def test_duplicate_alias_is_rejected(tmp_path, monkeypatch):
+    f = tmp_path / "flavors.yaml"
+    f.write_text(
+        """
+flavors:
+  - alias: graph-rag-x
+    base: graph-rag
+    params: {}
+  - alias: graph-rag-x
+    base: graph-rag
+    params: {}
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
+    with pytest.raises(ValueError, match="duplicate flavor alias"):
+        flavors.get("graph-rag-x")
+
+
+def test_non_numeric_param_value_fails_at_load_not_per_request(tmp_path, monkeypatch):
+    # Handlers coerce these with int()/float() per request; a typo'd value must
+    # fail fast at load with a self-describing error, not become an unexplained
+    # per-request 500 hours after the manifest edit.
+    f = tmp_path / "flavors.yaml"
+    f.write_text(
+        """
+flavors:
+  - alias: hybrid-rag-typo
+    base: hybrid-rag
+    params:
+      retrieve_k: "4o"
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
+    with pytest.raises(ValueError, match="retrieve_k"):
+        flavors.get("hybrid-rag-typo")
+    # numeric strings are fine — they coerce at load
+    f.write_text(
+        """
+flavors:
+  - alias: hybrid-rag-str
+    base: hybrid-rag
+    params:
+      retrieve_k: "40"
+""",
+        encoding="utf-8",
+    )
+    flavors._CACHE.clear()
+    assert flavors.get("hybrid-rag-str").params["retrieve_k"] == 40

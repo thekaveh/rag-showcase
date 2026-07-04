@@ -289,7 +289,9 @@ body {
   width: 100%;
   border: 1px solid var(--sf-hairline);
   border-radius: 10px;
-  background: #ffffff;
+  /* Match the diagram documents' own background: a white box would flash
+     while the lazy-loaded iframe paints against the dark-first theme. */
+  background: #020617;
 }
 
 /* --- Sidebar nav ---------------------------------------------------------- */

@@ -2,7 +2,7 @@
 
 A parallel-lane view of all six approaches — from shared corpus preparation through
 retrieval, augmentation, generation, output shaping, and the observed tradeoffs of
-each strategy.
+each approach.
 
 <iframe class="diagram" src="../approach-flows.html" title="RAG Showcase — six approach flow phases" height="860" loading="lazy"></iframe>
 

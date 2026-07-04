@@ -18,7 +18,7 @@ approach with BM25 + dense retrieval and TEI reranking.
 
 All six approaches expose an OpenAI-compatible
 `/<approach>/v1/chat/completions` route inside the Atlas backend container. The
-routes are registered as LiteLLM model aliases, so OpenWebUI and the comparison
+routes are registered as LiteLLM model aliases, so Open WebUI and the comparison
 harness invoke every approach through the same `/v1/chat/completions` surface.
 Named flavors such as `graph-rag-wide` are also registered as LiteLLM model
 aliases, but they point at the same base route and are resolved from the incoming
@@ -37,7 +37,7 @@ All approaches use the same ingested corpus and the same response wrapper:
 
 ### 1.1 Shared Model Roles
 
-The selectable OpenWebUI model name is the approach alias, not necessarily the
+The selectable Open WebUI model name is the approach alias, not necessarily the
 underlying LLM. The approach then calls one or more configured roles.
 
 | Role | Default model | Used by | Notes |
@@ -200,8 +200,9 @@ query path as `hybrid-rag`.
 Ingest-time:
 
 1. Chunk each document.
-2. For each chunk, send the document prefix and chunk to the `contextual_blurb`
-   model.
+2. For each chunk, send a 6000-character document window centered on the chunk
+   (document-prefix fallback when the chunk isn't found verbatim) plus the chunk
+   to the `contextual_blurb` model.
 3. Generate a 1-2 sentence context blurb.
 4. Prefix the chunk with that blurb.
 5. Embed and store the result in Weaviate collection `RagContextual`.
@@ -241,7 +242,7 @@ Query-time:
 |---|---:|---|---|
 | Context blurb model | `roles.yaml` `contextual_blurb` | Yes, via roles file | Quality/speed tradeoff. |
 | Context prompt | fixed | No | Prompt asks for 1-2 situating sentences. |
-| Document context cap | 6000 chars | No | `doc_text[:6000]` in contextualizer. |
+| Document context cap | 6000 chars | No | `_DOC_WINDOW` in `contextual.py`; window centered on the chunk, prefix fallback. |
 | `RETRIEVE_K` | 20 | Via flavor | Same as `hybrid-rag`; overridable via `retrieve_k` (e.g. `contextual-rag-high-recall` uses 40). |
 | `TOP_N` | 5 | Via flavor | Same as `hybrid-rag`; overridable via `top_n` (e.g. `contextual-rag-high-recall` uses 8). |
 | Hybrid `alpha` | 0.5 | Via flavor | Same search helper as `hybrid-rag`; overridable via `alpha`. |

@@ -6,7 +6,7 @@ hide:
 # RAG Showcase
 
 <div class="hero-tagline" markdown>
-Six modern RAG strategies, compared side by side — each served as an OpenAI-compatible
+Six modern RAG approaches, compared side by side — each served as an OpenAI-compatible
 endpoint on a fully-local [Atlas](https://github.com/thekaveh/atlas) stack. Ask one
 question in Open WebUI and watch the approaches answer in parallel, with a uniform
 answer, retrieved-context, and metrics surface. It doubles as a reproducible evaluation
@@ -16,10 +16,10 @@ harness that measures *which approach wins on which kind of question*.
 [Quick Start](guide/quickstart.md){ .md-button .md-button--primary }
 [Measured Results](comparison.md){ .md-button }
 
-## 1. The six approaches
+## 1. The Six Approaches
 
-| Endpoint | Strategy | Shines on |
-|----------|----------|-----------|
+| Endpoint | Approach | Designed to shine on |
+|----------|----------|----------------------|
 | [`vanilla-rag`](approaches.md#3-vanilla-rag) | Dense top-k retrieval, then a single generation call (the control) | Simple factoids; the baseline |
 | [`hybrid-rag`](approaches.md#4-hybrid-rag) | Weaviate hybrid retrieval (BM25 + dense), then TEI reranking | Exact keyword and identifier queries |
 | [`contextual-rag`](approaches.md#5-contextual-rag) | Anthropic Contextual Retrieval over context-prefixed chunks | Context-starved chunks |
@@ -27,11 +27,15 @@ harness that measures *which approach wins on which kind of question*.
 | [`agentic-rag`](approaches.md#7-agentic-rag) | ReAct loop over vector and graph retrieval tools | Multi-hop and comparative questions |
 | [`n8n-adaptive-rag`](approaches.md#8-n8n-adaptive-rag) | Low-code workflow that routes by query complexity | Mixed simple-and-complex batches |
 
+The last column is the design intent behind each demo query family, not a measured
+result — the committed runs contradict some intended contrasts (see the
+[per-query winners](dataset-complexity-report.md)).
+
 Any approach can also expose tuned **flavors** — for example `hybrid-rag-high-recall`
 or `graph-rag-fast` — that route to the same base approach with reproducible parameter
 overrides and their own selectable model alias. See [Flavor Tuning](approach-flavor-tuning.md).
 
-## 2. Headline result
+## 2. Headline Result
 
 The 2026-07-03 ladder ran fourteen approach and flavor aliases across three datasets of
 increasing structure. The winner shifts with input complexity, which is the point:
@@ -83,7 +87,7 @@ Full per-query winners, judge methodology, and raw snapshots are in
 
 </div>
 
-## 4. Fully local by default
+## 4. Fully Local by Default
 
 Everything runs on your own machine: local models through Atlas's Ollama provider
 (`qwen3.6:latest` for chat, `nomic-embed-text` for embeddings, and `mistral-small3.2:24b`

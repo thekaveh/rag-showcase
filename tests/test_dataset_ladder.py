@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _manifest() -> dict:
-    return yaml.safe_load((ROOT / "compare" / "datasets.yaml").read_text())
+    return yaml.safe_load((ROOT / "compare" / "datasets.yaml").read_text(encoding="utf-8"))
 
 
 def test_dataset_manifest_orders_inputs_by_complexity() -> None:
@@ -44,7 +44,7 @@ def test_candidate_dataset_queries_are_graph_heavy() -> None:
     assert candidates
 
     for dataset in candidates:
-        queries = yaml.safe_load((ROOT / dataset["queries_file"]).read_text())
+        queries = yaml.safe_load((ROOT / dataset["queries_file"]).read_text(encoding="utf-8"))
         assert len(queries) >= 6
         for query in queries:
             assert query["id"]
@@ -68,7 +68,7 @@ def test_cyber_dataset_has_committed_attack_corpus() -> None:
 
 
 def test_cyber_queries_match_committed_attack_corpus_scope() -> None:
-    queries = yaml.safe_load((ROOT / "demo/cyber_threat_intel_queries.yaml").read_text())
+    queries = yaml.safe_load((ROOT / "demo/cyber_threat_intel_queries.yaml").read_text(encoding="utf-8"))
     text = "\n".join(q["query"] for q in queries).lower()
 
     assert "intrusion" in text

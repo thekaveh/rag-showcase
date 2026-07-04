@@ -42,4 +42,11 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+
+    # Zero-option parser: makes --help safe (it used to purge and rebuild corpus/raw)
+    # and rejects stray arguments.
+    argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
+    ).parse_args()
     main()

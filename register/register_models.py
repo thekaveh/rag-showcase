@@ -8,9 +8,17 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
+from pathlib import Path
 
 import httpx
-from rag.common import flavors
+
+# Make the plugin package importable when run as a host script (in-container the
+# seam provides PYTHONPATH=/app/plugins) — otherwise even --help dies on the
+# import below. Mirrors ingest/ingest.py.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend_plugins"))
+
+from rag.common import flavors  # noqa: E402
 
 _NAMES = ["vanilla-rag", "hybrid-rag", "contextual-rag",
           "graph-rag", "agentic-rag", "n8n-adaptive-rag"]
@@ -28,9 +36,6 @@ def _model_spec(name: str, base: str | None = None, description: str | None = No
         },
         "model_info": {"description": description or f"RAG showcase: {name}"},
     }
-
-
-MODELS = [_model_spec(n) for n in _NAMES]
 
 
 def _model_specs() -> list[dict]:
@@ -95,4 +100,14 @@ async def run() -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+
+    # Zero-option parser: makes --help safe (it used to attempt a live registration)
+    # and rejects stray arguments.
+    argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="Configured via env vars: LITELLM_BASE_URL, LITELLM_MASTER_KEY or "
+               "LITELLM_API_KEY; RAG_FLAVORS_FILE selects the flavor manifest "
+               "(without it, only the six base approaches register).",
+    ).parse_args()
     asyncio.run(run())

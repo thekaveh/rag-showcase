@@ -9,12 +9,12 @@ A living record of how well Atlas served as reusable infra for this project.
   **zero Atlas edits** for registration. Atlas's existing `lightrag` and
   `hermes-agent` model entries were the existence proof.
 - **The `gen-ai-rag` track:** Brought up Weaviate + Neo4j + LightRAG + TEI
-  reranker + Docling + OpenWebUI in a single flag, all pre-wired into the base
+  reranker + Docling + Open WebUI in a single flag, all pre-wired into the base
   stack.
 - **Backend's pre-wired environment:** LiteLLM/Weaviate/Neo4j/Redis/Docling/
   LightRAG URLs and credentials were already plumbed into the backend; our plugin
   read them directly with zero re-plumbing.
-- **OpenWebUI multi-model chat:** Served as the comparison frontend without
+- **Open WebUI multi-model chat:** Served as the comparison frontend without
   requiring any custom UI implementation.
 - **The `services/_user/` overlay slot:** Auto-discovered our compose fragment and
   merged it into the existing `backend` service via compose service-name
@@ -31,7 +31,7 @@ contains no RAG-specific logic and is a **strong candidate to upstream** as a
 documented downstream-routes extension point (symmetric to the `_user/` compose
 overlay).
 
-> **Resolved upstream.** Atlas `6fd482b` upstreamed this exact seam
+> **Resolved upstream.** Atlas `cd7aab7` (#162; documented in #164, `6fd482b`) upstreamed this exact seam
 > (`services/backend/app/app/plugin_seam.py`, #162/#164) — same `BACKEND_PLUGINS_DIR`
 > contract: load each immediate package exposing a module-level `router`,
 > pip-install its `requirements.txt`, no-op when the dir is absent. The showcase no
@@ -42,12 +42,13 @@ overlay).
 
 ### 2.2 Client-library version floors
 
-Atlas's backend image already ships `weaviate-client` (`>=4.0.0`) and `neo4j`
-(`>=5.18.0`), so the RAG client libraries are present out of the box. The
-plugin's `requirements.txt` pins a newer `weaviate-client>=4.9,<5` floor, so the
-seam may reinstall weaviate-client at startup to satisfy it (a minor boot cost).
-The plugin does not use `neo4j` directly — it reaches the graph only via LightRAG
-over HTTP — so it neither installs nor imports it.
+Atlas's backend image ships `weaviate-client` (`>=4.22.0` at the audited
+submodule pin) and `neo4j` (`>=5.18.0`), so the RAG client libraries are present
+out of the box. The plugin's `requirements.txt` range `weaviate-client>=4.9,<5`
+is therefore a compatibility cap, not a newer floor — Atlas's own install already
+satisfies it, so no startup reinstall normally happens. The plugin does not use
+`neo4j` directly — it reaches the graph only via LightRAG over HTTP — so it
+neither installs nor imports it.
 
 ### 2.3 No `api_base` column in `public.llms`
 
@@ -57,7 +58,7 @@ over HTTP — so it neither installs nor imports it.
 should be **documented for Atlas** as the preferred way to register custom
 OpenAI-compatible endpoints.
 
-> **Resolved upstream.** Atlas `d085f09` removed `public.llms` entirely — model
+> **Resolved upstream.** Atlas `ec927c5` removed `public.llms` entirely — model
 > source-of-truth moved to per-service YAML — so this table-level limitation no
 > longer applies. The `/model/new` admin API remains the channel the showcase uses.
 
@@ -84,8 +85,9 @@ Atlas's gitignore.
 ### 2.7 `start.sh`/`start.py` blocks non-interactive callers by tailing logs
 
 Atlas's `start.py` brings the stack up detached (`up -d`), then ends by **following
-logs** — `show_container_logs(follow=True)` at `bootstrapper/start.py:1832-1841`,
-called unconditionally with only a `KeyboardInterrupt` handler. On a non-TTY caller
+logs** — `show_container_logs(follow=True)` in `bootstrapper/start.py`,
+called unconditionally with only a `KeyboardInterrupt` handler (line numbers
+shift on every Atlas bump, so this cites the symbol, not a line). On a non-TTY caller
 (this repo's `scripts/start-all.sh`, CI, any automation), `docker compose … logs -f`
 blocks **forever**, so control never returns and the wrapper's downstream steps
 (corpus ingest, model registration) never run. **This was why live e2e had never
@@ -139,17 +141,17 @@ texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
 
 - **(Resolved)** Originally: *upstream the backend plugin seam* as a documented
   downstream-routes extension point (symmetric to the `_user/` compose overlay).
-  Atlas `6fd482b` did exactly this (#162, documented in #164): the generic
+  Atlas `cd7aab7` did exactly this (#162; documented in #164, `6fd482b`): the generic
   `plugin_seam.py` now ships in the backend image with the same `BACKEND_PLUGINS_DIR`
   contract the showcase targets, so no fork-side seam is needed — the unchanged
   compose overlay drives Atlas's native seam.
 - **(No action needed) RAG client libraries** — Atlas's `gen-ai-rag` backend
-  already ships `weaviate-client` and `neo4j`; the plugin only re-pins a newer
-  `weaviate-client` floor. (Originally filed as a gap — corrected after checking
-  the vendored image's `requirements.txt`.)
+  already ships `weaviate-client` and `neo4j`; the plugin's own range is a
+  compatibility cap that Atlas's install already satisfies. (Originally filed as
+  a gap — corrected after checking the vendored image's `requirements.txt`.)
 - **(Resolved)** Originally: *add an `api_base` column to `public.llms`* to express
   custom-endpoint models natively. Atlas has since removed `public.llms` outright
-  (model source-of-truth moved to per-service YAML, `d085f09`); the showcase now
+  (model source-of-truth moved to per-service YAML, `ec927c5`); the showcase now
   registers its custom OpenAI-compatible endpoints via the `/model/new` admin API,
   which remains the supported pattern.
 - **Add a `--extra-compose <file>` flag to `start.sh`** so consumers can add

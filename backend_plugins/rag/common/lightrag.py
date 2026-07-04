@@ -8,10 +8,15 @@ import os
 import httpx
 
 _TIMEOUT = httpx.Timeout(180.0, connect=10.0)
+_log = logging.getLogger("uvicorn.error")
 
 
 def _base() -> str:
-    return os.environ.get("LIGHTRAG_ENDPOINT", "http://lightrag:9621").rstrip("/")
+    # `or`, not a .get() default: Atlas's backend compose always SETS
+    # LIGHTRAG_ENDPOINT (empty string when LightRAG is disabled), so a plain
+    # default never applies in-container and "" would produce an opaque
+    # UnsupportedProtocol 500 on the first graph query.
+    return (os.environ.get("LIGHTRAG_ENDPOINT") or "http://lightrag:9621").rstrip("/")
 
 
 def _headers() -> dict[str, str]:
@@ -33,7 +38,24 @@ def _env_int(name: str, default: int) -> int:
     raw = os.environ.get(name)
     if raw is None:
         return default
-    return int(raw)
+    try:
+        return int(raw)
+    except ValueError:
+        # Same guarded-parse contract as vectors' TEI_RERANKER_MAX_BATCH: a typo'd
+        # env var degrades to the default with one warning, not a per-request 500.
+        _log.warning("%s=%r is not an integer; using default %d", name, raw, default)
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        _log.warning("%s=%r is not a number; using default %s", name, raw, default)
+        return default
 
 
 def _query_payload(question: str, mode: str, options: dict | None = None) -> dict:
@@ -64,7 +86,7 @@ async def query(question: str, mode: str = "hybrid", options: dict | None = None
         data = resp.json()
         answer = data.get("response") or data.get("data") or ""
         if not answer:
-            logging.getLogger("uvicorn.error").warning(
+            _log.warning(
                 "lightrag.query returned no recognized answer field (keys=%s)",
                 list(data)[:10])
         # Honor the -> str contract at this single choke point: if LightRAG ever
@@ -76,8 +98,10 @@ async def query(question: str, mode: str = "hybrid", options: dict | None = None
 
 
 async def upload_text(title: str, text: str) -> None:
-    retries = int(os.environ.get("LIGHTRAG_UPLOAD_RETRIES", "60"))
-    delay = float(os.environ.get("LIGHTRAG_UPLOAD_RETRY_DELAY", "5"))
+    # Clamped: a negative retries value would make range(retries + 1) empty and
+    # silently skip the upload entirely (file counted as ingested, KG missing it).
+    retries = max(0, _env_int("LIGHTRAG_UPLOAD_RETRIES", 60))
+    delay = max(0.0, _env_float("LIGHTRAG_UPLOAD_RETRY_DELAY", 5.0))
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         # LightRAG v1.5.4 InsertTextRequest accepts text / file_source / chunking
         # (the optional source label is "file_source", not "description").
@@ -89,7 +113,7 @@ async def upload_text(title: str, text: str) -> None:
                 return
             if attempt >= retries:
                 resp.raise_for_status()
-            logging.getLogger("uvicorn.error").info(
+            _log.info(
                 "LightRAG upload backpressure for %s; retrying in %.1fs (%d/%d)",
                 title, delay, attempt + 1, retries)
             await asyncio.sleep(delay)

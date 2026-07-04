@@ -31,8 +31,10 @@ def _write_article(out: Path, idx: int, article: dict, query: str) -> None:
         f"Domain: {domain}\n"
         f"Source country: {source_country}\n"
         f"Language: {language}\n\n"
-        "Summary:\n"
-        f"{article.get('socialimage') or article.get('url') or 'GDELT article record'}\n\n"
+        # GDELT artlist mode carries no article body/snippet — only metadata. Label
+        # the link honestly instead of presenting a URL as "Summary" prose (the old
+        # form fed socialimage URLs to the embedder as document text).
+        f"Record link: {url or '(none)'}\n\n"
         "Relations:\n"
         f"- {title} -> source_domain -> {domain}\n"
         f"- {title} -> seen_on -> {date}\n"
@@ -43,11 +45,10 @@ def _write_article(out: Path, idx: int, article: dict, query: str) -> None:
 
 
 def export(query: str, start: str, end: str, output: Path, limit: int) -> int:
-    output.mkdir(parents=True, exist_ok=True)
-    # Idempotent re-export: drop prior-run docs so a shrinking slice can't leave
-    # stale higher-index files behind for ingest to pick up (mirrors cyber_threat_intel).
-    for stale in output.glob("*.md"):
-        stale.unlink()
+    if limit > 250:
+        # GDELT DOC artlist serves at most 250 records per request; say so instead of
+        # silently under-delivering (cyber/stark honor --limit in full).
+        print(f"note: GDELT artlist caps at 250 records; --limit {limit} clamped to 250")
     params = {
         "query": query,
         "mode": "artlist",
@@ -56,10 +57,24 @@ def export(query: str, start: str, end: str, output: Path, limit: int) -> int:
         "startdatetime": start,
         "enddatetime": end,
     }
+    # Fetch and parse FIRST; purge only once replacement content is in hand, so a
+    # failed fetch can't leave the output dir empty (mirrors stark_export's ordering).
     with httpx.Client(timeout=60.0) as client:
         resp = client.get(API, params=params)
         resp.raise_for_status()
-        articles = resp.json().get("articles", [])[:limit]
+        try:
+            payload = resp.json()
+        except ValueError as e:
+            # GDELT returns HTTP 200 with a plain-text error body for malformed
+            # query syntax or timestamps; surface that message, not a bare decode error.
+            raise RuntimeError(f"GDELT returned non-JSON (bad query/date syntax?): "
+                               f"{resp.text[:200]!r}") from e
+    articles = payload.get("articles", [])[:limit]
+    output.mkdir(parents=True, exist_ok=True)
+    # Idempotent re-export: drop prior-run docs so a shrinking slice can't leave
+    # stale higher-index files behind for ingest to pick up.
+    for stale in output.glob("*.md"):
+        stale.unlink()
     for idx, article in enumerate(articles, start=1):
         _write_article(output, idx, article, query)
     return len(articles)
