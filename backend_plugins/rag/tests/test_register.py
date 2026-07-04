@@ -129,3 +129,22 @@ async def test_register_deletes_only_its_own_models(monkeypatch):
     deleted_ids = [json.loads(c.request.read().decode())["id"] for c in delete.calls]
     assert "ours-1" in deleted_ids        # our stale row was removed
     assert "keep-1" not in deleted_ids    # the foreign model was left untouched
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_register_surfaces_failed_delete(monkeypatch):
+    # The model provably exists (we just listed it), so a failed delete is a real
+    # error worth surfacing — the in-code comment marks this path deliberate; pin it.
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_MASTER_KEY", "sk-master")
+    respx.get("http://litellm:4000/model/info").mock(
+        return_value=httpx.Response(200, json={"data": [
+            {"model_name": "vanilla-rag", "model_info": {"id": "old-1"}}]}))
+    respx.post("http://litellm:4000/model/delete").mock(
+        return_value=httpx.Response(500, json={"error": "db locked"}))
+    new = respx.post("http://litellm:4000/model/new").mock(
+        return_value=httpx.Response(200, json={}))
+    with pytest.raises(httpx.HTTPStatusError):
+        await reg.run()
+    assert not new.called  # aborted before re-registering anything

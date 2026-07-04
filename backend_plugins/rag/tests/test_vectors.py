@@ -3,6 +3,7 @@ import json
 import respx
 import httpx
 import pytest
+from rag.common import vectors
 from rag.common.vectors import rerank, Hit
 
 
@@ -192,3 +193,105 @@ def test_delete_collection_noop_when_absent(monkeypatch):
     vectors.delete_collection("RagBase")
     assert client.collections.deleted == []
     assert client.closed is True
+
+
+class _Obj:
+    """Stand-in for a Weaviate query result object (properties + metadata.score)."""
+    def __init__(self, title, text, score=None):
+        self.properties = {"title": title, "text": text}
+        self.metadata = type("M", (), {"score": score})() if score is not None else None
+
+
+def test_hits_from_objects_maps_properties_and_score():
+    hits = vectors._hits_from_objects([
+        _Obj("A", "alpha", 0.75),
+        _Obj("B", "beta"),                       # no metadata at all -> score None
+    ])
+    assert hits[0] == vectors.Hit("A", "alpha", 0.75)
+    assert hits[1] == vectors.Hit("B", "beta", None)
+
+
+def test_hits_from_objects_tolerates_metadata_without_score():
+    class _NoScoreMeta:
+        score = None
+    obj = _Obj("C", "gamma")
+    obj.metadata = _NoScoreMeta()
+    assert vectors._hits_from_objects([obj]) == [vectors.Hit("C", "gamma", None)]
+
+
+def _fake_query_client(seen):
+    """Fake Weaviate client capturing near_vector/hybrid kwargs (search-path twin
+    of _FakeWeaviateClient, which covers the batch-insert path)."""
+    class _Res:
+        objects = [_Obj("T", "txt", 0.5)]
+
+    class _Query:
+        def near_vector(self, near_vector, limit):
+            seen["near_vector"] = (near_vector, limit)
+            return _Res()
+        def hybrid(self, query, vector, alpha, limit, return_metadata):
+            seen["hybrid"] = (query, vector, alpha, limit)
+            seen["metadata_requested"] = return_metadata is not None
+            return _Res()
+
+    class _Coll:
+        query = _Query()
+
+    class _Client:
+        closed = False
+        @property
+        def collections(self):
+            class _Collections:
+                def get(self, name):
+                    seen["collection"] = name
+                    return _Coll()
+            return _Collections()
+        def close(self):
+            seen["closed"] = True
+
+    return _Client()
+
+
+def test_search_dense_passes_vector_and_k_and_closes(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(vectors, "_weaviate", lambda: _fake_query_client(seen))
+    hits = vectors.search_dense("RagBase", [0.1, 0.2], 7)
+    assert seen["collection"] == "RagBase"
+    assert seen["near_vector"] == ([0.1, 0.2], 7)   # k reaches Weaviate's limit
+    assert seen["closed"] is True                    # client closed even on success
+    assert hits == [vectors.Hit("T", "txt", 0.5)]
+
+
+def test_search_hybrid_passes_alpha_k_and_requests_score(monkeypatch):
+    import sys
+    import types
+    # search_hybrid imports weaviate.classes.query lazily (the dev env deliberately
+    # omits weaviate-client); stub the module chain with real ModuleType instances
+    # so the dotted import resolves.
+    weaviate_mod = types.ModuleType("weaviate")
+    classes_mod = types.ModuleType("weaviate.classes")
+    query_mod = types.ModuleType("weaviate.classes.query")
+    query_mod.MetadataQuery = lambda score: ("MetadataQuery", score)
+    weaviate_mod.classes = classes_mod
+    classes_mod.query = query_mod
+    monkeypatch.setitem(sys.modules, "weaviate", weaviate_mod)
+    monkeypatch.setitem(sys.modules, "weaviate.classes", classes_mod)
+    monkeypatch.setitem(sys.modules, "weaviate.classes.query", query_mod)
+    seen = {}
+    monkeypatch.setattr(vectors, "_weaviate", lambda: _fake_query_client(seen))
+    hits = vectors.search_hybrid("RagBase", "find alpha", [0.3], 12, alpha=0.25)
+    assert seen["hybrid"] == ("find alpha", [0.3], 0.25, 12)  # BM25 text + dense both plumbed
+    assert seen["metadata_requested"] is True  # hybrid DOES request the fused score
+    assert seen["closed"] is True
+    assert hits == [vectors.Hit("T", "txt", 0.5)]
+
+
+def test_weaviate_grpc_port_validation(monkeypatch):
+    import sys
+    import types
+    # the port parse (and its self-describing ValueError) happens before any
+    # client construction, so an empty module stub suffices for the guard path.
+    monkeypatch.setitem(sys.modules, "weaviate", types.ModuleType("weaviate"))
+    monkeypatch.setenv("WEAVIATE_GRPC_PORT", "not-a-port")
+    with pytest.raises(ValueError, match="WEAVIATE_GRPC_PORT"):
+        vectors._weaviate()

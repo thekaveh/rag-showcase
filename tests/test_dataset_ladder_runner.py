@@ -117,3 +117,47 @@ def test_ladder_runner_rejects_judgments_without_valid_verdicts() -> None:
 
     with pytest.raises(RuntimeError, match="no queries"):
         module.validate_judgments({"queries": []}, dataset_id="example")
+
+
+def test_wait_for_lightrag_drains_only_when_nothing_pending(monkeypatch) -> None:
+    module = _load_ladder_module()
+    monkeypatch.setattr(module.time, "sleep", lambda s: None)
+
+    # busy -> not busy but docs still PENDING (the enqueue/pickup gap) -> drained
+    status_seq = iter([{"busy": True}, {"busy": False}, {"busy": False}])
+    docs_seq = iter([{"statuses": {"PENDING": ["d1"]}}, {"statuses": {"PROCESSED": ["d1"]}}])
+    monkeypatch.setattr(module, "lightrag_status", lambda: next(status_seq))
+    monkeypatch.setattr(module, "lightrag_documents", lambda: next(docs_seq))
+    module.wait_for_lightrag("ds")  # returns without raising
+
+    # failed documents must raise
+    monkeypatch.setattr(module, "lightrag_status", lambda: {"busy": False})
+    monkeypatch.setattr(module, "lightrag_documents",
+                        lambda: {"statuses": {"failed": ["d9"]}})
+    with pytest.raises(RuntimeError, match="failed documents"):
+        module.wait_for_lightrag("ds")
+
+
+def test_wait_for_lightrag_tolerates_transient_poll_failures(monkeypatch) -> None:
+    # One flaky docker-exec poll must not abort a multi-hour ladder run; three in
+    # a row must.
+    import subprocess as sp
+    module = _load_ladder_module()
+    monkeypatch.setattr(module.time, "sleep", lambda s: None)
+
+    calls = {"n": 0}
+    def flaky_status():
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            raise sp.CalledProcessError(1, ["docker", "exec"])
+        return {"busy": False}
+    monkeypatch.setattr(module, "lightrag_status", flaky_status)
+    monkeypatch.setattr(module, "lightrag_documents", lambda: {"statuses": {}})
+    module.wait_for_lightrag("ds")  # two failures tolerated, then drains
+    assert calls["n"] == 3
+
+    def always_broken():
+        raise sp.CalledProcessError(1, ["docker", "exec"])
+    monkeypatch.setattr(module, "lightrag_status", always_broken)
+    with pytest.raises(RuntimeError, match="3 times in a row"):
+        module.wait_for_lightrag("ds")

@@ -23,3 +23,30 @@ def test_fetch_corpus_purges_stale_docs(tmp_path, monkeypatch) -> None:
 
     assert not (raw / "999-stale.md").exists()  # stale orphan purged
     assert (raw / "kw.md").exists()              # durable keyword doc re-copied
+
+
+def test_fetch_corpus_online_writes_sanitized_slice(tmp_path, monkeypatch) -> None:
+    # The online path: rows from the datasets library land as NNN-<title>.md with
+    # '/' sanitized out of filenames and the body preferring body > text > json.
+    import sys
+    import types
+
+    import corpus.fetch_corpus as fetch
+
+    raw = tmp_path / "raw"
+    keyword = tmp_path / "keyword"
+    keyword.mkdir()
+    (keyword / "kw.md").write_text("# kw", encoding="utf-8")
+    monkeypatch.setattr(fetch, "RAW", raw)
+    monkeypatch.setattr(fetch, "KEYWORD", keyword)
+    rows = [{"title": "A/B: story", "body": "the body"},
+            {"title": "second", "text": "text field"}]
+    monkeypatch.setitem(sys.modules, "datasets",
+                        types.SimpleNamespace(load_dataset=lambda *a, **k: rows))
+
+    fetch.main()
+
+    names = sorted(p.name for p in raw.glob("*.md"))
+    assert names == ["000-A-B: story.md", "001-second.md", "kw.md"]
+    assert (raw / "000-A-B: story.md").read_text(encoding="utf-8") == "# A-B: story\n\nthe body"
+    assert (raw / "001-second.md").read_text(encoding="utf-8") == "# second\n\ntext field"
