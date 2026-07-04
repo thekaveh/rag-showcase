@@ -19,9 +19,16 @@ from rag.common import lightrag
 BASE = "RagBase"
 CONTEXTUAL = "RagContextual"
 _TIMEOUT = httpx.Timeout(300.0, connect=10.0)
+# Single source of truth for chunking geometry — _naive_chunks and the Docling
+# request below must stay in agreement or the two chunking paths drift.
+CHUNK_SIZE = 800
+CHUNK_OVERLAP = 100
+
+_log = logging.getLogger("uvicorn.error")
 
 
-def _naive_chunks(path: str, name: str, size: int = 800, overlap: int = 100) -> list[dict]:
+def _naive_chunks(path: str, name: str, size: int = CHUNK_SIZE,
+                  overlap: int = CHUNK_OVERLAP) -> list[dict]:
     """Fallback chunker used when Docling is disabled/unreachable: split the
     file's text into overlapping windows. Adequate for the .md/.txt corpus."""
     try:
@@ -31,8 +38,7 @@ def _naive_chunks(path: str, name: str, size: int = 800, overlap: int = 100) -> 
         # an unreadable corpus file is dropped from the index silently while run()
         # still counts it in `files`, hiding a real operational problem. Matches the
         # warning chunk_document() already emits when Docling is unreachable.
-        logging.getLogger("uvicorn.error").warning(
-            "could not read %s (%s); skipping", path, e)
+        _log.warning("could not read %s (%s); skipping", path, e)
         return []
     out: list[dict] = []
     step = max(1, size - overlap)
@@ -47,7 +53,7 @@ async def _docling_chunks(path: str, name: str, endpoint: str) -> list[dict]:
     with open(path, "rb") as fh:
         files = {"file": (name, fh, "application/octet-stream")}
         data = {"output_format": "markdown", "enable_chunking": "true",
-                "chunk_size": "800", "chunk_overlap": "100"}
+                "chunk_size": str(CHUNK_SIZE), "chunk_overlap": str(CHUNK_OVERLAP)}
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.post(f"{endpoint}/v1/document/convert",
                                      files=files, data=data)
@@ -74,8 +80,13 @@ async def chunk_document(path: str) -> list[dict]:
             if out:
                 return out
         except Exception as e:  # Docling down/misconfigured — degrade gracefully
-            logging.getLogger("uvicorn.error").warning(
-                "Docling unavailable (%s); naive-chunking %s", e, name)
+            _log.warning("Docling unavailable (%s); naive-chunking %s", e, name)
+    if Path(path).suffix.lower() == ".pdf":
+        # The naive fallback reads text; on a binary PDF that would silently embed
+        # mojibake chunks. Better to drop the file loudly than index garbage.
+        _log.warning("no Docling available for %s; skipping PDF (naive chunking "
+                     "cannot parse binary)", name)
+        return []
     return _naive_chunks(path, name)
 
 
@@ -98,6 +109,12 @@ async def _rebuild(name: str, rows: list[dict]) -> int:
 async def run(corpus_dir: str) -> dict:
     files = sorted(p for p in Path(corpus_dir).glob("**/*")
                    if p.is_file() and p.suffix.lower() in {".txt", ".md", ".pdf"})
+    # A missing or empty corpus dir must never reach phase 2: glob() on a nonexistent
+    # path silently yields nothing, and rebuilding from zero rows would drop-recreate
+    # both live collections EMPTY — destroying a warm corpus on a typo'd path.
+    if not files:
+        raise RuntimeError(f"no ingestable documents (.txt/.md/.pdf) under {corpus_dir!r}; "
+                           "refusing to rebuild collections from an empty corpus")
     # Phase 1 — do all the failure-prone work (chunk, embed, contextualize, LightRAG
     # upload) WITHOUT touching the live Weaviate collections, accumulating the rows to
     # store. A failure here leaves the existing corpus fully serveable, not half-built.
@@ -127,6 +144,11 @@ async def run(corpus_dir: str) -> dict:
         # LightRAG builds its own KG and dedups by content hash, so uploading here
         # (before the swap) is safe and idempotent across re-runs.
         await lightrag.upload_text(path.name, doc_text)
+    # Same guard at the content level: files that all chunked to nothing (unreadable,
+    # skipped PDFs) must not wipe the live collections either.
+    if not base_rows:
+        raise RuntimeError(f"no ingestable content in {len(files)} file(s) under "
+                           f"{corpus_dir!r}; refusing to rebuild collections empty")
     # Phase 2 — every embedding now exists; idempotently swap each Weaviate collection
     # in a tight drop->recreate->bulk-add (mirrors register's delete-then-add).
     base_count = await _rebuild(BASE, base_rows)
@@ -135,5 +157,18 @@ async def run(corpus_dir: str) -> dict:
 
 
 if __name__ == "__main__":
-    target = sys.argv[1] if len(sys.argv) > 1 else "corpus"
-    print(asyncio.run(run(target)))
+    import argparse
+
+    # A real parser (even with a single positional) matters here: previously any
+    # argument — including --help — was taken as the corpus path, and a nonexistent
+    # path used to reach run() and wipe the live collections.
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog="Service endpoints come from env vars: DOCLING_ENDPOINT, "
+               "LITELLM_BASE_URL, WEAVIATE_URL, LIGHTRAG_ENDPOINT (see README §6).")
+    parser.add_argument("corpus_dir", nargs="?", default="corpus",
+                        help="directory of .txt/.md/.pdf documents (default: corpus)")
+    args = parser.parse_args()
+    if not Path(args.corpus_dir).is_dir():
+        raise SystemExit(f"corpus dir not found: {args.corpus_dir}")
+    print(asyncio.run(run(args.corpus_dir)))

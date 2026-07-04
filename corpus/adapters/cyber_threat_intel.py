@@ -80,13 +80,18 @@ def _write_object(
 
 
 def export(output: Path, limit: int) -> int:
-    output.mkdir(parents=True, exist_ok=True)
-    for stale in output.glob("*.md"):
-        stale.unlink()
+    # Fetch and parse FIRST; purge only once replacement content is in hand, so a
+    # failed fetch can't leave the output dir empty (mirrors stark_export's ordering —
+    # this matters most here because the committed corpus lives in this repo).
     with httpx.Client(timeout=120.0) as client:
         resp = client.get(ATTACK_URL)
         resp.raise_for_status()
         objects = resp.json().get("objects", [])
+    # Standard ATT&CK consumption drops revoked/deprecated STIX objects (including
+    # relationship objects); the external-ID-ascending selection below would otherwise
+    # favor exactly those superseded low-numbered entries.
+    objects = [o for o in objects
+               if not (o.get("revoked") or o.get("x_mitre_deprecated"))]
     rels = [o for o in objects if o.get("type") == "relationship"]
     objects_by_id = {o.get("id"): o for o in objects if o.get("id")}
     candidates = [o for o in objects if o.get("type") in set(TYPE_ORDER)]
@@ -108,6 +113,11 @@ def export(output: Path, limit: int) -> int:
         selected_ids = {o.get("id") for o in selected}
         selected.extend([o for o in related if o.get("id") not in selected_ids][:limit - len(selected)])
     selected = selected[:limit]
+    output.mkdir(parents=True, exist_ok=True)
+    # Idempotent re-export: drop prior-run docs so a shrinking slice can't leave
+    # stale higher-index files behind for ingest to pick up.
+    for stale in output.glob("*.md"):
+        stale.unlink()
     for idx, obj in enumerate(selected, start=1):
         _write_object(output, idx, obj, rels, objects_by_id)
     return len(selected)

@@ -178,3 +178,50 @@ async def test_run_skips_files_yielding_no_chunks(monkeypatch, tmp_path):
     assert result == {"files": 2, "base_chunks": 1, "contextual_chunks": 1}
     assert uploads == ["good.txt"]            # empty file never uploaded
     assert all(len(t) > 0 for t in embedded)  # embed never called with []
+
+
+@pytest.mark.asyncio
+async def test_run_refuses_missing_or_empty_corpus_dir(monkeypatch, tmp_path):
+    # glob() on a nonexistent path yields nothing without error; run() must refuse to
+    # reach the destructive phase-2 swap rather than rebuild both collections empty
+    # (the "typo'd path wipes a warm demo corpus" regression).
+    deleted = []
+    monkeypatch.setattr(ing.vectors, "delete_collection", lambda n: deleted.append(n))
+    monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
+    with pytest.raises(RuntimeError, match="no ingestable documents"):
+        await ing.run(str(tmp_path / "typo-subdir"))     # nonexistent path
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    with pytest.raises(RuntimeError, match="no ingestable documents"):
+        await ing.run(str(empty))                        # exists but holds no documents
+    assert deleted == []  # the swap was never reached
+
+
+@pytest.mark.asyncio
+async def test_run_refuses_when_all_files_chunk_to_nothing(monkeypatch, tmp_path):
+    # Files exist but none yields content (unreadable files, skipped PDFs): still
+    # refuse the swap — rebuilding from zero rows would wipe the live collections.
+    (tmp_path / "a.txt").write_text("", encoding="utf-8")
+    deleted = []
+    async def no_chunks(path): return []
+    monkeypatch.setattr(ing, "chunk_document", no_chunks)
+    monkeypatch.setattr(ing.vectors, "delete_collection", lambda n: deleted.append(n))
+    monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
+    with pytest.raises(RuntimeError, match="no ingestable content"):
+        await ing.run(str(tmp_path))
+    assert deleted == []
+
+
+@pytest.mark.asyncio
+async def test_chunk_document_skips_pdf_when_docling_unavailable(monkeypatch, tmp_path, caplog):
+    # Without Docling, the naive fallback must not read a binary PDF as text — that
+    # would silently embed mojibake chunks. The file is dropped with a warning.
+    monkeypatch.delenv("DOCLING_ENDPOINT", raising=False)
+    pdf = tmp_path / "doc.pdf"
+    pdf.write_bytes(b"%PDF-1.4 \x00\x01binary")
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        chunks = await ing.chunk_document(str(pdf))
+    assert chunks == []
+    assert "skipping PDF" in caplog.text
