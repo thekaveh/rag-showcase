@@ -7,7 +7,11 @@ import register.register_models as reg
 
 
 @pytest.fixture(autouse=True)
-def _clear_flavor_cache():
+def _clear_flavor_cache(monkeypatch, tmp_path):
+    # Pin the flavors manifest to a missing file: these tests assert exactly six
+    # base registrations, and a developer's exported RAG_FLAVORS_FILE would
+    # otherwise add flavor rows and break the counts confusingly.
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(tmp_path / "missing.yaml"))
     reg.flavors._CACHE.clear()
     yield
     reg.flavors._CACHE.clear()
@@ -29,7 +33,7 @@ async def test_register_deletes_existing_then_adds(monkeypatch):
     assert delete.called                       # removed the stale vanilla-rag
     assert new.call_count == len(reg._NAMES)   # added all six
     # decode EVERY /model/new payload (not just calls[0]) and assert the full set —
-    # call_count alone would pass a bug that registers MODELS[0] six times.
+    # call_count alone would pass a bug that registers _NAMES[0] six times.
     payloads = [json.loads(c.request.read().decode()) for c in new.calls]
     # (a) each approach registers under its OWN name, as an openai/ provider whose
     #     api_base is its OWN distinct backend route (not all pointing at one path)

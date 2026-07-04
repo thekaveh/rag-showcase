@@ -76,18 +76,30 @@ def selected_profiles() -> list[flavor_config.FlavorProfile]:
 
 
 def parse_content(content: str) -> dict:
-    """Split a uniform build_response payload into answer / sources / metrics."""
-    body = content
+    """Split a uniform build_response payload into answer / sources / metrics.
+
+    Wrapper approaches (n8n-adaptive-rag) pass the routed approach's fully
+    rendered payload through as their answer, nesting a second footer and
+    sources block. So: metrics come from the LAST footer (the wrapper's own
+    numbers, not the inner approach's), the answer truncates at the FIRST
+    footer/details (where nested rendering starts), and sources are scanned
+    from the first details block to the end so both the inner retrieval block
+    and the wrapper's route block are captured.
+    """
+    footers = list(_FOOTER.finditer(content))
     metrics = None
-    m = _FOOTER.search(content)
-    if m:
-        metrics = {"seconds": float(m.group(1)), "chunks": int(m.group(2)),
-                   "llm_calls": int(m.group(3)), "cloud_calls": int(m.group(4))}
-        body = content[:m.start()].rstrip("\n").rstrip("-").rstrip("\n")
-    answer, sources_raw = body, ""
+    body = content
+    if footers:
+        last = footers[-1]
+        metrics = {"seconds": float(last.group(1)), "chunks": int(last.group(2)),
+                   "llm_calls": int(last.group(3)), "cloud_calls": int(last.group(4))}
+        body = content[:footers[0].start()].rstrip("\n").rstrip("-").rstrip("\n")
+    answer = body
     idx = body.find(_SRC_MARK)
     if idx != -1:
-        answer, sources_raw = body[:idx].rstrip(), body[idx:]
+        answer = body[:idx].rstrip()
+    sidx = content.find(_SRC_MARK)
+    sources_raw = content[sidx:] if sidx != -1 else ""
     sources = [{"title": t.strip(), "score": float(s) if s else None}
                for _, t, s in _SRC_TITLE.findall(sources_raw)]
     return {"answer": answer.strip(), "sources": sources, "metrics": metrics}
@@ -102,7 +114,9 @@ def main() -> None:
                          "run scripts/start-all.sh (or scripts/setup-overlay.sh) first")
     base = f"http://localhost:{port}"
     query_path = ROOT / queries_file()
-    queries = yaml.safe_load(query_path.read_text(encoding="utf-8"))
+    queries = yaml.safe_load(query_path.read_text(encoding="utf-8")) or []
+    if not queries:
+        raise SystemExit(f"{query_path}: no query rows")
     # Validate rows up front: a malformed row discovered mid-run used to abort the
     # matrix after real cells were already paid for, losing all of them.
     bad = [i for i, q in enumerate(queries)

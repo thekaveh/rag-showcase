@@ -43,6 +43,9 @@ _NUMERIC_PARAMS: dict[str, type] = {
     "k": int, "retrieve_k": int, "top_n": int, "alpha": float, "max_steps": int,
     "vector_top_k": int, "top_k": int, "chunk_top_k": int, "max_total_tokens": int,
 }
+# Bool params get the same load-time strictness: a quoted "false" is truthy, so a
+# hand-edited rerank: "false" would silently INVERT the intent per request.
+_BOOL_PARAMS = {"rerank", "enable_rerank"}
 
 
 def _path() -> Path:
@@ -113,6 +116,11 @@ def _load() -> dict[str, FlavorProfile]:
                         raise ValueError(
                             f"flavor {alias!r} param {key!r} must be "
                             f"{cast.__name__}-compatible, got {params[key]!r}") from e
+            for key in _BOOL_PARAMS:
+                if key in params and not isinstance(params[key], bool):
+                    raise ValueError(
+                        f"flavor {alias!r} param {key!r} must be true/false, "
+                        f"got {params[key]!r}")
             table[alias] = FlavorProfile(
                 alias=alias,
                 base=base,

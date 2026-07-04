@@ -121,6 +121,10 @@ def test_unknown_model_raises_key_error(tmp_path) -> None:
     ("flavors:\n  - alias: vanilla-rag\n    base: hybrid-rag\n", "shadows"),  # base shadow
     ("flavors:\n  - alias: g-x\n    base: graph-rag\n  - alias: g-x\n    base: graph-rag\n",
      "duplicate"),                                                    # duplicate alias
+    ("flavors:\n  - alias: h-x\n    base: hybrid-rag\n    params:\n      retrieve_k: \"4o\"\n",
+     "retrieve_k"),                                                   # non-numeric numeric param
+    ("flavors:\n  - alias: h-y\n    base: hybrid-rag\n    params:\n      rerank: \"false\"\n",
+     "rerank"),                                                       # quoted bool would invert intent
 ])
 def test_both_loaders_reject_the_same_malformed_manifests(
         tmp_path, monkeypatch, manifest_text: str, err: str) -> None:
@@ -143,3 +147,13 @@ def test_both_loaders_reject_the_same_malformed_manifests(
             backend_flavors.get("vanilla-rag")
     finally:
         backend_flavors._CACHE.clear()
+
+
+def test_canonical_six_names_agree_across_modules() -> None:
+    # The six names deliberately live in three modules (host-side list, backend
+    # set, register's ordered list); this is the cross-module drift pin.
+    import register.register_models as reg
+    from rag.common import flavors as backend_flavors
+
+    assert set(reg._NAMES) == backend_flavors.BASE_APPROACHES == set(flavors.BASE_APPROACHES)
+    assert len(reg._NAMES) == 6

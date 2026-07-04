@@ -80,3 +80,26 @@ def test_main_records_failed_cell_and_completes(tmp_path, monkeypatch) -> None:
     assert cells["hybrid-rag"]["metrics"] == {"seconds": 1.0, "chunks": 1,
                                               "llm_calls": 2, "cloud_calls": 0}
     assert out["models"] == ["vanilla-rag", "hybrid-rag"]
+
+
+def test_parse_content_nested_wrapper_payload_uses_outer_footer() -> None:
+    # n8n-adaptive-rag passes the routed approach's fully rendered payload through
+    # as its answer, nesting a second footer + sources block. Metrics must be the
+    # WRAPPER's (last footer), the answer must truncate before the nested
+    # rendering, and both source blocks must be captured.
+    inner = ("the routed answer"
+             "\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n"
+             "\n**1. Inner Doc** · score 0.500\n\n> snippet\n\n</details>"
+             "\n\n---\n📊 2.0s · 5 chunks · 2 LLM calls · 0 cloud")
+    outer = (inner
+             + "\n\n<details><summary>🔎 Retrieved context (1 source)</summary>\n"
+             "\n**1. 🧭 Adaptive route**\n\n> n8n routed this query as **complex**.\n\n</details>"
+             + "\n\n---\n📊 6.5s · 0 chunks · 1 LLM call · 0 cloud")
+
+    parsed = run_matrix.parse_content(outer)
+
+    assert parsed["metrics"] == {"seconds": 6.5, "chunks": 0,
+                                 "llm_calls": 1, "cloud_calls": 0}  # wrapper's, not inner
+    assert parsed["answer"] == "the routed answer"
+    titles = [s["title"] for s in parsed["sources"]]
+    assert "Inner Doc" in titles and "🧭 Adaptive route" in titles

@@ -29,7 +29,9 @@ RESULTS = ROOT / "compare" / "results"
 DOC_RESULTS = ROOT / "docs" / "results"
 
 # Make compare/ importable when run as a plain script (sys.path[0] is scripts/).
-sys.path.insert(0, str(ROOT))
+# Guarded: tests exec this module repeatedly and must not stack duplicate entries.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from compare.run_matrix import envval  # noqa: E402 — single .env parser shared with run_matrix
 
@@ -168,21 +170,26 @@ def wait_for_lightrag(dataset_id: str, timeout_s: int = 3600) -> None:
     poll_failures = 0
     while time.monotonic() < deadline:
         try:
+            # Both probes share the flakiness profile (docker exec + in-network
+            # HTTP), so both live inside the same tolerance window.
             status = lightrag_status()
+            busy = bool(status.get("busy") or status.get("request_pending"))
+            docs = lightrag_documents() if not busy else None
             poll_failures = 0
         except (subprocess.CalledProcessError, ValueError) as exc:
-            # One flaky docker-exec/HTTP poll must not abort a multi-hour ladder run;
-            # three in a row means something is genuinely wrong.
+            # One flaky poll must not abort a multi-hour ladder run; three in a
+            # row means something is genuinely wrong. CalledProcessError's str()
+            # omits the captured stderr, so surface it explicitly.
             poll_failures += 1
+            detail = ((getattr(exc, "stderr", "") or "")[-300:]).strip()
             if poll_failures >= 3:
                 raise RuntimeError(
                     f"LightRAG status poll failed {poll_failures} times in a row "
-                    f"for {dataset_id}") from exc
+                    f"for {dataset_id}: {exc} {detail}") from exc
             print(f"[{dataset_id}] LightRAG status poll failed "
-                  f"({poll_failures}/3), retrying: {exc}", flush=True)
+                  f"({poll_failures}/3), retrying: {exc} {detail}", flush=True)
             time.sleep(15)
             continue
-        busy = bool(status.get("busy") or status.get("request_pending"))
         message = str(status.get("latest_message") or "")
         progress = (
             f"busy={busy} docs={status.get('docs')} "
@@ -192,8 +199,7 @@ def wait_for_lightrag(dataset_id: str, timeout_s: int = 3600) -> None:
             print(f"[{dataset_id}] LightRAG {progress}", flush=True)
             last = progress
         if not busy:
-            docs = lightrag_documents()
-            statuses = docs.get("statuses", {}) or {}
+            statuses = (docs or {}).get("statuses", {}) or {}
             failed = statuses.get("failed") or statuses.get("FAILED")
             if failed:
                 raise RuntimeError(f"LightRAG reported failed documents for {dataset_id}: {failed}")
@@ -323,7 +329,9 @@ def main() -> None:
     if absent:
         raise SystemExit(
             f"dataset corpus dir(s) not found: {', '.join(absent)} — generate them first "
-            "(see corpus/adapters/README.md); refusing to touch the running stack")
+            "(corpus/README.md §1 for the curated baseline via fetch_corpus.py; "
+            "corpus/adapters/README.md for candidate exports); "
+            "refusing to touch the running stack")
     if args.no_cold_reset and len(datasets) > 1:
         # ingest.run() swaps the Weaviate collections per dataset but LightRAG only
         # accumulates — without a cold reset, graph-rag/agentic-rag would answer from

@@ -47,6 +47,17 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        _log.warning("%s=%r is not a number; using default %s", name, raw, default)
+        return default
+
+
 def _query_payload(question: str, mode: str, options: dict | None = None) -> dict:
     options = options or {}
     return {
@@ -87,8 +98,8 @@ async def query(question: str, mode: str = "hybrid", options: dict | None = None
 
 
 async def upload_text(title: str, text: str) -> None:
-    retries = int(os.environ.get("LIGHTRAG_UPLOAD_RETRIES", "60"))
-    delay = float(os.environ.get("LIGHTRAG_UPLOAD_RETRY_DELAY", "5"))
+    retries = _env_int("LIGHTRAG_UPLOAD_RETRIES", 60)
+    delay = _env_float("LIGHTRAG_UPLOAD_RETRY_DELAY", 5.0)
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         # LightRAG v1.5.4 InsertTextRequest accepts text / file_source / chunking
         # (the optional source label is "file_source", not "description").

@@ -19,6 +19,15 @@ BASE_APPROACHES = [
     "n8n-adaptive-rag",
 ]
 
+# Load-time param typing, kept semantically identical to the backend loader
+# (rag/common/flavors.py) — the two are separate implementations by design, and
+# tests/test_compare_flavors.py feeds both the same malformed manifests.
+_NUMERIC_PARAMS: dict[str, type] = {
+    "k": int, "retrieve_k": int, "top_n": int, "alpha": float, "max_steps": int,
+    "vector_top_k": int, "top_k": int, "chunk_top_k": int, "max_total_tokens": int,
+}
+_BOOL_PARAMS = {"rerank", "enable_rerank"}
+
 
 @dataclass(frozen=True)
 class FlavorProfile:
@@ -63,6 +72,20 @@ def load_flavors(manifest: Path = DEFAULT_MANIFEST) -> dict[str, FlavorProfile]:
         params = row.get("params") or {}
         if not isinstance(params, dict):
             raise ValueError(f"flavor {alias!r} params must be an object")
+        params = dict(params)
+        for key, cast in _NUMERIC_PARAMS.items():
+            if key in params:
+                try:
+                    params[key] = cast(params[key])
+                except (TypeError, ValueError) as e:
+                    raise ValueError(
+                        f"flavor {alias!r} param {key!r} must be "
+                        f"{cast.__name__}-compatible, got {params[key]!r}") from e
+        for key in _BOOL_PARAMS:
+            if key in params and not isinstance(params[key], bool):
+                raise ValueError(
+                    f"flavor {alias!r} param {key!r} must be true/false, "
+                    f"got {params[key]!r}")
         profiles[alias] = FlavorProfile(
             alias=alias,
             base=base,

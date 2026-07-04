@@ -124,7 +124,18 @@ async def run(corpus_dir: str) -> dict:
         doc_chunks = await chunk_document(str(path))
         if not doc_chunks:
             continue
-        doc_text = "\n\n".join(c["text"] for c in doc_chunks)
+        # Prefer the pristine source text for LightRAG extraction and the
+        # contextualize() window: rejoining naive chunks would duplicate every
+        # CHUNK_OVERLAP span (~14% of the text) and inject paragraph breaks at
+        # arbitrary offsets, skewing entity extraction. Chunk-join remains the
+        # fallback for binary formats (Docling-parsed PDFs).
+        if path.suffix.lower() in {".txt", ".md"}:
+            try:
+                doc_text = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                doc_text = "\n\n".join(c["text"] for c in doc_chunks)
+        else:
+            doc_text = "\n\n".join(c["text"] for c in doc_chunks)
         # Base collection rows
         vecs = await litellm.embed([c["text"] for c in doc_chunks])
         if len(vecs) != len(doc_chunks):
@@ -166,8 +177,11 @@ if __name__ == "__main__":
         description=__doc__,
         epilog="Service endpoints come from env vars: DOCLING_ENDPOINT, "
                "LITELLM_BASE_URL, WEAVIATE_URL, LIGHTRAG_ENDPOINT (see README §6).")
-    parser.add_argument("corpus_dir", nargs="?", default="corpus",
-                        help="directory of .txt/.md/.pdf documents (default: corpus)")
+    # Default matches start-all.sh's demo ingest. A bare "corpus" default would
+    # recursively ingest the ENTIRE corpus/ tree (READMEs + every dataset union)
+    # into both live collections on a no-args invocation.
+    parser.add_argument("corpus_dir", nargs="?", default="corpus/raw",
+                        help="directory of .txt/.md/.pdf documents (default: corpus/raw)")
     args = parser.parse_args()
     if not Path(args.corpus_dir).is_dir():
         raise SystemExit(f"corpus dir not found: {args.corpus_dir}")

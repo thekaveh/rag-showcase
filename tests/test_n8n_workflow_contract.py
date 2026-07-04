@@ -32,8 +32,10 @@ def test_webhook_matches_wrapper_default_url() -> None:
 def test_shape_node_emits_the_fields_the_wrapper_parses() -> None:
     wf = _workflow()
     js = _node(wf, "Shape")["parameters"]["jsCode"]
-    # the wrapper reads data.get("answer") and data.get("route")
-    assert "answer" in js and "route" in js
+    # the wrapper reads data.get("answer") and data.get("route"); assert the
+    # emitted OBJECT KEYS (colon forms) — the bare word "answer" also appears in
+    # the node's fallback error text, which would keep a key rename green.
+    assert "answer:" in js and "route:" in js
     respond = _node(wf, "Respond to Webhook")
     # firstIncomingItem returns ONE object (the wrapper also tolerates a list,
     # but the committed workflow should keep the simple shape)

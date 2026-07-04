@@ -8,9 +8,17 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
+from pathlib import Path
 
 import httpx
-from rag.common import flavors
+
+# Make the plugin package importable when run as a host script (in-container the
+# seam provides PYTHONPATH=/app/plugins) — otherwise even --help dies on the
+# import below. Mirrors ingest/ingest.py.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend_plugins"))
+
+from rag.common import flavors  # noqa: E402
 
 _NAMES = ["vanilla-rag", "hybrid-rag", "contextual-rag",
           "graph-rag", "agentic-rag", "n8n-adaptive-rag"]

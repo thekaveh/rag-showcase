@@ -171,6 +171,8 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
             if not isinstance(ranking, list):
                 return hits[:top_n]  # unexpected reranker shape — fall back to input order
             for row in ranking:
+                if not isinstance(row, dict):
+                    continue  # ignore non-object rows from a misbehaving reranker
                 idx = row.get("index")
                 if not isinstance(idx, int) or not (0 <= idx < len(batch)):
                     continue  # ignore out-of-range indices from a misbehaving reranker
