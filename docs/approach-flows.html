@@ -8,7 +8,7 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: "JetBrains Mono", monospace; background: #020617; min-height: 100vh; padding: 2rem; color: white; }
-    .container { width: 1880px; margin: 0 auto; }
+    .container { width: min(1880px, 100%); margin: 0 auto; }
     .header { margin-bottom: 1.25rem; }
     .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
     .pulse-dot { width: 12px; height: 12px; background: #22d3ee; border-radius: 50%; animation: pulse 2s infinite; }
@@ -74,12 +74,12 @@
         <!-- Phase headers -->
         <g font-size="11" font-weight="700" text-anchor="middle">
           <text x="298" y="195" fill="#94a3b8">1. Entry</text>
-          <text x="478" y="195" fill="#94a3b8">2. Retrieval plan</text>
-          <text x="742" y="195" fill="#94a3b8">3. Evidence source</text>
-          <text x="1006" y="195" fill="#94a3b8">4. Augmentation</text>
-          <text x="1270" y="195" fill="#94a3b8">5. Generation</text>
-          <text x="1534" y="195" fill="#94a3b8">6. Output + metrics</text>
-          <text x="1764" y="195" fill="#94a3b8">7. Observed trait</text>
+          <text x="512" y="195" fill="#94a3b8">2. Retrieval plan</text>
+          <text x="776" y="195" fill="#94a3b8">3. Evidence source</text>
+          <text x="1040" y="195" fill="#94a3b8">4. Augmentation</text>
+          <text x="1304" y="195" fill="#94a3b8">5. Generation</text>
+          <text x="1568" y="195" fill="#94a3b8">6. Output + metrics</text>
+          <text x="1750" y="195" fill="#94a3b8">7. Observed trait</text>
         </g>
 
         <!-- Lanes -->
@@ -195,7 +195,7 @@
         </ul>
       </div>
     </div>
-    <p class="footer">Each approach lane is deployed as a mounted FastAPI route inside Atlas backend, registered as a LiteLLM model alias, then invoked by OpenWebUI or compare/run_matrix.py through LiteLLM /v1/chat/completions.</p>
+    <p class="footer">Each approach lane is deployed as a mounted FastAPI route inside Atlas backend, registered as a LiteLLM model alias, then invoked by Open WebUI or compare/run_matrix.py through LiteLLM /v1/chat/completions.</p>
   </div>
 </body>
 </html>
