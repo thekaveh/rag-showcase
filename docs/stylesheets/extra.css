@@ -87,12 +87,34 @@ body {
   opacity: 1;
 }
 
-/* --- Content column ------------------------------------------------------- */
+/* --- Content column: use the viewport on large screens -------------------- */
 .md-grid {
-  max-width: 1180px;
+  max-width: 1440px;
+}
+@media screen and (min-width: 100em) {
+  .md-grid {
+    max-width: 1680px;
+  }
 }
 .md-typeset {
   color: var(--md-default-fg-color);
+}
+/* Keep prose to a comfortable measure even in the wide content column, while
+   tables, code, and cards are free to use the full width. */
+.md-typeset > p,
+.md-typeset > ul,
+.md-typeset > ol,
+.md-typeset > blockquote {
+  max-width: 46rem;
+}
+.hero-tagline,
+.md-typeset .grid,
+.md-typeset table,
+.md-typeset .admonition,
+.md-typeset pre,
+.md-typeset details,
+.md-typeset iframe {
+  max-width: none;
 }
 
 /* --- Links: underline on hover only --------------------------------------- */
@@ -131,6 +153,10 @@ body {
 }
 .md-typeset table:not([class]) tr:hover td {
   background: var(--md-default-fg-color--lightest);
+}
+/* Endpoint / identifier names in tables should not wrap mid-token. */
+.md-typeset table:not([class]) code {
+  white-space: nowrap;
 }
 
 /* --- Admonitions + details: quiet, thin accent --------------------------- */
