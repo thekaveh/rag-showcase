@@ -7,8 +7,8 @@ cd "$ROOT"
 # than once (overlays/appends); dotenv and Compose both take the last assignment,
 # so we do too (tail -1). This also keeps the result a single line even when the
 # key is duplicated, so `docker exec "${PROJECT_NAME}-backend"` can't receive a
-# multi-line container name.
-envval() { grep -E "^$1=" infra/.env | tail -1 | cut -d= -f2 || true; }
+# multi-line container name. -f2- (not -f2): values may themselves contain '='.
+envval() { grep -E "^$1=" infra/.env | tail -1 | cut -d= -f2- || true; }
 
 ./scripts/setup-overlay.sh
 
@@ -49,15 +49,21 @@ trap - EXIT
 PROJECT_NAME="$(envval PROJECT_NAME)"
 [ -n "$PROJECT_NAME" ] || { echo "PROJECT_NAME not found in infra/.env; aborting."; exit 1; }
 
+# Probe n8n /healthz from inside the backend (in-network address). Used before
+# the workflow import and again after the post-import restart.
+wait_for_n8n() {
+  local ready=0
+  for _ in $(seq 1 60); do
+    if docker exec "${PROJECT_NAME}-backend" python -c \
+         "import httpx,sys; sys.exit(0 if httpx.get('http://n8n:5678/healthz',timeout=5).status_code < 500 else 1)" \
+         >/dev/null 2>&1; then ready=1; break; fi
+    sleep 5
+  done
+  [ "$ready" = 1 ]
+}
+
 echo "==> Waiting for n8n to report healthy…"
-n8n_ready=0
-for _ in $(seq 1 60); do
-  if docker exec "${PROJECT_NAME}-backend" python -c \
-       "import httpx,sys; sys.exit(0 if httpx.get('http://n8n:5678/healthz',timeout=5).status_code < 500 else 1)" \
-       >/dev/null 2>&1; then n8n_ready=1; break; fi
-  sleep 5
-done
-[ "$n8n_ready" = 1 ] || { echo "n8n did not become healthy after 5 minutes; aborting before workflow import."; exit 1; }
+wait_for_n8n || { echo "n8n did not become healthy after 5 minutes; aborting before workflow import."; exit 1; }
 
 echo "==> Importing and activating the n8n adaptive-rag workflow…"
 docker exec "${PROJECT_NAME}-n8n" \
@@ -66,14 +72,7 @@ docker exec "${PROJECT_NAME}-n8n" \
 # production webhooks at startup. Restart it after import so /webhook/adaptive-rag
 # is live before the n8n-adaptive-rag plugin route is used.
 docker restart "${PROJECT_NAME}-n8n" >/dev/null
-n8n_ready=0
-for _ in $(seq 1 60); do
-  if docker exec "${PROJECT_NAME}-backend" python -c \
-       "import httpx,sys; sys.exit(0 if httpx.get('http://n8n:5678/healthz',timeout=5).status_code < 500 else 1)" \
-       >/dev/null 2>&1; then n8n_ready=1; break; fi
-  sleep 5
-done
-[ "$n8n_ready" = 1 ] || { echo "n8n did not become healthy after workflow import restart."; exit 1; }
+wait_for_n8n || { echo "n8n did not become healthy after workflow import restart."; exit 1; }
 
 # The backend healthcheck does NOT depend on LightRAG, and LightRAG (graph
 # extraction) often comes up slower; without this gate, ingest's first upload
@@ -149,7 +148,10 @@ docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
 echo "==> Verifying the six LiteLLM model routes are available…"
 routes_ready=0
 for _ in $(seq 1 30); do
-  if docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" python - <<'PY' >/dev/null 2>&1
+  # -i is load-bearing: without it docker exec does not forward the heredoc on
+  # stdin, `python -` reads EOF, runs an EMPTY program, and exits 0 — turning this
+  # whole verification gate into a no-op that always passes on the first try.
+  if docker exec -i -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" python - <<'PY' >/dev/null 2>&1
 import os
 import sys
 import httpx
@@ -177,6 +179,6 @@ done
 
 OWUI="$(envval OPEN_WEB_UI_PORT)"
 [ -n "$OWUI" ] || { echo "OPEN_WEB_UI_PORT not found in infra/.env; aborting."; exit 1; }
-echo "==> Ready. Open OpenWebUI at http://localhost:${OWUI} , start a multi-model"
+echo "==> Ready. Open the Open WebUI at http://localhost:${OWUI} , start a multi-model"
 echo "    chat, and select: vanilla-rag, hybrid-rag, contextual-rag, graph-rag,"
 echo "    agentic-rag, n8n-adaptive-rag."

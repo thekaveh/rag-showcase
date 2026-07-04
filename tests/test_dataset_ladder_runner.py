@@ -24,7 +24,7 @@ def _load_ladder_module():
 
 
 def test_start_all_supports_service_only_mode() -> None:
-    script = (ROOT / "scripts" / "start-all.sh").read_text()
+    script = (ROOT / "scripts" / "start-all.sh").read_text(encoding="utf-8")
 
     assert "RAG_SHOWCASE_SKIP_DEFAULT_INGEST" in script
     assert "Skipping default corpus ingest" in script
@@ -51,7 +51,7 @@ def test_ladder_runner_exposes_measured_dataset_selection() -> None:
 
 
 def test_overlay_passes_lightrag_ollama_context_caps() -> None:
-    overlay = (ROOT / "compose" / "rag-overlay.yml").read_text()
+    overlay = (ROOT / "compose" / "rag-overlay.yml").read_text(encoding="utf-8")
 
     assert "EXTRACT_OLLAMA_LLM_NUM_CTX" in overlay
     assert "KEYWORD_OLLAMA_LLM_NUM_CTX" in overlay

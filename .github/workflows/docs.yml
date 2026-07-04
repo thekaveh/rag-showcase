@@ -26,10 +26,11 @@ on:
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
+# Workflow-level token: read-only. The Pages permissions live on the deploy job
+# only — the build job also runs on pull_requests (and executes repo Python via
+# mkdocs hooks), so it must not hold a pages/id-token-capable token.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages-${{ github.ref }}
@@ -57,6 +58,9 @@ jobs:
     if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

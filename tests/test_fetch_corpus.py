@@ -3,7 +3,7 @@ import sys
 import corpus.fetch_corpus as fc
 
 
-def test_fetch_corpus_purges_stale_docs(tmp_path, monkeypatch):
+def test_fetch_corpus_purges_stale_docs(tmp_path, monkeypatch) -> None:
     # Re-assembly must be idempotent: a prior run's orphaned higher-index doc
     # (e.g. after a smaller MAX_DOCS) must not survive into corpus/raw for ingest's
     # **/*.md glob to mix in. Guards the purge added in fetch_corpus.main().

@@ -2,9 +2,12 @@ from pathlib import Path
 
 import yaml
 
+# Anchor to the repo root so the suite passes from any CWD (siblings do the same).
+ROOT = Path(__file__).resolve().parents[1]
+
 
 def test_lightrag_overlay_only_adds_optional_lightrag_ollama_context_caps() -> None:
-    overlay = yaml.safe_load(Path("compose/rag-overlay.yml").read_text())
+    overlay = yaml.safe_load((ROOT / "compose/rag-overlay.yml").read_text(encoding="utf-8"))
     env = overlay["services"]["lightrag"]["environment"]
 
     assert "lightrag-init" not in overlay["services"]
@@ -17,7 +20,7 @@ def test_lightrag_overlay_only_adds_optional_lightrag_ollama_context_caps() -> N
 
 
 def test_setup_overlay_sets_atlas_lightrag_inputs_not_native_runtime_envs() -> None:
-    script = Path("scripts/setup-overlay.sh").read_text()
+    script = (ROOT / "scripts/setup-overlay.sh").read_text(encoding="utf-8")
 
     assert "set_env_default LIGHTRAG_EXTRACT_LLM_MODEL" in script
     assert "set_env_default LIGHTRAG_KEYWORD_LLM_MODEL" in script
@@ -31,7 +34,7 @@ def test_setup_overlay_sets_atlas_lightrag_inputs_not_native_runtime_envs() -> N
 
 
 def test_backend_overlay_sets_graph_query_safety_defaults() -> None:
-    overlay = yaml.safe_load(Path("compose/rag-overlay.yml").read_text())
+    overlay = yaml.safe_load((ROOT / "compose/rag-overlay.yml").read_text(encoding="utf-8"))
     env = overlay["services"]["backend"]["environment"]
 
     assert env["LIGHTRAG_QUERY_ENABLE_RERANK"] == "${LIGHTRAG_QUERY_ENABLE_RERANK:-false}"

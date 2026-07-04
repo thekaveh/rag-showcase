@@ -1,6 +1,10 @@
 # Runtime deps for the RAG plugin, pip-installed into Atlas's backend container
 # by the plugin seam (plugin_seam.py) at startup. Intentionally separate from
 # pyproject's [dependency-groups].dev, which uv manages for the local test env.
+# Every range is capped: this file re-resolves on EVERY container start, so an
+# uncapped range would let a future major (httpx 1.0, PyYAML 7) change runtime
+# behavior with zero repo diff. Verified against the pins recorded in
+# docs/dependency-contracts.md.
 weaviate-client>=4.9,<5
-httpx>=0.27
-PyYAML>=6
+httpx>=0.27,<1
+PyYAML>=6,<7

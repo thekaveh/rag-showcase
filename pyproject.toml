@@ -18,6 +18,10 @@ testpaths = ["backend_plugins/rag/tests", "tests"]
 [tool.ruff]
 # infra/ is the vendored Atlas submodule — not ours to lint or modify.
 extend-exclude = ["infra"]
+# `ruff check` is the lint gate. `ruff format` is deliberately NOT adopted: the
+# repo's compact hand-wrapped style (long lines to ~116 cols, no blank line after
+# module docstrings) is intentional, and a one-time reformat would be a ~2,100-line
+# noise diff. Do not run `ruff format` here.
 
 [tool.ruff.lint.per-file-ignores]
 # Tests use the compact `app = FastAPI(); app.include_router(...)` setup idiom

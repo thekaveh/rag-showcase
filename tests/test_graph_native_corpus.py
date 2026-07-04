@@ -18,7 +18,7 @@ def test_graph_native_corpus_is_committed_and_relation_dense() -> None:
 
 
 def test_graph_native_queries_target_graph_reasoning() -> None:
-    queries = yaml.safe_load((ROOT / "demo" / "graph_native_queries.yaml").read_text())
+    queries = yaml.safe_load((ROOT / "demo" / "graph_native_queries.yaml").read_text(encoding="utf-8"))
 
     assert len(queries) >= 6
     assert {q["id"] for q in queries} >= {
