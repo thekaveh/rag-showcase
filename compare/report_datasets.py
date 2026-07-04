@@ -148,9 +148,12 @@ def build_report() -> str:
         if graph_leads:
             ids = ", ".join(f"`{d}`" for d in graph_leads)
             graph_status = f" `graph-rag` leads on {ids}."
-        else:
+        elif any(alias.startswith("graph-rag")
+                 for scores in measured_scores.values() for alias in scores):
             graph_status = (" `graph-rag` is measured end to end across the live rungs "
                             "but does not lead any of them.")
+        # else: graph-rag absent from the snapshots (e.g. an --approaches run that
+        # excluded it) — say nothing rather than claim a measurement that didn't happen.
     flavor_note = ""
     rankings = [_ranking(s) for s in measured_scores.values() if s]
     if rankings and len(rankings) == len(measured_scores):

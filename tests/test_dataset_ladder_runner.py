@@ -195,3 +195,22 @@ def test_ladder_rejects_unknown_selection_before_any_destructive_step(monkeypatc
         module.validate_selections("vanila-rag", "")
     with pytest.raises(SystemExit, match="nope-flavor"):
         module.validate_selections("", "nope-flavor")
+
+
+def test_selection_validation_uses_the_manifest_run_matrix_will_use(monkeypatch, tmp_path) -> None:
+    # MATRIX_FLAVORS_FILE reaches run_matrix through the inherited env; the
+    # pre-validation must resolve the SAME manifest, or a custom alias is falsely
+    # rejected up front (and a default-only alias would die after the cold reset).
+    module = _load_ladder_module()
+    custom = tmp_path / "flavors.yaml"
+    custom.write_text(
+        "flavors:\n  - alias: hybrid-rag-custom\n    base: hybrid-rag\n"
+        "    params:\n      retrieve_k: 12\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("MATRIX_FLAVORS_FILE", str(custom))
+    module.validate_selections("hybrid-rag-custom", "")  # valid in the custom manifest
+
+    monkeypatch.delenv("MATRIX_FLAVORS_FILE", raising=False)
+    with pytest.raises(SystemExit, match="hybrid-rag-custom"):
+        module.validate_selections("hybrid-rag-custom", "")  # not in the default one

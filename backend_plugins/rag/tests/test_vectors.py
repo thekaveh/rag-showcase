@@ -295,3 +295,18 @@ def test_weaviate_grpc_port_validation(monkeypatch):
     monkeypatch.setenv("WEAVIATE_GRPC_PORT", "not-a-port")
     with pytest.raises(ValueError, match="WEAVIATE_GRPC_PORT"):
         vectors._weaviate()
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_rerank_warns_on_malformed_batch_env(monkeypatch, caplog):
+    # A typo'd TEI_RERANKER_MAX_BATCH degrades to the default WITH a warning —
+    # the guarded-parse contract the lightrag module credits this site with.
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    monkeypatch.setenv("TEI_RERANKER_MAX_BATCH", "not-a-number")
+    respx.post("http://tei-reranker:80/rerank").mock(
+        return_value=httpx.Response(200, json=[{"index": 0, "score": 0.9}]))
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        out = await rerank("q", [Hit("T", "text", None)], top_n=1)
+    assert [h.title for h in out] == ["T"]
+    assert "TEI_RERANKER_MAX_BATCH" in caplog.text

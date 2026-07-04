@@ -98,8 +98,10 @@ async def query(question: str, mode: str = "hybrid", options: dict | None = None
 
 
 async def upload_text(title: str, text: str) -> None:
-    retries = _env_int("LIGHTRAG_UPLOAD_RETRIES", 60)
-    delay = _env_float("LIGHTRAG_UPLOAD_RETRY_DELAY", 5.0)
+    # Clamped: a negative retries value would make range(retries + 1) empty and
+    # silently skip the upload entirely (file counted as ingested, KG missing it).
+    retries = max(0, _env_int("LIGHTRAG_UPLOAD_RETRIES", 60))
+    delay = max(0.0, _env_float("LIGHTRAG_UPLOAD_RETRY_DELAY", 5.0))
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         # LightRAG v1.5.4 InsertTextRequest accepts text / file_source / chunking
         # (the optional source label is "file_source", not "description").

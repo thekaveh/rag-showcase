@@ -31,7 +31,7 @@ contains no RAG-specific logic and is a **strong candidate to upstream** as a
 documented downstream-routes extension point (symmetric to the `_user/` compose
 overlay).
 
-> **Resolved upstream.** Atlas `6fd482b` upstreamed this exact seam
+> **Resolved upstream.** Atlas `cd7aab7` (#162; documented in #164, `6fd482b`) upstreamed this exact seam
 > (`services/backend/app/app/plugin_seam.py`, #162/#164) — same `BACKEND_PLUGINS_DIR`
 > contract: load each immediate package exposing a module-level `router`,
 > pip-install its `requirements.txt`, no-op when the dir is absent. The showcase no
@@ -58,7 +58,7 @@ neither installs nor imports it.
 should be **documented for Atlas** as the preferred way to register custom
 OpenAI-compatible endpoints.
 
-> **Resolved upstream.** Atlas `d085f09` removed `public.llms` entirely — model
+> **Resolved upstream.** Atlas `ec927c5` removed `public.llms` entirely — model
 > source-of-truth moved to per-service YAML — so this table-level limitation no
 > longer applies. The `/model/new` admin API remains the channel the showcase uses.
 
@@ -141,7 +141,7 @@ texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
 
 - **(Resolved)** Originally: *upstream the backend plugin seam* as a documented
   downstream-routes extension point (symmetric to the `_user/` compose overlay).
-  Atlas `6fd482b` did exactly this (#162, documented in #164): the generic
+  Atlas `cd7aab7` did exactly this (#162; documented in #164, `6fd482b`): the generic
   `plugin_seam.py` now ships in the backend image with the same `BACKEND_PLUGINS_DIR`
   contract the showcase targets, so no fork-side seam is needed — the unchanged
   compose overlay drives Atlas's native seam.
@@ -151,7 +151,7 @@ texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
   a gap — corrected after checking the vendored image's `requirements.txt`.)
 - **(Resolved)** Originally: *add an `api_base` column to `public.llms`* to express
   custom-endpoint models natively. Atlas has since removed `public.llms` outright
-  (model source-of-truth moved to per-service YAML, `d085f09`); the showcase now
+  (model source-of-truth moved to per-service YAML, `ec927c5`); the showcase now
   registers its custom OpenAI-compatible endpoints via the `/model/new` admin API,
   which remains the supported pattern.
 - **Add a `--extra-compose <file>` flag to `start.sh`** so consumers can add

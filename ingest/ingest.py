@@ -82,7 +82,7 @@ async def chunk_document(path: str) -> list[dict]:
                 return out
             docling_empty = True  # Docling answered but produced no usable chunks
         except Exception as e:  # Docling down/misconfigured — degrade gracefully
-            _log.warning("Docling unavailable (%s); naive-chunking %s", e, name)
+            _log.warning("Docling unavailable (%s); attempting fallback for %s", e, name)
     if Path(path).suffix.lower() == ".pdf":
         # The naive fallback reads text; on a binary PDF that would silently embed
         # mojibake chunks. Better to drop the file loudly than index garbage — and

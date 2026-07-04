@@ -71,3 +71,35 @@ def test_dataset_report_write_mode_accepts_absolute_out_of_repo_path(tmp_path) -
     assert result.returncode == 0
     assert out.read_text(encoding="utf-8").startswith("# Dataset Complexity Report")
     assert f"wrote {out}" in result.stdout
+
+
+def test_base_approach_ranked_last_is_not_framed_as_a_flavor_result(monkeypatch) -> None:
+    # A canonical approach landing last in a flavorless regeneration must get the
+    # neutral wording — the "flavor tuning result" framing is reserved for flavor
+    # aliases. Current committed data takes the flavor branch, so drive this one
+    # with synthetic snapshots.
+    import compare.report_datasets as rd
+
+    manifest = [{"id": "ds_a", "status": "measured", "complexity_level": 1,
+                 "graph_nature": "none", "queries_file": "demo/queries.yaml",
+                 "judgment_snapshot": "unused-a.json"},
+                {"id": "ds_b", "status": "measured", "complexity_level": 2,
+                 "graph_nature": "none", "queries_file": "demo/queries.yaml",
+                 "judgment_snapshot": "unused-b.json"}]
+    synthetic = {
+        "unused-a.json": {"queries": [{"query_id": "q1", "observed_winner": "vanilla-rag",
+                                       "mean_by_approach": {"vanilla-rag": 4.0,
+                                                            "n8n-adaptive-rag": 2.0}}]},
+        "unused-b.json": {"queries": [{"query_id": "q2", "observed_winner": "vanilla-rag",
+                                       "mean_by_approach": {"vanilla-rag": 3.5,
+                                                            "n8n-adaptive-rag": 1.5}}]},
+    }
+    monkeypatch.setattr(rd, "_load_manifest", lambda: manifest)
+    monkeypatch.setattr(rd, "_load_judgments", lambda p: synthetic[p.name])
+
+    report = rd.build_report()
+
+    assert "Across the current snapshots, `n8n-adaptive-rag` ranked last" in report
+    assert "flavor snapshots show one clear tuning result" not in report
+    # graph-rag absent from these snapshots: no measurement claim about it at all
+    assert "`graph-rag` is measured end to end" not in report

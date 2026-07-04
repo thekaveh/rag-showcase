@@ -265,8 +265,8 @@ LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
 - **A manual `cd infra && ./start.sh` blocks before ingest/register.** Atlas's
   `start.py` ends by following logs (`docker compose … logs -f`), which blocks a
   non-interactive run. `start-all.sh` handles this for you — it backgrounds Atlas's
-  start, gates on backend/n8n/LightRAG/Weaviate/model health, then stops the
-  backgrounded start and runs ingest + register itself. If you bring the stack up by
+  start, gates on backend health, stops the backgrounded start, then gates on
+  n8n/LightRAG/Weaviate/model health and runs ingest + register itself. If you bring the stack up by
   hand instead, run ingest/register yourself once the backend is healthy
   (`docker exec … ingest.py` / `register_models.py`). (Atlas's `logs -f` behavior is
   tracked in the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).)

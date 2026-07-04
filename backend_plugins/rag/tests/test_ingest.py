@@ -123,7 +123,8 @@ async def test_run_raises_on_contextual_embedding_mismatch(monkeypatch, tmp_path
     monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
     monkeypatch.setattr(ing.vectors, "delete_collection", lambda n: None)
     monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
-    monkeypatch.setattr(ing.lightrag, "upload_text", lambda t, x: None)
+    async def fake_upload(t, x): return None
+    monkeypatch.setattr(ing.lightrag, "upload_text", fake_upload)
     with pytest.raises(RuntimeError, match="contextual embedding count mismatch"):
         await ing.run(str(tmp_path))
 
@@ -255,3 +256,20 @@ async def test_run_feeds_pristine_source_text_to_lightrag_and_contextualize(monk
 
     assert uploads == [source]                     # pristine text, not "CHUNK-A\n\nCHUNK-B"
     assert all(doc == source for doc in ctx_docs)  # contextualize sees the same
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_chunk_document_pdf_skip_names_docling_empty_result(monkeypatch, tmp_path, caplog):
+    # Docling answered 200 but yielded no usable chunks (e.g. a scanned PDF): the
+    # skip warning must point the operator at the DOCUMENT, not the service wiring.
+    monkeypatch.setenv("DOCLING_ENDPOINT", "http://docling-gpu:8000")
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(b"%PDF-1.4 \x00")
+    respx.post("http://docling-gpu:8000/v1/document/convert").mock(
+        return_value=httpx.Response(200, json={"chunks": []}))
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        chunks = await ing.chunk_document(str(pdf))
+    assert chunks == []
+    assert "returned no usable chunks" in caplog.text
+    assert "no Docling available" not in caplog.text

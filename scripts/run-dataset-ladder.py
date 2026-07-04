@@ -33,7 +33,7 @@ DOC_RESULTS = ROOT / "docs" / "results"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from compare.run_matrix import envval  # noqa: E402 — single .env parser shared with run_matrix
+from compare.run_matrix import envval, flavors_file  # noqa: E402 — shared .env parser + manifest resolution
 from compare import flavors as flavor_config  # noqa: E402 — selection validation
 
 
@@ -323,12 +323,17 @@ def validate_selections(approaches: str, flavors_csv: str) -> None:
     (mirrors the corpus pre-validation): a typo otherwise aborts only when
     run_matrix launches — after the cold reset, full stack start, ingest, and
     LightRAG drain have already been paid."""
+    # Resolve the manifest exactly as run_matrix will (MATRIX_FLAVORS_FILE wins):
+    # validating against a different manifest would either falsely reject a
+    # custom alias or let a bad one through to the post-reset KeyError.
+    manifest = flavors_file()
     try:
         for model in [m.strip() for m in approaches.split(",") if m.strip()]:
-            flavor_config.profile_for_model(model)
+            flavor_config.profile_for_model(model, manifest=manifest)
         if flavors_csv:
             flavor_config.expand_selection(
-                [t.strip() for t in flavors_csv.split(",") if t.strip()])
+                [t.strip() for t in flavors_csv.split(",") if t.strip()],
+                manifest=manifest)
     except KeyError as exc:
         raise SystemExit(
             f"invalid --approaches/--flavors selection: {exc.args[0]}") from exc
