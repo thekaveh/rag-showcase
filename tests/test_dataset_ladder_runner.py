@@ -161,3 +161,37 @@ def test_wait_for_lightrag_tolerates_transient_poll_failures(monkeypatch) -> Non
     monkeypatch.setattr(module, "lightrag_status", always_broken)
     with pytest.raises(RuntimeError, match="3 times in a row"):
         module.wait_for_lightrag("ds")
+
+
+def test_wait_for_lightrag_tolerates_flaky_documents_poll(monkeypatch) -> None:
+    # The DOCUMENTS probe shares the flakiness profile of the status probe and
+    # must sit inside the same tolerance window — moving it back outside the
+    # try (the original exposure) fails this test.
+    import subprocess as sp
+    module = _load_ladder_module()
+    monkeypatch.setattr(module.time, "sleep", lambda s: None)
+
+    monkeypatch.setattr(module, "lightrag_status", lambda: {"busy": False})
+    calls = {"n": 0}
+    def flaky_documents():
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            raise sp.CalledProcessError(1, ["docker", "exec"], stderr="boom")
+        return {"statuses": {}}
+    monkeypatch.setattr(module, "lightrag_documents", flaky_documents)
+    module.wait_for_lightrag("ds")  # two failures tolerated, then drains
+    assert calls["n"] == 3
+
+
+def test_ladder_rejects_unknown_selection_before_any_destructive_step(monkeypatch) -> None:
+    # A typo'd --approaches/--flavors must fail in validate_selections — not an
+    # hour later when run_matrix launches after the cold reset + ingest.
+    module = _load_ladder_module()
+
+    module.validate_selections("vanilla-rag,graph-rag-wide", "")  # valid: no raise
+    module.validate_selections("", "default,graph-rag")           # valid: no raise
+
+    with pytest.raises(SystemExit, match="vanila-rag"):
+        module.validate_selections("vanila-rag", "")
+    with pytest.raises(SystemExit, match="nope-flavor"):
+        module.validate_selections("", "nope-flavor")

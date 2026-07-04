@@ -87,8 +87,7 @@ works; export `LITELLM_BASE_URL` / `LITELLM_MASTER_KEY` only to target a
 non-default gateway:
 
 ```bash
-LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail -1 | cut -d= -f2-)" \
-  LITELLM_MASTER_KEY="$(grep -E '^LITELLM_MASTER_KEY=' infra/.env | tail -1 | cut -d= -f2-)" \
+LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
   uv run pytest tests
 ```
 

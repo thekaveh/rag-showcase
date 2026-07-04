@@ -200,8 +200,9 @@ query path as `hybrid-rag`.
 Ingest-time:
 
 1. Chunk each document.
-2. For each chunk, send the document prefix and chunk to the `contextual_blurb`
-   model.
+2. For each chunk, send a 6000-character document window centered on the chunk
+   (document-prefix fallback when the chunk isn't found verbatim) plus the chunk
+   to the `contextual_blurb` model.
 3. Generate a 1-2 sentence context blurb.
 4. Prefix the chunk with that blurb.
 5. Embed and store the result in Weaviate collection `RagContextual`.
@@ -241,7 +242,7 @@ Query-time:
 |---|---:|---|---|
 | Context blurb model | `roles.yaml` `contextual_blurb` | Yes, via roles file | Quality/speed tradeoff. |
 | Context prompt | fixed | No | Prompt asks for 1-2 situating sentences. |
-| Document context cap | 6000 chars | No | `doc_text[:6000]` in contextualizer. |
+| Document context cap | 6000 chars | No | `_DOC_WINDOW` in `contextual.py`; window centered on the chunk, prefix fallback. |
 | `RETRIEVE_K` | 20 | Via flavor | Same as `hybrid-rag`; overridable via `retrieve_k` (e.g. `contextual-rag-high-recall` uses 40). |
 | `TOP_N` | 5 | Via flavor | Same as `hybrid-rag`; overridable via `top_n` (e.g. `contextual-rag-high-recall` uses 8). |
 | Hybrid `alpha` | 0.5 | Via flavor | Same search helper as `hybrid-rag`; overridable via `alpha`. |

@@ -9,12 +9,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from compare.flavors import BASE_APPROACHES  # noqa: E402
+
 MANIFEST = ROOT / "compare" / "datasets.yaml"
 DEFAULT_OUTPUT = ROOT / "docs" / "dataset-complexity-report.md"
 
@@ -153,8 +157,14 @@ def build_report() -> str:
         last_aliases = {ranking[-1][0] for ranking in rankings}
         if len(last_aliases) == 1:
             worst = next(iter(last_aliases))
-            flavor_note = (f"The live flavor snapshots show one clear tuning result: "
-                           f"`{worst}` ranked last on every measured dataset.")
+            if worst in BASE_APPROACHES:
+                # A canonical approach landing last is not a flavor-tuning result —
+                # keep the framing honest for flavorless regenerations.
+                flavor_note = (f"Across the current snapshots, `{worst}` ranked last "
+                               "on every measured dataset.")
+            else:
+                flavor_note = (f"The live flavor snapshots show one clear tuning result: "
+                               f"`{worst}` ranked last on every measured dataset.")
             if worst == "graph-rag-wide":
                 # Qualitative context that only applies while the derived fact holds.
                 flavor_note += (

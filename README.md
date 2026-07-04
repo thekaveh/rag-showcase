@@ -226,8 +226,7 @@ published gateway and master key from `infra/.env` automatically, so a plain
 only to target a non-default gateway:
 
 ```bash
-LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail -1 | cut -d= -f2-)" \
-  LITELLM_MASTER_KEY="$(grep -E '^LITELLM_MASTER_KEY=' infra/.env | tail -1 | cut -d= -f2-)" \
+LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
   uv run pytest tests
 ```
 
@@ -237,8 +236,11 @@ LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail 
   be downloading several GB of local models; `start-all.sh` gates on model
   readiness, so let it finish. Watch progress: `docker logs -f "$(grep -E '^PROJECT_NAME=' infra/.env | tail -1 | cut -d= -f2-)-ollama-pull"`.
 - **A model column never answers.** Confirm all six registered (`docker logs <project>-backend`,
-  or the LiteLLM model list). `n8n-adaptive-rag` additionally needs its workflow **built and
-  activated** in the n8n UI — see [`n8n/README.md`](n8n/README.md).
+  or the LiteLLM model list). `n8n-adaptive-rag` additionally needs the checked-in workflow
+  imported and active — `start-all.sh` does that automatically (import + restart); if the
+  column errors, re-run `./scripts/start-all.sh` or re-import manually
+  (`docker exec <project>-n8n n8n import:workflow --input=/showcase-n8n/adaptive-rag.workflow.json --activeState=fromJson`,
+  then restart n8n) — see [`n8n/README.md`](n8n/README.md).
 - **`contextual-rag` doesn't visibly win** on the context-starved query: that contrast needs
   Docling structure-aware chunking, which is **off by default** (ingestion falls back to naive
   chunking). Enable Docling in the Atlas stack to see it.

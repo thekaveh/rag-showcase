@@ -225,3 +225,33 @@ async def test_chunk_document_skips_pdf_when_docling_unavailable(monkeypatch, tm
         chunks = await ing.chunk_document(str(pdf))
     assert chunks == []
     assert "skipping PDF" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_run_feeds_pristine_source_text_to_lightrag_and_contextualize(monkeypatch, tmp_path):
+    # For .txt/.md the ORIGINAL file text must reach LightRAG extraction and the
+    # contextualize window — a chunk-join would duplicate every overlap span and
+    # inject paragraph breaks at arbitrary offsets. (Chunk-join remains the
+    # fallback for binary formats only.)
+    source = "first paragraph of the pristine document.\n\nsecond paragraph."
+    (tmp_path / "d.md").write_text(source, encoding="utf-8")
+    uploads, ctx_docs = [], []
+    async def fake_chunk(path):
+        return [{"title": "t", "text": "CHUNK-A"}, {"title": "t", "text": "CHUNK-B"}]
+    async def fake_embed(texts, model=None): return [[0.0] for _ in texts]
+    async def fake_ctx(doc, chunk):
+        ctx_docs.append(doc)
+        return "blurb"
+    async def fake_upload(title, text): uploads.append(text)
+    monkeypatch.setattr(ing, "chunk_document", fake_chunk)
+    monkeypatch.setattr(ing.litellm, "embed", fake_embed)
+    monkeypatch.setattr(ing, "contextualize", fake_ctx)
+    monkeypatch.setattr(ing.lightrag, "upload_text", fake_upload)
+    monkeypatch.setattr(ing.vectors, "ensure_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "delete_collection", lambda n: None)
+    monkeypatch.setattr(ing.vectors, "add_chunks", lambda n, r: len(r))
+
+    await ing.run(str(tmp_path))
+
+    assert uploads == [source]                     # pristine text, not "CHUNK-A\n\nCHUNK-B"
+    assert all(doc == source for doc in ctx_docs)  # contextualize sees the same

@@ -107,6 +107,7 @@ if __name__ == "__main__":
     argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="Configured via env vars: LITELLM_BASE_URL, LITELLM_MASTER_KEY or "
-               "LITELLM_API_KEY.",
+               "LITELLM_API_KEY; RAG_FLAVORS_FILE selects the flavor manifest "
+               "(without it, only the six base approaches register).",
     ).parse_args()
     asyncio.run(run())

@@ -103,3 +103,15 @@ def test_parse_content_nested_wrapper_payload_uses_outer_footer() -> None:
     assert parsed["answer"] == "the routed answer"
     titles = [s["title"] for s in parsed["sources"]]
     assert "Inner Doc" in titles and "🧭 Adaptive route" in titles
+
+
+def test_main_rejects_empty_queries_file(tmp_path, monkeypatch) -> None:
+    # An empty (or all-comments) YAML loads as None; the run must exit with a
+    # clean message, not a TypeError from iterating None.
+    queries = tmp_path / "queries.yaml"
+    queries.write_text("# no rows here\n", encoding="utf-8")
+    monkeypatch.setattr(run_matrix, "envval",
+                        lambda key, default="": {"LITELLM_PORT": "9", "LITELLM_MASTER_KEY": "k"}[key])
+    monkeypatch.setenv("MATRIX_QUERIES_FILE", str(queries))
+    with pytest.raises(SystemExit, match="no query rows"):
+        run_matrix.main()

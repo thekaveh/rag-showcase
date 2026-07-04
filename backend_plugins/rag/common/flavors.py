@@ -109,13 +109,26 @@ def _load() -> dict[str, FlavorProfile]:
                 raise ValueError(f"flavor {alias!r} params must be an object")
             params = dict(params)
             for key, cast in _NUMERIC_PARAMS.items():
-                if key in params:
-                    try:
-                        params[key] = cast(params[key])
-                    except (TypeError, ValueError) as e:
+                if key not in params:
+                    continue
+                try:
+                    params[key] = cast(params[key])
+                except (TypeError, ValueError) as e:
+                    raise ValueError(
+                        f"flavor {alias!r} param {key!r} must be "
+                        f"{cast.__name__}-compatible, got {params[key]!r}") from e
+                # Range-check too: an out-of-range alpha or a zero/negative limit
+                # passes the type gate but fails per-request downstream — the exact
+                # deferred-500 class this load-time guard exists to prevent.
+                if key == "alpha":
+                    if not 0.0 <= params[key] <= 1.0:
                         raise ValueError(
-                            f"flavor {alias!r} param {key!r} must be "
-                            f"{cast.__name__}-compatible, got {params[key]!r}") from e
+                            f"flavor {alias!r} param 'alpha' must be within [0, 1], "
+                            f"got {params[key]!r}")
+                elif params[key] < 1:
+                    raise ValueError(
+                        f"flavor {alias!r} param {key!r} must be >= 1, "
+                        f"got {params[key]!r}")
             for key in _BOOL_PARAMS:
                 if key in params and not isinstance(params[key], bool):
                     raise ValueError(

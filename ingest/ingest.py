@@ -74,18 +74,25 @@ async def chunk_document(path: str) -> list[dict]:
     """Chunk a document, preferring Docling when it's configured, else naive."""
     name = Path(path).name
     endpoint = os.environ.get("DOCLING_ENDPOINT", "").rstrip("/")
+    docling_empty = False
     if endpoint:  # Docling enabled — prefer its structure-aware chunking
         try:
             out = await _docling_chunks(path, name, endpoint)
             if out:
                 return out
+            docling_empty = True  # Docling answered but produced no usable chunks
         except Exception as e:  # Docling down/misconfigured — degrade gracefully
             _log.warning("Docling unavailable (%s); naive-chunking %s", e, name)
     if Path(path).suffix.lower() == ".pdf":
         # The naive fallback reads text; on a binary PDF that would silently embed
-        # mojibake chunks. Better to drop the file loudly than index garbage.
-        _log.warning("no Docling available for %s; skipping PDF (naive chunking "
-                     "cannot parse binary)", name)
+        # mojibake chunks. Better to drop the file loudly than index garbage — and
+        # say which of the two distinct situations happened, so the operator debugs
+        # the document (empty/scanned) vs the service wiring (unavailable).
+        if docling_empty:
+            _log.warning("Docling returned no usable chunks for %s; skipping PDF", name)
+        else:
+            _log.warning("no Docling available for %s; skipping PDF (naive chunking "
+                         "cannot parse binary)", name)
         return []
     return _naive_chunks(path, name)
 

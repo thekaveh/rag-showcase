@@ -125,6 +125,10 @@ def test_unknown_model_raises_key_error(tmp_path) -> None:
      "retrieve_k"),                                                   # non-numeric numeric param
     ("flavors:\n  - alias: h-y\n    base: hybrid-rag\n    params:\n      rerank: \"false\"\n",
      "rerank"),                                                       # quoted bool would invert intent
+    ("flavors:\n  - alias: h-a\n    base: hybrid-rag\n    params:\n      alpha: 1.5\n",
+     "alpha"),                                                        # out-of-range weighting
+    ("flavors:\n  - alias: h-t\n    base: hybrid-rag\n    params:\n      top_n: 0\n",
+     ">= 1"),                                                         # zero/negative limit
 ])
 def test_both_loaders_reject_the_same_malformed_manifests(
         tmp_path, monkeypatch, manifest_text: str, err: str) -> None:

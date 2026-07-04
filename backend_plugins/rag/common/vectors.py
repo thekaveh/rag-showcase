@@ -157,6 +157,9 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
     try:
         max_batch = max(1, int(os.environ.get("TEI_RERANKER_MAX_BATCH", "32")))
     except ValueError:
+        logging.getLogger("uvicorn.error").warning(
+            "TEI_RERANKER_MAX_BATCH=%r is not an integer; using default 32",
+            os.environ.get("TEI_RERANKER_MAX_BATCH"))
         max_batch = 32
     ordered: list[Hit] = []
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:

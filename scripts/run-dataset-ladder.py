@@ -34,6 +34,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from compare.run_matrix import envval  # noqa: E402 — single .env parser shared with run_matrix
+from compare import flavors as flavor_config  # noqa: E402 — selection validation
 
 
 class _IndentedDumper(yaml.SafeDumper):
@@ -317,10 +318,27 @@ def selected_datasets(
     return [d for d in datasets if d["id"] in wanted]
 
 
+def validate_selections(approaches: str, flavors_csv: str) -> None:
+    """Fail fast on unknown approach/flavor aliases BEFORE any destructive step
+    (mirrors the corpus pre-validation): a typo otherwise aborts only when
+    run_matrix launches — after the cold reset, full stack start, ingest, and
+    LightRAG drain have already been paid."""
+    try:
+        for model in [m.strip() for m in approaches.split(",") if m.strip()]:
+            flavor_config.profile_for_model(model)
+        if flavors_csv:
+            flavor_config.expand_selection(
+                [t.strip() for t in flavors_csv.split(",") if t.strip()])
+    except KeyError as exc:
+        raise SystemExit(
+            f"invalid --approaches/--flavors selection: {exc.args[0]}") from exc
+
+
 def main() -> None:
     args = parse_args()
     if args.approaches and args.flavors:
         raise SystemExit("--approaches and --flavors are mutually exclusive")
+    validate_selections(args.approaches, args.flavors)
     datasets = selected_datasets(args.dataset, include_candidates=args.include_candidates)
     # Validate every selected corpus BEFORE the first cold reset: cold_reset() wipes
     # stack volumes, and discovering a missing generated corpus only after a full
