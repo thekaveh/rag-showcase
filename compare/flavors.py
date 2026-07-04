@@ -52,6 +52,12 @@ def load_flavors(manifest: Path = DEFAULT_MANIFEST) -> dict[str, FlavorProfile]:
         base = str(row.get("base") or "").strip()
         if not alias:
             raise ValueError(f"{manifest} contains a flavor without alias")
+        if alias in BASE_APPROACHES:
+            # The canonical six always resolve to their default profile; a manifest
+            # row shadowing a base name would silently change what "default" means.
+            raise ValueError(f"flavor alias {alias!r} shadows a canonical base approach")
+        if alias in profiles:
+            raise ValueError(f"duplicate flavor alias {alias!r}")
         if base not in BASE_APPROACHES:
             raise KeyError(f"flavor {alias!r} uses unknown base approach {base!r}")
         params = row.get("params") or {}
@@ -60,7 +66,9 @@ def load_flavors(manifest: Path = DEFAULT_MANIFEST) -> dict[str, FlavorProfile]:
         profiles[alias] = FlavorProfile(
             alias=alias,
             base=base,
-            flavor=str(row.get("flavor") or alias.replace(f"{base}-", "") or "default"),
+            # removeprefix, not replace: replace() would rewrite the substring
+            # anywhere in the alias and mislabel odd prefixes.
+            flavor=str(row.get("flavor") or alias.removeprefix(f"{base}-") or "default"),
             label=str(row.get("label") or alias),
             description=str(row.get("description") or ""),
             requires_reingest=bool(row.get("requires_reingest", False)),

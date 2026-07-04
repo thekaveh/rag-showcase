@@ -5,8 +5,22 @@ import sys
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _load_ladder_module():
+    # The hyphenated filename keeps the script un-importable by name; load it the
+    # way Python would execute it.
+    spec = importlib.util.spec_from_file_location(
+        "run_dataset_ladder", ROOT / "scripts" / "run-dataset-ladder.py"
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_start_all_supports_service_only_mode() -> None:
@@ -47,12 +61,7 @@ def test_overlay_passes_lightrag_ollama_context_caps() -> None:
 
 
 def test_ladder_runner_rejects_failed_matrix_cells() -> None:
-    spec = importlib.util.spec_from_file_location(
-        "run_dataset_ladder", ROOT / "scripts" / "run-dataset-ladder.py"
-    )
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    module = _load_ladder_module()
 
     matrix = {
         "cells": [
@@ -72,12 +81,7 @@ def test_ladder_runner_rejects_failed_matrix_cells() -> None:
 
 
 def test_ladder_runner_can_select_candidate_dataset_when_enabled(monkeypatch) -> None:
-    spec = importlib.util.spec_from_file_location(
-        "run_dataset_ladder", ROOT / "scripts/run-dataset-ladder.py"
-    )
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    module = _load_ladder_module()
 
     manifest = {
         "datasets": [
@@ -88,5 +92,28 @@ def test_ladder_runner_can_select_candidate_dataset_when_enabled(monkeypatch) ->
     monkeypatch.setattr(module, "load_manifest", lambda: manifest)
 
     selected = module.selected_datasets(["candidate_b"], include_candidates=True)
-
     assert [d["id"] for d in selected] == ["candidate_b"]
+
+    # --include-candidates without --dataset must NOT silently expand the default
+    # run set to every candidate rung (its help text scopes it to --dataset).
+    default = module.selected_datasets(None, include_candidates=True)
+    assert [d["id"] for d in default] == ["measured_a"]
+
+    # A candidate id without the flag names the flag in the error.
+    with pytest.raises(SystemExit, match="include-candidates"):
+        module.selected_datasets(["candidate_b"], include_candidates=False)
+
+
+def test_ladder_runner_rejects_judgments_without_valid_verdicts() -> None:
+    module = _load_ladder_module()
+
+    good = {"queries": [{"query_id": "a", "mean_by_approach": {"vanilla-rag": 4.0}}]}
+    module.validate_judgments(good, dataset_id="example")  # must not raise
+
+    empty_means = {"queries": [{"query_id": "a", "mean_by_approach": {}},
+                               {"query_id": "b", "mean_by_approach": {"x": 1.0}}]}
+    with pytest.raises(RuntimeError, match="example.*a"):
+        module.validate_judgments(empty_means, dataset_id="example")
+
+    with pytest.raises(RuntimeError, match="no queries"):
+        module.validate_judgments({"queries": []}, dataset_id="example")

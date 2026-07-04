@@ -52,7 +52,14 @@ def extract_json(text: str) -> dict | None:
     return None
 
 
-def ask_judge(client: httpx.Client, model: str, prompt: str) -> dict | None:
+def ask_judge(client: httpx.Client, model: str, prompt: str) -> tuple[dict | None, str]:
+    """One judge call with one retry. Returns (verdict, failure_detail).
+
+    The detail matters operationally: connection-refused (host Ollama not running),
+    timeouts, HTTP errors, and unparseable replies previously all collapsed into the
+    same silent None, leaving "no valid verdict" undiagnosable.
+    """
+    last = ""
     for _ in range(2):  # one retry
         try:
             r = client.post(OLLAMA, json={"model": model, "temperature": 0, "think": False,
@@ -61,10 +68,31 @@ def ask_judge(client: httpx.Client, model: str, prompt: str) -> dict | None:
             content = r.json()["choices"][0]["message"].get("content") or ""
             parsed = extract_json(content)
             if parsed and isinstance(parsed.get("scores"), dict):
-                return parsed
-        except Exception:
+                return parsed, ""
+            last = "reply contained no scores JSON"
+        except Exception as e:
+            last = f"{type(e).__name__}: {e}"
+    return None, last
+
+
+def normalize_verdict(verdict: dict, letter_to_model: dict[str, str]) -> dict:
+    """Map a raw judge verdict onto model names, tolerantly.
+
+    Judges reply with letter keys that may be lowercased and scores that may be
+    numeric strings — accept both. Booleans are rejected explicitly (bool is an int
+    subclass; a judge answering true/false must not become a 1.0/0.0 score).
+    """
+    scores: dict[str, float] = {}
+    for letter, value in verdict.get("scores", {}).items():
+        model = letter_to_model.get(str(letter).strip().upper())
+        if model is None or isinstance(value, bool):
             continue
-    return None
+        try:
+            scores[model] = float(value)
+        except (TypeError, ValueError):
+            continue
+    best = letter_to_model.get(str(verdict.get("best") or "").strip().upper())
+    return {"scores": scores, "best": best, "reason": verdict.get("reason", "")}
 
 
 def build_prompt(query: str, rationale: str, labeled: list[tuple[str, str]]) -> str:
@@ -110,15 +138,11 @@ def main() -> None:
         for jm in JUDGES:
             for q in matrix["queries"]:
                 qid = q["id"]
-                verdict = ask_judge(client, jm, meta[qid]["prompt"])
+                verdict, err = ask_judge(client, jm, meta[qid]["prompt"])
                 if not verdict:
-                    print(f"  [{jm}] {qid}: no valid verdict", flush=True)
+                    print(f"  [{jm}] {qid}: no valid verdict ({err})", flush=True)
                     continue
-                l2m = meta[qid]["letter_to_model"]
-                scores = {l2m[L]: v for L, v in verdict["scores"].items()
-                          if L in l2m and isinstance(v, (int, float))}
-                raw[(qid, jm)] = {"scores": scores, "best": l2m.get(verdict.get("best", "")),
-                                  "reason": verdict.get("reason", "")}
+                raw[(qid, jm)] = normalize_verdict(verdict, meta[qid]["letter_to_model"])
                 print(f"  [{jm}] {qid}: best={raw[(qid, jm)]['best']}", flush=True)
 
     # Aggregate per query: mean score per approach across judges + best-vote tally.
@@ -151,4 +175,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+
+    # Zero-option parser: config is env-var-only, but this makes --help safe and
+    # informative (it used to start a real judging run) and rejects stray arguments.
+    argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="Configured via env vars: JUDGE_MATRIX_FILE, JUDGE_RESULTS_FILE "
+               "(paths relative to compare/results/).",
+    ).parse_args()
     main()

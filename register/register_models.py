@@ -30,9 +30,6 @@ def _model_spec(name: str, base: str | None = None, description: str | None = No
     }
 
 
-MODELS = [_model_spec(n) for n in _NAMES]
-
-
 def _model_specs() -> list[dict]:
     specs: list[dict] = []
     seen: set[str] = set()
@@ -95,4 +92,13 @@ async def run() -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+
+    # Zero-option parser: makes --help safe (it used to attempt a live registration)
+    # and rejects stray arguments.
+    argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="Configured via env vars: LITELLM_BASE_URL, LITELLM_MASTER_KEY or "
+               "LITELLM_API_KEY.",
+    ).parse_args()
     asyncio.run(run())

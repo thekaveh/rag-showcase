@@ -29,8 +29,9 @@ if str(ROOT) not in sys.path:
 from compare import flavors as flavor_config  # noqa: E402
 
 RESULTS = ROOT / "compare" / "results"
-ALL_MODELS = ["vanilla-rag", "hybrid-rag", "contextual-rag",
-              "graph-rag", "agentic-rag", "n8n-adaptive-rag"]
+# The six base approaches ("models" because that is the OpenAI-API field name at the
+# gateway boundary). Derived, not copied — compare/flavors.py owns the display order.
+ALL_MODELS = list(flavor_config.BASE_APPROACHES)
 
 # build_response() renders: answer + optional "<details>…Retrieved context…</details>"
 # + "\n\n---\n📊 {s}s · {n} chunks · {n} LLM calls · {n} cloud". Parse that back.
@@ -94,9 +95,20 @@ def parse_content(content: str) -> dict:
 
 def main() -> None:
     port, key = envval("LITELLM_PORT"), envval("LITELLM_MASTER_KEY")
+    if not port or not key:
+        # Without these the run would grind through every cell against
+        # "http://localhost:" and exit 0 with a 100%-error matrix.
+        raise SystemExit("LITELLM_PORT / LITELLM_MASTER_KEY not found in infra/.env — "
+                         "run scripts/start-all.sh (or scripts/setup-overlay.sh) first")
     base = f"http://localhost:{port}"
     query_path = ROOT / queries_file()
     queries = yaml.safe_load(query_path.read_text(encoding="utf-8"))
+    # Validate rows up front: a malformed row discovered mid-run used to abort the
+    # matrix after real cells were already paid for, losing all of them.
+    bad = [i for i, q in enumerate(queries)
+           if not (isinstance(q, dict) and q.get("id") and q.get("query"))]
+    if bad:
+        raise SystemExit(f"{query_path}: query rows missing id/query at indices {bad}")
     profiles = selected_profiles()
     RESULTS.mkdir(parents=True, exist_ok=True)
     out: dict = {"base": base, "models": [p.alias for p in profiles],
@@ -149,4 +161,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+
+    # Zero-option parser: config is env-var-only, but this makes --help safe (it used
+    # to start a real matrix run and overwrite results) and rejects stray arguments.
+    argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="Configured via env vars: MATRIX_QUERIES_FILE, MATRIX_RESULTS_FILE, "
+               "MATRIX_MODELS, MATRIX_FLAVORS, MATRIX_FLAVORS_FILE.",
+    ).parse_args()
     main()

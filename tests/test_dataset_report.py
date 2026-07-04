@@ -30,20 +30,29 @@ def test_dataset_report_ranks_measured_inputs_by_dataset() -> None:
     assert "pending live run" in out
 
 
-def test_dataset_report_write_mode_updates_documentation() -> None:
+def test_dataset_report_write_mode_matches_committed_documentation(tmp_path) -> None:
+    # Generate to a tmp path (a test must not mutate the tracked tree) and require
+    # byte-equality with the committed report — this is the drift guard that catches
+    # a generator or manifest change whose regenerated output was never committed.
+    out = tmp_path / "report.md"
     result = subprocess.run(
-        [sys.executable, "compare/report_datasets.py", "--output", "docs/dataset-complexity-report.md"],
+        [sys.executable, "compare/report_datasets.py", "--output", str(out)],
         cwd=ROOT,
         text=True,
         capture_output=True,
         check=True,
     )
 
-    assert "wrote docs/dataset-complexity-report.md" in result.stdout
-    report = (ROOT / "docs" / "dataset-complexity-report.md").read_text()
-    assert "## 1. Dataset Complexity Ladder" in report
-    assert "## 2. Ranking Drift by Input Dataset" in report
-    assert "## 3. Per-Query Winners" in report
+    assert f"wrote {out}" in result.stdout
+    generated = out.read_text(encoding="utf-8")
+    assert "## 1. Dataset Complexity Ladder" in generated
+    assert "## 2. Ranking Drift by Input Dataset" in generated
+    assert "## 3. Per-Query Winners" in generated
+    committed = (ROOT / "docs" / "dataset-complexity-report.md").read_text(encoding="utf-8")
+    assert generated == committed, (
+        "docs/dataset-complexity-report.md is stale — regenerate it with "
+        "`uv run python compare/report_datasets.py --output docs/dataset-complexity-report.md`"
+    )
 
 
 def test_dataset_report_write_mode_accepts_absolute_out_of_repo_path(tmp_path) -> None:

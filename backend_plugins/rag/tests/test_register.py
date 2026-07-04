@@ -27,16 +27,16 @@ async def test_register_deletes_existing_then_adds(monkeypatch):
         return_value=httpx.Response(200, json={}))
     await reg.run()
     assert delete.called                       # removed the stale vanilla-rag
-    assert new.call_count == len(reg.MODELS)   # added all six
+    assert new.call_count == len(reg._NAMES)   # added all six
     # decode EVERY /model/new payload (not just calls[0]) and assert the full set —
     # call_count alone would pass a bug that registers MODELS[0] six times.
     payloads = [json.loads(c.request.read().decode()) for c in new.calls]
     # (a) each approach registers under its OWN name, as an openai/ provider whose
     #     api_base is its OWN distinct backend route (not all pointing at one path)
-    assert sorted(p["model_name"] for p in payloads) == sorted(m["model_name"] for m in reg.MODELS)
+    assert sorted(p["model_name"] for p in payloads) == sorted(reg._NAMES)
     assert all(p["litellm_params"]["model"].startswith("openai/") for p in payloads)
     assert all("backend:8000" in p["litellm_params"]["api_base"] for p in payloads)
-    assert len({p["litellm_params"]["api_base"] for p in payloads}) == len(reg.MODELS)
+    assert len({p["litellm_params"]["api_base"] for p in payloads}) == len(reg._NAMES)
     # (b) the api_key (read from env at run-time) is merged into litellm_params —
     #     drop the merge and all six register keyless, so every routed call fails
     assert all(p["litellm_params"]["api_key"] == "sk-master" for p in payloads)
@@ -91,7 +91,7 @@ async def test_register_skips_delete_when_clean(monkeypatch):
         return_value=httpx.Response(200, json={}))
     await reg.run()
     assert not delete.called                       # nothing to remove on a clean slate
-    assert new.call_count == len(reg.MODELS)       # still registers all six
+    assert new.call_count == len(reg._NAMES)       # still registers all six
 
 
 @pytest.mark.asyncio

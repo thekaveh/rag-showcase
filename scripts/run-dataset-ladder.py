@@ -28,6 +28,11 @@ MANIFEST = ROOT / "compare" / "datasets.yaml"
 RESULTS = ROOT / "compare" / "results"
 DOC_RESULTS = ROOT / "docs" / "results"
 
+# Make compare/ importable when run as a plain script (sys.path[0] is scripts/).
+sys.path.insert(0, str(ROOT))
+
+from compare.run_matrix import envval  # noqa: E402 — single .env parser shared with run_matrix
+
 
 class _IndentedDumper(yaml.SafeDumper):
     def increase_indent(self, flow: bool = False, indentless: bool = False) -> None:
@@ -54,7 +59,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--approaches",
         default="",
-        help="Comma-separated MATRIX_MODELS override. Defaults to all six approaches.",
+        help="Comma-separated approach or flavor alias list (sets MATRIX_MODELS). "
+             "Defaults to all six approaches.",
     )
     parser.add_argument(
         "--flavors",
@@ -96,16 +102,6 @@ def write_manifest(manifest: dict[str, Any]) -> None:
     )
 
 
-def envval(key: str) -> str:
-    env = ROOT / "infra" / ".env"
-    val = ""
-    if env.is_file():
-        for line in env.read_text(encoding="utf-8").splitlines():
-            if line.startswith(key + "="):
-                val = line.split("=", 1)[1].strip()
-    return val
-
-
 def project_name() -> str:
     name = envval("PROJECT_NAME")
     if not name:
@@ -142,39 +138,50 @@ def ingest_dataset(dataset: dict[str, Any]) -> None:
     )
 
 
-def lightrag_status() -> dict[str, Any]:
-    code = """
+def _lightrag_get(path: str, timeout: int) -> dict[str, Any]:
+    """GET a LightRAG endpoint from inside the backend container (in-network URL +
+    the container's LIGHTRAG_API_KEY), returning the parsed JSON."""
+    code = f"""
 import json, os, httpx
 r = httpx.get(
-    "http://lightrag:9621/documents/pipeline_status",
-    headers={"X-API-Key": os.environ.get("LIGHTRAG_API_KEY", "")},
-    timeout=10,
+    "http://lightrag:9621{path}",
+    headers={{"X-API-Key": os.environ.get("LIGHTRAG_API_KEY", "")}},
+    timeout={timeout},
 )
 r.raise_for_status()
 print(json.dumps(r.json()))
 """
     return capture_json(["docker", "exec", f"{project_name()}-backend", "python", "-c", code])
+
+
+def lightrag_status() -> dict[str, Any]:
+    return _lightrag_get("/documents/pipeline_status", timeout=10)
 
 
 def lightrag_documents() -> dict[str, Any]:
-    code = """
-import json, os, httpx
-r = httpx.get(
-    "http://lightrag:9621/documents",
-    headers={"X-API-Key": os.environ.get("LIGHTRAG_API_KEY", "")},
-    timeout=20,
-)
-r.raise_for_status()
-print(json.dumps(r.json()))
-"""
-    return capture_json(["docker", "exec", f"{project_name()}-backend", "python", "-c", code])
+    return _lightrag_get("/documents", timeout=20)
 
 
 def wait_for_lightrag(dataset_id: str, timeout_s: int = 3600) -> None:
     deadline = time.monotonic() + timeout_s
     last = ""
+    poll_failures = 0
     while time.monotonic() < deadline:
-        status = lightrag_status()
+        try:
+            status = lightrag_status()
+            poll_failures = 0
+        except (subprocess.CalledProcessError, ValueError) as exc:
+            # One flaky docker-exec/HTTP poll must not abort a multi-hour ladder run;
+            # three in a row means something is genuinely wrong.
+            poll_failures += 1
+            if poll_failures >= 3:
+                raise RuntimeError(
+                    f"LightRAG status poll failed {poll_failures} times in a row "
+                    f"for {dataset_id}") from exc
+            print(f"[{dataset_id}] LightRAG status poll failed "
+                  f"({poll_failures}/3), retrying: {exc}", flush=True)
+            time.sleep(15)
+            continue
         busy = bool(status.get("busy") or status.get("request_pending"))
         message = str(status.get("latest_message") or "")
         progress = (
@@ -186,9 +193,17 @@ def wait_for_lightrag(dataset_id: str, timeout_s: int = 3600) -> None:
             last = progress
         if not busy:
             docs = lightrag_documents()
-            failed = docs.get("statuses", {}).get("failed") or docs.get("statuses", {}).get("FAILED")
+            statuses = docs.get("statuses", {}) or {}
+            failed = statuses.get("failed") or statuses.get("FAILED")
             if failed:
                 raise RuntimeError(f"LightRAG reported failed documents for {dataset_id}: {failed}")
+            pending = (statuses.get("pending") or statuses.get("PENDING")
+                       or statuses.get("processing") or statuses.get("PROCESSING"))
+            if pending:
+                # Not-busy gap between enqueue and pipeline pickup: documents are
+                # still queued, so this is not drained yet.
+                time.sleep(15)
+                continue
             return
         time.sleep(15)
     raise TimeoutError(f"LightRAG did not drain for {dataset_id} within {timeout_s}s")
@@ -206,6 +221,25 @@ def validate_matrix_cells(matrix: dict[str, Any], *, dataset_id: str) -> None:
     raise RuntimeError(
         f"Matrix had {len(failed)} failed cells for {dataset_id}: {preview}{suffix}"
     )
+
+
+def validate_judgments(judgments: dict[str, Any], *, dataset_id: str) -> None:
+    """Reject a judge run with unusable verdicts before it is snapshotted.
+
+    judge.py exits 0 even when every call failed (e.g. host Ollama down), writing
+    judgments whose per-query mean_by_approach is empty — previously committed as
+    "measured" with no scores. Symmetric counterpart to validate_matrix_cells.
+    """
+    queries = judgments.get("queries", [])
+    if not queries:
+        raise RuntimeError(f"Judgments for {dataset_id} contain no queries")
+    bad = [q.get("query_id", "?") for q in queries if not q.get("mean_by_approach")]
+    if bad:
+        preview = ", ".join(bad[:5]) + ("" if len(bad) <= 5 else f", ... {len(bad) - 5} more")
+        raise RuntimeError(
+            f"Judgments for {dataset_id} have no valid verdicts for: {preview} "
+            "(is the host Ollama judge panel running?)"
+        )
 
 
 def run_matrix_and_judge(
@@ -229,9 +263,11 @@ def run_matrix_and_judge(
     env["JUDGE_MATRIX_FILE"] = matrix_name
     env["JUDGE_RESULTS_FILE"] = judgments_name
     run(["uv", "run", "python", "compare/judge.py"], env=env)
+    judgments_src = RESULTS / judgments_name
+    validate_judgments(json.loads(judgments_src.read_text(encoding="utf-8")),
+                       dataset_id=dataset_id)
 
     DOC_RESULTS.mkdir(parents=True, exist_ok=True)
-    judgments_src = RESULTS / judgments_name
     matrix_dst = DOC_RESULTS / matrix_name
     judgments_dst = DOC_RESULTS / judgments_name
     shutil.copy2(matrix_src, matrix_dst)
@@ -262,12 +298,16 @@ def selected_datasets(
     allowed = {"measured", "candidate"} if include_candidates else {"measured"}
     datasets = [d for d in load_manifest()["datasets"] if d["status"] in allowed]
     if not ids:
-        return datasets
+        # No explicit selection: run only measured datasets. --include-candidates
+        # widens what --dataset may NAME (per its help text); it must not silently
+        # expand the default run set to every candidate rung.
+        return [d for d in datasets if d["status"] == "measured"]
     wanted = set(ids)
     found = {d["id"] for d in datasets}
     missing = sorted(wanted - found)
     if missing:
-        raise SystemExit(f"Unknown or unmeasured dataset id(s): {', '.join(missing)}")
+        hint = "" if include_candidates else " (candidate ids need --include-candidates)"
+        raise SystemExit(f"Unknown or unselectable dataset id(s): {', '.join(missing)}{hint}")
     return [d for d in datasets if d["id"] in wanted]
 
 
@@ -276,6 +316,21 @@ def main() -> None:
     if args.approaches and args.flavors:
         raise SystemExit("--approaches and --flavors are mutually exclusive")
     datasets = selected_datasets(args.dataset, include_candidates=args.include_candidates)
+    # Validate every selected corpus BEFORE the first cold reset: cold_reset() wipes
+    # stack volumes, and discovering a missing generated corpus only after a full
+    # multi-minute stack start destroys state for nothing.
+    absent = [d["id"] for d in datasets if not (ROOT / d["corpus_path"]).is_dir()]
+    if absent:
+        raise SystemExit(
+            f"dataset corpus dir(s) not found: {', '.join(absent)} — generate them first "
+            "(see corpus/adapters/README.md); refusing to touch the running stack")
+    if args.no_cold_reset and len(datasets) > 1:
+        # ingest.run() swaps the Weaviate collections per dataset but LightRAG only
+        # accumulates — without a cold reset, graph-rag/agentic-rag would answer from
+        # the union of all previously ingested corpora while the chunk approaches see
+        # only the latest, silently skewing the comparison.
+        raise SystemExit("--no-cold-reset supports a single dataset only; drop it or "
+                         "run one --dataset at a time")
     for index, dataset in enumerate(datasets, start=1):
         print(f"\n==> Dataset {index}/{len(datasets)}: {dataset['id']}", flush=True)
         if not args.no_cold_reset:

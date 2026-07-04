@@ -67,17 +67,13 @@ mean the vote-decided winner can fall outside the listed top three.
 
 ## 4. Interpretation
 
-The current measured ladder has 3 rungs. On `baseline_curated`, `vanilla-rag-wide` leads; on `graph_native`, `hybrid-rag-high-recall` leads; on `cyber_threat_intel`, `contextual-rag-high-recall` leads. `graph-rag` is now measured end to end across the live rungs, but it is not yet the aggregate winner; its strongest individual scores appear on relationship-heavy questions.
+The current measured ladder has 3 rungs. On `baseline_curated`, `vanilla-rag-wide` leads; on `graph_native`, `hybrid-rag-high-recall` leads; on `cyber_threat_intel`, `contextual-rag-high-recall` leads. `graph-rag` is measured end to end across the live rungs but does not lead any of them.
 
 That tells us the next step is not simply adding more documents; it is adding
 datasets whose native task requires relational retrieval, temporal event
 reasoning, and multi-hop graph paths.
 
-The live flavor run also surfaced one clear tuning result: `graph-rag-wide`
-is too broad for the current LightRAG query setup. It frequently returned
-truncated one-token or heading-only answers and ranked last on every
-measured dataset. `graph-rag-fast` was the stronger graph flavor, winning
-several baseline and graph-native questions while reducing latency.
+The live flavor snapshots show one clear tuning result: `graph-rag-wide` ranked last on every measured dataset. Its committed answers are frequently truncated one-token or heading-only output — the wide retrieval envelope overflows the current LightRAG query setup. `graph-rag-fast` was the stronger graph flavor, winning 3 individual queries across the measured datasets while reducing latency.
 
 The candidate rungs are intentionally heavier: STaRK-Prime and STaRK-MAG
 are semi-structured retrieval benchmarks; OpenAlex adds a real scholarly
