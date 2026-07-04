@@ -127,6 +127,38 @@ async def test_agentic_uses_query_graph_tool(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_agentic_query_graph_empty_query_counts_no_delegated_call(monkeypatch):
+    # An empty/malformed tool query never does delegated graph work (lightrag's
+    # <3-char guard short-circuits with no HTTP/LLM call), so the pinned cost
+    # footer must not bill +1 for it — sibling of search_vectors' empty-query 0.
+    # 2 chat turns + 0 = "2 LLM calls", and lightrag.query is never invoked.
+    turns = []
+    async def fake_chat(model, messages, tools=None, **kw):
+        turns.append(messages)
+        if len(turns) == 1:
+            return {"choices": [{"message": {"role": "assistant", "content": None,
+                "tool_calls": [{"id": "g1", "type": "function",
+                  "function": {"name": "query_graph",
+                               "arguments": json.dumps({"query": ""})}}]}}]}
+        return {"choices": [{"message": {"role": "assistant", "content": "answer without graph"}}]}
+    async def forbidden_graph(q, mode="hybrid"):
+        raise AssertionError("lightrag.query must not be called for an empty query")
+    monkeypatch.setattr(agentic.litellm, "chat", fake_chat)
+    monkeypatch.setattr(agentic.lightrag, "query", forbidden_graph)
+    monkeypatch.setattr(agentic.config, "role", lambda r: "qwen3.6")
+
+    app = FastAPI(); app.include_router(agentic.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/agentic-rag/v1/chat/completions",
+                          json={"model": "agentic-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200
+    content = r.json()["choices"][0]["message"]["content"]
+    assert "too short" in content   # the guard observation is surfaced in the trace
+    assert "2 LLM calls" in content  # 2 chat turns + 0 — no delegated graph call
+
+
+@pytest.mark.asyncio
 async def test_agentic_tolerates_malformed_tool_call(monkeypatch):
     # a tool call missing function.name / id must not raise; it gets answered
     # with an "unknown tool" observation and the loop proceeds to a final answer.

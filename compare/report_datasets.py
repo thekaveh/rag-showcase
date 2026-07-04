@@ -148,12 +148,15 @@ def build_report() -> str:
         if graph_leads:
             ids = ", ".join(f"`{d}`" for d in graph_leads)
             graph_status = f" `graph-rag` leads on {ids}."
-        elif any(alias.startswith("graph-rag")
-                 for scores in measured_scores.values() for alias in scores):
+        elif all(any(alias.startswith("graph-rag") for alias in scores)
+                 for scores in measured_scores.values()):
+            # "across the live rungs" is a per-rung claim: require graph-rag in
+            # EVERY measured snapshot, not just one of them.
             graph_status = (" `graph-rag` is measured end to end across the live rungs "
                             "but does not lead any of them.")
-        # else: graph-rag absent from the snapshots (e.g. an --approaches run that
-        # excluded it) — say nothing rather than claim a measurement that didn't happen.
+        # else: graph-rag absent from at least one snapshot (e.g. an --approaches run
+        # that excluded it) — say nothing rather than claim a measurement that didn't
+        # happen on every rung.
     flavor_note = ""
     rankings = [_ranking(s) for s in measured_scores.values() if s]
     if rankings and len(rankings) == len(measured_scores):
@@ -249,7 +252,9 @@ def main() -> None:
 
     report = build_report()
     if args.stdout:
-        print(report)
+        # end="": build_report() already ends with a newline; print's default would
+        # add a second one, breaking `diff <(… --stdout) <committed report>`.
+        print(report, end="")
         return
 
     output = Path(args.output)

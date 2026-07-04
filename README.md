@@ -168,7 +168,7 @@ by hand for the default `start-all.sh` flow.
 | `N8N_ADAPTIVE_WEBHOOK_URL` | `http://n8n:5678/webhook/adaptive-rag` | n8n approach | overlay |
 | `RAG_ROLES_FILE` | `/app/plugins/rag/roles.yaml` | config | overlay |
 | `RAG_MODELS_FILE` | `/app/plugins/rag/models.yaml` | config (per-model request props, e.g. `think:false`) | overlay |
-| `RAG_FLAVORS_FILE` | `/app/plugins/rag/flavors.yaml` | config (approach flavor aliases) | overlay |
+| `RAG_FLAVORS_FILE` | `/app/plugins/rag/flavors.yaml` | flavors loader, register (approach flavor aliases) | overlay |
 | `BACKEND_PLUGINS_DIR` | `/app/plugins` | plugin seam (Atlas) | overlay |
 | `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | Atlas `.env` defaulted by `setup-overlay.sh` |
 | `LIGHTRAG_KEYWORD_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG KEYWORD role | Atlas `.env` defaulted by `setup-overlay.sh` |

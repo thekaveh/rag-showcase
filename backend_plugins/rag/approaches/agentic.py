@@ -59,6 +59,12 @@ async def _run_tool(name: str, args: dict, params: dict) -> tuple[str, int]:
         obs = "\n".join(f"- {h.title}: {h.text[:200]}" for h in hits) or "(no results)"
         return obs, 1  # +1 = the query embedding
     if name == "query_graph":
+        if len(q.strip()) < 3:
+            # Mirror lightrag.query's short-query guard locally: it would return
+            # this same message having done NO delegated LLM work, so billing +1
+            # would over-report the pinned cost footer (search_vectors' empty-query
+            # 0 is the sibling; malformed args coerce to "" above and land here).
+            return "(query too short for the knowledge graph)", 0
         mode = str(params.get("graph_mode", "hybrid"))
         return await lightrag.query(q, mode=mode), 1  # +1 = delegated graph call
     return f"(unknown tool {name})", 0

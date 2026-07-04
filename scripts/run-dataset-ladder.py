@@ -256,6 +256,13 @@ def run_matrix_and_judge(
     matrix_name = f"live-{date_stamp}-{dataset_id}-matrix.json"
     judgments_name = f"live-{date_stamp}-{dataset_id}-judgments.json"
     env = os.environ.copy()
+    # Exported MATRIX_MODELS/MATRIX_FLAVORS (e.g. left over from the documented
+    # manual run_matrix.py workflow) must not govern the run: they'd bypass
+    # validate_selections() and silently narrow the snapshot. Only the validated
+    # CLI flags set them — MATRIX_FLAVORS_FILE inheritance, by contrast, is
+    # deliberate and mirrored by validation.
+    env.pop("MATRIX_MODELS", None)
+    env.pop("MATRIX_FLAVORS", None)
     env["MATRIX_QUERIES_FILE"] = dataset["queries_file"]
     env["MATRIX_RESULTS_FILE"] = matrix_name
     if approaches:
@@ -325,8 +332,14 @@ def validate_selections(approaches: str, flavors_csv: str) -> None:
     LightRAG drain have already been paid."""
     # Resolve the manifest exactly as run_matrix will (MATRIX_FLAVORS_FILE wins):
     # validating against a different manifest would either falsely reject a
-    # custom alias or let a bad one through to the post-reset KeyError.
+    # custom alias or let a bad one through to the post-reset KeyError. run()
+    # launches run_matrix with cwd=ROOT, so a relative value resolves against the
+    # repo root there — resolve identically here even when the ladder is launched
+    # from another cwd (a missing manifest silently degrades to base-only
+    # profiles, which would falsely reject the custom alias).
     manifest = flavors_file()
+    if not manifest.is_absolute():
+        manifest = ROOT / manifest
     try:
         for model in [m.strip() for m in approaches.split(",") if m.strip()]:
             flavor_config.profile_for_model(model, manifest=manifest)

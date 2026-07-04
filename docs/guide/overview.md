@@ -26,7 +26,7 @@ flowchart LR
     R --> G[graph-rag]
     R --> A[agentic-rag]
     R --> N[n8n-adaptive-rag]
-    V & H & C --> W[(Weaviate<br/>+ TEI rerank)]
+    V & H & C & A --> W[(Weaviate<br/>+ TEI rerank)]
     G & A --> LR[(LightRAG<br/>knowledge graph)]
     N --> WF[n8n workflow<br/>classify → route]
 ```

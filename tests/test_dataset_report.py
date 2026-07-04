@@ -28,6 +28,10 @@ def test_dataset_report_ranks_measured_inputs_by_dataset() -> None:
     assert "## 3. Per-Query Winners" in out
     assert "stark_prime" in out
     assert "pending live run" in out
+    # --stdout must emit exactly the bytes the write path produces (the committed
+    # report), so `diff <(… --stdout) docs/dataset-complexity-report.md` is a
+    # valid drift check — no extra trailing newline from print().
+    assert out == (ROOT / "docs" / "dataset-complexity-report.md").read_text(encoding="utf-8")
 
 
 def test_dataset_report_write_mode_matches_committed_documentation(tmp_path) -> None:
@@ -103,3 +107,38 @@ def test_base_approach_ranked_last_is_not_framed_as_a_flavor_result(monkeypatch)
     assert "flavor snapshots show one clear tuning result" not in report
     # graph-rag absent from these snapshots: no measurement claim about it at all
     assert "`graph-rag` is measured end to end" not in report
+
+
+def test_graph_measured_claim_requires_graph_on_every_rung(monkeypatch) -> None:
+    # "`graph-rag` is measured end to end across the live rungs" must require
+    # graph-rag in EVERY measured snapshot: with a mixed set (one rung re-measured
+    # via --approaches without graph-rag), the across-the-rungs claim is false for
+    # the graph-less rung — say nothing instead, like the fully-absent case above.
+    import compare.report_datasets as rd
+
+    manifest = [{"id": "ds_a", "status": "measured", "complexity_level": 1,
+                 "graph_nature": "none", "queries_file": "demo/queries.yaml",
+                 "judgment_snapshot": "unused-a.json"},
+                {"id": "ds_b", "status": "measured", "complexity_level": 2,
+                 "graph_nature": "none", "queries_file": "demo/queries.yaml",
+                 "judgment_snapshot": "unused-b.json"}]
+    snapshots = {
+        "unused-a.json": {"queries": [{"query_id": "q1", "observed_winner": "vanilla-rag",
+                                       "mean_by_approach": {"vanilla-rag": 4.0,
+                                                            "graph-rag": 2.0}}]},
+        "unused-b.json": {"queries": [{"query_id": "q2", "observed_winner": "vanilla-rag",
+                                       "mean_by_approach": {"vanilla-rag": 3.5,
+                                                            "n8n-adaptive-rag": 1.5}}]},
+    }
+    monkeypatch.setattr(rd, "_load_manifest", lambda: manifest)
+    monkeypatch.setattr(rd, "_load_judgments", lambda p: snapshots[p.name])
+
+    report = rd.build_report()
+    assert "`graph-rag` is measured end to end" not in report
+
+    # With graph-rag present (and not leading) on every rung, the claim renders.
+    snapshots["unused-b.json"] = {
+        "queries": [{"query_id": "q2", "observed_winner": "vanilla-rag",
+                     "mean_by_approach": {"vanilla-rag": 3.5, "graph-rag": 1.5}}]}
+    report = rd.build_report()
+    assert "`graph-rag` is measured end to end" in report

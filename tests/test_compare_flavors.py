@@ -113,6 +113,7 @@ def test_unknown_model_raises_key_error(tmp_path) -> None:
 
 
 @pytest.mark.parametrize("manifest_text, err", [
+    ("- alias: x-rag\n  base: graph-rag\n", "mapping"),              # top-level list (forgot the flavors: key)
     ("flavors: 42\n", "list under 'flavors'"),                       # non-list flavors
     ("flavors:\n  - 17\n", "non-object"),                            # non-object row
     ("flavors:\n  - base: graph-rag\n", "without alias"),            # missing alias

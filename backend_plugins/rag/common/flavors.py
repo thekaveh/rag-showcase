@@ -83,6 +83,11 @@ def _load() -> dict[str, FlavorProfile]:
     path = _path()
     if path.is_file():
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        if not isinstance(data, dict):
+            # Rows written without the `flavors:` wrapper key (a top-level list) are
+            # the likeliest wrong shape for this file; fail like config._load's shape
+            # check, not with a bare AttributeError on data.get() below.
+            raise ValueError(f"{path} must contain a mapping with a 'flavors' list")
         rows = data.get("flavors") or []
         if not isinstance(rows, list):
             raise ValueError(f"{path} must contain a list under 'flavors'")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import importlib.util
@@ -214,3 +215,67 @@ def test_selection_validation_uses_the_manifest_run_matrix_will_use(monkeypatch,
     monkeypatch.delenv("MATRIX_FLAVORS_FILE", raising=False)
     with pytest.raises(SystemExit, match="hybrid-rag-custom"):
         module.validate_selections("hybrid-rag-custom", "")  # not in the default one
+
+
+def test_run_matrix_and_judge_ignores_exported_selection_env(monkeypatch, tmp_path) -> None:
+    # MATRIX_MODELS/MATRIX_FLAVORS exported in the caller's shell (e.g. left over
+    # from the documented manual `MATRIX_MODELS=... run_matrix.py` workflow) must
+    # not reach the subprocess when the flags are omitted: they'd bypass
+    # validate_selections() and silently narrow a snapshot stamped "measured", or
+    # abort only after the cold reset + ingest. Only the validated CLI flags set
+    # them — unlike MATRIX_FLAVORS_FILE, whose inheritance is deliberate (above).
+    module = _load_ladder_module()
+    monkeypatch.setenv("MATRIX_MODELS", "stale-export")
+    monkeypatch.setenv("MATRIX_FLAVORS", "stale-export")
+    monkeypatch.setattr(module, "RESULTS", tmp_path / "results")
+    monkeypatch.setattr(module, "DOC_RESULTS", tmp_path / "doc-results")
+    module.RESULTS.mkdir(parents=True)
+
+    seen_envs: list[dict] = []
+    def fake_run(cmd, env=None, **kw):
+        env = dict(env or {})
+        seen_envs.append(env)
+        if "MATRIX_RESULTS_FILE" in env:
+            (module.RESULTS / env["MATRIX_RESULTS_FILE"]).write_text(json.dumps(
+                {"cells": [{"query_id": "q1", "model": "vanilla-rag", "ok": True}]}),
+                encoding="utf-8")
+        else:
+            (module.RESULTS / env["JUDGE_RESULTS_FILE"]).write_text(json.dumps(
+                {"queries": [{"query_id": "q1", "mean_by_approach": {"vanilla-rag": 4.0}}]}),
+                encoding="utf-8")
+    monkeypatch.setattr(module, "run", fake_run)
+
+    module.run_matrix_and_judge({"id": "ds", "queries_file": "q.json"}, "2026-07-04",
+                                approaches="", flavors="")
+    matrix_env = seen_envs[0]
+    assert matrix_env["MATRIX_QUERIES_FILE"] == "q.json"
+    assert "MATRIX_MODELS" not in matrix_env
+    assert "MATRIX_FLAVORS" not in matrix_env
+
+    # The validated flags must still reach the subprocess (the scrub above must
+    # not eat them).
+    module.run_matrix_and_judge({"id": "ds2", "queries_file": "q.json"}, "2026-07-04",
+                                approaches="vanilla-rag", flavors="graph-rag-wide")
+    matrix_env = seen_envs[2]
+    assert matrix_env["MATRIX_MODELS"] == "vanilla-rag"
+    assert matrix_env["MATRIX_FLAVORS"] == "graph-rag-wide"
+
+
+def test_selection_validation_resolves_relative_manifest_against_repo_root(
+        monkeypatch, tmp_path) -> None:
+    # run() launches run_matrix with cwd=ROOT, so a relative MATRIX_FLAVORS_FILE
+    # (the documented form) resolves against the repo root in the child. The
+    # pre-validation must resolve it the same way even when the ladder itself is
+    # launched from another cwd — a missing manifest silently degrades to
+    # base-only profiles, falsely rejecting the custom alias up front.
+    module = _load_ladder_module()
+    (tmp_path / "custom").mkdir()
+    (tmp_path / "custom" / "flavors.yaml").write_text(
+        "flavors:\n  - alias: hybrid-rag-custom\n    base: hybrid-rag\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module, "ROOT", tmp_path)
+    monkeypatch.setenv("MATRIX_FLAVORS_FILE", "custom/flavors.yaml")
+    monkeypatch.chdir(tmp_path / "custom")  # anywhere that is not ROOT
+
+    module.validate_selections("hybrid-rag-custom", "")  # must not falsely reject

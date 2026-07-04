@@ -50,6 +50,10 @@ def load_flavors(manifest: Path = DEFAULT_MANIFEST) -> dict[str, FlavorProfile]:
         return profiles
 
     data = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
+    if not isinstance(data, dict):
+        # Top-level list (rows without the `flavors:` wrapper key) → self-describing
+        # error, not a bare AttributeError (kept identical to the backend loader).
+        raise ValueError(f"{manifest} must contain a mapping with a 'flavors' list")
     rows = data.get("flavors") or []
     if not isinstance(rows, list):
         raise ValueError(f"{manifest} must contain a list under 'flavors'")

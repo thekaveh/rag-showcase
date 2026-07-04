@@ -131,7 +131,7 @@ async def test_run_raises_on_contextual_embedding_mismatch(monkeypatch, tmp_path
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_chunk_document_falls_back_when_docling_errors(monkeypatch, tmp_path):
+async def test_chunk_document_falls_back_when_docling_errors(monkeypatch, tmp_path, caplog):
     # Docling configured but unreachable -> graceful degrade to naive chunking
     # (the exception path, distinct from the DOCLING_ENDPOINT-unset path).
     monkeypatch.setenv("DOCLING_ENDPOINT", "http://docling-gpu:8000")
@@ -139,9 +139,13 @@ async def test_chunk_document_falls_back_when_docling_errors(monkeypatch, tmp_pa
     doc.write_text("# T\n\n" + ("y" * 900), encoding="utf-8")
     respx.post("http://docling-gpu:8000/v1/document/convert").mock(
         side_effect=httpx.ConnectError("docling down"))
-    chunks = await ing.chunk_document(str(doc))
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        chunks = await ing.chunk_document(str(doc))
     assert len(chunks) >= 1
     assert all(c["title"] == "d.md" and c["text"] for c in chunks)  # naive chunks
+    # pin the exception-path wording: it must say the fallback is being ATTEMPTED
+    # (for a PDF the fallback then still skips), not promise naive chunking.
+    assert "attempting fallback" in caplog.text
 
 
 def test_naive_chunks_logs_and_skips_unreadable_file(tmp_path, caplog):
@@ -226,6 +230,9 @@ async def test_chunk_document_skips_pdf_when_docling_unavailable(monkeypatch, tm
         chunks = await ing.chunk_document(str(pdf))
     assert chunks == []
     assert "skipping PDF" in caplog.text
+    # the unavailable-skip wording specifically — not the empty-chunks message,
+    # which shares the "skipping PDF" substring.
+    assert "no Docling available" in caplog.text
 
 
 @pytest.mark.asyncio

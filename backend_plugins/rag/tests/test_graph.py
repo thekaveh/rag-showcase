@@ -205,6 +205,22 @@ async def test_lightrag_upload_text_raises_after_retry_exhaustion(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_lightrag_upload_text_negative_retries_env_still_attempts_once(monkeypatch):
+    # A negative LIGHTRAG_UPLOAD_RETRIES would make range(retries + 1) empty and
+    # upload_text return without a single POST — the file counted as ingested
+    # while the KG silently misses it. The max(0, ...) clamp must floor it so
+    # exactly one attempt still happens (delay is clamped alongside).
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    monkeypatch.setenv("LIGHTRAG_UPLOAD_RETRIES", "-3")
+    monkeypatch.setenv("LIGHTRAG_UPLOAD_RETRY_DELAY", "-1")
+    with respx.mock:
+        upload = respx.post("http://lightrag:9621/documents/text").mock(
+            return_value=httpx.Response(200))
+        await lightrag.upload_text("My Doc", "some content")
+        assert upload.call_count == 1
+
+
+@pytest.mark.asyncio
 async def test_lightrag_empty_endpoint_env_falls_back_to_default(monkeypatch):
     # Atlas's backend compose always SETS LIGHTRAG_ENDPOINT — empty string when
     # LightRAG is disabled — so a plain .get() default never applies in-container
