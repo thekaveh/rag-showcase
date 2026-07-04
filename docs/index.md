@@ -1,3 +1,8 @@
+---
+hide:
+  - navigation
+---
+
 # RAG Showcase
 
 <div class="hero-tagline" markdown>
