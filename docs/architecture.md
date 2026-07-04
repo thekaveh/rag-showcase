@@ -127,17 +127,18 @@ the endpoint and a routed approach.
 
 ## 4. Deployment Topology (Containers and Mounts)
 
-The project's central mechanism — vendored Atlas plus a non-invasive overlay — as
-the compose-level view. Everything below the dashed line is Atlas-owned; the
-showcase contributes only the overlay file, the mounted directories, and `.env`
-values written by `scripts/setup-overlay.sh`.
+The project's central mechanism — vendored Atlas plus a non-invasive overlay —
+shown as the compose-level view. Everything in the `Atlas stack` subgraph is
+Atlas-owned; the showcase contributes only the overlay file, the mounted
+directories, and `.env` values written by `scripts/setup-overlay.sh`.
 
 ```mermaid
 flowchart LR
     subgraph host["Host (this repository)"]
         overlay["compose/rag-overlay.yml<br/>symlinked into infra/services/_user/"]
         plugdir["backend_plugins/rag/"]
-        tooling["ingest/ · corpus/ · register/ · n8n/"]
+        tooling["ingest/ · corpus/ · register/"]
+        n8ndir["n8n/ (workflow JSON)"]
         harness["compare/*.py + scripts/run-dataset-ladder.py<br/>host-run via uv"]
         ollamahost["Ollama (host) — judge panel models"]
     end
@@ -155,7 +156,8 @@ flowchart LR
 
     overlay -. "auto-discovered by the<br/>bootstrapper's _user glob" .-> atlas
     plugdir -- "bind mount :ro → /app/plugins" --> backend
-    tooling -- "bind mounts :ro → /app/*, /showcase-n8n" --> backend
+    tooling -- "bind mounts :ro → /app/*" --> backend
+    n8ndir -- "bind mount :ro → /showcase-n8n" --> n8n
     harness -- "OpenAI API over localhost" --> litellm
     harness -- "judge calls" --> ollamahost
     owui --> litellm

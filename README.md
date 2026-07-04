@@ -114,6 +114,7 @@ The last column is the design intent behind each demo query family, not a measur
 result — several intended contrasts did not materialize in the committed runs (the
 measured per-query winners live in
 [`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md) §3).
+
 For exact internal steps, dependencies, tuning variables, and current measured
 performance for each approach, see [`docs/approaches.md`](docs/approaches.md).
 
@@ -177,10 +178,10 @@ by hand for the default `start-all.sh` flow.
 | `LIGHTRAG_EXTRACT_MAX_ASYNC_LLM` | `1` | LightRAG EXTRACT concurrency | Atlas `.env` defaulted by `setup-overlay.sh` |
 | `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | `900` | LightRAG EXTRACT timeout seconds | Atlas `.env` defaulted by `setup-overlay.sh` |
 | `OLLAMA_CUSTOM_MODELS` | includes `mistral-small3.2:24b` | local Ollama model activation | Atlas `.env` merged by `setup-overlay.sh` |
-| `LIGHTRAG_QUERY_ENABLE_RERANK` | `false` | graph-rag LightRAG query rerank flag | plugin |
-| `LIGHTRAG_QUERY_TOP_K` | `10` | graph-rag LightRAG KG top-k | plugin |
-| `LIGHTRAG_QUERY_CHUNK_TOP_K` | `5` | graph-rag LightRAG chunk top-k | plugin |
-| `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS` | `12000` | graph-rag LightRAG query context budget | plugin |
+| `LIGHTRAG_QUERY_ENABLE_RERANK` | `false` | lightrag client (graph-rag query rerank flag) | overlay (override in `infra/.env`) |
+| `LIGHTRAG_QUERY_TOP_K` | `10` | lightrag client (KG top-k) | overlay (override in `infra/.env`) |
+| `LIGHTRAG_QUERY_CHUNK_TOP_K` | `5` | lightrag client (chunk top-k) | overlay (override in `infra/.env`) |
+| `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS` | `12000` | lightrag client (query context budget) | overlay (override in `infra/.env`) |
 | `LIGHTRAG_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG base Ollama context cap (used only when a LightRAG role is bound directly to Ollama) | overlay |
 | `LIGHTRAG_EXTRACT_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG EXTRACT-role Ollama context cap | overlay |
 | `LIGHTRAG_KEYWORD_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG KEYWORD-role Ollama context cap | overlay |
@@ -219,10 +220,10 @@ uv run pytest backend_plugins # unit tests only
 
 The unit tests mock all external I/O and run without the stack. The
 `tests/test_demo_matrix.py` integration tests exercise the live stack and
-self-skip when LiteLLM is unreachable. They default to `http://localhost:4000`,
-which is not where the stack publishes LiteLLM (that's `LITELLM_PORT`), so to run
-them from the host against a running stack, point them at the published port and
-master key:
+self-skip when LiteLLM is unreachable. With a started stack they derive the
+published gateway and master key from `infra/.env` automatically, so a plain
+`uv run pytest tests` works; export `LITELLM_BASE_URL` / `LITELLM_MASTER_KEY`
+only to target a non-default gateway:
 
 ```bash
 LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail -1 | cut -d= -f2-)" \
@@ -268,6 +269,7 @@ LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail 
   (`docker exec … ingest.py` / `register_models.py`). (Atlas's `logs -f` behavior is
   tracked in the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).)
 - **Integration tests skip.** `tests/test_demo_matrix.py` self-skips unless a live LiteLLM is
-  reachable; point it at the published port + master key (see §8).
+  reachable; with a started stack the gateway is derived from `infra/.env`
+  automatically (see §8 for the non-default-gateway override).
 - **Stop / reset:** `./scripts/stop-all.sh` to stop; `cd infra && ./stop.sh --cold` to stop **and**
   wipe all Atlas data.

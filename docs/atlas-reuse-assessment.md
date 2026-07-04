@@ -85,8 +85,9 @@ Atlas's gitignore.
 ### 2.7 `start.sh`/`start.py` blocks non-interactive callers by tailing logs
 
 Atlas's `start.py` brings the stack up detached (`up -d`), then ends by **following
-logs** — `show_container_logs(follow=True)` at `bootstrapper/start.py:1832-1841`,
-called unconditionally with only a `KeyboardInterrupt` handler. On a non-TTY caller
+logs** — `show_container_logs(follow=True)` in `bootstrapper/start.py`,
+called unconditionally with only a `KeyboardInterrupt` handler (line numbers
+shift on every Atlas bump, so this cites the symbol, not a line). On a non-TTY caller
 (this repo's `scripts/start-all.sh`, CI, any automation), `docker compose … logs -f`
 blocks **forever**, so control never returns and the wrapper's downstream steps
 (corpus ingest, model registration) never run. **This was why live e2e had never

@@ -3,6 +3,7 @@
 - **Date:** 2026-06-25
 - **Status:** Historical design artifact — implemented (see deviations below). The code and the [Atlas-reuse assessment](../../atlas-reuse-assessment.md) are authoritative where they differ from this snapshot.
 - **Author:** Kaveh (with Claude Code)
+- **Numbering:** Appendices A/B keep their as-built letter scheme rather than joining the numbered hierarchy.
 - **Related infra:** [Atlas](https://github.com/thekaveh/atlas) — reused as a Git submodule
 
 > **Implementation deviations from this design (the code is authoritative):**

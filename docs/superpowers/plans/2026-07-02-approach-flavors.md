@@ -6,6 +6,7 @@ One interface deviation: flavor aliases do NOT get per-alias routes
 registers each alias against its BASE route and the handler resolves the
 flavor from the request `model` (`flavors.get_for_base`). See
 `docs/approach-flavor-tuning.md` for the living description.
+**Section numbering:** primary sections use the domain-specific `Task N` scheme this plan was executed under; kept as-built rather than renumbered.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

@@ -81,9 +81,10 @@ uv run pytest backend_plugins # unit tests only
 
 The unit tests mock all external I/O and run without the stack. The
 `tests/test_demo_matrix.py` integration tests exercise the live stack and self-skip
-when LiteLLM is unreachable. They default to `http://localhost:4000`, which is not
-where the stack publishes LiteLLM, so to run them from the host against a running
-stack, point them at the published port and master key:
+when LiteLLM is unreachable. With a started stack they derive the published gateway
+and master key from `infra/.env` automatically, so a plain `uv run pytest tests`
+works; export `LITELLM_BASE_URL` / `LITELLM_MASTER_KEY` only to target a
+non-default gateway:
 
 ```bash
 LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail -1 | cut -d= -f2-)" \

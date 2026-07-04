@@ -5,6 +5,7 @@ One post-implementation deviation: a minimal `services.lightrag` section with
 optional `*_OLLAMA_LLM_NUM_CTX` context caps was re-added to the overlay
 (commit 15c1c8d) because Atlas exposes no public input for them; see
 `tests/test_lightrag_overlay.py` for the pinned shape.
+**Section numbering:** primary sections use the domain-specific `Task N` scheme this plan was executed under; kept as-built rather than renumbered.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

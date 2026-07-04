@@ -18,14 +18,18 @@ harness that measures *which approach wins on which kind of question*.
 
 ## 1. The Six Approaches
 
-| Endpoint | Strategy | Shines on |
-|----------|----------|-----------|
+| Endpoint | Approach | Designed to shine on |
+|----------|----------|----------------------|
 | [`vanilla-rag`](approaches.md#3-vanilla-rag) | Dense top-k retrieval, then a single generation call (the control) | Simple factoids; the baseline |
 | [`hybrid-rag`](approaches.md#4-hybrid-rag) | Weaviate hybrid retrieval (BM25 + dense), then TEI reranking | Exact keyword and identifier queries |
 | [`contextual-rag`](approaches.md#5-contextual-rag) | Anthropic Contextual Retrieval over context-prefixed chunks | Context-starved chunks |
 | [`graph-rag`](approaches.md#6-graph-rag) | LightRAG over extracted entities, relationships, and vector context | Graph-shaped relationship questions |
 | [`agentic-rag`](approaches.md#7-agentic-rag) | ReAct loop over vector and graph retrieval tools | Multi-hop and comparative questions |
 | [`n8n-adaptive-rag`](approaches.md#8-n8n-adaptive-rag) | Low-code workflow that routes by query complexity | Mixed simple-and-complex batches |
+
+The last column is the design intent behind each demo query family, not a measured
+result — the committed runs contradict some intended contrasts (see the
+[per-query winners](dataset-complexity-report.md)).
 
 Any approach can also expose tuned **flavors** — for example `hybrid-rag-high-recall`
 or `graph-rag-fast` — that route to the same base approach with reproducible parameter
