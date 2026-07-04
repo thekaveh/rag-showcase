@@ -1,4 +1,4 @@
-# RAG approaches - live comparison
+# RAG Approaches — Live Comparison
 
 A side-by-side comparison of the RAG approaches in this repo, run against a live
 `gen-ai-rag` Atlas stack. The recorded 2026-07-03 run used a local workstation
@@ -32,7 +32,7 @@ with host Ollama; that is run metadata, not a repo requirement. See
   dataset-ladder process are documented in
   [`evaluation-methodology.md`](evaluation-methodology.md).
 
-## 0. Headline
+## 1. Headline
 
 The current ladder completed on all three measured datasets. Winners changed as
 the corpus became more relational: `vanilla-rag-wide` led the baseline corpus,
@@ -55,7 +55,7 @@ The key fixes were:
 - graph query payload tuned to avoid the broken TEI rerank path and reduce context fanout:
   `enable_rerank=false`, `top_k=10`, `chunk_top_k=5`, `max_total_tokens=12000`.
 
-## 1. Reproduce
+## 2. Reproduce
 
 ```bash
 ./scripts/start-all.sh
@@ -70,7 +70,7 @@ MATRIX_MODELS=vanilla-rag,graph-rag uv run python compare/run_matrix.py
 ```
 
 `MATRIX_FLAVORS` expands named profiles from `compare/flavors.yaml`, which is the
-benchmark-side companion to the backend `flavors.yaml` used for OpenWebUI aliases:
+benchmark-side companion to the backend `flavors.yaml` used for Open WebUI aliases:
 
 ```bash
 MATRIX_FLAVORS=default,graph-rag-wide uv run python compare/run_matrix.py
@@ -91,7 +91,7 @@ uv run python compare/judge.py
 For the dataset-by-dataset view, use the dataset manifest and report generator:
 
 ```bash
-python3 compare/report_datasets.py --output docs/dataset-complexity-report.md
+uv run python compare/report_datasets.py --output docs/dataset-complexity-report.md
 ```
 
 That report is committed at [`docs/dataset-complexity-report.md`](dataset-complexity-report.md)
@@ -111,7 +111,7 @@ uv run python scripts/run-dataset-ladder.py \
   --flavors default,vanilla-rag,hybrid-rag,contextual-rag,graph-rag,agentic-rag,n8n-adaptive-rag
 ```
 
-## 2. The approaches
+## 3. The approaches
 
 See the [README](../README.md#4-the-six-approaches) for the entry table and
 [`docs/approaches.md`](approaches.md) for exact internal steps, dependencies,
@@ -121,7 +121,7 @@ tuning variables, and measured behavior. In one line each:
 LightRAG; `agentic-rag` runs a ReAct loop over vector and graph tools; and
 `n8n-adaptive-rag` routes through the n8n workflow.
 
-## 3. Environment
+## 4. Environment
 
 | Concern | This run |
 |---|---|
@@ -136,7 +136,7 @@ role inputs. Current setup configures LightRAG through Atlas and lets Atlas/Lite
 decide whether model calls go to container Ollama, host Ollama, GPU container
 Ollama, or another configured provider.
 
-## 4. Findings
+## 5. Findings
 
 1. **`think:false` is mandatory for the Qwen reasoning model.** With thinking enabled,
    extraction and generation calls spend time on hidden reasoning. With `think:false`,
@@ -162,7 +162,7 @@ Ollama, or another configured provider.
    synthesis prompts; it does well on single-hop tool use and often stops early on
    multi-step tasks.
 
-## 5. Current Flavor Ladder Results
+## 6. Current Flavor Ladder Results
 
 The 2026-07-03 ladder ran three datasets, 20 queries, and 14 aliases, producing
 280 matrix cells and judge scores for every dataset. All three dataset runs
@@ -178,7 +178,7 @@ The dataset-by-dataset rankings and per-query winners are generated in
 [`docs/dataset-complexity-report.md`](dataset-complexity-report.md). That report
 is the canonical scored summary for the current run.
 
-## 6. Judgment Panel
+## 7. Judgment Panel
 
 The scoring pass used `compare/judge.py`, which evaluates stored matrix answers
 after all approaches have already run. The judges were local Ollama models:
@@ -192,11 +192,11 @@ rationale from the query YAML, asks for 1-5 scores plus a best-answer letter, an
 then aggregates mean score by approach with best-answer votes as the tiebreaker.
 The judgment files in `docs/results/` keep the per-judge scores and reasons.
 
-## 7. Graph-RAG and Flavor Findings
+## 8. Graph-RAG and Flavor Findings
 
 The renewed run shows that the graph path is technically healthy: LightRAG indexed
 the baseline, graph-native, and cyber corpora, drained extraction, and answered
-through the same LiteLLM/OpenWebUI route as the other approaches.
+through the same LiteLLM/Open WebUI route as the other approaches.
 
 The quality story is more nuanced. `graph-rag-fast` was the best graph flavor:
 it won individual baseline and graph-native questions such as `keyword`,
@@ -212,7 +212,7 @@ points to query-time LightRAG tuning, not only corpus choice, as the next target
 mode selection, fanout, prompt shaping, source-text inclusion, and rerank-provider
 wiring are likely more important than adding still more graph-shaped documents.
 
-## 8. Caveats
+## 9. Caveats
 
 - **Bounded corpora:** the scored run uses bounded corpora: 11 baseline docs,
   10 graph-native dossiers, and 60 ATT&CK cyber dossiers. Larger graph builds are
@@ -231,7 +231,7 @@ wiring are likely more important than adding still more graph-shaped documents.
 - **Graph-wide caveat:** `graph-rag-wide` is measured but currently a poor tuning;
   it frequently returned truncated answers.
 
-## 9. Reversibility
+## 10. Reversibility
 
 - `qwen3.6-moe` was a historical LiteLLM runtime alias used during the early live
   run before the Atlas submodule gained first-class host-Ollama support.

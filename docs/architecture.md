@@ -18,7 +18,7 @@ PNG: [`architecture-detailed.png`](architecture-detailed.png).
 
 ### 1.1 User and evaluation surface
 
-OpenWebUI and the comparison harness both call the same LiteLLM gateway. OpenWebUI
+Open WebUI and the comparison harness both call the same LiteLLM gateway. Open WebUI
 is the interactive multi-model chat surface; `compare/run_matrix.py` is the repeatable
 test runner; `compare/judge.py` scores stored answer matrices with local judge models.
 
@@ -30,7 +30,7 @@ plugin under `backend_plugins/rag`, where each approach exposes an OpenAI-compat
 those endpoints into LiteLLM as selectable model names.
 
 The six approach endpoints are deployed inside the Atlas backend container, not as
-six separate containers. OpenWebUI and `compare/run_matrix.py` invoke them through
+six separate containers. Open WebUI and `compare/run_matrix.py` invoke them through
 LiteLLM's `/v1/chat/completions` surface after LiteLLM maps the selected model name
 to the corresponding backend route.
 

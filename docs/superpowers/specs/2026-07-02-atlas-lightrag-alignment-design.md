@@ -1,6 +1,10 @@
 # Atlas LightRAG Alignment Design
 
 Date: 2026-07-02
+Status: Historical design artifact — implemented; the code is authoritative.
+Deviation from §5's acceptance criteria: a minimal `services.lightrag` section
+with optional `*_OLLAMA_LLM_NUM_CTX` caps was re-added to the overlay after the
+alignment (commit 15c1c8d) because Atlas exposes no public input for them.
 
 ## 1. Goal
 

@@ -23,7 +23,7 @@ SNIPPET_CHARS = 240
 
 class ChatRequest(BaseModel):
     # `model` selects the flavor; `temperature` is accepted for OpenAI-compat (so
-    # OpenWebUI's payloads validate) but intentionally NOT honored: every approach
+    # Open WebUI's payloads validate) but intentionally NOT honored: every approach
     # generates at temperature 0 for a fair side-by-side comparison. `stream=true`
     # is honored with a single-chunk SSE carrying the whole answer (see respond()):
     # LiteLLM proxies these endpoints through the openai SDK, whose streaming

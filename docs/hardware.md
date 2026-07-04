@@ -20,7 +20,7 @@ the real requirement up or down.
 
 ## 2. What Uses Resources
 
-- **Atlas services:** Supabase/Postgres, Redis, LiteLLM, OpenWebUI, backend,
+- **Atlas services:** Supabase/Postgres, Redis, LiteLLM, Open WebUI, backend,
   Weaviate, Neo4j, LightRAG, TEI reranker, and n8n all run together for the
   default showcase path.
 - **Vector and graph stores:** Weaviate and Neo4j need enough memory to keep the

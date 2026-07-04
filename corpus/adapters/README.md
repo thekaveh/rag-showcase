@@ -24,11 +24,11 @@ python3 -m pip install stark-qa
 Suggested materialization command shape:
 
 ```bash
-python3 corpus/adapters/stark_export.py \
+uv run python corpus/adapters/stark_export.py \
   --dataset prime \
   --limit 200 \
   --output corpus/generated/stark_prime
-python3 corpus/adapters/stark_export.py \
+uv run python corpus/adapters/stark_export.py \
   --dataset mag \
   --limit 200 \
   --output corpus/generated/stark_mag
@@ -53,7 +53,7 @@ slice so LightRAG extraction stays tractable.
 Suggested command shape:
 
 ```bash
-python3 corpus/adapters/openalex_scholarly.py \
+uv run python corpus/adapters/openalex_scholarly.py \
   --search "graph rag knowledge graph retrieval" \
   --limit 150 \
   --output corpus/generated/openalex_scholarly
@@ -70,7 +70,7 @@ with source URLs.
 Suggested command shape:
 
 ```bash
-python3 corpus/adapters/gdelt_events.py \
+uv run python corpus/adapters/gdelt_events.py \
   --query "artificial intelligence regulation" \
   --start 20240101000000 \
   --end 20240131235959 \
@@ -91,7 +91,7 @@ retained ATT&CK and STIX IDs:
 Suggested command shape:
 
 ```bash
-python3 corpus/adapters/cyber_threat_intel.py \
+uv run python corpus/adapters/cyber_threat_intel.py \
   --limit 60 \
   --output corpus/cyber_threat_intel
 ```
@@ -115,7 +115,7 @@ JUDGE_MATRIX_FILE=<dataset>_matrix.json \
 JUDGE_RESULTS_FILE=<dataset>_judgments.json \
 uv run python compare/judge.py
 
-python3 compare/report_datasets.py --output docs/dataset-complexity-report.md
+uv run python compare/report_datasets.py --output docs/dataset-complexity-report.md
 ```
 
 After a successful run, copy the raw result files from `compare/results/` into

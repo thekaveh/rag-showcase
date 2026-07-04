@@ -40,7 +40,7 @@ Each approach exposes an OpenAI-compatible route:
 ```
 
 `register/register_models.py` registers those routes in LiteLLM as model aliases.
-OpenWebUI and the automated harness both call LiteLLM's `/v1/chat/completions`
+Open WebUI and the automated harness both call LiteLLM's `/v1/chat/completions`
 endpoint, so interactive and measured runs exercise the same deployment path.
 
 The six canonical aliases are:
@@ -199,7 +199,7 @@ The documentation is intentionally split by purpose:
 |---|---|
 | [`README.md`](../README.md) | Entry point, architecture images, quick start, and top-level result summary. |
 | [`approaches.md`](approaches.md) | Detailed internals, dependencies, model roles, tuning surface, and observed behavior for each approach. |
-| [`approach-flavor-tuning.md`](approach-flavor-tuning.md) | How named OpenWebUI and benchmark aliases map to query-time parameter changes. |
+| [`approach-flavor-tuning.md`](approach-flavor-tuning.md) | How named Open WebUI and benchmark aliases map to query-time parameter changes. |
 | [`comparison.md`](comparison.md) | Narrative report for the current live run and its operational findings. |
 | [`dataset-complexity-report.md`](dataset-complexity-report.md) | Generated ranking table by dataset complexity plus per-query winners. |
 | [`results/`](results/) | Committed raw matrix and judgment snapshots for the documented run. |

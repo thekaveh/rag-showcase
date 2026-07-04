@@ -9,12 +9,12 @@ A living record of how well Atlas served as reusable infra for this project.
   **zero Atlas edits** for registration. Atlas's existing `lightrag` and
   `hermes-agent` model entries were the existence proof.
 - **The `gen-ai-rag` track:** Brought up Weaviate + Neo4j + LightRAG + TEI
-  reranker + Docling + OpenWebUI in a single flag, all pre-wired into the base
+  reranker + Docling + Open WebUI in a single flag, all pre-wired into the base
   stack.
 - **Backend's pre-wired environment:** LiteLLM/Weaviate/Neo4j/Redis/Docling/
   LightRAG URLs and credentials were already plumbed into the backend; our plugin
   read them directly with zero re-plumbing.
-- **OpenWebUI multi-model chat:** Served as the comparison frontend without
+- **Open WebUI multi-model chat:** Served as the comparison frontend without
   requiring any custom UI implementation.
 - **The `services/_user/` overlay slot:** Auto-discovered our compose fragment and
   merged it into the existing `backend` service via compose service-name
@@ -42,12 +42,13 @@ overlay).
 
 ### 2.2 Client-library version floors
 
-Atlas's backend image already ships `weaviate-client` (`>=4.0.0`) and `neo4j`
-(`>=5.18.0`), so the RAG client libraries are present out of the box. The
-plugin's `requirements.txt` pins a newer `weaviate-client>=4.9,<5` floor, so the
-seam may reinstall weaviate-client at startup to satisfy it (a minor boot cost).
-The plugin does not use `neo4j` directly — it reaches the graph only via LightRAG
-over HTTP — so it neither installs nor imports it.
+Atlas's backend image ships `weaviate-client` (`>=4.22.0` at the audited
+submodule pin) and `neo4j` (`>=5.18.0`), so the RAG client libraries are present
+out of the box. The plugin's `requirements.txt` range `weaviate-client>=4.9,<5`
+is therefore a compatibility cap, not a newer floor — Atlas's own install already
+satisfies it, so no startup reinstall normally happens. The plugin does not use
+`neo4j` directly — it reaches the graph only via LightRAG over HTTP — so it
+neither installs nor imports it.
 
 ### 2.3 No `api_base` column in `public.llms`
 
@@ -144,9 +145,9 @@ texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
   contract the showcase targets, so no fork-side seam is needed — the unchanged
   compose overlay drives Atlas's native seam.
 - **(No action needed) RAG client libraries** — Atlas's `gen-ai-rag` backend
-  already ships `weaviate-client` and `neo4j`; the plugin only re-pins a newer
-  `weaviate-client` floor. (Originally filed as a gap — corrected after checking
-  the vendored image's `requirements.txt`.)
+  already ships `weaviate-client` and `neo4j`; the plugin's own range is a
+  compatibility cap that Atlas's install already satisfies. (Originally filed as
+  a gap — corrected after checking the vendored image's `requirements.txt`.)
 - **(Resolved)** Originally: *add an `api_base` column to `public.llms`* to express
   custom-endpoint models natively. Atlas has since removed `public.llms` outright
   (model source-of-truth moved to per-service YAML, `d085f09`); the showcase now

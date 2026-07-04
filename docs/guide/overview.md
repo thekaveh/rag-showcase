@@ -1,11 +1,14 @@
 # Overview
 
-RAG Showcase compares six modern retrieval-augmented-generation (RAG) strategies
-under **identical conditions** — same corpus, same embedding model, same generation
-model — so the only variable is the *retrieval-and-reasoning strategy* itself. That
-makes the comparison fair and the differences attributable.
+RAG Showcase compares six modern retrieval-augmented-generation (RAG) approaches
+under **identical conditions** — same corpus, same embedding model, and the same
+generation model for the chunk-based approaches — so the dominant variable is the
+*retrieval-and-reasoning approach* itself. Two deliberate exceptions: `graph-rag`
+generates through LightRAG's QUERY role model, and `n8n-adaptive-rag` inherits the
+generator of whichever approach it routes to (see
+[Evaluation Methodology §4](../evaluation-methodology.md)).
 
-## 1. How it runs
+## 1. How It Runs
 
 Each approach is an OpenAI-compatible `/<name>/v1/chat/completions` endpoint in a
 self-contained plugin package (`backend_plugins/rag/`) that is **bind-mounted** into
@@ -40,16 +43,18 @@ parameter overrides** (retrieval depth, rerank on/off, graph query mode, agent s
 budget, …). One base approach can therefore be benchmarked at several operating points
 without code changes. See [Flavor Tuning](../approach-flavor-tuning.md).
 
-## 3. Fair-comparison guarantees
+## 3. Fair-Comparison Guarantees
 
 - **One corpus, ingested once** into both a plain vector collection (`RagBase`) and a
   context-prefixed collection (`RagContextual`), plus a LightRAG knowledge graph.
-- **Shared models** — all approaches generate through the same LiteLLM model and embed
-  with the same embedding model; LLM roles are **local-first** (`backend_plugins/rag/roles.yaml`).
+- **Shared models** — the chunk-based approaches generate through the same LiteLLM
+  model and every approach embeds with the same embedding model (`graph-rag`'s
+  generator is LightRAG's QUERY role model by design); LLM roles are **local-first**
+  (`backend_plugins/rag/roles.yaml`).
 - **Uniform output contract** — every approach returns the same answer/context/metrics
   shape, which the [evaluation harness](../evaluation-methodology.md) parses and scores.
 
-## 4. Further reading
+## 4. Further Reading
 
 - [Quick Start](quickstart.md) — bring the whole stack up with one command.
 - [Approach Internals](../approaches.md) — the exact steps, dependencies, and knobs per approach.

@@ -1,6 +1,6 @@
 # RAG Showcase
 
-Six modern RAG approaches compared side-by-side in OpenWebUI's multi-model chat,
+Six modern RAG approaches compared side-by-side in Open WebUI's multi-model chat,
 all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
 submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
 as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
@@ -16,9 +16,24 @@ as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse
 > **[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md)**, and
 > **[`docs/comparison.md`](docs/comparison.md)**.
 
-## 1. Architecture Diagrams
+## 1. Overview
 
-### 1.1 Detailed project architecture
+Each approach is an OpenAI-compatible `/<name>/v1/chat/completions` endpoint in a
+self-contained plugin package (`backend_plugins/rag/`) that is bind-mounted into
+Atlas's FastAPI backend through a generic "plugin seam". Each is registered into
+Atlas's LiteLLM gateway via its `/model/new` admin API, so the six approaches
+appear automatically as selectable models in Open WebUI. Named tuning flavors such
+as `graph-rag-wide` can also appear as model aliases; they route to the same base
+approach with reproducible parameter overrides. Open a multi-model chat, select
+the approaches or flavors you want, and one prompt fans out with a uniform answer,
+retrieved-context, and metrics surface.
+
+The six approaches embed via the same LiteLLM model and read the same corpus, so
+the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/roles.yaml`).
+
+## 2. Architecture Diagrams
+
+### 2.1 Detailed project architecture
 
 ![RAG Showcase detailed architecture](docs/architecture-detailed.png)
 
@@ -28,10 +43,10 @@ retrieval stores, workflow services, and Atlas-managed model routing. Source:
 [`docs/architecture.md`](docs/architecture.md).*
 
 The six RAG approaches are mounted FastAPI routes inside the Atlas backend container;
-LiteLLM registers each route as a model alias, and OpenWebUI or the comparison harness
+LiteLLM registers each route as a model alias, and Open WebUI or the comparison harness
 invoke them through LiteLLM's OpenAI-compatible `/v1/chat/completions` surface.
 
-### 1.2 Six approach flow phases
+### 2.2 Six approach flow phases
 
 ![RAG Showcase six approach flow phases](docs/approach-flows.png)
 
@@ -40,21 +55,6 @@ retrieval, augmentation, generation, output shaping, and observed tradeoffs. Sou
 [`docs/approach-flows.html`](docs/approach-flows.html). Full explanation:
 [`docs/architecture.md`](docs/architecture.md); approach-by-approach internals:
 [`docs/approaches.md`](docs/approaches.md).*
-
-## 2. Overview
-
-Each approach is an OpenAI-compatible `/<name>/v1/chat/completions` endpoint in a
-self-contained plugin package (`backend_plugins/rag/`) that is bind-mounted into
-Atlas's FastAPI backend through a generic "plugin seam". Each is registered into
-Atlas's LiteLLM gateway via its `/model/new` admin API, so the six approaches
-appear automatically as selectable models in OpenWebUI. Named tuning flavors such
-as `graph-rag-wide` can also appear as model aliases; they route to the same base
-approach with reproducible parameter overrides. Open a multi-model chat, select
-the approaches or flavors you want, and one prompt fans out with a uniform answer,
-retrieved-context, and metrics surface.
-
-The six approaches embed via the same LiteLLM model and read the same corpus, so
-the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/roles.yaml`).
 
 ## 3. Quick Start
 
@@ -78,12 +78,12 @@ requirements apply:
 
 This runs the overlay setup (which also brands the vendored Atlas as `rag-showcase` —
 `rag-showcase-*` containers/network and a RAG-SHOWCASE startup banner), starts the Atlas `gen-ai-rag` stack (LightRAG, TEI
-reranker, Weaviate, Neo4j, OpenWebUI, LiteLLM; Docling is off by default —
+reranker, Weaviate, Neo4j, Open WebUI, LiteLLM; Docling is off by default —
 ingestion falls back to naive text chunking) plus n8n (added via an explicit
 `--n8n-source container` flag), waits for the backend, LightRAG, and Weaviate,
 assembles the corpus on the host (`corpus/fetch_corpus.py`), waits for model
 readiness (embed + chat), ingests it into the backend container, registers the
-canonical models plus any configured flavor aliases, and prints the OpenWebUI URL.
+canonical models plus any configured flavor aliases, and prints the Open WebUI URL.
 If you use local models, the first run may
 download several GB, so it takes a while. Then open the printed URL, start a multi-model chat, and select:
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
@@ -101,8 +101,8 @@ the thematic / multi-hop demo queries have little to work with — see
 
 ## 4. The Six Approaches
 
-| Model | Approach | Visibly wins on |
-|-------|----------|-----------------|
+| Model | Approach | Designed to win on |
+|-------|----------|--------------------|
 | [`vanilla-rag`](docs/approaches.md#3-vanilla-rag) | dense top-k → stuff → one call (baseline) | — (the control) |
 | [`hybrid-rag`](docs/approaches.md#4-hybrid-rag) | Weaviate hybrid retrieval (BM25+dense) → TEI rerank; **not graph RAG** | exact keyword / ID queries |
 | [`contextual-rag`](docs/approaches.md#5-contextual-rag) | Anthropic Contextual Retrieval over context-prefixed chunks | context-starved chunks |
@@ -110,6 +110,10 @@ the thematic / multi-hop demo queries have little to work with — see
 | [`agentic-rag`](docs/approaches.md#7-agentic-rag) | ReAct loop over vector + graph tools | multi-hop / comparative questions |
 | [`n8n-adaptive-rag`](docs/approaches.md#8-n8n-adaptive-rag) | low-code Adaptive-RAG workflow (routes by complexity) | mixed simple+complex batches |
 
+The last column is the design intent behind each demo query family, not a measured
+result — several intended contrasts did not materialize in the committed runs (the
+measured per-query winners live in
+[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md) §3).
 For exact internal steps, dependencies, tuning variables, and current measured
 performance for each approach, see [`docs/approaches.md`](docs/approaches.md).
 
@@ -124,7 +128,7 @@ rag-showcase/
 │   ├── tests/               # unit tests (mocked I/O)
 │   ├── roles.yaml           # role→model map (local-first)
 │   ├── models.yaml          # per-model request props (e.g. think:false)
-│   └── flavors.yaml         # OpenWebUI/benchmark aliases with tuning overrides
+│   └── flavors.yaml         # Open WebUI/benchmark aliases with tuning overrides
 ├── ingest/                  # corpus → chunk (Docling optional) → Weaviate(base+contextual) + LightRAG
 ├── register/                # idempotent LiteLLM /model/new registration
 ├── corpus/                  # curated corpora + fetch/adapter scripts (MultiHop-RAG, keyword, graph-native, cyber-threat)
@@ -177,6 +181,11 @@ by hand for the default `start-all.sh` flow.
 | `LIGHTRAG_QUERY_TOP_K` | `10` | graph-rag LightRAG KG top-k | plugin |
 | `LIGHTRAG_QUERY_CHUNK_TOP_K` | `5` | graph-rag LightRAG chunk top-k | plugin |
 | `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS` | `12000` | graph-rag LightRAG query context budget | plugin |
+| `LIGHTRAG_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG base Ollama context cap (used only when a LightRAG role is bound directly to Ollama) | overlay |
+| `LIGHTRAG_EXTRACT_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG EXTRACT-role Ollama context cap | overlay |
+| `LIGHTRAG_KEYWORD_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG KEYWORD-role Ollama context cap | overlay |
+| `LIGHTRAG_QUERY_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG QUERY-role Ollama context cap | overlay |
+| `RAG_SHOWCASE_SKIP_DEFAULT_INGEST` | `0` | `start-all.sh` (skips corpus assembly + demo ingest; the dataset ladder sets it automatically) | host env |
 
 ## 7. Documentation Index
 
@@ -189,7 +198,7 @@ by hand for the default `start-all.sh` flow.
 | [Cyber threat dataset plan](docs/superpowers/plans/2026-07-03-cyber-threat-dataset.md) | Historical | Follow-on plan that added the bounded MITRE ATT&CK cyber-threat corpus rung |
 | [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and six-approach parallel flow diagrams |
 | [Approach internals](docs/approaches.md) | Living | Step-by-step flow, dependencies, tuning variables, tradeoffs, and measured performance for every approach |
-| [Approach flavor tuning](docs/approach-flavor-tuning.md) | Living | OpenWebUI model aliases, benchmark flavor selection, and query-time versus index-time tuning knobs |
+| [Approach flavor tuning](docs/approach-flavor-tuning.md) | Living | Open WebUI model aliases, benchmark flavor selection, and query-time versus index-time tuning knobs |
 | [Evaluation methodology](docs/evaluation-methodology.md) | Living | Dataset ladder protocol, model roles, approach invocation flow, judge panel design, and result artifacts |
 | [Hardware sizing](docs/hardware.md) | Living | Minimum and recommended hardware profiles for live stack, local models, and graph-heavy runs |
 | [Atlas-reuse assessment](docs/atlas-reuse-assessment.md) | Living | What reused cleanly, friction found, recommendations for Atlas |
@@ -216,8 +225,8 @@ them from the host against a running stack, point them at the published port and
 master key:
 
 ```bash
-LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail -1 | cut -d= -f2)" \
-  LITELLM_MASTER_KEY="$(grep -E '^LITELLM_MASTER_KEY=' infra/.env | tail -1 | cut -d= -f2)" \
+LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail -1 | cut -d= -f2-)" \
+  LITELLM_MASTER_KEY="$(grep -E '^LITELLM_MASTER_KEY=' infra/.env | tail -1 | cut -d= -f2-)" \
   uv run pytest tests
 ```
 
@@ -225,7 +234,7 @@ LITELLM_BASE_URL="http://localhost:$(grep -E '^LITELLM_PORT=' infra/.env | tail 
 
 - **First run looks stuck.** If you use Atlas's containerized Ollama source, it may
   be downloading several GB of local models; `start-all.sh` gates on model
-  readiness, so let it finish. Watch progress: `docker logs -f "$(grep -E '^PROJECT_NAME=' infra/.env | tail -1 | cut -d= -f2)-ollama-pull"`.
+  readiness, so let it finish. Watch progress: `docker logs -f "$(grep -E '^PROJECT_NAME=' infra/.env | tail -1 | cut -d= -f2-)-ollama-pull"`.
 - **A model column never answers.** Confirm all six registered (`docker logs <project>-backend`,
   or the LiteLLM model list). `n8n-adaptive-rag` additionally needs its workflow **built and
   activated** in the n8n UI — see [`n8n/README.md`](n8n/README.md).

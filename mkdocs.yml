@@ -1,6 +1,6 @@
 site_name: RAG Showcase
 site_description: >-
-  Six RAG strategies — vanilla, hybrid, contextual, graph, agentic, and n8n-adaptive —
+  Six RAG approaches — vanilla, hybrid, contextual, graph, agentic, and n8n-adaptive —
   compared side-by-side as OpenAI-compatible endpoints on a fully-local Atlas stack,
   with a reproducible LLM judge-panel evaluation harness.
 site_url: https://thekaveh.github.io/rag-showcase/

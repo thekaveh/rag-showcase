@@ -6,7 +6,7 @@ hide:
 # RAG Showcase
 
 <div class="hero-tagline" markdown>
-Six modern RAG strategies, compared side by side — each served as an OpenAI-compatible
+Six modern RAG approaches, compared side by side — each served as an OpenAI-compatible
 endpoint on a fully-local [Atlas](https://github.com/thekaveh/atlas) stack. Ask one
 question in Open WebUI and watch the approaches answer in parallel, with a uniform
 answer, retrieved-context, and metrics surface. It doubles as a reproducible evaluation
@@ -16,7 +16,7 @@ harness that measures *which approach wins on which kind of question*.
 [Quick Start](guide/quickstart.md){ .md-button .md-button--primary }
 [Measured Results](comparison.md){ .md-button }
 
-## 1. The six approaches
+## 1. The Six Approaches
 
 | Endpoint | Strategy | Shines on |
 |----------|----------|-----------|
@@ -31,7 +31,7 @@ Any approach can also expose tuned **flavors** — for example `hybrid-rag-high-
 or `graph-rag-fast` — that route to the same base approach with reproducible parameter
 overrides and their own selectable model alias. See [Flavor Tuning](approach-flavor-tuning.md).
 
-## 2. Headline result
+## 2. Headline Result
 
 The 2026-07-03 ladder ran fourteen approach and flavor aliases across three datasets of
 increasing structure. The winner shifts with input complexity, which is the point:
@@ -83,7 +83,7 @@ Full per-query winners, judge methodology, and raw snapshots are in
 
 </div>
 
-## 4. Fully local by default
+## 4. Fully Local by Default
 
 Everything runs on your own machine: local models through Atlas's Ollama provider
 (`qwen3.6:latest` for chat, `nomic-embed-text` for embeddings, and `mistral-small3.2:24b`

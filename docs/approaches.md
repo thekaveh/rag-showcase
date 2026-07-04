@@ -18,7 +18,7 @@ approach with BM25 + dense retrieval and TEI reranking.
 
 All six approaches expose an OpenAI-compatible
 `/<approach>/v1/chat/completions` route inside the Atlas backend container. The
-routes are registered as LiteLLM model aliases, so OpenWebUI and the comparison
+routes are registered as LiteLLM model aliases, so Open WebUI and the comparison
 harness invoke every approach through the same `/v1/chat/completions` surface.
 Named flavors such as `graph-rag-wide` are also registered as LiteLLM model
 aliases, but they point at the same base route and are resolved from the incoming
@@ -37,7 +37,7 @@ All approaches use the same ingested corpus and the same response wrapper:
 
 ### 1.1 Shared Model Roles
 
-The selectable OpenWebUI model name is the approach alias, not necessarily the
+The selectable Open WebUI model name is the approach alias, not necessarily the
 underlying LLM. The approach then calls one or more configured roles.
 
 | Role | Default model | Used by | Notes |

@@ -1,5 +1,12 @@
 # Approach Flavors Implementation Plan
 
+**Status:** Historical artifact — implemented, as-built. Not a live task list.
+One interface deviation: flavor aliases do NOT get per-alias routes
+(Task 2 sketched `/graph-rag-wide/v1/chat/completions`); as built, LiteLLM
+registers each alias against its BASE route and the handler resolves the
+flavor from the request `model` (`flavors.get_for_base`). See
+`docs/approach-flavor-tuning.md` for the living description.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add reproducible named tuning flavors for each RAG approach, usable from both the automated comparison harness and OpenWebUI model aliases, while preserving the six canonical default endpoints.
