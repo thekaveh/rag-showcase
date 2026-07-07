@@ -180,8 +180,13 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
                 if not isinstance(idx, int) or not (0 <= idx < len(batch)):
                     continue  # ignore out-of-range indices from a misbehaving reranker
                 h = batch[idx]
-                ordered.append(Hit(title=h.title, text=h.text,
-                                   score=float(row.get("score", 0.0))))
+                # row.get("score", 0.0) only defaults when the key is ABSENT; a
+                # present-but-null score ("score": null) returns None and
+                # float(None) raises TypeError, so guard the value like the sibling
+                # score parse in _hits_from_objects (score=None is sorted as 0.0).
+                raw = row.get("score")
+                score = float(raw) if isinstance(raw, (int, float)) else None
+                ordered.append(Hit(title=h.title, text=h.text, score=score))
     # if every ranked index was out of range (or the list was empty), fall back
     # to input order rather than dropping all sources
     if not ordered:

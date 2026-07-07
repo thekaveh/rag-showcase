@@ -89,6 +89,21 @@ async def test_rerank_falls_back_when_all_indices_out_of_range(monkeypatch):
     assert out == hits[:2]  # not dropped to []
 
 
+@pytest.mark.asyncio
+@respx.mock
+async def test_rerank_tolerates_null_score(monkeypatch):
+    # a present-but-null score ("score": null) must not raise TypeError on
+    # float(None); the row keeps its place, sorted as 0.0 like an unscored hit.
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    hits = [Hit("A", "a"), Hit("B", "b")]
+    respx.post("http://tei-reranker:80/rerank").mock(
+        return_value=httpx.Response(200, json=[{"index": 0, "score": None},
+                                               {"index": 1, "score": 0.9}]))
+    out = await rerank("q", hits, top_n=2)
+    assert [h.title for h in out] == ["B", "A"]  # B (0.9) ranks above A (null -> 0.0)
+    assert out[1].score is None  # null-score row retained, not dropped or 500
+
+
 class _FakeBatchCtx:
     """Stand-in for the `coll.batch.dynamic()` context manager."""
     def __init__(self, parent):
