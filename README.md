@@ -5,6 +5,8 @@ all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
 submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
 as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
 
+> **Rendered docs:** [thekaveh.github.io/rag-showcase](https://thekaveh.github.io/rag-showcase/) — the same content served as a searchable MkDocs Material site, with a Get Started guide, interactive diagrams, and full section navigation.
+
 > **Live results (2026-07-03).** The current committed ladder ran 14 approach/flavor
 > aliases across three datasets: baseline curated, graph-native dossiers, and a
 > MITRE ATT&CK cyber-threat graph slice. Winners shifted with complexity:
@@ -197,7 +199,11 @@ by hand for the default `start-all.sh` flow.
 | [Approach flavors plan](docs/superpowers/plans/2026-07-02-approach-flavors.md) | Historical | Follow-on plan that added the tunable flavor alias system |
 | [Atlas LightRAG alignment plan](docs/superpowers/plans/2026-07-02-atlas-lightrag-alignment.md) + [design](docs/superpowers/specs/2026-07-02-atlas-lightrag-alignment-design.md) | Historical | Follow-on plan/design that wired LightRAG role models through Atlas inputs |
 | [Cyber threat dataset plan](docs/superpowers/plans/2026-07-03-cyber-threat-dataset.md) | Historical | Follow-on plan that added the bounded MITRE ATT&CK cyber-threat corpus rung |
+| [Overview](docs/guide/overview.md) | Living | Concepts — how the six approaches run under identical conditions, flavor aliases, and the fair-comparison guarantees |
+| [Quick Start](docs/guide/quickstart.md) | Living | One-command bring-up, prerequisites, and driving the multi-model comparison in Open WebUI |
 | [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and six-approach parallel flow diagrams |
+| [System diagram (interactive)](docs/diagrams/architecture.md) | Living | Rendered full-system architecture diagram (HTML/SVG in an inline iframe) |
+| [Approach flow diagram (interactive)](docs/diagrams/approach-flows.md) | Living | Rendered parallel-lane diagram of the six approach flow phases (HTML/SVG in an inline iframe) |
 | [Approach internals](docs/approaches.md) | Living | Step-by-step flow, dependencies, tuning variables, tradeoffs, and measured performance for every approach |
 | [Approach flavor tuning](docs/approach-flavor-tuning.md) | Living | Open WebUI model aliases, benchmark flavor selection, and query-time versus index-time tuning knobs |
 | [Evaluation methodology](docs/evaluation-methodology.md) | Living | Dataset ladder protocol, model roles, approach invocation flow, judge panel design, and result artifacts |
@@ -206,6 +212,7 @@ by hand for the default `start-all.sh` flow.
 | [Dependency contract ledger](docs/dependency-contracts.md) | Living | Each consumed external dependency (LiteLLM, Weaviate, LightRAG, TEI, n8n, Atlas) and the exact pinned version its contract was verified against |
 | [Atlas LightRAG role-model spec](docs/atlas-lightrag-role-model-spec.md) | Implemented upstream | Historical Atlas-side spec for first-class LightRAG EXTRACT/KEYWORD/QUERY model wiring |
 | [Corpus](corpus/README.md) | Living | How to populate the corpus |
+| [Dataset adapters](corpus/adapters/README.md) | Living | The dataset fetch/adapter CLIs (GDELT, OpenAlex, STaRK, MITRE cyber) behind the candidate real-world graph rungs |
 | [Dataset complexity report](docs/dataset-complexity-report.md) | Living | Approach rankings by input dataset complexity, plus candidate real-world graph datasets |
 | [n8n workflow](n8n/README.md) | Living | Checked-in Adaptive-RAG workflow, startup import behavior, and workflow tuning knobs |
 | [Live comparison](docs/comparison.md) | Living | Side-by-side results of all six approaches + live-validation findings (`think:false`, LightRAG role/query tuning, graph-native corpus behavior) |
