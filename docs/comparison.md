@@ -1,4 +1,4 @@
-# RAG Approaches — Live Comparison
+# 5.2 RAG Approaches — Live Comparison
 
 A side-by-side comparison of the RAG approaches in this repo, run against a live
 `gen-ai-rag` Atlas stack. The recorded 2026-07-03 run used a local workstation

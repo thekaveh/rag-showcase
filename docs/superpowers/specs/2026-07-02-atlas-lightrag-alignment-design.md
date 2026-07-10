@@ -1,4 +1,4 @@
-# Atlas LightRAG Alignment Design
+# 7.2 Atlas LightRAG Alignment Design
 
 Date: 2026-07-02
 Status: Historical design artifact — implemented; the code is authoritative.

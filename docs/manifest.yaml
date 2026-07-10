@@ -1,0 +1,94 @@
+site_name: RAG Showcase
+site_description: >-
+  Six RAG approaches compared side by side as OpenAI-compatible endpoints on an
+  Atlas stack, with reproducible dataset-ladder evaluation results.
+sections:
+  - title: Home
+    pages:
+      - number: "1"
+        title: RAG Showcase
+        source: index.md
+  - title: Get Started
+    pages:
+      - number: "2.1"
+        title: Overview
+        source: guide/overview.md
+      - number: "2.2"
+        title: Quick Start
+        source: guide/quickstart.md
+      - number: "2.3"
+        title: Hardware Sizing Guide
+        source: hardware.md
+  - title: Approaches
+    pages:
+      - number: "3.1"
+        title: RAG Approach Internals
+        source: approaches.md
+      - number: "3.2"
+        title: RAG Approach Flavor Tuning
+        source: approach-flavor-tuning.md
+  - title: Architecture
+    pages:
+      - number: "4.1"
+        title: Architecture and Flow Diagrams
+        source: architecture.md
+      - number: "4.2"
+        title: System Diagram (interactive)
+        source: diagrams/architecture.md
+      - number: "4.3"
+        title: Approach Flow Diagram (interactive)
+        source: diagrams/approach-flows.md
+      - number: "4.4"
+        title: Atlas Reuse Assessment — RAG Showcase
+        source: atlas-reuse-assessment.md
+      - number: "4.5"
+        title: Consumed External-Dependency Contract Ledger
+        source: dependency-contracts.md
+      - number: "4.6"
+        title: Atlas LightRAG Role Model Integration Spec
+        source: atlas-lightrag-role-model-spec.md
+  - title: Evaluation and Results
+    pages:
+      - number: "5.1"
+        title: Evaluation Methodology
+        source: evaluation-methodology.md
+      - number: "5.2"
+        title: RAG Approaches — Live Comparison
+        source: comparison.md
+      - number: "5.3"
+        title: Dataset Complexity Report
+        source: dataset-complexity-report.md
+      - number: "5.4"
+        title: Live Run Result Snapshots
+        source: results/README.md
+  - title: Data and Components
+    pages:
+      - number: "6.1"
+        title: Corpus Overview
+        source: components/corpus.md
+      - number: "6.2"
+        title: Dataset Adapters
+        source: components/adapters.md
+      - number: "6.3"
+        title: n8n Adaptive Workflow
+        source: components/n8n.md
+  - title: Design Notes
+    pages:
+      - number: "7.1"
+        title: RAG Showcase — Design Spec
+        source: superpowers/specs/2026-06-25-rag-showcase-design.md
+      - number: "7.2"
+        title: Atlas LightRAG Alignment Design
+        source: superpowers/specs/2026-07-02-atlas-lightrag-alignment-design.md
+      - number: "7.3"
+        title: RAG Showcase Implementation Plan
+        source: superpowers/plans/2026-06-25-rag-showcase.md
+      - number: "7.4"
+        title: Approach Flavors Implementation Plan
+        source: superpowers/plans/2026-07-02-approach-flavors.md
+      - number: "7.5"
+        title: Atlas LightRAG Alignment Implementation Plan
+        source: superpowers/plans/2026-07-02-atlas-lightrag-alignment.md
+      - number: "7.6"
+        title: Cyber Threat Dataset Implementation Plan
+        source: superpowers/plans/2026-07-03-cyber-threat-dataset.md

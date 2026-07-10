@@ -3,7 +3,7 @@ hide:
   - navigation
 ---
 
-# RAG Showcase
+# 1 RAG Showcase
 
 <div class="hero-tagline" markdown>
 Six modern RAG approaches, compared side by side — each served as an OpenAI-compatible

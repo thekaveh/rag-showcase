@@ -1,4 +1,4 @@
-# Consumed External-Dependency Contract Ledger
+# 4.5 Consumed External-Dependency Contract Ledger
 
 This showcase runs as a plugin on the vendored
 [Atlas](https://github.com/thekaveh/atlas) stack (`infra/` submodule) and calls

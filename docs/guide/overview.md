@@ -1,4 +1,4 @@
-# Overview
+# 2.1 Overview
 
 RAG Showcase compares six modern retrieval-augmented-generation (RAG) approaches
 under **identical conditions** — same corpus, same embedding model, and the same

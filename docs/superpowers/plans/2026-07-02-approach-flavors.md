@@ -1,4 +1,4 @@
-# Approach Flavors Implementation Plan
+# 7.4 Approach Flavors Implementation Plan
 
 **Status:** Historical artifact — implemented, as-built. Not a live task list.
 One interface deviation: flavor aliases do NOT get per-alias routes

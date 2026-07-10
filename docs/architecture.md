@@ -1,4 +1,4 @@
-# Architecture and Flow Diagrams
+# 4.1 Architecture and Flow Diagrams
 
 This page documents the two generated landscape diagrams used by the README:
 the project architecture map and the parallel flow map for all six RAG approaches.
@@ -11,10 +11,10 @@ approaches are deployed and how their lanes connect to the Atlas stack.
 
 ## 1. Detailed Project Architecture
 
-![RAG Showcase detailed architecture](architecture-detailed.png)
+![RAG Showcase detailed architecture](diagrams/img/architecture-detailed.png)
 
-Source: [`architecture-detailed.html`](architecture-detailed.html).
-PNG: [`architecture-detailed.png`](architecture-detailed.png).
+Source: [`diagrams/architecture-detailed.html`](diagrams/architecture-detailed.html).
+PNG: [`diagrams/img/architecture-detailed.png`](diagrams/img/architecture-detailed.png).
 
 ### 1.1 User and evaluation surface
 
@@ -52,10 +52,10 @@ another Atlas-supported provider without changing the compose overlay.
 
 ## 2. Six Approach Flow Phases
 
-![RAG Showcase six approach flow phases](approach-flows.png)
+![RAG Showcase six approach flow phases](diagrams/img/approach-flows.png)
 
-Source: [`approach-flows.html`](approach-flows.html).
-PNG: [`approach-flows.png`](approach-flows.png).
+Source: [`diagrams/approach-flows.html`](diagrams/approach-flows.html).
+PNG: [`diagrams/img/approach-flows.png`](diagrams/img/approach-flows.png).
 
 ### 2.1 Shared setup
 
@@ -175,11 +175,11 @@ Chrome on macOS:
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 "$CHROME" --headless=new --disable-gpu --hide-scrollbars \
   --window-size=2000,1300 --force-device-scale-factor=2 \
-  --screenshot=docs/architecture-detailed.png \
-  file://"$PWD"/docs/architecture-detailed.html
+  --screenshot=docs/diagrams/img/architecture-detailed.png \
+  file://"$PWD"/docs/diagrams/architecture-detailed.html
 
 "$CHROME" --headless=new --disable-gpu --hide-scrollbars \
   --window-size=2000,1300 --force-device-scale-factor=2 \
-  --screenshot=docs/approach-flows.png \
-  file://"$PWD"/docs/approach-flows.html
+  --screenshot=docs/diagrams/img/approach-flows.png \
+  file://"$PWD"/docs/diagrams/approach-flows.html
 ```

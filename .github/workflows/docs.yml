@@ -1,24 +1,26 @@
-name: Docs (MkDocs → Pages)
+name: Docs (three surfaces)
 
-# Build the MkDocs Material site on every relevant change; publish to GitHub Pages
-# only from the default branch. PRs get a build (validation) but no deploy.
+# Validate the canonical docs, generate the MkDocs site and wiki surfaces, publish
+# Pages from the default branch, and optionally sync the GitHub wiki when a wiki
+# deploy key is configured.
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - "docs/**"
-      - "mkdocs.yml"
-      - "docs_hooks.py"
+      - "scripts/docs/**"
+      - "Makefile"
       - "pyproject.toml"
       - "uv.lock"
       - "corpus/**/*.md"
       - "n8n/**/*.md"
       - ".github/workflows/docs.yml"
   pull_request:
+    branches: [main, develop]
     paths:
       - "docs/**"
-      - "mkdocs.yml"
-      - "docs_hooks.py"
+      - "scripts/docs/**"
+      - "Makefile"
       - "pyproject.toml"
       - "uv.lock"
       - "corpus/**/*.md"
@@ -26,9 +28,8 @@ on:
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
-# Workflow-level token: read-only. The Pages permissions live on the deploy job
-# only — the build job also runs on pull_requests (and executes repo Python via
-# mkdocs hooks), so it must not hold a pages/id-token-capable token.
+# Workflow-level token: read-only. Publish jobs request their own scoped
+# permissions, while PR validation only builds generated docs locally.
 permissions:
   contents: read
 
@@ -45,10 +46,12 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - name: Build site
+      - name: Install native diagram renderer deps
+        run: sudo apt-get update && sudo apt-get install -y libcairo2
+      - name: Check generated docs
         run: |
-          uv sync --only-group docs
-          uv run --no-sync mkdocs build --clean --strict --site-dir site
+          uv sync --group docs --dev
+          make docs-check
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
@@ -67,3 +70,41 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  wiki:
+    # The wiki publish is intentionally independent from Pages. Repositories that
+    # have not configured WIKI_DEPLOY_KEY still get full validation from `build`.
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      WIKI_DEPLOY_KEY: ${{ secrets.WIKI_DEPLOY_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        if: env.WIKI_DEPLOY_KEY != ''
+        with:
+          enable-cache: true
+      - name: Install native diagram renderer deps
+        if: env.WIKI_DEPLOY_KEY != ''
+        run: sudo apt-get update && sudo apt-get install -y libcairo2
+      - name: Configure wiki deploy key
+        if: env.WIKI_DEPLOY_KEY != ''
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$WIKI_DEPLOY_KEY" > ~/.ssh/wiki_key
+          chmod 600 ~/.ssh/wiki_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<'EOF'
+          Host github.com
+            IdentityFile ~/.ssh/wiki_key
+            IdentitiesOnly yes
+          EOF
+      - name: Publish generated wiki
+        if: env.WIKI_DEPLOY_KEY != ''
+        run: |
+          uv sync --group docs --dev
+          uv run --no-sync python -m scripts.docs.push_wiki --push
+      - name: Skip wiki publish
+        if: env.WIKI_DEPLOY_KEY == ''
+        run: echo "WIKI_DEPLOY_KEY is not configured; generated wiki validation was completed in the build job."

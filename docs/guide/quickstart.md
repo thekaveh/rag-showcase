@@ -1,4 +1,4 @@
-# Quick Start
+# 2.2 Quick Start
 
 The whole showcase runs on [Atlas](https://github.com/thekaveh/atlas) (vendored as a
 Git submodule at `infra/`) and comes up with **one command**.
@@ -98,4 +98,4 @@ uv run --group docs mkdocs serve
 ```
 
 Full environment-variable reference and troubleshooting live in the project
-[README](https://github.com/thekaveh/rag-showcase#readme).
+[README](../../README.md).

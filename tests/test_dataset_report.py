@@ -73,7 +73,7 @@ def test_dataset_report_write_mode_accepts_absolute_out_of_repo_path(tmp_path) -
     )
 
     assert result.returncode == 0
-    assert out.read_text(encoding="utf-8").startswith("# Dataset Complexity Report")
+    assert out.read_text(encoding="utf-8").startswith("# 5.3 Dataset Complexity Report")
     assert f"wrote {out}" in result.stdout
 
 
