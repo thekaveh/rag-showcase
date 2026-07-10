@@ -26,3 +26,8 @@ compare/results/
 
 # MkDocs site build output
 site/
+
+# Generated documentation surfaces. The canonical source lives under docs/ and
+# docs/manifest.yaml; these are rebuilt by scripts/docs.
+generated/
+mkdocs.yml

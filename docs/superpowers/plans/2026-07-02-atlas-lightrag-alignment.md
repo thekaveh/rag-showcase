@@ -1,4 +1,4 @@
-# Atlas LightRAG Alignment Implementation Plan
+# 7.5 Atlas LightRAG Alignment Implementation Plan
 
 **Status:** Historical artifact — implemented, as-built. Not a live task list.
 One post-implementation deviation: a minimal `services.lightrag` section with

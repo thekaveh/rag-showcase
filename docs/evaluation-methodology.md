@@ -1,4 +1,4 @@
-# Evaluation Methodology
+# 5.1 Evaluation Methodology
 
 This document explains how the committed RAG comparison run was organized, which
 models were used, how every approach was invoked, and how answer quality was

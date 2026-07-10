@@ -1,4 +1,4 @@
-# RAG Approach Internals
+# 3.1 RAG Approach Internals
 
 This document is the canonical guide to how each approach in rag-showcase works,
 what it depends on, what can be tuned, and how it performed in the committed

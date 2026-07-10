@@ -1,4 +1,4 @@
-# Cyber Threat Dataset Implementation Plan
+# 7.6 Cyber Threat Dataset Implementation Plan
 
 **Status:** Historical artifact — implemented, as-built (the dataset is
 committed and measured). Not a live task list.

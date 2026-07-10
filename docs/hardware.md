@@ -1,4 +1,4 @@
-# Hardware Sizing Guide
+# 2.3 Hardware Sizing Guide
 
 This repo is hardware-neutral: it can use any Atlas-supported LLM provider source,
 including containerized Ollama, host Ollama, GPU-backed Ollama, or remote/cloud

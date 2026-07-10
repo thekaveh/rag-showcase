@@ -1,4 +1,4 @@
-# Atlas Reuse Assessment — RAG Showcase
+# 4.4 Atlas Reuse Assessment — RAG Showcase
 
 A living record of how well Atlas served as reusable infra for this project.
 

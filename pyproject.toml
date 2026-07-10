@@ -31,6 +31,6 @@ extend-exclude = ["infra"]
 
 [dependency-groups]
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "respx>=0.21", "httpx>=0.27", "pyyaml>=6", "fastapi>=0.110,<0.137", "pydantic>=2"]
-# Docs site (MkDocs Material) — opt-in, not installed by a default `uv sync`.
-# Build/serve locally with: uv run --group docs mkdocs serve
-docs = ["mkdocs-material>=9.5,<10", "mkdocs-include-markdown-plugin>=6,<8"]
+# Docs surfaces (repo markdown -> generated MkDocs site + generated GitHub wiki).
+# Build/check locally with: make docs-check
+docs = ["mkdocs-material>=9.5,<10", "mkdocs-include-markdown-plugin>=6,<8", "pyyaml>=6", "cairosvg>=2.7"]

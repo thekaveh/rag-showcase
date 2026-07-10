@@ -1,4 +1,4 @@
-# Atlas LightRAG Role Model Integration Spec
+# 4.6 Atlas LightRAG Role Model Integration Spec
 
 Date: 2026-07-01
 

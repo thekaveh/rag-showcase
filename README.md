@@ -5,8 +5,6 @@ all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
 submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
 as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
 
-> **Rendered docs:** [thekaveh.github.io/rag-showcase](https://thekaveh.github.io/rag-showcase/) — the same content served as a searchable MkDocs Material site, with a Get Started guide, interactive diagrams, and full section navigation.
-
 > **Live results (2026-07-03).** The current committed ladder ran 14 approach/flavor
 > aliases across three datasets: baseline curated, graph-native dossiers, and a
 > MITRE ATT&CK cyber-threat graph slice. Winners shifted with complexity:
@@ -37,11 +35,11 @@ the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/
 
 ### 2.1 Detailed project architecture
 
-![RAG Showcase detailed architecture](docs/architecture-detailed.png)
+![RAG Showcase detailed architecture](docs/diagrams/img/architecture-detailed.png)
 
 *Atlas stack, LiteLLM gateway, mounted backend plugin seam, six RAG endpoints,
 retrieval stores, workflow services, and Atlas-managed model routing. Source:
-[`docs/architecture-detailed.html`](docs/architecture-detailed.html). Full explanation:
+[`docs/diagrams/architecture-detailed.html`](docs/diagrams/architecture-detailed.html). Full explanation:
 [`docs/architecture.md`](docs/architecture.md).*
 
 The six RAG approaches are mounted FastAPI routes inside the Atlas backend container;
@@ -50,11 +48,11 @@ invoke them through LiteLLM's OpenAI-compatible `/v1/chat/completions` surface.
 
 ### 2.2 Six approach flow phases
 
-![RAG Showcase six approach flow phases](docs/approach-flows.png)
+![RAG Showcase six approach flow phases](docs/diagrams/img/approach-flows.png)
 
 *Parallel lane view of all six approaches from shared corpus preparation through
 retrieval, augmentation, generation, output shaping, and observed tradeoffs. Source:
-[`docs/approach-flows.html`](docs/approach-flows.html). Full explanation:
+[`docs/diagrams/approach-flows.html`](docs/diagrams/approach-flows.html). Full explanation:
 [`docs/architecture.md`](docs/architecture.md); approach-by-approach internals:
 [`docs/approaches.md`](docs/approaches.md).*
 

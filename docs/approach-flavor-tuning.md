@@ -1,4 +1,4 @@
-# RAG Approach Flavor Tuning
+# 3.2 RAG Approach Flavor Tuning
 
 This guide explains how rag-showcase runs named tuning variants of the six RAG
 approaches without changing the canonical defaults.

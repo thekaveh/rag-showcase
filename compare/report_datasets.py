@@ -21,11 +21,21 @@ from compare.flavors import BASE_APPROACHES  # noqa: E402
 
 MANIFEST = ROOT / "compare" / "datasets.yaml"
 DEFAULT_OUTPUT = ROOT / "docs" / "dataset-complexity-report.md"
+DOCS_MANIFEST = ROOT / "docs" / "manifest.yaml"
 
 
 def _load_manifest() -> list[dict]:
     data = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
     return sorted(data["datasets"], key=lambda d: d["complexity_level"])
+
+
+def _report_h1() -> str:
+    data = yaml.safe_load(DOCS_MANIFEST.read_text(encoding="utf-8"))
+    for section in data["sections"]:
+        for page in section["pages"]:
+            if page["source"] == "dataset-complexity-report.md":
+                return f"# {page['number']} {page['title']}"
+    return "# Dataset Complexity Report"
 
 
 def _mean_scores(judgments: dict) -> dict[str, float]:
@@ -83,7 +93,7 @@ def build_report() -> str:
     measured_rows = {d_id: (_winner(s), _ranking_text(s))
                      for d_id, s in measured_scores.items()}
     lines = [
-        "# Dataset Complexity Report",
+        _report_h1(),
         "",
         "This report tracks approach rankings by input dataset, ordered from the",
         "simplest curated corpus to increasingly graph-heavy real-world candidates.",
