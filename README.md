@@ -66,8 +66,9 @@ requirements apply:
 - The vendored **`infra/` submodule initialized**: `git submodule update --init --recursive`.
 - Host tools **`uv`** and **`python3`** (Atlas's bootstrapper and the host-side corpus fetch use them).
 - An Atlas-supported LLM backend. The default local path uses Atlas's Ollama
-  provider; set `LLM_PROVIDER_SOURCE=ollama-localhost` in `infra/.env` if you
-  want Atlas to use an existing host Ollama instead of the containerized one.
+  provider. To use an existing host Ollama, copy `config/atlas.env.user` to an
+  ignored local file, set `LLM_PROVIDER_SOURCE=ollama-localhost` there, and pass
+  its absolute path through `ATLAS_ENV_USER_FILE`.
 - Disk/RAM/headroom for the `gen-ai-rag` stack plus whichever local models you
   choose. The default local run asks Atlas to activate `mistral-small3.2:24b`
   for LightRAG's role-specific graph calls. See the
@@ -77,20 +78,37 @@ requirements apply:
 ./scripts/start-all.sh
 ```
 
-This runs the overlay setup (which also brands the vendored Atlas as `rag-showcase` —
-`rag-showcase-*` containers/network and a RAG-SHOWCASE startup banner), starts the Atlas `gen-ai-rag` stack (LightRAG, TEI
-reranker, Weaviate, Neo4j, n8n, Open WebUI, and LiteLLM), explicitly disables
+This selects the parent-owned `config/atlas.env.user`, runs Atlas's headless env
+backfill and Compose validation against a temporary merged env, links the
+still-supported Compose overlay, and
+starts Atlas with `--no-tui --detach`. Atlas applies the showcase project and
+brand metadata (`rag-showcase-*` resources), waits on Compose health,
+and returns before the script continues with the `gen-ai-rag` services (LightRAG,
+TEI reranker, Weaviate, Neo4j, n8n, Open WebUI, and LiteLLM). The wrapper disables
 the hardware-dependent Docling source so ingestion uses portable naive text
 chunking, and temporarily enables MinIO to work around
-[Atlas #503](https://github.com/thekaveh/atlas/issues/503), waits for the backend,
-LightRAG, and Weaviate,
+[Atlas #503](https://github.com/thekaveh/atlas/issues/503), then relies on Atlas's
+detached health summary before continuing,
 assembles the corpus on the host (`corpus/fetch_corpus.py`), waits for model
 readiness (embed + chat), ingests it into the backend container, registers the
 canonical models plus any configured flavor aliases, and prints the Open WebUI URL.
+On a fresh checkout, Atlas renders its initial bootstrap banner before applying
+the external overlay, so that first banner can retain Atlas artwork; subsequent
+starts use the configured RAG-SHOWCASE logo. If Atlas hits the known
+[exited-zero one-shot race](https://github.com/thekaveh/atlas/issues/508), the
+wrapper first requires that exact Atlas log signature, then accepts only a fully
+converged, provider-aware runtime verified from Docker state; any missing,
+unhealthy, or nonzero-exit service still aborts startup.
 If you use local models, the first run may
 download several GB, so it takes a while. Then open the printed URL, start a multi-model chat, and select:
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
 `n8n-adaptive-rag`. Stop everything with `./scripts/stop-all.sh`.
+
+The detached startup is the authoritative effective-config check: Atlas applies
+the wrapper's fixed LightRAG container, TEI CPU, Docling-disabled, and temporary
+MinIO source flags, revalidates the resolved stack, and only then starts Compose.
+An alternate `ATLAS_ENV_USER_FILE` can change provider, model, branding, and
+other consumer values, but those four source choices remain wrapper contracts.
 
 The `n8n-adaptive-rag` workflow is checked in at
 [`n8n/adaptive-rag.workflow.json`](n8n/adaptive-rag.workflow.json). `start-all.sh`
@@ -136,6 +154,7 @@ rag-showcase/
 ├── register/                # idempotent LiteLLM /model/new registration
 ├── corpus/                  # curated corpora + fetch/adapter scripts (MultiHop-RAG, keyword, graph-native, cyber-threat)
 ├── compose/                 # backend plugin compose overlay
+├── config/                  # parent-owned Atlas env overlay (models, branding, project identity)
 ├── brand/                   # rag-showcase block-art logo (startup banner)
 ├── scripts/                 # start-all / stop-all / setup-overlay / run-dataset-ladder
 ├── n8n/                     # Adaptive-RAG workflow recipe
@@ -149,7 +168,7 @@ rag-showcase/
 
 These environment variables configure the showcase at runtime. The plugin reads
 most of them; the LightRAG role/model and Ollama entries are consumed by Atlas
-(defaulted by `setup-overlay.sh`). Most are already injected by Atlas's backend or
+(defaulted by `config/atlas.env.user`). Most are already injected by Atlas's backend or
 by the showcase's compose overlay (`compose/rag-overlay.yml`); none need to be set
 by hand for the default `start-all.sh` flow.
 
@@ -171,18 +190,18 @@ by hand for the default `start-all.sh` flow.
 | `RAG_ROLES_FILE` | `/app/plugins/rag/roles.yaml` | config | overlay |
 | `RAG_FLAVORS_FILE` | `/app/plugins/rag/flavors.yaml` | flavors loader, register (approach flavor aliases) | overlay |
 | `BACKEND_PLUGINS_DIR` | `/app/plugins` | plugin seam (Atlas) | overlay |
-| `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | Atlas `.env` defaulted by `setup-overlay.sh` |
-| `LIGHTRAG_KEYWORD_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG KEYWORD role | Atlas `.env` defaulted by `setup-overlay.sh` |
-| `LIGHTRAG_QUERY_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG QUERY role | Atlas `.env` defaulted by `setup-overlay.sh` |
-| `LIGHTRAG_EMBEDDING_MODEL` | `nomic-embed-text` | LightRAG embedding model | Atlas `.env` defaulted by `setup-overlay.sh` |
-| `RAG_SHOWCASE_LIGHTRAG_ROLE_MODEL` | `mistral-small3.2:24b` | `setup-overlay.sh` (default for the 3 LightRAG role models above) | host env / `infra/.env` override |
-| `LIGHTRAG_EXTRACT_MAX_ASYNC_LLM` | `1` | LightRAG EXTRACT concurrency | Atlas `.env` defaulted by `setup-overlay.sh` |
-| `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | `900` | LightRAG EXTRACT timeout seconds | Atlas `.env` defaulted by `setup-overlay.sh` |
-| `OLLAMA_CUSTOM_MODELS` | includes `mistral-small3.2:24b` | local Ollama model activation | Atlas `.env` merged by `setup-overlay.sh` |
-| `LIGHTRAG_QUERY_ENABLE_RERANK` | `false` | lightrag client (graph-rag query rerank flag) | overlay (override in `infra/.env`) |
-| `LIGHTRAG_QUERY_TOP_K` | `10` | lightrag client (KG top-k) | overlay (override in `infra/.env`) |
-| `LIGHTRAG_QUERY_CHUNK_TOP_K` | `5` | lightrag client (chunk top-k) | overlay (override in `infra/.env`) |
-| `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS` | `12000` | lightrag client (query context budget) | overlay (override in `infra/.env`) |
+| `ATLAS_ENV_USER_FILE` | `config/atlas.env.user` | Atlas bootstrapper | host env; absolute path to a parent-owned overlay |
+| `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | `config/atlas.env.user` |
+| `LIGHTRAG_KEYWORD_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG KEYWORD role | `config/atlas.env.user` |
+| `LIGHTRAG_QUERY_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG QUERY role | `config/atlas.env.user` |
+| `LIGHTRAG_EMBEDDING_MODEL` | `nomic-embed-text` | LightRAG embedding model | `config/atlas.env.user` |
+| `LIGHTRAG_EXTRACT_MAX_ASYNC_LLM` | `1` | LightRAG EXTRACT concurrency | `config/atlas.env.user` |
+| `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | `900` | LightRAG EXTRACT timeout seconds | `config/atlas.env.user` |
+| `OLLAMA_CUSTOM_MODELS` | includes `mistral-small3.2:24b` | local Ollama model activation | `config/atlas.env.user` |
+| `LIGHTRAG_QUERY_ENABLE_RERANK` | `false` | lightrag client (graph-rag query rerank flag) | overlay; customize via external Atlas env overlay |
+| `LIGHTRAG_QUERY_TOP_K` | `10` | lightrag client (KG top-k) | overlay; customize via external Atlas env overlay |
+| `LIGHTRAG_QUERY_CHUNK_TOP_K` | `5` | lightrag client (chunk top-k) | overlay; customize via external Atlas env overlay |
+| `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS` | `12000` | lightrag client (query context budget) | overlay; customize via external Atlas env overlay |
 | `LIGHTRAG_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG base Ollama context cap (used only when a LightRAG role is bound directly to Ollama) | overlay |
 | `LIGHTRAG_EXTRACT_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG EXTRACT-role Ollama context cap | overlay |
 | `LIGHTRAG_KEYWORD_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG KEYWORD-role Ollama context cap | overlay |
@@ -267,7 +286,8 @@ LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
   to an existing host Ollama, while `ollama-container-gpu` targets an NVIDIA-capable
   container runtime. LightRAG role models are now configured through Atlas's
   `LIGHTRAG_EXTRACT_LLM_MODEL`, `LIGHTRAG_KEYWORD_LLM_MODEL`, and
-  `LIGHTRAG_QUERY_LLM_MODEL` inputs, so override those in `infra/.env` for your
+  `LIGHTRAG_QUERY_LLM_MODEL` inputs. Copy `config/atlas.env.user` to an ignored
+  local file, change those values, and point `ATLAS_ENV_USER_FILE` at it for your
   model budget.
 - **`graph-rag` returns one-word answers or takes ~30s/query.** LightRAG's query-time
   rerank clients are not directly compatible with TEI's payload. Atlas now provides an
@@ -277,9 +297,8 @@ LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
   `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS=12000`.
 - **A manual `cd infra && ./start.sh` follows logs.** For scripted Atlas bring-up,
   use `./start.sh --no-tui --detach` (or `--no-follow`) so Atlas waits for health,
-  prints a status summary, and returns. `start-all.sh` currently keeps its compatible
-  health-gated wrapper while the dedicated startup-automation migration is completed;
-  it then runs ingest and model registration itself. See the
+  prints a status summary, and returns. `start-all.sh` already uses this path,
+  then runs showcase-specific ingestion and model registration. See the
   [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
 - **Integration tests skip.** `tests/test_demo_matrix.py` self-skips unless a live LiteLLM is
   reachable; with a started stack the gateway is derived from `infra/.env`

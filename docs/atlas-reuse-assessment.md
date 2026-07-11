@@ -88,8 +88,10 @@ Atlas's gitignore.
 > **Resolved upstream.** Atlas now exposes `--no-tui --detach` (alias
 > `--no-follow`) for automation. It runs the normal start pipeline, waits for
 > Compose health, prints a final status summary, and exits nonzero when the final
-> state is unhealthy. Rag-showcase still carries its older compatible background
-> wrapper until the focused startup migration in #17.
+> state is unhealthy. Rag-showcase now invokes that mode directly after Atlas's
+> headless env backfill and Compose validation against a temporary parent-owned
+> env merge; it no longer backgrounds or kills the bootstrapper process. Detached
+> startup performs the authoritative validation after applying source flags.
 
 ### 2.8 Host-Ollama provider option
 
@@ -117,8 +119,8 @@ chosen provider source.
 > **Resolved upstream.** Atlas now exposes `LIGHTRAG_EXTRACT_*`,
 > `LIGHTRAG_KEYWORD_*`, and `LIGHTRAG_QUERY_*` inputs and maps them to
 > LightRAG's native runtime role variables. Rag-showcase now sets those public
-> Atlas inputs in `infra/.env` instead of carrying a compose override that writes
-> native LightRAG variables directly.
+> Atlas inputs through the parent-owned `config/atlas.env.user` overlay instead of
+> carrying a compose override that writes native LightRAG variables directly.
 
 ### 2.11 LightRAG query rerank does not match Atlas's TEI reranker API
 
@@ -165,6 +167,25 @@ to Atlas on July 3 and restart-looped against the July 11 source mount. A one-ti
 `docker compose build backend` restored parity. Automatic source-drift detection
 is tracked in [Atlas #506](https://github.com/thekaveh/atlas/issues/506).
 
+### 2.15 Detached startup can reject an exited-zero init service
+
+Atlas's detached path can return immediately when `docker compose up --wait`
+reports that an expected one-shot init container exited, even when its exit code
+is zero. That bypasses Atlas's later one-shot-aware status classifier and turns a
+fully converged stack into a false startup failure. This is tracked in
+[Atlas #508](https://github.com/thekaveh/atlas/issues/508).
+
+The showcase keeps Atlas's detached result authoritative. Only after a nonzero
+result with Atlas's exact exited-zero failure signature,
+`scripts/verify_atlas_runtime.py` inspects containers in the `rag-showcase`
+Compose project. It accepts only the fixed `gen-ai-rag` topology plus the
+selected provider's required services (including `ollama` and `ollama-pull` for
+container-backed Ollama), with every long-lived service running and healthy
+(where a healthcheck exists) and every expected init service exited zero.
+Missing, starting, unhealthy, or nonzero-exit services remain failures. Remove
+this fallback after pinning an Atlas revision that performs the same
+classification before returning.
+
 ## 3. Recommendations for Atlas
 
 - **(Resolved)** Originally: *upstream the backend plugin seam* as a documented
@@ -206,6 +227,10 @@ is tracked in [Atlas #506](https://github.com/thekaveh/atlas/issues/506).
   (Atlas #504); separately restore the pinned Asset Baker artifact (Atlas #505).
 - **Rebuild stale local images after source upgrades** (§2.14): detect build-context
   drift and refresh enabled images without rebuilding unchanged services (Atlas #506).
+- **Classify successful one-shots before failing detached startup** (§2.15): when
+  Compose reports an exited service, inspect expected init containers first and
+  treat exit code zero as success while preserving failures for nonzero exits or
+  unhealthy long-lived services (Atlas #508).
 
 ## 4. Live End-to-End Run — Resolved (2026-07-01)
 

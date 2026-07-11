@@ -3,8 +3,9 @@
 Date: 2026-07-01
 
 Status: implemented upstream in Atlas and retained here as a historical handoff
-record. Rag-showcase now configures these Atlas inputs through `infra/.env`
-instead of patching LightRAG's runtime environment directly.
+record. Rag-showcase now configures these Atlas inputs through its parent-owned
+`config/atlas.env.user` overlay instead of patching LightRAG's runtime environment
+directly.
 
 ## 1. Purpose
 
@@ -135,8 +136,8 @@ The most reliable assertion is request-level observation through LiteLLM logs, a
 
 ## 7. Rag-Showcase Configuration
 
-Rag-showcase now sets Atlas's public inputs in `infra/.env` during
-`scripts/setup-overlay.sh`:
+Rag-showcase now declares Atlas's public inputs in `config/atlas.env.user`, which
+`scripts/start-all.sh` selects through `ATLAS_ENV_USER_FILE`:
 
 ```dotenv
 LIGHTRAG_EMBEDDING_MODEL=nomic-embed-text
@@ -147,8 +148,9 @@ LIGHTRAG_EXTRACT_MAX_ASYNC_LLM=1
 LIGHTRAG_EXTRACT_LLM_TIMEOUT=900
 ```
 
-Those defaults are written only when the variables are unset, so operators can
-choose different models or provider sources without editing the compose overlay.
+Operators can choose different models or provider sources without editing Atlas
+or the Compose overlay by copying that file, changing the copy, and exporting its
+absolute path as `ATLAS_ENV_USER_FILE`.
 
 The rag-showcase graph wrapper also sends these `/query` defaults:
 

@@ -131,7 +131,8 @@ the endpoint and a routed approach.
 The project's central mechanism — vendored Atlas plus a non-invasive overlay —
 shown as the compose-level view. Everything in the `Atlas stack` subgraph is
 Atlas-owned; the showcase contributes only the overlay file, the mounted
-directories, and `.env` values written by `scripts/setup-overlay.sh`.
+directories, and the parent-owned `config/atlas.env.user` selected through
+`ATLAS_ENV_USER_FILE`.
 
 ```mermaid
 flowchart LR
