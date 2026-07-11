@@ -243,14 +243,14 @@
         <ul>
           <li>Atlas owns the infrastructure; rag-showcase adds a mounted FastAPI plugin.</li>
           <li>register_models.py makes each approach appear as a LiteLLM model.</li>
-          <li>roles.yaml and models.yaml keep model choice and request properties scoped.</li>
+          <li>roles.yaml selects plugin roles; Atlas scopes model capabilities and request defaults.</li>
         </ul>
       </div>
       <div class="card">
         <div class="card-header"><div class="card-dot amber"></div><h3>3. Local model strategy</h3></div>
         <ul>
           <li>LiteLLM routes calls to whichever Atlas provider source is active.</li>
-          <li>Generation choices live in roles.yaml; model request properties live in models.yaml.</li>
+          <li>Generation choices live in roles.yaml; model request defaults live in the Atlas catalog.</li>
           <li>LightRAG EXTRACT, KEYWORD, and QUERY use Atlas LIGHTRAG_* inputs.</li>
         </ul>
       </div>

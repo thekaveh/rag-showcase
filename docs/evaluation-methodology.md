@@ -81,10 +81,13 @@ embedding, generation, graph, workflow, or judge models internally.
 | n8n classifier | `qwen3.6:latest` in workflow JSON | `n8n-adaptive-rag` | Classifies a query as `simple` or `complex` before routing to another approach. |
 | Judges | `qwen3.6:latest` and `gemma4:31b` | `compare/judge.py` | Two local judge families reduce single-model scoring bias without sending answers to a cloud service. |
 
-`backend_plugins/rag/models.yaml` applies `think: false` only to listed Qwen
-models. This is deliberately scoped: if a role is changed to a cloud model or a
-non-reasoning local model, no extra request property is added unless that exact
-model name is listed.
+The recorded 2026-07-03 run used the then-current local `models.yaml`
+compatibility layer to apply `think: false` only to listed Qwen models. The
+current baseline has removed that layer: Atlas's model catalog now applies
+`request_defaults: {think: false}` to its `qwen3.6:latest` entry, and the
+rag-showcase plugin no longer adds model request parameters. Both designs keep
+the behavior model-scoped; current replacement models receive the adapter,
+capabilities, and request defaults declared by Atlas.
 
 ## 5. Approach Processes
 

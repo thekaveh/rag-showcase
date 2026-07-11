@@ -45,10 +45,11 @@ bridges into the n8n workflow and reports the selected route.
 
 Atlas owns model routing through LiteLLM and its provider source configuration.
 Rag-showcase sets role-level defaults for the comparison: generation roles use the
-configured chat model with per-model request properties such as `think:false`, while
-LightRAG gets separate EXTRACT/KEYWORD/QUERY model inputs through Atlas. The same
-repo can therefore run against container Ollama, host Ollama, GPU-backed Ollama, or
-another Atlas-supported provider without changing the compose overlay.
+configured chat model, while Atlas's model catalog owns adapter selection,
+capabilities, and scoped request defaults such as `think:false`. LightRAG gets
+separate EXTRACT/KEYWORD/QUERY model inputs through Atlas. The same repo can
+therefore run against container Ollama, host Ollama, GPU-backed Ollama, or another
+Atlas-supported provider without changing the compose overlay.
 
 ## 2. Six Approach Flow Phases
 
