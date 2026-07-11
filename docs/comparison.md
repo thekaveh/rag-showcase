@@ -43,9 +43,10 @@ operational and participates in every measured dataset, but tuning matters:
 questions, while `graph-rag-wide` frequently returned truncated one-token or
 heading-only answers and ranked last on every measured dataset.
 
-The key fixes were:
+At the time of the recorded 2026-07-03 run, the key fixes were:
 
-- scoped `think:false` for local reasoning models via `backend_plugins/rag/models.yaml`;
+- scoped `think:false` for local reasoning models via the then-current local
+  `backend_plugins/rag/models.yaml` compatibility layer;
 - LightRAG role-specific EXTRACT/KEYWORD/QUERY models configured separately;
 - LightRAG EXTRACT tuned to `max_async=1` and `timeout=900`;
 - `nomic-embed-text` embeddings for graph ingestion;
@@ -126,7 +127,7 @@ LightRAG; `agentic-rag` runs a ReAct loop over vector and graph tools; and
 | Concern | This run |
 |---|---|
 | Hardware | Mac Studio M2 Ultra, 192 GB unified memory |
-| Generation | local Ollama `qwen3.6:latest`, with scoped `think:false` from `models.yaml` |
+| Generation | local Ollama `qwen3.6:latest`, with scoped `think:false` from the then-current local compatibility layer |
 | LightRAG extraction/query | host Ollama `mistral-small3.2:24b`, non-reasoning, `num_ctx=8192` |
 | Embeddings | `nomic-embed-text`, host Ollama for LightRAG; LiteLLM embedding route for plugin vectors |
 | Judges | `qwen3.6:latest` + `gemma4:31b`, local Ollama, `think:false` |
@@ -141,7 +142,8 @@ Ollama, or another configured provider.
 1. **`think:false` is mandatory for the Qwen reasoning model.** With thinking enabled,
    extraction and generation calls spend time on hidden reasoning. With `think:false`,
    the same local model is roughly 30x faster for this workload. The setting is
-   scoped per model in `models.yaml`, so it does not leak to unrelated models.
+   was scoped per model, so it did not leak to unrelated models. The current
+   baseline delegates the same model-scoped default to Atlas's model catalog.
 2. **Atlas now has a first-class host-Ollama source.** The original run needed an
    ad hoc LiteLLM alias to reach host Ollama. The updated Atlas submodule exposes
    `LLM_PROVIDER_SOURCE=ollama-localhost`, so the repo no longer needs to assume
@@ -235,6 +237,8 @@ wiring are likely more important than adding still more graph-shaped documents.
 
 - `qwen3.6-moe` was a historical LiteLLM runtime alias used during the early live
   run before the Atlas submodule gained first-class host-Ollama support.
-- `models.yaml` keeps `think:false` for the qwen3.6 local models by design.
+- The recorded run used a local `models.yaml` compatibility layer for
+  `think:false`; the current baseline removed that layer because Atlas's
+  `qwen3.6:latest` catalog entry owns the same scoped request default.
 - LightRAG role/query settings are Atlas `.env` inputs defaulted by rag-showcase
   setup. Override `LIGHTRAG_*` env vars in `infra/.env` to experiment.

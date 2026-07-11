@@ -14,8 +14,8 @@ and surfaces the chosen `route` in the comparison column.
 2. **Classify** (HTTP Request → `http://litellm:4000/v1/chat/completions`,
    Authorization `Bearer {{ $env.LITELLM_API_KEY }}` — Atlas injects the master
    key into the n8n container under that name — model `qwen3.6:latest`, a name
-   LiteLLM registers, called with `temperature: 0` and `think: false` — the same
-   top-level thinking suppression `models.yaml` plumbs for this model, load-bearing
+   LiteLLM registers, called with `temperature: 0`. Atlas's model catalog supplies
+   that model's scoped `request_defaults: {think: false}`, which is load-bearing
    inside the node's 60 s timeout): the prompt classifies the *question* as one word —
    `simple`, or `complex` when it needs multi-step reasoning or synthesis across
    sources. Output → `route`.

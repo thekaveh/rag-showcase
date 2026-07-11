@@ -51,10 +51,11 @@ underlying LLM. The approach then calls one or more configured roles.
 | LightRAG QUERY | `mistral-small3.2:24b` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for final LightRAG graph answers. |
 | n8n classifier | `qwen3.6:latest` | `n8n-adaptive-rag` | Workflow-level simple/complex classifier. |
 
-`models.yaml` currently applies `think:false` to `qwen3.6:latest` and the
-historical `qwen3.6-moe` alias only. The setting does not apply globally; if a
-role is changed to a different local or cloud model, that model keeps its default
-request behavior unless it is explicitly listed.
+Atlas's model catalog applies `request_defaults: {think: false}` to
+`qwen3.6:latest`. The setting is scoped to that catalog entry, not injected by
+the approach plugin or applied globally. If a role is changed to a different
+local or cloud model, Atlas resolves that model's own adapter, capabilities, and
+request defaults.
 
 The full evaluation protocol, including judge models and result aggregation, is
 documented in [`evaluation-methodology.md`](evaluation-methodology.md).
@@ -121,7 +122,7 @@ followed by one answer-generation call.
 | Collection | `RagBase` | No | Uses plain chunks only. |
 | Chunk size / overlap | 800 / 100 | No | In ingest fallback and Docling request. |
 | Prompt template | shared `stuff` prompt | No | Shared with hybrid/contextual. |
-| Generation model | `roles.yaml` `light_gen` | Yes, via roles file | Per-model props come from `models.yaml`. |
+| Generation model | `roles.yaml` `light_gen` | Yes, via roles file | Per-model request defaults come from Atlas's model catalog. |
 
 ### 3.6 Observed Behavior
 

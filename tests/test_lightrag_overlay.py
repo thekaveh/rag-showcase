@@ -97,6 +97,7 @@ def test_backend_overlay_sets_graph_query_safety_defaults() -> None:
     overlay = _load_overlay()
     env = overlay["services"]["backend"]["environment"]
 
+    assert "RAG_MODELS_FILE" not in env
     assert env["LIGHTRAG_QUERY_ENABLE_RERANK"] == "${LIGHTRAG_QUERY_ENABLE_RERANK:-false}"
     assert env["LIGHTRAG_QUERY_TOP_K"] == "${LIGHTRAG_QUERY_TOP_K:-10}"
     assert env["LIGHTRAG_QUERY_CHUNK_TOP_K"] == "${LIGHTRAG_QUERY_CHUNK_TOP_K:-5}"

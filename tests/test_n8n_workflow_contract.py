@@ -48,13 +48,12 @@ def test_workflow_is_active_for_fromjson_import() -> None:
     assert _workflow()["active"] is True
 
 
-def test_classify_node_disables_thinking() -> None:
-    # The classifier is the latency-critical call inside a 60s node timeout; it
-    # must carry the same top-level think:false the plugin's models.yaml plumbs
-    # for qwen3.6:latest (LiteLLM forwards it to Ollama).
+def test_classify_node_delegates_model_defaults_to_litellm() -> None:
+    # Atlas's qwen3.6 catalog entry owns think:false. The workflow specifies only
+    # approach-level request arguments so model defaults stay provider-scoped.
     body = _node(_workflow(), "Classify")["parameters"]["jsonBody"]
     assert "qwen3.6:latest" in body
-    assert "think: false" in body
+    assert "think" not in body
 
 
 def test_route_node_targets_registered_base_approaches() -> None:
