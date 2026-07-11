@@ -80,12 +80,12 @@ def test_lightrag_overlay_only_adds_optional_lightrag_ollama_context_caps() -> N
 
 
 def test_setup_overlay_sets_atlas_lightrag_inputs_not_native_runtime_envs() -> None:
-    script = (ROOT / "scripts/setup-overlay.sh").read_text(encoding="utf-8")
+    script = (ROOT / "config/atlas.env.user").read_text(encoding="utf-8")
 
-    assert "set_env_default LIGHTRAG_EXTRACT_LLM_MODEL" in script
-    assert "set_env_default LIGHTRAG_KEYWORD_LLM_MODEL" in script
-    assert "set_env_default LIGHTRAG_QUERY_LLM_MODEL" in script
-    assert "append_csv_env OLLAMA_CUSTOM_MODELS" in script
+    assert "LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b" in script
+    assert "LIGHTRAG_KEYWORD_LLM_MODEL=mistral-small3.2:24b" in script
+    assert "LIGHTRAG_QUERY_LLM_MODEL=mistral-small3.2:24b" in script
+    assert "OLLAMA_CUSTOM_MODELS=mistral-small3.2:24b" in script
 
     assert "set_env_default EXTRACT_LLM_MODEL" not in script
     assert "set_env_default KEYWORD_LLM_MODEL" not in script

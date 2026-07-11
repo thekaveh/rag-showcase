@@ -29,6 +29,9 @@ def test_start_all_supports_service_only_mode() -> None:
 
     assert "--n8n-source" not in script
     assert "--minio-source container" in script
+    assert "--no-tui --detach" in script
+    assert "atlas_preflight.py" in script
+    assert "ATLAS_START_PID" not in script
     assert "RAG_SHOWCASE_SKIP_DEFAULT_INGEST" in script
     assert "Skipping default corpus ingest" in script
     assert "Registering RAG models and flavor aliases" in script

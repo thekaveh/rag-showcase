@@ -3,6 +3,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+ATLAS_ENV_USER_FILE="${ATLAS_ENV_USER_FILE:-$ROOT/config/atlas.env.user}"
+ATLAS_ENV_USER_FILE="$(python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$ATLAS_ENV_USER_FILE")"
+export ATLAS_ENV_USER_FILE
+
 # Read a key's value from Atlas's infra/.env. Atlas's .env can carry a key more
 # than once (overlays/appends); dotenv and Compose both take the last assignment,
 # so we do too (tail -1). This also keeps the result a single line even when the
@@ -11,6 +15,13 @@ cd "$ROOT"
 envval() { grep -E "^$1=" infra/.env | tail -1 | cut -d= -f2- || true; }
 
 ./scripts/setup-overlay.sh
+
+echo "==> Running Atlas parent-env preflight (startup revalidates source overrides)…"
+# env backfill is additive and requires an active file. Creating the initial
+# baseline from Atlas's example does not add consumer settings; those come from
+# the external overlay during the supported Atlas startup pipeline.
+[ -f infra/.env ] || cp infra/.env.example infra/.env
+python3 scripts/atlas_preflight.py
 
 echo "==> Starting Atlas (gen-ai-rag track)…"
 # doc-processor disabled: Atlas ships only GPU-container or localhost Docling, so
@@ -21,36 +32,31 @@ echo "==> Starting Atlas (gen-ai-rag track)…"
 # Atlas #503: the current dependency checker treats disabled Trino as enabled
 # unless MinIO is available. Keep MinIO on until Atlas derives enablement from
 # service manifests; remove this explicit source when that fix is pinned.
-( cd infra && ./start.sh --track gen-ai-rag --lightrag-source container \
+ATLAS_START_LOG="$(mktemp "${TMPDIR:-/tmp}/rag-showcase-atlas-start.XXXXXX")"
+set +e
+( cd infra && ./start.sh --no-tui --detach --track gen-ai-rag \
+    --lightrag-source container \
     --tei-reranker-source container-cpu --doc-processor-source disabled \
-    --minio-source container ) &
-ATLAS_START_PID=$!
-cleanup_atlas_start() {
-  if kill -0 "$ATLAS_START_PID" >/dev/null 2>&1; then
-    pkill -P "$ATLAS_START_PID" >/dev/null 2>&1 || true
-    kill "$ATLAS_START_PID" >/dev/null 2>&1 || true
-    wait "$ATLAS_START_PID" >/dev/null 2>&1 || true
-  fi
-}
-trap cleanup_atlas_start EXIT
-
-echo "==> Waiting for the backend to report healthy…"
-BP="$(envval BACKEND_PORT)"
-[ -n "$BP" ] || { echo "BACKEND_PORT not found in infra/.env; aborting."; exit 1; }
-healthy=0
-for _ in $(seq 1 60); do
-  if curl -fsS "http://localhost:${BP}/health" >/dev/null 2>&1; then healthy=1; break; fi
-  sleep 5
-done
-[ "$healthy" = 1 ] || { echo "Backend did not become healthy after 5 minutes; aborting before ingest."; exit 1; }
-cleanup_atlas_start
-trap - EXIT
+    --minio-source container ) 2>&1 | tee "$ATLAS_START_LOG"
+ATLAS_START_STATUS=${PIPESTATUS[0]}
+set -e
+if [ "$ATLAS_START_STATUS" -ne 0 ]; then
+  # Atlas #508: Compose can return nonzero when an expected one-shot exits 0,
+  # before Atlas reaches its own detached status classifier. Accept only the
+  # exact log signature and converged state; unrelated failures still abort.
+  echo "==> Atlas detached start returned nonzero; checking the exited-zero fallback…"
+  python3 scripts/verify_atlas_runtime.py --atlas-log "$ATLAS_START_LOG" || {
+    rm -f "$ATLAS_START_LOG"
+    echo "Atlas detached startup failed and the runtime did not converge." >&2
+    exit 1
+  }
+fi
+rm -f "$ATLAS_START_LOG"
 
 PROJECT_NAME="$(envval PROJECT_NAME)"
 [ -n "$PROJECT_NAME" ] || { echo "PROJECT_NAME not found in infra/.env; aborting."; exit 1; }
 
-# Probe n8n /healthz from inside the backend (in-network address). Used before
-# the workflow import and again after the post-import restart.
+# Probe n8n /healthz from inside the backend after the wrapper-owned restart.
 wait_for_n8n() {
   local ready=0
   for _ in $(seq 1 60); do
@@ -62,9 +68,6 @@ wait_for_n8n() {
   [ "$ready" = 1 ]
 }
 
-echo "==> Waiting for n8n to report healthy…"
-wait_for_n8n || { echo "n8n did not become healthy after 5 minutes; aborting before workflow import."; exit 1; }
-
 echo "==> Importing and activating the n8n adaptive-rag workflow…"
 docker exec "${PROJECT_NAME}-n8n" \
   n8n import:workflow --input=/showcase-n8n/adaptive-rag.workflow.json --activeState=fromJson
@@ -73,33 +76,6 @@ docker exec "${PROJECT_NAME}-n8n" \
 # is live before the n8n-adaptive-rag plugin route is used.
 docker restart "${PROJECT_NAME}-n8n" >/dev/null
 wait_for_n8n || { echo "n8n did not become healthy after workflow import restart."; exit 1; }
-
-# The backend healthcheck does NOT depend on LightRAG, and LightRAG (graph
-# extraction) often comes up slower; without this gate, ingest's first upload
-# could fail mid-run and leave graph-rag empty. Probe LightRAG /health over the
-# in-network address ingest itself uses.
-echo "==> Waiting for LightRAG to report healthy (graph-rag ingest needs it)…"
-lr_ready=0
-for _ in $(seq 1 60); do
-  if docker exec "${PROJECT_NAME}-backend" python -c \
-       "import httpx,sys; sys.exit(0 if httpx.get('http://lightrag:9621/health',timeout=5).status_code==200 else 1)" \
-       >/dev/null 2>&1; then lr_ready=1; break; fi
-  sleep 5
-done
-[ "$lr_ready" = 1 ] || { echo "LightRAG did not become healthy after 5 minutes; aborting before ingest (graph-rag would be empty)."; exit 1; }
-
-# Ingest's first operation is vectors.ensure_collection (a Weaviate connect with
-# no retry), and the backend healthcheck does not depend on Weaviate being ready.
-# Gate on Weaviate's readiness endpoint before ingest, mirroring the LightRAG gate.
-echo "==> Waiting for Weaviate to report ready (ingest creates collections first)…"
-wv_ready=0
-for _ in $(seq 1 60); do
-  if docker exec "${PROJECT_NAME}-backend" python -c \
-       "import httpx,sys; sys.exit(0 if httpx.get('http://weaviate:8080/v1/.well-known/ready',timeout=5).status_code==200 else 1)" \
-       >/dev/null 2>&1; then wv_ready=1; break; fi
-  sleep 5
-done
-[ "$wv_ready" = 1 ] || { echo "Weaviate did not become ready after 5 minutes; aborting before ingest."; exit 1; }
 
 if [ "${RAG_SHOWCASE_SKIP_DEFAULT_INGEST:-0}" != "1" ]; then
   echo "==> Assembling corpus on the host (corpus/raw/)…"
@@ -112,7 +88,7 @@ else
   echo "==> Skipping default corpus ingest (RAG_SHOWCASE_SKIP_DEFAULT_INGEST=1)…"
 fi
 
-# The backend/LightRAG health gates do NOT guarantee Ollama has finished pulling
+# Atlas's detached health gates do NOT guarantee Ollama has finished pulling
 # the embed + chat models (a cold first run downloads several GB), and ingest's
 # first embed/contextualize call would then 4xx/5xx and abort the run. Probe a
 # real embed + chat round-trip through LiteLLM (using the plugin's own client and

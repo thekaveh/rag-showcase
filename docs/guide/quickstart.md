@@ -15,8 +15,8 @@ Atlas's requirements apply:
   ```
 - Host tools **`uv`** and **`python3`** (Atlas's bootstrapper and the host-side corpus fetch use them).
 - An Atlas-supported LLM backend. The default local path uses Atlas's Ollama provider;
-  set `LLM_PROVIDER_SOURCE=ollama-localhost` in `infra/.env` to use an existing host
-  Ollama instead of the containerized one.
+  use an alternate parent-owned `ATLAS_ENV_USER_FILE` with
+  `LLM_PROVIDER_SOURCE=ollama-localhost` to select an existing host Ollama.
 - Disk / RAM / headroom for the `gen-ai-rag` stack plus your chosen local models. The
   default local run activates `mistral-small3.2:24b` for LightRAG's graph roles — see
   [Hardware Sizing](../hardware.md) for minimum and recommended profiles.
@@ -29,14 +29,23 @@ Atlas's requirements apply:
 
 This single script:
 
-1. Runs the overlay setup (and **brands** the vendored Atlas as `rag-showcase` —
-   `rag-showcase-*` containers/network and a startup banner).
-2. Starts the Atlas `gen-ai-rag` stack — LightRAG, TEI reranker, Weaviate, Neo4j,
+1. Selects `config/atlas.env.user`, runs Atlas's headless env backfill and
+   Compose validation against a temporary merged env, and links the showcase
+   Compose overlay.
+2. Starts the Atlas `gen-ai-rag` stack with `--no-tui --detach`; Atlas applies
+   the `rag-showcase` project and brand metadata, waits on Compose health, and
+   returns. On a fresh checkout, the initial bootstrap banner can retain Atlas
+   artwork because Atlas renders it before applying the external overlay. The
+   stack includes LightRAG, TEI reranker, Weaviate, Neo4j,
    n8n, Open WebUI, and LiteLLM. The showcase wrapper explicitly disables the
    hardware-dependent Docling source, so ingestion uses portable naive text chunking,
    and temporarily enables MinIO for [Atlas #503](https://github.com/thekaveh/atlas/issues/503).
-3. Waits for the backend, LightRAG, and Weaviate, then **assembles the corpus** on the
-   host (`corpus/fetch_corpus.py`).
+3. Proceeds after Atlas's detached health summary, then **assembles the corpus**
+   on the host (`corpus/fetch_corpus.py`). If Atlas reports the known
+   [exited-zero one-shot race](https://github.com/thekaveh/atlas/issues/508), the
+   wrapper proceeds only when that exact log signature is present and a strict,
+   provider-aware Docker-state check confirms every long-lived service is ready
+   and every expected init service exited zero.
 4. Waits for model readiness (embed + chat), **ingests** the corpus into the backend,
    and **registers** the canonical models plus any configured flavor aliases.
 5. Prints the Open WebUI URL.
@@ -54,6 +63,21 @@ Stop everything with:
 ```bash
 ./scripts/stop-all.sh
 ```
+
+To customize Atlas-owned values without editing the submodule, copy the committed
+overlay to an ignored local file and select it explicitly:
+
+```bash
+cp config/atlas.env.user .env.rag-showcase
+# Edit .env.rag-showcase, then:
+ATLAS_ENV_USER_FILE="$PWD/.env.rag-showcase" ./scripts/start-all.sh
+```
+
+Atlas's detached startup revalidates after applying the wrapper's source flags.
+Those flags deliberately fix LightRAG to a container, TEI to its CPU container,
+Docling to disabled, and MinIO to a temporary compatibility container. Alternate
+env overlays customize provider, model, branding, and other consumer values; use
+Atlas directly with different source flags for a different service topology.
 
 ## 3. Corpus Note
 
