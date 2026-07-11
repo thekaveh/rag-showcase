@@ -61,7 +61,8 @@ retrieval, augmentation, generation, output shaping, and observed tradeoffs. Sou
 **Prerequisites.** This runs entirely on [Atlas](https://github.com/thekaveh/atlas), so Atlas's
 requirements apply:
 
-- **Docker** + **Docker Compose v2**, installed and running.
+- **Docker** + **Docker Compose 2.24.4 or newer**, installed and running. The
+  temporary disabled-service compatibility overlay uses Compose's `!reset` tag.
 - The vendored **`infra/` submodule initialized**: `git submodule update --init --recursive`.
 - Host tools **`uv`** and **`python3`** (Atlas's bootstrapper and the host-side corpus fetch use them).
 - An Atlas-supported LLM backend. The default local path uses Atlas's Ollama
@@ -78,9 +79,11 @@ requirements apply:
 
 This runs the overlay setup (which also brands the vendored Atlas as `rag-showcase` —
 `rag-showcase-*` containers/network and a RAG-SHOWCASE startup banner), starts the Atlas `gen-ai-rag` stack (LightRAG, TEI
-reranker, Weaviate, Neo4j, Open WebUI, LiteLLM; Docling is off by default —
-ingestion falls back to naive text chunking) plus n8n (added via an explicit
-`--n8n-source container` flag), waits for the backend, LightRAG, and Weaviate,
+reranker, Weaviate, Neo4j, n8n, Open WebUI, and LiteLLM), explicitly disables
+the hardware-dependent Docling source so ingestion uses portable naive text
+chunking, and temporarily enables MinIO to work around
+[Atlas #503](https://github.com/thekaveh/atlas/issues/503), waits for the backend,
+LightRAG, and Weaviate,
 assembles the corpus on the host (`corpus/fetch_corpus.py`), waits for model
 readiness (embed + chat), ingests it into the backend container, registers the
 canonical models plus any configured flavor aliases, and prints the Open WebUI URL.
@@ -247,14 +250,20 @@ LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
   (`docker exec <project>-n8n n8n import:workflow --input=/showcase-n8n/adaptive-rag.workflow.json --activeState=fromJson`,
   then restart n8n) — see [`n8n/README.md`](n8n/README.md).
 - **`contextual-rag` doesn't visibly win** on the context-starved query: that contrast needs
-  Docling structure-aware chunking, which is **off by default** (ingestion falls back to naive
-  chunking). Enable Docling in the Atlas stack to see it.
+  Docling structure-aware chunking. The showcase wrapper explicitly disables Docling for a
+  hardware-neutral default and falls back to naive chunking; select an Atlas-supported Docling
+  source to enable it.
 - **Stack fails to come up with a Supabase / Postgres auth error** — e.g. `lightrag-init` exits
   with `password authentication failed for user "supabase_admin"`. This is an **Atlas stack**
   matter (the Supabase DB role/secret wiring), *not* the showcase. The reliable fix is a clean
   reset so the Atlas Supabase DB re-initializes against the current secrets:
   `cd infra && ./stop.sh --cold` (this **wipes Atlas volumes/data**), then re-run
   `./scripts/start-all.sh`. See the [Atlas](https://github.com/thekaveh/atlas) repo.
+- **Backend reports a module missing immediately after an `infra/` update.** Atlas
+  currently recreates containers without rebuilding an existing local image. Run
+  `cd infra && docker compose build backend`, return to the repo root, and rerun
+  `./scripts/start-all.sh`. Automatic source-drift rebuilding is tracked in
+  [Atlas #506](https://github.com/thekaveh/atlas/issues/506).
 - **Local generation is too slow.** Use an Atlas LLM provider source appropriate for
   your machine. For example, `LLM_PROVIDER_SOURCE=ollama-localhost` routes LiteLLM
   to an existing host Ollama, while `ollama-container-gpu` targets an NVIDIA-capable
@@ -263,18 +272,17 @@ LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
   `LIGHTRAG_QUERY_LLM_MODEL` inputs, so override those in `infra/.env` for your
   model budget.
 - **`graph-rag` returns one-word answers or takes ~30s/query.** LightRAG's query-time
-  rerank path is incompatible with the current TEI reranker payload. The plugin defaults
-  graph queries to `LIGHTRAG_QUERY_ENABLE_RERANK=false`, `LIGHTRAG_QUERY_TOP_K=10`,
-  `LIGHTRAG_QUERY_CHUNK_TOP_K=5`, and `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS=12000`; keep those
-  unless you have fixed the LightRAG rerank provider path.
-- **A manual `cd infra && ./start.sh` blocks before ingest/register.** Atlas's
-  `start.py` ends by following logs (`docker compose … logs -f`), which blocks a
-  non-interactive run. `start-all.sh` handles this for you — it backgrounds Atlas's
-  start, gates on backend health, stops the backgrounded start, then gates on
-  n8n/LightRAG/Weaviate/model health and runs ingest + register itself. If you bring the stack up by
-  hand instead, run ingest/register yourself once the backend is healthy
-  (`docker exec … ingest.py` / `register_models.py`). (Atlas's `logs -f` behavior is
-  tracked in the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).)
+  rerank clients are not directly compatible with TEI's payload. Atlas now provides an
+  opt-in backend adapter via `LIGHTRAG_RERANK_ADAPTER_ENABLED=true`; without that adapter,
+  keep `LIGHTRAG_QUERY_ENABLE_RERANK=false`. The showcase also defaults graph queries to
+  `LIGHTRAG_QUERY_TOP_K=10`, `LIGHTRAG_QUERY_CHUNK_TOP_K=5`, and
+  `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS=12000`.
+- **A manual `cd infra && ./start.sh` follows logs.** For scripted Atlas bring-up,
+  use `./start.sh --no-tui --detach` (or `--no-follow`) so Atlas waits for health,
+  prints a status summary, and returns. `start-all.sh` currently keeps its compatible
+  health-gated wrapper while the dedicated startup-automation migration is completed;
+  it then runs ingest and model registration itself. See the
+  [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
 - **Integration tests skip.** `tests/test_demo_matrix.py` self-skips unless a live LiteLLM is
   reachable; with a started stack the gateway is derived from `infra/.env`
   automatically (see §8 for the non-default-gateway override).

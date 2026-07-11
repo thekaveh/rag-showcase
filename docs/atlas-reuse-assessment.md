@@ -8,9 +8,10 @@ A living record of how well Atlas served as reusable infra for this project.
   approaches via LiteLLM's `/model/new` admin API (`STORE_MODEL_IN_DB=True`) with
   **zero Atlas edits** for registration. Atlas's existing `lightrag` and
   `hermes-agent` model entries were the existence proof.
-- **The `gen-ai-rag` track:** Brought up Weaviate + Neo4j + LightRAG + TEI
-  reranker + Docling + Open WebUI in a single flag, all pre-wired into the base
-  stack.
+- **The `gen-ai-rag` track:** Brings up Weaviate + Neo4j + LightRAG + TEI
+  reranker + Docling + n8n + Open WebUI in a single flag, all pre-wired into the
+  base stack. Rag-showcase explicitly disables Docling for a hardware-neutral
+  default, while n8n now needs no out-of-track source override.
 - **Backend's pre-wired environment:** LiteLLM/Weaviate/Neo4j/Redis/Docling/
   LightRAG URLs and credentials were already plumbed into the backend; our plugin
   read them directly with zero re-plumbing.
@@ -82,18 +83,13 @@ upstream). We symlink our fragment in via `scripts/setup-overlay.sh`, so the
 showcase repo owns the compose-fragment file while the overlay slot remains under
 Atlas's gitignore.
 
-### 2.7 `start.sh`/`start.py` blocks non-interactive callers by tailing logs
+### 2.7 Non-interactive detached startup
 
-Atlas's `start.py` brings the stack up detached (`up -d`), then ends by **following
-logs** — `show_container_logs(follow=True)` in `bootstrapper/start.py`,
-called unconditionally with only a `KeyboardInterrupt` handler (line numbers
-shift on every Atlas bump, so this cites the symbol, not a line). On a non-TTY caller
-(this repo's `scripts/start-all.sh`, CI, any automation), `docker compose … logs -f`
-blocks **forever**, so control never returns and the wrapper's downstream steps
-(corpus ingest, model registration) never run. **This was why live e2e had never
-been verified.** Workaround: after the stack is healthy, run ingest + register
-directly via `docker exec`. (First confirmed via the live process tree: a wedged
-`docker compose … logs -f` child of `start.py`.)
+> **Resolved upstream.** Atlas now exposes `--no-tui --detach` (alias
+> `--no-follow`) for automation. It runs the normal start pipeline, waits for
+> Compose health, prints a final status summary, and exits nonzero when the final
+> state is unhealthy. Rag-showcase still carries its older compatible background
+> wrapper until the focused startup migration in #17.
 
 ### 2.8 Host-Ollama provider option
 
@@ -132,10 +128,42 @@ TEI endpoint with a Jina-style payload; TEI rejected it with `422 missing field
 texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
 (`top_k=10`, `chunk_top_k=5`, `max_total_tokens=12000`) produced usable answers.
 
-> **Default fixed upstream.** Atlas now leaves direct LightRAG->TEI rerank disabled
-> by default and exposes concrete LightRAG query fanout defaults. A future TEI
-> adapter could still make rerank useful, but the boot-loop / 422-retry path is no
-> longer the default.
+> **Resolved upstream.** Atlas leaves direct LightRAG->TEI rerank disabled by
+> default, exposes concrete query fanout defaults, and now ships an authenticated
+> backend adapter (`POST /lightrag/rerank`). Operators can opt in with
+> `LIGHTRAG_RERANK_ADAPTER_ENABLED=true` while keeping the incompatible direct path
+> disabled. Rag-showcase has not enabled the adapter by default; profile adoption
+> and evaluation remain a separate tuning decision.
+
+### 2.12 Disabled manifest services can be treated as enabled during dependency checks
+
+Atlas `fe55e838`'s dependency manager uses hard-coded source/scale maps that do
+not include newer manifest services such as Trino and Redpanda. It therefore
+reports disabled Trino as enabled and rejects a RAG-track start when MinIO is
+disabled. This is tracked upstream as
+[Atlas #503](https://github.com/thekaveh/atlas/issues/503). Until a fixed Atlas
+commit is pinned, `start-all.sh` explicitly enables MinIO; no Atlas source is
+patched locally.
+
+### 2.13 Disabled services can still be built during unrelated track startup
+
+Atlas starts the full assembled Compose graph. Compose may build a missing local
+image even when that service has `deploy.replicas: 0`, so the disabled Asset
+Baker's failing Blender download blocked the RAG track. Atlas-wide service
+selection is tracked in [Atlas #504](https://github.com/thekaveh/atlas/issues/504),
+and the Asset Baker artifact itself in
+[Atlas #505](https://github.com/thekaveh/atlas/issues/505). The showcase overlay
+temporarily removes the entire disabled `asset-baker` service from its resolved
+Compose project; the service remains out of the RAG track.
+
+### 2.14 Existing local images can remain stale after a submodule upgrade
+
+Atlas uses `docker compose up --force-recreate`, which recreates containers but
+does not rebuild an existing local image after its Dockerfile, requirements, or
+source changes. During this upgrade, a June 29 backend image lacked Celery added
+to Atlas on July 3 and restart-looped against the July 11 source mount. A one-time
+`docker compose build backend` restored parity. Automatic source-drift detection
+is tracked in [Atlas #506](https://github.com/thekaveh/atlas/issues/506).
 
 ## 3. Recommendations for Atlas
 
@@ -156,10 +184,9 @@ texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
   which remains the supported pattern.
 - **Add a `--extra-compose <file>` flag to `start.sh`** so consumers can add
   overlays without symlinking into the gitignored `_user/` slot.
-- **(HIGH) Don't block non-interactive callers on `logs -f`** (§2.7). Guard
-  `start.py`'s `show_container_logs(follow=True)` on `sys.stdout.isatty()`, or add a
-  `--no-follow`/`--detach` flag, so scripted bring-ups return after the stack is
-  healthy. This is the single change that unblocks automated end-to-end runs.
+- **(Resolved) Support detached scripted startup** (§2.7): Atlas now provides
+  `--no-tui --detach` / `--no-follow` with health-gated exit status and an optional
+  JSON summary.
 - **(Resolved) Add a host-Ollama provider option** (§2.8): Atlas now supports
   `LLM_PROVIDER_SOURCE=ollama-localhost`.
 - **(MED) Surface LightRAG extraction failures** (§2.9): a timed-out / empty-graph
@@ -169,9 +196,16 @@ texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
 - **(Resolved) Expose LightRAG role-specific models** (§2.10): Atlas now maps
   `LIGHTRAG_EXTRACT_LLM_MODEL`, `LIGHTRAG_KEYWORD_LLM_MODEL`, and
   `LIGHTRAG_QUERY_LLM_MODEL` to LightRAG's native runtime vars.
-- **(Partially resolved) Fix or disable LightRAG query rerank for TEI** (§2.11):
-  Atlas now defaults direct LightRAG rerank off. A compatible adapter remains a
-  future enhancement.
+- **(Resolved) Adapt LightRAG query rerank for TEI** (§2.11): Atlas defaults the
+  incompatible direct path off and provides an opt-in authenticated backend adapter.
+- **Derive dependency enablement from service manifests** (§2.12): remove the
+  hard-coded source/scale mapping so disabled and newly added services are
+  interpreted consistently (Atlas #503).
+- **Exclude disabled local builds from startup** (§2.13): launch only the
+  resolved enabled service set so unrelated build failures cannot block a track
+  (Atlas #504); separately restore the pinned Asset Baker artifact (Atlas #505).
+- **Rebuild stale local images after source upgrades** (§2.14): detect build-context
+  drift and refresh enabled images without rebuilding unchanged services (Atlas #506).
 
 ## 4. Live End-to-End Run — Resolved (2026-07-01)
 
@@ -190,3 +224,13 @@ previously-open items are now assessed:
   (keyword, context_starved) via the vector tool.
 - **Text approaches (vanilla / hybrid / contextual)** — worked well and differentiated
   modestly on the curated corpus (full results in `comparison.md`).
+
+### 4.1 Atlas `fe55e838` baseline revalidation (2026-07-11)
+
+- `scripts/start-all.sh` completed in service-only mode and registered every
+  canonical and flavor alias.
+- The live six-approach smoke suite passed: **8 tests passed**.
+- A graph-native document was inserted through LightRAG, extraction drained, and
+  `graph-rag` correctly joined Project Cedar's lead, dependent service, and
+  disrupting incident with the inserted document cited.
+- The stack was stopped normally after verification; data volumes were preserved.
