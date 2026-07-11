@@ -32,8 +32,8 @@ This single script:
 1. Selects `atlas.consumer.yml`, materializes its values into a temporary active
    env, and runs Atlas's headless env backfill, manifest-aware Compose validation,
    and consumer doctor. The manifest declares project/brand metadata, the env
-   file, external Compose overlay, backend plugin root, and Ollama sidecar without
-   tracked Atlas modifications or a `_user` symlink.
+   file, external Compose overlay, backend plugin root, fourteen LiteLLM aliases,
+   and Ollama sidecar without tracked Atlas modifications or a `_user` symlink.
 2. Starts the Atlas `gen-ai-rag` stack with `--no-tui --detach`; Atlas applies
    the `rag-showcase` project and brand metadata, waits on Compose health, and
    returns. On a fresh checkout, the initial bootstrap banner can retain Atlas
@@ -49,7 +49,10 @@ This single script:
    provider-aware Docker-state check confirms every long-lived service is ready
    and every expected init service exited zero.
 4. Waits for model readiness (embed + chat), **ingests** the corpus into the backend,
-   and **registers** the canonical models plus any configured flavor aliases.
+   and verifies all Atlas-declared base and flavor aliases. Each start also removes
+   any exact legacy database duplicates from the retired registration script,
+   including rows restored with an older database, without touching unrelated models.
+   If cleanup occurs, LiteLLM reloads once so all four workers discard stale routes.
 5. Prints the Open WebUI URL.
 
 !!! tip "First run downloads models"

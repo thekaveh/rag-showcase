@@ -41,4 +41,3 @@ services:
       - ../backend_plugins:/app/plugins:ro
       - ../ingest:/app/ingest:ro
       - ../corpus:/app/corpus:ro
-      - ../register:/app/register:ro

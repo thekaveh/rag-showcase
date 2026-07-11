@@ -28,8 +28,8 @@ Atlas provides the reusable infrastructure. Rag-showcase adds a mounted FastAPI
 plugin under `backend_plugins/rag`, where each approach exposes an OpenAI-compatible
 `/rag/<approach>/v1/chat/completions` endpoint. The plugin's `plugin.yml` declares
 the shared `/rag` route root, `/rag/health`, inherited Kong auth, typed env, and
-upstream dependencies. `register/register_models.py` registers those endpoints
-into LiteLLM as selectable model names.
+upstream dependencies. `atlas.consumer.yml` declares all base and flavor model
+aliases; Atlas validates and compiles them into LiteLLM's startup configuration.
 
 The six approach endpoints are deployed inside the Atlas backend container, not as
 six separate containers. Open WebUI and `compare/run_matrix.py` invoke them through
@@ -64,7 +64,7 @@ PNG: [`diagrams/img/approach-flows.png`](diagrams/img/approach-flows.png).
 
 All approaches start from the same corpus ingestion pipeline: load documents, chunk
 them, embed chunks, build contextual chunks, upload source text to LightRAG, and
-register the six approach endpoints into LiteLLM.
+compile the base and flavor aliases into LiteLLM before it starts.
 
 ### 2.2 Direct retrieval lanes
 
@@ -108,7 +108,7 @@ sequenceDiagram
     participant M as Chat model (light_gen role)
 
     C->>L: POST /v1/chat/completions (model=hybrid-rag)
-    L->>H: forward to registered api_base
+    L->>H: forward to manifest-declared api_base
     H->>L: POST /v1/embeddings (query)
     L-->>H: query vector
     H->>W: hybrid search (BM25 + dense, alpha, retrieve_k)
@@ -142,7 +142,7 @@ flowchart LR
         manifest["atlas.consumer.yml<br/>identity · brand · env · paths · models"]
         overlay["compose/rag-overlay.yml<br/>external manifest overlay"]
         plugdir["backend_plugins/rag/"]
-        tooling["ingest/ · corpus/ · register/"]
+        tooling["ingest/ · corpus/ · alias reconciler"]
         n8ndir["n8n/ (workflow JSON)"]
         harness["compare/*.py + scripts/run-dataset-ladder.py<br/>host-run via uv"]
         ollamahost["Ollama (host) — judge panel models"]

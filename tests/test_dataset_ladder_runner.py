@@ -34,7 +34,7 @@ def test_start_all_supports_service_only_mode() -> None:
     assert "ATLAS_START_PID" not in script
     assert "RAG_SHOWCASE_SKIP_DEFAULT_INGEST" in script
     assert "Skipping default corpus ingest" in script
-    assert "Registering RAG models and flavor aliases" in script
+    assert "Reconciling Atlas-declared LiteLLM model aliases" in script
     assert "import:workflow" in script
     assert "--activeState=fromJson" in script
     assert "adaptive-rag.workflow.json" in script

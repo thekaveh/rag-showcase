@@ -155,10 +155,8 @@ def test_both_loaders_reject_the_same_malformed_manifests(
 
 
 def test_canonical_six_names_agree_across_modules() -> None:
-    # The six names deliberately live in three modules (host-side list, backend
-    # set, register's ordered list); this is the cross-module drift pin.
-    import register.register_models as reg
+    # The host-side and backend loaders must agree on the stable base aliases.
     from rag.common import flavors as backend_flavors
 
-    assert set(reg._NAMES) == backend_flavors.BASE_APPROACHES == set(flavors.BASE_APPROACHES)
-    assert len(reg._NAMES) == 6
+    assert backend_flavors.BASE_APPROACHES == set(flavors.BASE_APPROACHES)
+    assert len(flavors.BASE_APPROACHES) == 6

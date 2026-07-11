@@ -18,13 +18,14 @@ as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse
 
 ## 1. Overview
 
-Each approach is an OpenAI-compatible `/<name>/v1/chat/completions` endpoint in a
+Each approach is an OpenAI-compatible `/rag/<name>/v1/chat/completions` endpoint in a
 self-contained plugin package (`backend_plugins/rag/`) that is bind-mounted into
-Atlas's FastAPI backend through a generic "plugin seam". Each is registered into
-Atlas's LiteLLM gateway via its `/model/new` admin API, so the six approaches
-appear automatically as selectable models in Open WebUI. Named tuning flavors such
-as `graph-rag-wide` can also appear as model aliases; they route to the same base
-approach with reproducible parameter overrides. Open a multi-model chat, select
+Atlas's FastAPI backend through a generic "plugin seam". The six base approaches
+and eight named flavors are declared in `atlas.consumer.yml`; Atlas validates their
+ownership and routes, compiles them into LiteLLM's startup configuration, and makes
+all fourteen aliases selectable in Open WebUI without admin-API registration.
+Flavors such as `graph-rag-wide` route to the same base approach with reproducible
+parameter overrides. Open a multi-model chat, select
 the approaches or flavors you want, and one prompt fans out with a uniform answer,
 retrieved-context, and metrics surface.
 
@@ -43,7 +44,7 @@ retrieval stores, workflow services, and Atlas-managed model routing. Source:
 [`docs/architecture.md`](docs/architecture.md).*
 
 The six RAG approaches are mounted FastAPI routes inside the Atlas backend container;
-LiteLLM registers each route as a model alias, and Open WebUI or the comparison harness
+Atlas declares each route as a LiteLLM model alias, and Open WebUI or the comparison harness
 invoke them through LiteLLM's OpenAI-compatible `/v1/chat/completions` surface.
 
 ### 2.2 Six approach flow phases
@@ -91,8 +92,11 @@ chunking, and temporarily enables MinIO to work around
 [Atlas #503](https://github.com/thekaveh/atlas/issues/503), then relies on Atlas's
 detached health summary before continuing,
 assembles the corpus on the host (`corpus/fetch_corpus.py`), waits for model
-readiness (embed + chat), ingests it into the backend container, registers the
-canonical models plus any configured flavor aliases, and prints the Open WebUI URL.
+readiness (embed + chat), ingests it into the backend container, verifies every
+Atlas-declared base and flavor alias, and prints the Open WebUI URL. Every start
+reconciles exact legacy duplicates from the former database-backed registration;
+unrelated LiteLLM rows and Atlas-owned declarations are never deleted. When rows
+are removed, the wrapper reloads LiteLLM once to clear every worker's route cache.
 On a fresh checkout, Atlas renders its initial bootstrap banner before applying
 the consumer manifest, so that first banner can retain Atlas artwork; subsequent
 starts use the configured RAG-SHOWCASE logo. If Atlas hits the known
@@ -144,7 +148,7 @@ performance for each approach, see [`docs/approaches.md`](docs/approaches.md).
 
 ```
 rag-showcase/
-├── atlas.consumer.yml       # canonical Atlas consumer registration
+├── atlas.consumer.yml       # Atlas integration plus 14 declarative LiteLLM aliases
 ├── infra/                   # Atlas — vendored Git submodule (DO NOT edit here)
 ├── backend_plugins/rag/     # the plugin package mounted into Atlas's backend
 │   ├── plugin.yml           # Atlas route, health, auth, env, and dependency contract
@@ -154,7 +158,6 @@ rag-showcase/
 │   ├── roles.yaml           # role→model map (local-first)
 │   └── flavors.yaml         # Open WebUI/benchmark aliases with tuning overrides
 ├── ingest/                  # corpus → chunk (Docling optional) → Weaviate(base+contextual) + LightRAG
-├── register/                # idempotent LiteLLM /model/new registration
 ├── corpus/                  # curated corpora + fetch/adapter scripts (MultiHop-RAG, keyword, graph-native, cyber-threat)
 ├── compose/                 # backend plugin compose overlay
 ├── config/                  # manifest-imported Atlas env values (LightRAG runtime defaults)
@@ -183,9 +186,9 @@ below expands that operator contract with adjacent Atlas and startup settings.
 
 | Variable | Default | Read by | Source |
 |----------|---------|---------|--------|
-| `LITELLM_BASE_URL` | `http://litellm:4000` | litellm client, register | Atlas backend env |
-| `LITELLM_API_KEY` | — | litellm client, register (fallback), n8n workflow node | Atlas backend env |
-| `LITELLM_MASTER_KEY` | `sk-noauth` (register fallback) | register | Atlas `.env` (not auto-sourced; mapped to `LITELLM_API_KEY` in-container, which the n8n node reads) |
+| `LITELLM_BASE_URL` | `http://litellm:4000` | plugin LiteLLM client | Atlas backend env |
+| `LITELLM_API_KEY` | — | plugin LiteLLM client, n8n workflow node | Atlas backend env |
+| `LITELLM_MASTER_KEY` | — | Atlas declarative alias secret reference; legacy-row reconciliation | Atlas `.env`; injected into LiteLLM by the consumer-model overlay and mapped to `LITELLM_API_KEY` in the backend |
 | `WEAVIATE_URL` | `http://weaviate:8080` | vectors | Atlas backend env |
 | `RAG_WEAVIATE_GRPC_PORT` | `50051` | vectors (in-network gRPC port; distinct from Atlas's host-published `WEAVIATE_GRPC_PORT`) | plugin manifest + overlay |
 | `TEI_RERANKER_ENDPOINT` | `http://tei-reranker:80` | vectors (rerank) | overlay |
@@ -197,7 +200,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | `DOCLING_ENDPOINT` | `""` (unset → naive chunking) | ingest | Atlas backend env (set only when Docling is enabled) |
 | `N8N_ADAPTIVE_WEBHOOK_URL` | `http://n8n:5678/webhook/adaptive-rag` | n8n approach | overlay |
 | `RAG_ROLES_FILE` | `/app/plugins/rag/roles.yaml` | config | plugin manifest; supplied by `config/atlas.env.user` and overlay |
-| `RAG_FLAVORS_FILE` | `/app/plugins/rag/flavors.yaml` | flavors loader, register (approach flavor aliases) | plugin manifest; supplied by `config/atlas.env.user` and overlay |
+| `RAG_FLAVORS_FILE` | `/app/plugins/rag/flavors.yaml` | runtime flavor parameter loader | plugin manifest; supplied by `config/atlas.env.user` and overlay; aliases are declared in `atlas.consumer.yml` and drift-tested against this file |
 | `BACKEND_PLUGINS_DIR` | `/app/plugins` | plugin seam (Atlas) | overlay |
 | `ATLAS_CONSUMER_MANIFEST` | `atlas.consumer.yml` | Atlas bootstrapper | host env; absolute path to the parent-owned consumer manifest |
 | `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | `config/atlas.env.user` |
@@ -269,7 +272,7 @@ LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
 - **First run looks stuck.** If you use Atlas's containerized Ollama source, it may
   be downloading several GB of local models; `start-all.sh` gates on model
   readiness, so let it finish. Watch progress: `docker logs -f "$(grep -E '^PROJECT_NAME=' infra/.env | tail -1 | cut -d= -f2-)-ollama-pull"`.
-- **A model column never answers.** Confirm all six registered (`docker logs <project>-backend`,
+- **A model column never answers.** Confirm the Atlas-declared aliases are visible (`GET /v1/models`,
   or the LiteLLM model list). `n8n-adaptive-rag` additionally needs the checked-in workflow
   imported and active — `start-all.sh` does that automatically (import + restart); if the
   column errors, re-run `./scripts/start-all.sh` or re-import manually

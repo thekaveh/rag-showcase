@@ -72,6 +72,44 @@ rm -f "$ATLAS_START_LOG"
 PROJECT_NAME="$(envval PROJECT_NAME)"
 [ -n "$PROJECT_NAME" ] || { echo "PROJECT_NAME not found in infra/.env; aborting."; exit 1; }
 
+# Atlas's generated file is authoritative for both the alias inventory and
+# routes. Reconcile exact legacy DB duplicates on every start, then verify the
+# owned rows and /v1/models discovery. This preserves all unrelated models and
+# also handles a restored database independently of host-side marker state.
+echo "==> Reconciling Atlas-declared LiteLLM model aliases…"
+ALIAS_CHANGE_FILE="$(mktemp "${TMPDIR:-/tmp}/rag-showcase-aliases.XXXXXX")"
+LITELLM_BASE_URL="http://127.0.0.1:$(envval LITELLM_PORT)" \
+LITELLM_MASTER_KEY="$(envval LITELLM_MASTER_KEY)" \
+  uv run python scripts/reconcile_litellm_aliases.py \
+    --models-file infra/volumes/litellm/consumer-models.yaml \
+    --changed-file "$ALIAS_CHANGE_FILE"
+if [ "$(cat "$ALIAS_CHANGE_FILE")" -gt 0 ]; then
+  # LiteLLM runs four workers. /model/delete removes the DB row, but sibling
+  # workers retain their startup cache until the proxy restarts. Reload once so
+  # this upgraded run cannot route to an obsolete pre-/rag deployment.
+  echo "==> Reloading LiteLLM after legacy alias cleanup…"
+  docker restart "${PROJECT_NAME}-litellm" >/dev/null
+  litellm_ready=0
+  for _ in $(seq 1 60); do
+    if docker exec "${PROJECT_NAME}-backend" python -c \
+         "import httpx,sys; sys.exit(0 if httpx.get('http://litellm:4000/health/liveliness',timeout=5).status_code == 200 else 1)" \
+         >/dev/null 2>&1; then litellm_ready=1; break; fi
+    sleep 2
+  done
+  [ "$litellm_ready" = 1 ] || { rm -f "$ALIAS_CHANGE_FILE"; echo "LiteLLM did not recover after alias cleanup."; exit 1; }
+  LITELLM_BASE_URL="http://127.0.0.1:$(envval LITELLM_PORT)" \
+  LITELLM_MASTER_KEY="$(envval LITELLM_MASTER_KEY)" \
+    uv run python scripts/reconcile_litellm_aliases.py \
+      --models-file infra/volumes/litellm/consumer-models.yaml \
+      --changed-file "$ALIAS_CHANGE_FILE"
+  [ "$(cat "$ALIAS_CHANGE_FILE")" -eq 0 ] || {
+    rm -f "$ALIAS_CHANGE_FILE"
+    echo "Legacy LiteLLM aliases remained after proxy reload." >&2
+    exit 1
+  }
+fi
+rm -f "$ALIAS_CHANGE_FILE"
+
 # Probe n8n /healthz from inside the backend after the wrapper-owned restart.
 wait_for_n8n() {
   local ready=0
@@ -129,45 +167,6 @@ if [ "${RAG_SHOWCASE_SKIP_DEFAULT_INGEST:-0}" != "1" ]; then
   docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
     python /app/ingest/ingest.py /app/corpus/raw
 fi
-
-echo "==> Registering RAG models and flavor aliases in LiteLLM (inside the backend container)…"
-# Run in-container: LiteLLM is reachable at http://litellm:4000 there, the key
-# is present (LITELLM_API_KEY), and httpx is installed by the plugin seam. This
-# also avoids shell-sourcing Atlas's .env (which has unquoted values).
-docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
-  python /app/register/register_models.py
-
-echo "==> Verifying the six LiteLLM model routes are available…"
-routes_ready=0
-for _ in $(seq 1 30); do
-  # -i is load-bearing: without it docker exec does not forward the heredoc on
-  # stdin, `python -` reads EOF, runs an EMPTY program, and exits 0 — turning this
-  # whole verification gate into a no-op that always passes on the first try.
-  if docker exec -i -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" python - <<'PY' >/dev/null 2>&1
-import os
-import sys
-import httpx
-
-required = {
-    "vanilla-rag",
-    "hybrid-rag",
-    "contextual-rag",
-    "graph-rag",
-    "agentic-rag",
-    "n8n-adaptive-rag",
-}
-headers = {"Authorization": f"Bearer {os.environ.get('LITELLM_API_KEY', '')}"}
-r = httpx.get("http://litellm:4000/v1/models", headers=headers, timeout=10)
-r.raise_for_status()
-found = {item.get("id") for item in r.json().get("data", [])}
-sys.exit(0 if required <= found else 1)
-PY
-  then routes_ready=1; break; fi
-  docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
-    python /app/register/register_models.py >/dev/null 2>&1 || true
-  sleep 2
-done
-[ "$routes_ready" = 1 ] || { echo "LiteLLM did not expose all six RAG model routes after registration."; exit 1; }
 
 OWUI="$(envval OPEN_WEB_UI_PORT)"
 [ -n "$OWUI" ] || { echo "OPEN_WEB_UI_PORT not found in infra/.env; aborting."; exit 1; }

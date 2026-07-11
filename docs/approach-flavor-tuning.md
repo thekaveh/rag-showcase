@@ -24,8 +24,9 @@ reproducible experiment surface.
 
 ## 2. Open WebUI Invocation
 
-After startup registration, Open WebUI sees canonical approaches and flavor aliases
-as selectable models. A user invokes a tuned LightRAG path by selecting the alias:
+After Atlas compiles `atlas.consumer.yml`, Open WebUI sees canonical approaches and
+flavor aliases as selectable models. A user invokes a tuned LightRAG path by
+selecting the alias:
 
 ```text
 graph-rag-wide
@@ -45,10 +46,11 @@ Named aliases are easier to discover, reproduce, compare, and document.
 
 ## 3. Configuration Files
 
-Two manifests intentionally mirror each other:
+Three declarations intentionally mirror each other and are drift-tested:
 
 - `backend_plugins/rag/flavors.yaml` controls runtime behavior inside the backend.
 - `compare/flavors.yaml` controls host-side comparison expansion and metadata.
+- `atlas.consumer.yml` declares each base/flavor alias and its backend route to Atlas.
 
 The compose overlay sets:
 

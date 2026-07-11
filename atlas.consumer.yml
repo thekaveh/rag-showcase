@@ -18,6 +18,94 @@ compose_overlays:
 backend_plugins:
   - ./backend_plugins
 
+litellm_models:
+  version: 1
+  models:
+    - name: vanilla-rag
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/vanilla-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: RAG showcase - dense vector retrieval
+      tags: [rag-showcase, rag, base]
+      model_info: {base_approach: vanilla-rag, flavor: false}
+    - name: hybrid-rag
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/hybrid-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: RAG showcase - hybrid dense and lexical retrieval with reranking
+      tags: [rag-showcase, rag, base]
+      model_info: {base_approach: hybrid-rag, flavor: false}
+    - name: contextual-rag
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/contextual-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: RAG showcase - context-enriched hybrid retrieval with reranking
+      tags: [rag-showcase, rag, base]
+      model_info: {base_approach: contextual-rag, flavor: false}
+    - name: graph-rag
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/graph-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: RAG showcase - LightRAG knowledge-graph retrieval
+      tags: [rag-showcase, rag, base]
+      model_info: {base_approach: graph-rag, flavor: false}
+    - name: agentic-rag
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/agentic-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: RAG showcase - ReAct agent over vector and graph tools
+      tags: [rag-showcase, rag, base]
+      model_info: {base_approach: agentic-rag, flavor: false}
+    - name: n8n-adaptive-rag
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/n8n-adaptive-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: RAG showcase - n8n-classified adaptive retrieval
+      tags: [rag-showcase, rag, base]
+      model_info: {base_approach: n8n-adaptive-rag, flavor: false}
+    - name: vanilla-rag-wide
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/vanilla-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Dense retrieval with a larger stuffed context window
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: vanilla-rag, flavor: true}
+    - name: hybrid-rag-high-recall
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/hybrid-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Larger BM25 and dense candidate pool before TEI reranking
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: hybrid-rag, flavor: true}
+    - name: hybrid-rag-fast
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/hybrid-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Smaller hybrid candidate pool without TEI reranking
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: hybrid-rag, flavor: true}
+    - name: contextual-rag-high-recall
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/contextual-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Contextual retrieval with a larger candidate pool before reranking
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: contextual-rag, flavor: true}
+    - name: graph-rag-fast
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/graph-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Lower LightRAG fanout for faster graph answers
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: graph-rag, flavor: true}
+    - name: graph-rag-wide
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/graph-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Wider LightRAG graph and chunk fanout for relationship-heavy queries
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: graph-rag, flavor: true}
+    - name: agentic-rag-deeper
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/agentic-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: More ReAct steps and wider vector-tool retrieval
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: agentic-rag, flavor: true}
+    - name: n8n-adaptive-rag-default
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/n8n-adaptive-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Explicit alias for the current n8n adaptive workflow
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: n8n-adaptive-rag, flavor: true}
+
 model_sidecars:
   ollama:
     - mistral-small3.2:24b

@@ -4,10 +4,10 @@ A living record of how well Atlas served as reusable infra for this project.
 
 ## 1. What Reused Cleanly (Out of the Box)
 
-- **LiteLLM service-as-a-model pattern:** Registered all six custom-`api_base`
-  approaches via LiteLLM's `/model/new` admin API (`STORE_MODEL_IN_DB=True`) with
-  **zero Atlas edits** for registration. Atlas's existing `lightrag` and
-  `hermes-agent` model entries were the existence proof.
+- **Declarative LiteLLM consumer models:** `atlas.consumer.yml` declares all six
+  base approaches and eight flavor aliases. Atlas validates endpoint ownership,
+  compiles model rows before LiteLLM starts, and exposes the same aliases to Open
+  WebUI and API clients without database registration calls.
 - **The `gen-ai-rag` track:** Brings up Weaviate + Neo4j + LightRAG + TEI
   reranker + Docling + n8n + Open WebUI in a single flag, all pre-wired into the
   base stack. Rag-showcase explicitly disables Docling for a hardware-neutral
@@ -19,7 +19,7 @@ A living record of how well Atlas served as reusable infra for this project.
   requiring any custom UI implementation.
 - **The consumer-manifest seam:** `atlas.consumer.yml` now registers project and
   brand metadata, the env file, external Compose overlay, backend plugin root,
-  and Ollama model sidecar from the parent repository. Atlas validates and
+  LiteLLM aliases, and Ollama model sidecar from the parent repository. Atlas validates and
   launches the assembled integration without any symlink inside the submodule.
 
 ## 2. Friction Found / Seams Added
@@ -57,17 +57,19 @@ satisfies it, so no startup reinstall normally happens. The plugin does not use
 `neo4j` directly — it reaches the graph only via LightRAG over HTTP — so it
 neither installs nor imports it.
 
-### 2.3 No `api_base` column in `public.llms`
+### 2.3 Custom LiteLLM endpoint ownership
 
-`public.llms` has no `api_base` column and its `openai` provider routes to
-`api.openai.com`. The table cannot express custom-endpoint models. The
-`/model/new` admin API was the correct channel and worked well; this pattern
-should be **documented for Atlas** as the preferred way to register custom
-OpenAI-compatible endpoints.
-
-> **Resolved upstream.** Atlas `ec927c5` removed `public.llms` entirely — model
-> source-of-truth moved to per-service YAML — so this table-level limitation no
-> longer applies. The `/model/new` admin API remains the channel the showcase uses.
+The original implementation stored custom endpoint rows through LiteLLM's admin
+API because Atlas had no consumer-owned alias contract. That made ownership
+implicit and left persisted duplicates during migration. Atlas #411 resolved the
+gap with versioned `litellm_models` declarations, approved endpoint templates,
+derived ownership metadata, collision checks, secret references, and generated
+startup configuration. Rag-showcase now uses that contract exclusively during
+normal operation. An idempotent exact-match reconciliation removes only unowned
+rows created by the retired registration script, including both the historical
+`/<approach>/v1` and current `/rag/<approach>/v1` route shapes. Because LiteLLM's
+four workers retain per-process route caches, a changed reconciliation triggers
+one proxy restart and a fresh zero-change verification.
 
 ### 2.4 In-container path mismatch
 
@@ -208,11 +210,9 @@ classification before returning.
   already ships `weaviate-client` and `neo4j`; the plugin's own range is a
   compatibility cap that Atlas's install already satisfies. (Originally filed as
   a gap — corrected after checking the vendored image's `requirements.txt`.)
-- **(Resolved)** Originally: *add an `api_base` column to `public.llms`* to express
-  custom-endpoint models natively. Atlas has since removed `public.llms` outright
-  (model source-of-truth moved to per-service YAML, `ec927c5`); the showcase now
-  registers its custom OpenAI-compatible endpoints via the `/model/new` admin API,
-  which remains the supported pattern.
+- **(Resolved) Consumer-owned LiteLLM aliases:** Atlas #411 added declarative
+  `litellm_models` support. The showcase now owns all fourteen route aliases in
+  `atlas.consumer.yml`; Atlas renders and validates them without admin API calls.
 - **(Resolved) Load parent-owned Compose overlays directly:** Atlas's
   `atlas.consumer.yml` `compose_overlays` block supersedes the proposed
   `--extra-compose` flag and removes the `_user/` symlink requirement.
@@ -263,7 +263,7 @@ previously-open items are now assessed:
 
 ### 4.1 Atlas `fe55e838` baseline revalidation (2026-07-11)
 
-- `scripts/start-all.sh` completed in service-only mode and registered every
+- `scripts/start-all.sh` completed in service-only mode and verified every
   canonical and flavor alias.
 - The live six-approach smoke suite passed: **8 tests passed**.
 - A graph-native document was inserted through LightRAG, extraction drained, and

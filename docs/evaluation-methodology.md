@@ -39,9 +39,12 @@ Each approach exposes an OpenAI-compatible route:
 /rag/<approach>/v1/chat/completions
 ```
 
-`register/register_models.py` registers those routes in LiteLLM as model aliases.
-Open WebUI and the automated harness both call LiteLLM's `/v1/chat/completions`
-endpoint, so interactive and measured runs exercise the same deployment path.
+`atlas.consumer.yml` declares those routes and their flavor aliases. Atlas stamps
+consumer ownership, validates the routes against the plugin manifest, and merges
+the rows into LiteLLM's configuration before startup. Open WebUI and the automated
+harness both discover those same aliases through `/v1/models` and call LiteLLM's
+`/v1/chat/completions` endpoint, so interactive and measured runs exercise the same
+deployment path.
 
 The six canonical aliases are:
 

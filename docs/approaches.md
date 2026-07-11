@@ -23,7 +23,7 @@ that `/rag` root, `/rag/health`, inherited Kong auth, typed configuration, and
 the plugin's service dependencies. Atlas validates the manifest in consumer
 doctor and again before loading the plugin.
 
-The backend routes are registered as LiteLLM model aliases, so Open WebUI and
+The backend routes are declared as Atlas-managed LiteLLM model aliases, so Open WebUI and
 the comparison harness invoke every approach through LiteLLM's common
 `/v1/chat/completions` surface rather than calling the backend directly. Named
 flavors such as `graph-rag-wide` point at the same base route and are resolved
