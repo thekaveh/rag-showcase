@@ -7,7 +7,8 @@ Git submodule at `infra/`) and comes up with **one command**.
 
 Atlas's requirements apply:
 
-- **Docker** + **Docker Compose v2**, installed and running.
+- **Docker** + **Docker Compose 2.24.4 or newer**, installed and running. The
+  temporary disabled-service compatibility overlay uses Compose's `!reset` tag.
 - The vendored `infra/` submodule initialized:
   ```bash
   git submodule update --init --recursive
@@ -31,8 +32,9 @@ This single script:
 1. Runs the overlay setup (and **brands** the vendored Atlas as `rag-showcase` —
    `rag-showcase-*` containers/network and a startup banner).
 2. Starts the Atlas `gen-ai-rag` stack — LightRAG, TEI reranker, Weaviate, Neo4j,
-   Open WebUI, LiteLLM (Docling is off by default; ingestion falls back to naive
-   text chunking) — plus n8n via an explicit `--n8n-source container` flag.
+   n8n, Open WebUI, and LiteLLM. The showcase wrapper explicitly disables the
+   hardware-dependent Docling source, so ingestion uses portable naive text chunking,
+   and temporarily enables MinIO for [Atlas #503](https://github.com/thekaveh/atlas/issues/503).
 3. Waits for the backend, LightRAG, and Weaviate, then **assembles the corpus** on the
    host (`corpus/fetch_corpus.py`).
 4. Waits for model readiness (embed + chat), **ingests** the corpus into the backend,

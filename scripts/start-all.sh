@@ -18,12 +18,12 @@ echo "==> Starting Atlas (gen-ai-rag track)…"
 # the .md/.txt corpus works with no GPU. For structure-aware chunking, switch to
 # --doc-processor-source docling-localhost (run Docling on the host) or
 # docling-container-gpu (needs an NVIDIA GPU).
-# --n8n-source container: n8n isn't part of the gen-ai-rag track, but
-# n8n-adaptive-rag needs it; request it explicitly so Atlas doesn't force-disable
-# it on the non-interactive launch path.
+# Atlas #503: the current dependency checker treats disabled Trino as enabled
+# unless MinIO is available. Keep MinIO on until Atlas derives enablement from
+# service manifests; remove this explicit source when that fix is pinned.
 ( cd infra && ./start.sh --track gen-ai-rag --lightrag-source container \
     --tei-reranker-source container-cpu --doc-processor-source disabled \
-    --n8n-source container ) &
+    --minio-source container ) &
 ATLAS_START_PID=$!
 cleanup_atlas_start() {
   if kill -0 "$ATLAS_START_PID" >/dev/null 2>&1; then
