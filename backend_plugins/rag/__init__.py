@@ -1,7 +1,20 @@
 """RAG showcase backend plugin — exposes `router` for the Atlas plugin seam."""
 from fastapi import APIRouter
 
-router = APIRouter()
+from .common import flavors
+
+
+router = APIRouter(prefix="/rag")
+
+
+@router.get("/health")
+async def health() -> dict[str, object]:
+    """Report plugin liveness and the approach routes mounted under this root."""
+    return {
+        "status": "ok",
+        "plugin": "rag-showcase",
+        "approaches": sorted(flavors.BASE_APPROACHES),
+    }
 
 # Include all six approach routers onto the aggregate router the seam loads.
 from .approaches import vanilla  # noqa: E402

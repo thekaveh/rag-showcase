@@ -301,14 +301,14 @@ def test_search_hybrid_passes_alpha_k_and_requests_score(monkeypatch):
     assert hits == [vectors.Hit("T", "txt", 0.5)]
 
 
-def test_weaviate_grpc_port_validation(monkeypatch):
+def test_rag_weaviate_grpc_port_validation(monkeypatch):
     import sys
     import types
     # the port parse (and its self-describing ValueError) happens before any
     # client construction, so an empty module stub suffices for the guard path.
     monkeypatch.setitem(sys.modules, "weaviate", types.ModuleType("weaviate"))
-    monkeypatch.setenv("WEAVIATE_GRPC_PORT", "not-a-port")
-    with pytest.raises(ValueError, match="WEAVIATE_GRPC_PORT"):
+    monkeypatch.setenv("RAG_WEAVIATE_GRPC_PORT", "not-a-port")
+    with pytest.raises(ValueError, match="RAG_WEAVIATE_GRPC_PORT"):
         vectors._weaviate()
 
 

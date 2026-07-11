@@ -47,6 +47,7 @@ def test_main_docs_link_to_approach_internals() -> None:
     assert "approaches.md" in comparison
     assert "docs/evaluation-methodology.md" in readme
     assert "evaluation-methodology.md" in comparison
+    assert "backend_plugins/rag/plugin.yml" in readme
 
 
 def test_flavor_tuning_doc_is_linked_and_covers_invocation() -> None:

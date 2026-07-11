@@ -25,14 +25,18 @@ services:
   backend:
     environment:
       BACKEND_PLUGINS_DIR: /app/plugins
-      RAG_ROLES_FILE: /app/plugins/rag/roles.yaml
-      RAG_FLAVORS_FILE: /app/plugins/rag/flavors.yaml
+      RAG_ROLES_FILE: ${RAG_ROLES_FILE:-/app/plugins/rag/roles.yaml}
+      RAG_FLAVORS_FILE: ${RAG_FLAVORS_FILE:-/app/plugins/rag/flavors.yaml}
+      RAG_WEAVIATE_GRPC_PORT: ${RAG_WEAVIATE_GRPC_PORT:-50051}
       TEI_RERANKER_ENDPOINT: ${TEI_RERANKER_ENDPOINT:-http://tei-reranker:80}
+      TEI_RERANKER_MAX_BATCH: ${TEI_RERANKER_MAX_BATCH:-32}
       N8N_ADAPTIVE_WEBHOOK_URL: ${N8N_ADAPTIVE_WEBHOOK_URL:-http://n8n:5678/webhook/adaptive-rag}
       LIGHTRAG_QUERY_ENABLE_RERANK: ${LIGHTRAG_QUERY_ENABLE_RERANK:-false}
       LIGHTRAG_QUERY_TOP_K: ${LIGHTRAG_QUERY_TOP_K:-10}
       LIGHTRAG_QUERY_CHUNK_TOP_K: ${LIGHTRAG_QUERY_CHUNK_TOP_K:-5}
       LIGHTRAG_QUERY_MAX_TOTAL_TOKENS: ${LIGHTRAG_QUERY_MAX_TOTAL_TOKENS:-12000}
+      LIGHTRAG_UPLOAD_RETRIES: ${LIGHTRAG_UPLOAD_RETRIES:-60}
+      LIGHTRAG_UPLOAD_RETRY_DELAY: ${LIGHTRAG_UPLOAD_RETRY_DELAY:-5.0}
     volumes:
       - ../backend_plugins:/app/plugins:ro
       - ../ingest:/app/ingest:ro

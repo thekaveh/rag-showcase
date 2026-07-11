@@ -102,7 +102,7 @@
 
           <!-- helper: all lane boxes manually placed -->
           <!-- vanilla -->
-          <rect x="210" y="236" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="298" y="258" fill="white" text-anchor="middle">1.1 /vanilla-rag</text><text x="298" y="276" fill="#94a3b8" text-anchor="middle">OpenAI chat request</text>
+          <rect x="210" y="236" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="298" y="258" fill="white" text-anchor="middle">1.1 model=vanilla-rag</text><text x="298" y="276" fill="#94a3b8" text-anchor="middle">OpenAI chat request</text>
           <rect x="424" y="236" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="512" y="258" fill="white" text-anchor="middle">2.1 embed query</text><text x="512" y="276" fill="#94a3b8" text-anchor="middle">nomic-embed-text</text>
           <rect x="688" y="236" width="176" height="54" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.3"/><text x="776" y="258" fill="white" text-anchor="middle">3.1 RagBase</text><text x="776" y="276" fill="#94a3b8" text-anchor="middle">dense top-k=5</text>
           <rect x="952" y="236" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="1040" y="258" fill="white" text-anchor="middle">4.1 stuff context</text><text x="1040" y="276" fill="#94a3b8" text-anchor="middle">top chunks only</text>
@@ -111,7 +111,7 @@
           <rect x="1690" y="236" width="120" height="54" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.3"/><text x="1750" y="258" fill="white" text-anchor="middle">baseline</text><text x="1750" y="276" fill="#94a3b8" text-anchor="middle">fast/simple</text>
 
           <!-- hybrid -->
-          <rect x="210" y="356" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="298" y="378" fill="white" text-anchor="middle">1.1 /hybrid-rag</text><text x="298" y="396" fill="#94a3b8" text-anchor="middle">same request shape</text>
+          <rect x="210" y="356" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="298" y="378" fill="white" text-anchor="middle">1.1 model=hybrid-rag</text><text x="298" y="396" fill="#94a3b8" text-anchor="middle">same request shape</text>
           <rect x="424" y="356" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="512" y="378" fill="white" text-anchor="middle">2.1 embed + text</text><text x="512" y="396" fill="#94a3b8" text-anchor="middle">semantic + BM25</text>
           <rect x="688" y="356" width="176" height="54" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.3"/><text x="776" y="378" fill="white" text-anchor="middle">3.1 RagBase</text><text x="776" y="396" fill="#94a3b8" text-anchor="middle">hybrid retrieve k=20</text>
           <rect x="952" y="356" width="176" height="54" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.3"/><text x="1040" y="378" fill="white" text-anchor="middle">4.1 TEI rerank</text><text x="1040" y="396" fill="#94a3b8" text-anchor="middle">top_n=5</text>
@@ -120,7 +120,7 @@
           <rect x="1690" y="356" width="120" height="54" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.3"/><text x="1750" y="378" fill="white" text-anchor="middle">keyword IDs</text><text x="1750" y="396" fill="#94a3b8" text-anchor="middle">predictable</text>
 
           <!-- contextual -->
-          <rect x="210" y="476" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="298" y="498" fill="white" text-anchor="middle">1.1 /contextual-rag</text><text x="298" y="516" fill="#94a3b8" text-anchor="middle">same request shape</text>
+          <rect x="210" y="476" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="298" y="498" fill="white" text-anchor="middle">1.1 model=contextual-rag</text><text x="298" y="516" fill="#94a3b8" text-anchor="middle">same request shape</text>
           <rect x="424" y="476" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="512" y="498" fill="white" text-anchor="middle">2.1 embed + text</text><text x="512" y="516" fill="#94a3b8" text-anchor="middle">semantic + BM25</text>
           <rect x="688" y="476" width="176" height="54" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.3"/><text x="776" y="498" fill="white" text-anchor="middle">3.1 RagContextual</text><text x="776" y="516" fill="#94a3b8" text-anchor="middle">blurb-prefixed chunks</text>
           <rect x="952" y="476" width="176" height="54" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.3"/><text x="1040" y="498" fill="white" text-anchor="middle">4.1 TEI rerank</text><text x="1040" y="516" fill="#94a3b8" text-anchor="middle">top_n=5</text>
@@ -129,7 +129,7 @@
           <rect x="1690" y="476" width="120" height="54" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.3"/><text x="1750" y="498" fill="white" text-anchor="middle">robust</text><text x="1750" y="516" fill="#94a3b8" text-anchor="middle">top score</text>
 
           <!-- graph -->
-          <rect x="210" y="596" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="298" y="618" fill="white" text-anchor="middle">1.1 /graph-rag</text><text x="298" y="636" fill="#94a3b8" text-anchor="middle">delegating endpoint</text>
+          <rect x="210" y="596" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="298" y="618" fill="white" text-anchor="middle">1.1 model=graph-rag</text><text x="298" y="636" fill="#94a3b8" text-anchor="middle">delegating endpoint</text>
           <rect x="424" y="596" width="176" height="54" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.3"/><text x="512" y="618" fill="white" text-anchor="middle">2.1 LightRAG query</text><text x="512" y="636" fill="#94a3b8" text-anchor="middle">mode=hybrid</text>
           <rect x="688" y="596" width="176" height="54" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.3"/><text x="776" y="618" fill="white" text-anchor="middle">3.1 KG + vector</text><text x="776" y="636" fill="#94a3b8" text-anchor="middle">entities + relations</text>
           <rect x="952" y="596" width="176" height="54" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.3"/><text x="1040" y="618" fill="white" text-anchor="middle">4.1 graph context</text><text x="1040" y="636" fill="#94a3b8" text-anchor="middle">rerank disabled</text>
@@ -138,7 +138,7 @@
           <rect x="1690" y="596" width="120" height="54" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.3"/><text x="1750" y="618" fill="white" text-anchor="middle">profile-sensitive</text><text x="1750" y="636" fill="#94a3b8" text-anchor="middle">fast when tuned</text>
 
           <!-- agentic -->
-          <rect x="210" y="716" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="298" y="738" fill="white" text-anchor="middle">1.1 /agentic-rag</text><text x="298" y="756" fill="#94a3b8" text-anchor="middle">research-agent prompt</text>
+          <rect x="210" y="716" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="298" y="738" fill="white" text-anchor="middle">1.1 model=agentic-rag</text><text x="298" y="756" fill="#94a3b8" text-anchor="middle">research-agent prompt</text>
           <rect x="424" y="716" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="512" y="738" fill="white" text-anchor="middle">2.1 ReAct loop</text><text x="512" y="756" fill="#94a3b8" text-anchor="middle">MAX_STEPS=4</text>
           <rect x="688" y="716" width="176" height="54" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.3"/><text x="776" y="738" fill="white" text-anchor="middle">3.1 tools</text><text x="776" y="756" fill="#94a3b8" text-anchor="middle">vectors or graph</text>
           <rect x="952" y="716" width="176" height="54" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="1.3"/><text x="1040" y="738" fill="white" text-anchor="middle">4.1 observations</text><text x="1040" y="756" fill="#94a3b8" text-anchor="middle">tool trace builds up</text>
@@ -147,7 +147,7 @@
           <rect x="1690" y="716" width="120" height="54" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.3"/><text x="1750" y="738" fill="white" text-anchor="middle">flexible</text><text x="1750" y="756" fill="#94a3b8" text-anchor="middle">step-limited</text>
 
           <!-- n8n -->
-          <rect x="210" y="836" width="176" height="54" rx="6" fill="#0f172a" stroke="#fb923c" stroke-width="1.3"/><text x="298" y="858" fill="white" text-anchor="middle">1.1 /n8n-adaptive-rag</text><text x="298" y="876" fill="#94a3b8" text-anchor="middle">thin webhook wrapper</text>
+          <rect x="210" y="836" width="176" height="54" rx="6" fill="#0f172a" stroke="#fb923c" stroke-width="1.3"/><text x="298" y="858" fill="white" text-anchor="middle">1.1 model=n8n-adaptive-rag</text><text x="298" y="876" fill="#94a3b8" text-anchor="middle">thin webhook wrapper</text>
           <rect x="424" y="836" width="176" height="54" rx="6" fill="#0f172a" stroke="#fb923c" stroke-width="1.3"/><text x="512" y="858" fill="white" text-anchor="middle">2.1 classify</text><text x="512" y="876" fill="#94a3b8" text-anchor="middle">simple vs complex</text>
           <rect x="688" y="836" width="176" height="54" rx="6" fill="#0f172a" stroke="#fb923c" stroke-width="1.3"/><text x="776" y="858" fill="white" text-anchor="middle">3.1 route</text><text x="776" y="876" fill="#94a3b8" text-anchor="middle">vanilla or agentic</text>
           <rect x="952" y="836" width="176" height="54" rx="6" fill="#0f172a" stroke="#fb923c" stroke-width="1.3"/><text x="1040" y="858" fill="white" text-anchor="middle">4.1 selected path</text><text x="1040" y="876" fill="#94a3b8" text-anchor="middle">HTTP Call Approach</text>
@@ -195,7 +195,7 @@
         </ul>
       </div>
     </div>
-    <p class="footer">Each approach lane is deployed as a mounted FastAPI route inside Atlas backend, registered as a LiteLLM model alias, then invoked by Open WebUI or compare/run_matrix.py through LiteLLM /v1/chat/completions.</p>
+    <p class="footer">Each LiteLLM model alias maps to /rag/&lt;approach&gt;/v1 inside the Atlas backend container; Open WebUI and compare/run_matrix.py invoke those routes through LiteLLM /v1/chat/completions.</p>
   </div>
 </body>
 </html>

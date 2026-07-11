@@ -32,7 +32,7 @@ def _model_spec(name: str, base: str | None = None, description: str | None = No
         "model_name": name,
         "litellm_params": {
             "model": f"openai/{name}",
-            "api_base": f"http://backend:8000/{base}/v1",
+            "api_base": f"http://backend:8000/rag/{base}/v1",
         },
         "model_info": {"description": description or f"RAG showcase: {name}"},
     }

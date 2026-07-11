@@ -8,4 +8,7 @@ def test_plugin_router_exposes_all_six_approach_routes():
     # approach in production with the whole suite green: every test mounts the
     # per-approach sub-router, and imports alone gave __init__ 100% line coverage.
     paths = {route.path for route in router.routes}
-    assert paths == {f"/{name}/v1/chat/completions" for name in flavors.BASE_APPROACHES}
+    assert paths == {
+        "/rag/health",
+        *(f"/rag/{name}/v1/chat/completions" for name in flavors.BASE_APPROACHES),
+    }

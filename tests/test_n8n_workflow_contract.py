@@ -59,3 +59,4 @@ def test_classify_node_delegates_model_defaults_to_litellm() -> None:
 def test_route_node_targets_registered_base_approaches() -> None:
     js = _node(_workflow(), "Route")["parameters"]["jsCode"]
     assert "agentic-rag" in js and "vanilla-rag" in js
+    assert "http://backend:8000/rag/" in js

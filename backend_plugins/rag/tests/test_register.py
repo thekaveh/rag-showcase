@@ -77,9 +77,9 @@ flavors:
     by_name = {p["model_name"]: p for p in payloads}
     assert "graph-rag-wide" in by_name
     assert by_name["graph-rag-wide"]["litellm_params"]["model"] == "openai/graph-rag-wide"
-    assert by_name["graph-rag-wide"]["litellm_params"]["api_base"] == "http://backend:8000/graph-rag/v1"
+    assert by_name["graph-rag-wide"]["litellm_params"]["api_base"] == "http://backend:8000/rag/graph-rag/v1"
     assert "hybrid-rag-high-recall" in by_name
-    assert by_name["hybrid-rag-high-recall"]["litellm_params"]["api_base"] == "http://backend:8000/hybrid-rag/v1"
+    assert by_name["hybrid-rag-high-recall"]["litellm_params"]["api_base"] == "http://backend:8000/rag/hybrid-rag/v1"
 
 
 @pytest.mark.asyncio
