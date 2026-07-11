@@ -137,7 +137,7 @@ The most reliable assertion is request-level observation through LiteLLM logs, a
 ## 7. Rag-Showcase Configuration
 
 Rag-showcase now declares Atlas's public inputs in `config/atlas.env.user`, which
-`scripts/start-all.sh` selects through `ATLAS_ENV_USER_FILE`:
+`atlas.consumer.yml` imports through its `env.file` declaration:
 
 ```dotenv
 LIGHTRAG_EMBEDDING_MODEL=nomic-embed-text
@@ -149,8 +149,8 @@ LIGHTRAG_EXTRACT_LLM_TIMEOUT=900
 ```
 
 Operators can choose different models or provider sources without editing Atlas
-or the Compose overlay by copying that file, changing the copy, and exporting its
-absolute path as `ATLAS_ENV_USER_FILE`.
+or the Compose overlay by selecting a local `atlas.consumer.yml` copy whose
+`env.file` points at a customized ignored env file.
 
 The rag-showcase graph wrapper also sends these `/query` defaults:
 

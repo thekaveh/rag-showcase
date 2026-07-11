@@ -131,19 +131,23 @@ the endpoint and a routed approach.
 The project's central mechanism — vendored Atlas plus a non-invasive overlay —
 shown as the compose-level view. Everything in the `Atlas stack` subgraph is
 Atlas-owned; the showcase contributes only the overlay file, the mounted
-directories, and the parent-owned `config/atlas.env.user` selected through
-`ATLAS_ENV_USER_FILE`.
+directories, and the parent-owned `atlas.consumer.yml`, which imports
+`config/atlas.env.user` and registers the external paths directly.
 
 ```mermaid
 flowchart LR
     subgraph host["Host (this repository)"]
-        overlay["compose/rag-overlay.yml<br/>symlinked into infra/services/_user/"]
+        manifest["atlas.consumer.yml<br/>identity · brand · env · paths · models"]
+        overlay["compose/rag-overlay.yml<br/>external manifest overlay"]
         plugdir["backend_plugins/rag/"]
         tooling["ingest/ · corpus/ · register/"]
         n8ndir["n8n/ (workflow JSON)"]
         harness["compare/*.py + scripts/run-dataset-ladder.py<br/>host-run via uv"]
         ollamahost["Ollama (host) — judge panel models"]
     end
+
+    manifest --> overlay
+    manifest --> plugdir
 
     subgraph atlas["Atlas stack (infra/ submodule, docker compose)"]
         backend["backend (FastAPI)<br/>plugin seam mounts /app/plugins"]
@@ -156,7 +160,7 @@ flowchart LR
         ollama["ollama (container provider source)"]
     end
 
-    overlay -. "auto-discovered by the<br/>bootstrapper's _user glob" .-> atlas
+    overlay -. "registered directly by<br/>the consumer manifest" .-> atlas
     plugdir -- "bind mount :ro → /app/plugins" --> backend
     tooling -- "bind mounts :ro → /app/*" --> backend
     n8ndir -- "bind mount :ro → /showcase-n8n" --> n8n
