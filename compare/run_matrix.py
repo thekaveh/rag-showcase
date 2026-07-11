@@ -111,7 +111,7 @@ def main() -> None:
         # Without these the run would grind through every cell against
         # "http://localhost:" and exit 0 with a 100%-error matrix.
         raise SystemExit("LITELLM_PORT / LITELLM_MASTER_KEY not found in infra/.env — "
-                         "run scripts/start-all.sh (or scripts/setup-overlay.sh) first")
+                         "run scripts/start-all.sh first")
     base = f"http://localhost:{port}"
     query_path = ROOT / queries_file()
     queries = yaml.safe_load(query_path.read_text(encoding="utf-8")) or []

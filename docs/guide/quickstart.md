@@ -15,7 +15,7 @@ Atlas's requirements apply:
   ```
 - Host tools **`uv`** and **`python3`** (Atlas's bootstrapper and the host-side corpus fetch use them).
 - An Atlas-supported LLM backend. The default local path uses Atlas's Ollama provider;
-  use an alternate parent-owned `ATLAS_ENV_USER_FILE` with
+  use the local manifest/env pattern below with
   `LLM_PROVIDER_SOURCE=ollama-localhost` to select an existing host Ollama.
 - Disk / RAM / headroom for the `gen-ai-rag` stack plus your chosen local models. The
   default local run activates `mistral-small3.2:24b` for LightRAG's graph roles — see
@@ -29,13 +29,15 @@ Atlas's requirements apply:
 
 This single script:
 
-1. Selects `config/atlas.env.user`, runs Atlas's headless env backfill and
-   Compose validation against a temporary merged env, and links the showcase
-   Compose overlay.
+1. Selects `atlas.consumer.yml`, materializes its values into a temporary active
+   env, and runs Atlas's headless env backfill, manifest-aware Compose validation,
+   and consumer doctor. The manifest declares project/brand metadata, the env
+   file, external Compose overlay, backend plugin root, and Ollama sidecar without
+   tracked Atlas modifications or a `_user` symlink.
 2. Starts the Atlas `gen-ai-rag` stack with `--no-tui --detach`; Atlas applies
    the `rag-showcase` project and brand metadata, waits on Compose health, and
    returns. On a fresh checkout, the initial bootstrap banner can retain Atlas
-   artwork because Atlas renders it before applying the external overlay. The
+   artwork because Atlas renders it before applying the consumer manifest. The
    stack includes LightRAG, TEI reranker, Weaviate, Neo4j,
    n8n, Open WebUI, and LiteLLM. The showcase wrapper explicitly disables the
    hardware-dependent Docling source, so ingestion uses portable naive text chunking,
@@ -65,18 +67,19 @@ Stop everything with:
 ```
 
 To customize Atlas-owned values without editing the submodule, copy the committed
-overlay to an ignored local file and select it explicitly:
+manifest and env file, point the manifest copy at the env copy, and select it:
 
 ```bash
+cp atlas.consumer.yml atlas.consumer.local.yml
 cp config/atlas.env.user .env.rag-showcase
-# Edit .env.rag-showcase, then:
-ATLAS_ENV_USER_FILE="$PWD/.env.rag-showcase" ./scripts/start-all.sh
+# In atlas.consumer.local.yml set env.file: ./.env.rag-showcase, then edit both.
+ATLAS_CONSUMER_MANIFEST="$PWD/atlas.consumer.local.yml" ./scripts/start-all.sh
 ```
 
 Atlas's detached startup revalidates after applying the wrapper's source flags.
 Those flags deliberately fix LightRAG to a container, TEI to its CPU container,
 Docling to disabled, and MinIO to a temporary compatibility container. Alternate
-env overlays customize provider, model, branding, and other consumer values; use
+consumer manifests customize provider, model, branding, and other consumer values; use
 Atlas directly with different source flags for a different service topology.
 
 ## 3. Corpus Note

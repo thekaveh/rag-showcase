@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Run Atlas headless checks under the selected parent-owned env overlay."""
+"""Run Atlas headless checks for the selected consumer manifest."""
 
 from __future__ import annotations
 
 import os
 import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -13,32 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def parse_env_overlay(path: Path) -> dict[str, str]:
-    """Parse the dotenv subset supported by Atlas external env overlays."""
-    values: dict[str, str] = {}
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-
-        key, value = line.split("=", 1)
-        value = value.strip()
-        if value[:1] in ('"', "'"):
-            quote = value[0]
-            end = value.find(quote, 1)
-            value = value[1:end] if end != -1 else value.strip('"\'')
-        else:
-            for index, char in enumerate(value):
-                if char == "#" and (index == 0 or value[index - 1] in " \t"):
-                    value = value[:index]
-                    break
-            value = value.strip()
-        values[key.strip()] = value
-    return values
-
-
 def merge_env_overrides(content: str, overrides: dict[str, str]) -> str:
-    """Apply parsed overlay values using Atlas's replace-or-append semantics."""
+    """Apply Atlas consumer values using Atlas's replace-or-append semantics."""
     merged = content
     for key, value in overrides.items():
         pattern = rf"^{re.escape(key)}=.*$"
@@ -57,38 +34,47 @@ def merge_env_overrides(content: str, overrides: dict[str, str]) -> str:
     return merged
 
 
-def run_preflight(overlay: Path) -> None:
-    """Validate a temporary active env containing the consumer overlay."""
-    if not overlay.is_file():
-        raise SystemExit(f"Atlas env overlay is missing or unreadable: {overlay}")
-    overrides = parse_env_overlay(overlay)
-    if "PROJECT_NAME" not in overrides:
-        raise SystemExit(f"Atlas env overlay must declare PROJECT_NAME: {overlay}")
+def load_manifest_overrides(infra: Path, manifest: Path) -> dict[str, str]:
+    """Resolve consumer env through the pinned Atlas manifest implementation."""
+    bootstrapper = str(infra / "bootstrapper")
+    if bootstrapper not in sys.path:
+        sys.path.insert(0, bootstrapper)
+    from core.consumer_manifest import load_consumer_config
 
+    config = load_consumer_config(infra, explicit_paths=[str(manifest)])
+    return config.env_overrides
+
+
+def run_preflight(manifest: Path) -> None:
+    """Validate a temporary active env assembled from the consumer manifest."""
+    manifest = manifest.expanduser().resolve()
+    if not manifest.is_file():
+        raise SystemExit(f"Atlas consumer manifest is missing: {manifest}")
     infra = ROOT / "infra"
     active_env = infra / ".env"
     baseline = active_env if active_env.is_file() else infra / ".env.example"
     if not baseline.is_file():
         raise SystemExit(f"Atlas env baseline is missing: {baseline}")
 
+    overrides = load_manifest_overrides(infra, manifest)
     merged = merge_env_overrides(baseline.read_text(encoding="utf-8"), overrides)
     command_env = os.environ.copy()
-    command_env["ATLAS_ENV_USER_FILE"] = str(overlay)
-
+    command_env["ATLAS_CONSUMER_MANIFEST"] = str(manifest)
+    prefix = ("./start.sh", "--consumer", str(manifest))
     with tempfile.TemporaryDirectory(prefix="rag-showcase-atlas-") as temp_dir:
         env_file = Path(temp_dir) / ".env"
         env_file.write_text(merged, encoding="utf-8")
         command_env["ATLAS_ENV_FILE"] = str(env_file)
-        for command in (
-            ("./start.sh", "env", "backfill"),
-            ("./start.sh", "compose", "validate"),
+        for suffix in (
+            ("env", "backfill"),
+            ("compose", "validate"),
+            ("doctor", "--format", "json"),
         ):
-            subprocess.run(command, cwd=infra, env=command_env, check=True)
+            subprocess.run((*prefix, *suffix), cwd=infra, env=command_env, check=True)
 
 
 def main() -> None:
-    overlay = Path(os.environ["ATLAS_ENV_USER_FILE"]).expanduser().resolve()
-    run_preflight(overlay)
+    run_preflight(Path(os.environ["ATLAS_CONSUMER_MANIFEST"]))
 
 
 if __name__ == "__main__":

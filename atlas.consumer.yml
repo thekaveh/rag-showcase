@@ -1,0 +1,23 @@
+name: rag-showcase
+project_name: rag-showcase
+
+brand:
+  name: RAG-SHOWCASE
+  tagline: Six RAG approaches, side by side
+  author: Kaveh Razavi
+  license: Apache License 2.0
+  repo_url: https://github.com/thekaveh/rag-showcase
+  logo_file: ./brand/rag-showcase.logo
+
+env:
+  file: ./config/atlas.env.user
+
+compose_overlays:
+  - ./compose/rag-overlay.yml
+
+backend_plugins:
+  - ./backend_plugins
+
+model_sidecars:
+  ollama:
+    - mistral-small3.2:24b

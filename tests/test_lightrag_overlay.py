@@ -79,18 +79,20 @@ def test_lightrag_overlay_only_adds_optional_lightrag_ollama_context_caps() -> N
     }
 
 
-def test_setup_overlay_sets_atlas_lightrag_inputs_not_native_runtime_envs() -> None:
-    script = (ROOT / "config/atlas.env.user").read_text(encoding="utf-8")
+def test_manifest_env_sets_atlas_lightrag_inputs_not_native_runtime_envs() -> None:
+    env_file = (ROOT / "config/atlas.env.user").read_text(encoding="utf-8")
+    manifest = (ROOT / "atlas.consumer.yml").read_text(encoding="utf-8")
 
-    assert "LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b" in script
-    assert "LIGHTRAG_KEYWORD_LLM_MODEL=mistral-small3.2:24b" in script
-    assert "LIGHTRAG_QUERY_LLM_MODEL=mistral-small3.2:24b" in script
-    assert "OLLAMA_CUSTOM_MODELS=mistral-small3.2:24b" in script
+    assert "LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b" in env_file
+    assert "LIGHTRAG_KEYWORD_LLM_MODEL=mistral-small3.2:24b" in env_file
+    assert "LIGHTRAG_QUERY_LLM_MODEL=mistral-small3.2:24b" in env_file
+    assert "model_sidecars:" in manifest
+    assert "mistral-small3.2:24b" in manifest
 
-    assert "set_env_default EXTRACT_LLM_MODEL" not in script
-    assert "set_env_default KEYWORD_LLM_MODEL" not in script
-    assert "set_env_default QUERY_LLM_MODEL" not in script
-    assert "host.docker.internal:11434" not in script
+    assert "\nEXTRACT_LLM_MODEL=" not in env_file
+    assert "\nKEYWORD_LLM_MODEL=" not in env_file
+    assert "\nQUERY_LLM_MODEL=" not in env_file
+    assert "host.docker.internal:11434" not in env_file
 
 
 def test_backend_overlay_sets_graph_query_safety_defaults() -> None:

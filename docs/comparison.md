@@ -241,5 +241,6 @@ wiring are likely more important than adding still more graph-shaped documents.
   `think:false`; the current baseline removed that layer because Atlas's
   `qwen3.6:latest` catalog entry owns the same scoped request default.
 - LightRAG role/query settings are Atlas inputs supplied by the parent-owned
-  `config/atlas.env.user`. Use an alternate `ATLAS_ENV_USER_FILE` to experiment
-  without editing the Atlas submodule.
+  `config/atlas.env.user` imported by `atlas.consumer.yml`. Use an alternate
+  `ATLAS_CONSUMER_MANIFEST` and env-file pair to experiment without editing the
+  Atlas submodule.

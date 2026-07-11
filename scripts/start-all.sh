@@ -3,9 +3,26 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-ATLAS_ENV_USER_FILE="${ATLAS_ENV_USER_FILE:-$ROOT/config/atlas.env.user}"
-ATLAS_ENV_USER_FILE="$(python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$ATLAS_ENV_USER_FILE")"
-export ATLAS_ENV_USER_FILE
+ATLAS_CONSUMER_MANIFEST="${ATLAS_CONSUMER_MANIFEST:-$ROOT/atlas.consumer.yml}"
+ATLAS_CONSUMER_MANIFEST="$(python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$ATLAS_CONSUMER_MANIFEST")"
+export ATLAS_CONSUMER_MANIFEST
+
+# Older releases linked this overlay into Atlas's ignored services/_user slot.
+# Remove only that exact generated symlink so an upgraded checkout cannot load
+# the same Compose fragment both there and through atlas.consumer.yml.
+LEGACY_OVERLAY="$ROOT/infra/services/_user/rag-showcase/compose.yml"
+if [ -L "$LEGACY_OVERLAY" ]; then
+  [ "$(readlink "$LEGACY_OVERLAY")" = "../../../../compose/rag-overlay.yml" ] || {
+    echo "Unexpected legacy overlay symlink at $LEGACY_OVERLAY; remove it manually." >&2
+    exit 1
+  }
+  rm "$LEGACY_OVERLAY"
+  rmdir "$(dirname "$LEGACY_OVERLAY")" 2>/dev/null || true
+  rmdir "$ROOT/infra/services/_user" 2>/dev/null || true
+elif [ -e "$LEGACY_OVERLAY" ]; then
+  echo "Refusing to replace non-symlink legacy overlay: $LEGACY_OVERLAY" >&2
+  exit 1
+fi
 
 # Read a key's value from Atlas's infra/.env. Atlas's .env can carry a key more
 # than once (overlays/appends); dotenv and Compose both take the last assignment,
@@ -14,14 +31,12 @@ export ATLAS_ENV_USER_FILE
 # multi-line container name. -f2- (not -f2): values may themselves contain '='.
 envval() { grep -E "^$1=" infra/.env | tail -1 | cut -d= -f2- || true; }
 
-./scripts/setup-overlay.sh
-
-echo "==> Running Atlas parent-env preflight (startup revalidates source overrides)…"
-# env backfill is additive and requires an active file. Creating the initial
-# baseline from Atlas's example does not add consumer settings; those come from
-# the external overlay during the supported Atlas startup pipeline.
+echo "==> Running Atlas consumer-manifest preflight…"
+# Atlas subcommands do not apply consumer env overrides themselves. The
+# preflight materializes a temporary active env from the manifest before each
+# validation command; detached startup remains authoritative after source flags.
 [ -f infra/.env ] || cp infra/.env.example infra/.env
-python3 scripts/atlas_preflight.py
+uv run --project "$ROOT/infra/bootstrapper" python scripts/atlas_preflight.py
 
 echo "==> Starting Atlas (gen-ai-rag track)…"
 # doc-processor disabled: Atlas ships only GPU-container or localhost Docling, so
@@ -34,7 +49,8 @@ echo "==> Starting Atlas (gen-ai-rag track)…"
 # service manifests; remove this explicit source when that fix is pinned.
 ATLAS_START_LOG="$(mktemp "${TMPDIR:-/tmp}/rag-showcase-atlas-start.XXXXXX")"
 set +e
-( cd infra && ./start.sh --no-tui --detach --track gen-ai-rag \
+( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
+    --no-tui --detach --track gen-ai-rag \
     --lightrag-source container \
     --tei-reranker-source container-cpu --doc-processor-source disabled \
     --minio-source container ) 2>&1 | tee "$ATLAS_START_LOG"

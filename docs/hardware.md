@@ -37,7 +37,8 @@ the real requirement up or down.
 
 ## 3. Local Model Guidance
 
-The parent-owned `config/atlas.env.user` supplies Atlas LightRAG role defaults:
+The parent-owned `atlas.consumer.yml` imports `config/atlas.env.user`, which
+supplies Atlas LightRAG role defaults:
 
 ```dotenv
 LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b
@@ -47,8 +48,8 @@ LIGHTRAG_EXTRACT_MAX_ASYNC_LLM=1
 LIGHTRAG_EXTRACT_LLM_TIMEOUT=900
 ```
 
-The same overlay includes the model in `OLLAMA_CUSTOM_MODELS`; when Atlas uses a
-containerized Ollama source, Atlas activates it from that list. If Atlas is using
+The manifest also declares the model under `model_sidecars.ollama`; Atlas compiles
+that list into `OLLAMA_CUSTOM_MODELS` for a containerized Ollama source. If Atlas is using
 `LLM_PROVIDER_SOURCE=ollama-localhost`, pull models on the host yourself; Atlas
 does not mutate a host-managed Ollama installation.
 

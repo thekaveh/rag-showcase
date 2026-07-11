@@ -17,9 +17,10 @@ A living record of how well Atlas served as reusable infra for this project.
   read them directly with zero re-plumbing.
 - **Open WebUI multi-model chat:** Served as the comparison frontend without
   requiring any custom UI implementation.
-- **The `services/_user/` overlay slot:** Auto-discovered our compose fragment and
-  merged it into the existing `backend` service via compose service-name
-  merge — worked on first try.
+- **The consumer-manifest seam:** `atlas.consumer.yml` now registers project and
+  brand metadata, the env file, external Compose overlay, backend plugin root,
+  and Ollama model sidecar from the parent repository. Atlas validates and
+  launches the assembled integration without any symlink inside the submodule.
 
 ## 2. Friction Found / Seams Added
 
@@ -78,10 +79,13 @@ The seam test's `r.path` route introspection only works on FastAPI `<0.137`
 
 ### 2.6 Overlay slot location and setup
 
-The `_user/` overlay slot lives inside the Atlas submodule (which is gitignored
-upstream). We symlink our fragment in via `scripts/setup-overlay.sh`, so the
-showcase repo owns the compose-fragment file while the overlay slot remains under
-Atlas's gitignore.
+> **Resolved upstream.** The original integration symlinked the parent-owned
+> Compose fragment into Atlas's gitignored `_user/` slot. Atlas's consumer
+> manifest now accepts external `compose_overlays` and `backend_plugins` paths,
+> so `atlas.consumer.yml` owns that registration directly and
+> `scripts/setup-overlay.sh` has been removed. `start-all.sh` only removes the
+> exact legacy symlink left by an older checkout; it refuses to touch an
+> unexpected symlink or regular file.
 
 ### 2.7 Non-interactive detached startup
 
@@ -89,9 +93,10 @@ Atlas's gitignore.
 > `--no-follow`) for automation. It runs the normal start pipeline, waits for
 > Compose health, prints a final status summary, and exits nonzero when the final
 > state is unhealthy. Rag-showcase now invokes that mode directly after Atlas's
-> headless env backfill and Compose validation against a temporary parent-owned
-> env merge; it no longer backgrounds or kills the bootstrapper process. Detached
-> startup performs the authoritative validation after applying source flags.
+> headless env backfill, manifest-aware Compose validation, and consumer doctor;
+> it no longer backgrounds or kills the bootstrapper process. Detached startup
+> performs the authoritative effective-env validation after applying the
+> manifest and source flags.
 
 ### 2.8 Host-Ollama provider option
 
@@ -203,8 +208,9 @@ classification before returning.
   (model source-of-truth moved to per-service YAML, `ec927c5`); the showcase now
   registers its custom OpenAI-compatible endpoints via the `/model/new` admin API,
   which remains the supported pattern.
-- **Add a `--extra-compose <file>` flag to `start.sh`** so consumers can add
-  overlays without symlinking into the gitignored `_user/` slot.
+- **(Resolved) Load parent-owned Compose overlays directly:** Atlas's
+  `atlas.consumer.yml` `compose_overlays` block supersedes the proposed
+  `--extra-compose` flag and removes the `_user/` symlink requirement.
 - **(Resolved) Support detached scripted startup** (§2.7): Atlas now provides
   `--no-tui --detach` / `--no-follow` with health-gated exit status and an optional
   JSON summary.
