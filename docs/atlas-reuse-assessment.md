@@ -41,6 +41,11 @@ overlay).
 > the unchanged compose overlay (`BACKEND_PLUGINS_DIR=/app/plugins` + the
 > `backend_plugins/` mount). The override mechanism is identical — only the seam's
 > provider moved from the fork to upstream.
+>
+> The RAG package now also ships Atlas's optional `plugin.yml` contract. Its six
+> approach routes share `/rag`, with `/rag/health`, inherited Kong auth, typed
+> configuration, and dependency metadata validated by consumer doctor before
+> startup and by the backend before import.
 
 ### 2.2 Client-library version floors
 

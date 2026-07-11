@@ -22,7 +22,7 @@ and surfaces the chosen `route` in the comparison column.
 3. **Route** (Code node) maps `complex` to `agentic-rag`, everything else to
    `vanilla-rag`, and builds the backend route URL.
 4. **Call Approach** (HTTP Request) calls
-   `http://backend:8000/<approach>/v1/chat/completions`.
+   `http://backend:8000/rag/<approach>/v1/chat/completions`.
 5. **Shape** (Code node) builds
    `{ "answer": <chosen answer text>, "route": <route>, "approach": <approach> }`.
 6. **Respond to Webhook**: return the Shape node's JSON.

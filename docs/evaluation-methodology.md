@@ -36,7 +36,7 @@ Rag-showcase contributes a mounted FastAPI plugin under `backend_plugins/rag/`.
 Each approach exposes an OpenAI-compatible route:
 
 ```text
-/<approach>/v1/chat/completions
+/rag/<approach>/v1/chat/completions
 ```
 
 `register/register_models.py` registers those routes in LiteLLM as model aliases.

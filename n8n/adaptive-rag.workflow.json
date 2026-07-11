@@ -41,7 +41,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const c=(($json.choices&&$json.choices[0]&&$json.choices[0].message&&$json.choices[0].message.content)||'').toLowerCase();const route=c.includes('complex')?'complex':'simple';const approach=route==='complex'?'agentic-rag':'vanilla-rag';const query=$('Webhook').first().json.body.query;return [{json:{route:route,approach:approach,query:query,url:'http://backend:8000/'+approach+'/v1/chat/completions'}}];"
+        "jsCode": "const c=(($json.choices&&$json.choices[0]&&$json.choices[0].message&&$json.choices[0].message.content)||'').toLowerCase();const route=c.includes('complex')?'complex':'simple';const approach=route==='complex'?'agentic-rag':'vanilla-rag';const query=$('Webhook').first().json.body.query;return [{json:{route:route,approach:approach,query:query,url:'http://backend:8000/rag/'+approach+'/v1/chat/completions'}}];"
       },
       "id": "b3333333-3333-4333-8333-333333333333",
       "name": "Route",

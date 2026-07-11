@@ -147,6 +147,7 @@ rag-showcase/
 ├── atlas.consumer.yml       # canonical Atlas consumer registration
 ├── infra/                   # Atlas — vendored Git submodule (DO NOT edit here)
 ├── backend_plugins/rag/     # the plugin package mounted into Atlas's backend
+│   ├── plugin.yml           # Atlas route, health, auth, env, and dependency contract
 │   ├── common/              # config, litellm, vectors, openai_io, pipeline, contextual, lightrag, flavors
 │   ├── approaches/          # vanilla, hybrid, contextual, graph, agentic, n8n
 │   ├── tests/               # unit tests (mocked I/O)
@@ -175,23 +176,28 @@ most of them; the LightRAG role values are consumed by Atlas from the manifest's
 by the showcase's compose overlay (`compose/rag-overlay.yml`); none need to be set
 by hand for the default `start-all.sh` flow.
 
+[`backend_plugins/rag/plugin.yml`](backend_plugins/rag/plugin.yml) is the
+Atlas-validated source of truth for the plugin's `/rag` route root, health path,
+auth policy, typed environment contract, and service dependencies. The table
+below expands that operator contract with adjacent Atlas and startup settings.
+
 | Variable | Default | Read by | Source |
 |----------|---------|---------|--------|
 | `LITELLM_BASE_URL` | `http://litellm:4000` | litellm client, register | Atlas backend env |
 | `LITELLM_API_KEY` | — | litellm client, register (fallback), n8n workflow node | Atlas backend env |
 | `LITELLM_MASTER_KEY` | `sk-noauth` (register fallback) | register | Atlas `.env` (not auto-sourced; mapped to `LITELLM_API_KEY` in-container, which the n8n node reads) |
 | `WEAVIATE_URL` | `http://weaviate:8080` | vectors | Atlas backend env |
-| `WEAVIATE_GRPC_PORT` | `50051` | vectors | optional override |
+| `RAG_WEAVIATE_GRPC_PORT` | `50051` | vectors (in-network gRPC port; distinct from Atlas's host-published `WEAVIATE_GRPC_PORT`) | plugin manifest + overlay |
 | `TEI_RERANKER_ENDPOINT` | `http://tei-reranker:80` | vectors (rerank) | overlay |
-| `TEI_RERANKER_MAX_BATCH` | `32` | vectors (rerank request batch cap) | optional override |
+| `TEI_RERANKER_MAX_BATCH` | `32` | vectors (rerank request batch cap) | plugin manifest + overlay |
 | `LIGHTRAG_ENDPOINT` | `http://lightrag:9621` | lightrag client | Atlas backend env |
 | `LIGHTRAG_API_KEY` | — | lightrag client | Atlas backend env |
-| `LIGHTRAG_UPLOAD_RETRIES` | `60` | ingest → LightRAG (409 backpressure retries) | optional override |
-| `LIGHTRAG_UPLOAD_RETRY_DELAY` | `5` | ingest → LightRAG (retry delay seconds) | optional override |
+| `LIGHTRAG_UPLOAD_RETRIES` | `60` | ingest → LightRAG (409 backpressure retries) | plugin manifest + overlay |
+| `LIGHTRAG_UPLOAD_RETRY_DELAY` | `5.0` | ingest → LightRAG (retry delay seconds) | plugin manifest + overlay; string-typed because Atlas manifest v1 has no float type |
 | `DOCLING_ENDPOINT` | `""` (unset → naive chunking) | ingest | Atlas backend env (set only when Docling is enabled) |
 | `N8N_ADAPTIVE_WEBHOOK_URL` | `http://n8n:5678/webhook/adaptive-rag` | n8n approach | overlay |
-| `RAG_ROLES_FILE` | `/app/plugins/rag/roles.yaml` | config | overlay |
-| `RAG_FLAVORS_FILE` | `/app/plugins/rag/flavors.yaml` | flavors loader, register (approach flavor aliases) | overlay |
+| `RAG_ROLES_FILE` | `/app/plugins/rag/roles.yaml` | config | plugin manifest; supplied by `config/atlas.env.user` and overlay |
+| `RAG_FLAVORS_FILE` | `/app/plugins/rag/flavors.yaml` | flavors loader, register (approach flavor aliases) | plugin manifest; supplied by `config/atlas.env.user` and overlay |
 | `BACKEND_PLUGINS_DIR` | `/app/plugins` | plugin seam (Atlas) | overlay |
 | `ATLAS_CONSUMER_MANIFEST` | `atlas.consumer.yml` | Atlas bootstrapper | host env; absolute path to the parent-owned consumer manifest |
 | `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | `config/atlas.env.user` |

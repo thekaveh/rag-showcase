@@ -34,7 +34,7 @@ graph-rag-wide
 That request is routed by LiteLLM to:
 
 ```text
-http://backend:8000/graph-rag/v1/chat/completions
+http://backend:8000/rag/graph-rag/v1/chat/completions
 ```
 
 The backend reads the incoming request model (`graph-rag-wide`), resolves it from

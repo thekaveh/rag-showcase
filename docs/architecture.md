@@ -26,8 +26,10 @@ test runner; `compare/judge.py` scores stored answer matrices with local judge m
 
 Atlas provides the reusable infrastructure. Rag-showcase adds a mounted FastAPI
 plugin under `backend_plugins/rag`, where each approach exposes an OpenAI-compatible
-`/<approach>/v1/chat/completions` endpoint. `register/register_models.py` registers
-those endpoints into LiteLLM as selectable model names.
+`/rag/<approach>/v1/chat/completions` endpoint. The plugin's `plugin.yml` declares
+the shared `/rag` route root, `/rag/health`, inherited Kong auth, typed env, and
+upstream dependencies. `register/register_models.py` registers those endpoints
+into LiteLLM as selectable model names.
 
 The six approach endpoints are deployed inside the Atlas backend container, not as
 six separate containers. Open WebUI and `compare/run_matrix.py` invoke them through
@@ -100,7 +102,7 @@ sequenceDiagram
     autonumber
     participant C as Open WebUI / run_matrix.py
     participant L as LiteLLM gateway
-    participant H as /hybrid-rag endpoint (plugin)
+    participant H as /rag/hybrid-rag endpoint (plugin)
     participant W as Weaviate
     participant T as TEI reranker
     participant M as Chat model (light_gen role)

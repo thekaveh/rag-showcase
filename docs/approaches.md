@@ -16,14 +16,20 @@ approach with BM25 + dense retrieval and TEI reranking.
 
 ## 1. Shared Invocation Model
 
-All six approaches expose an OpenAI-compatible
-`/<approach>/v1/chat/completions` route inside the Atlas backend container. The
-routes are registered as LiteLLM model aliases, so Open WebUI and the comparison
-harness invoke every approach through the same `/v1/chat/completions` surface.
-Named flavors such as `graph-rag-wide` are also registered as LiteLLM model
-aliases, but they point at the same base route and are resolved from the incoming
-request model. See [`approach-flavor-tuning.md`](approach-flavor-tuning.md) for
-the current flavor manifest and benchmark invocation rules.
+All six approaches are mounted under the RAG plugin's shared
+`/rag/<approach>/v1/chat/completions` root inside the Atlas backend container.
+[`../backend_plugins/rag/plugin.yml`](../backend_plugins/rag/plugin.yml) declares
+that `/rag` root, `/rag/health`, inherited Kong auth, typed configuration, and
+the plugin's service dependencies. Atlas validates the manifest in consumer
+doctor and again before loading the plugin.
+
+The backend routes are registered as LiteLLM model aliases, so Open WebUI and
+the comparison harness invoke every approach through LiteLLM's common
+`/v1/chat/completions` surface rather than calling the backend directly. Named
+flavors such as `graph-rag-wide` point at the same base route and are resolved
+from the incoming request model. See
+[`approach-flavor-tuning.md`](approach-flavor-tuning.md) for the current flavor
+manifest and benchmark invocation rules.
 
 All approaches use the same ingested corpus and the same response wrapper:
 

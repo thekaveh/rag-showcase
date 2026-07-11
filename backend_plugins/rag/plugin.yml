@@ -1,0 +1,76 @@
+plugin_manifest_version: 1
+name: rag-showcase
+route_prefix: /rag
+health_path: /rag/health
+docs_url: docs/approaches.md
+auth: inherit
+
+env:
+  - name: RAG_ROLES_FILE
+    required: true
+    default: /app/plugins/rag/roles.yaml
+    description: Role-to-model mapping consumed by every approach.
+  - name: RAG_FLAVORS_FILE
+    required: true
+    default: /app/plugins/rag/flavors.yaml
+    description: Named approach flavor definitions and parameter overrides.
+  - name: LITELLM_BASE_URL
+    default: http://litellm:4000
+    description: OpenAI-compatible model and embedding gateway.
+  - name: LITELLM_API_KEY
+    secret: true
+    description: Optional LiteLLM bearer token injected by Atlas.
+  - name: WEAVIATE_URL
+    default: http://weaviate:8080
+    description: Weaviate HTTP endpoint used for vector and hybrid retrieval.
+  - name: RAG_WEAVIATE_GRPC_PORT
+    type: int
+    default: "50051"
+    description: In-network Weaviate gRPC port; distinct from Atlas's published host port.
+  - name: TEI_RERANKER_ENDPOINT
+    default: http://tei-reranker:80
+    description: Text Embeddings Inference reranker endpoint.
+  - name: TEI_RERANKER_MAX_BATCH
+    type: int
+    default: "32"
+    description: Maximum documents sent to TEI in one rerank request.
+  - name: LIGHTRAG_ENDPOINT
+    default: http://lightrag:9621
+    description: LightRAG query and document-ingestion endpoint.
+  - name: LIGHTRAG_API_KEY
+    secret: true
+    description: Optional LightRAG X-API-Key credential injected by Atlas.
+  - name: LIGHTRAG_QUERY_ENABLE_RERANK
+    type: bool
+    default: "false"
+    description: Default LightRAG query-time rerank switch.
+  - name: LIGHTRAG_QUERY_TOP_K
+    type: int
+    default: "10"
+    description: Default LightRAG graph candidate count.
+  - name: LIGHTRAG_QUERY_CHUNK_TOP_K
+    type: int
+    default: "5"
+    description: Default LightRAG text-chunk candidate count.
+  - name: LIGHTRAG_QUERY_MAX_TOTAL_TOKENS
+    type: int
+    default: "12000"
+    description: Default LightRAG query context token budget.
+  - name: LIGHTRAG_UPLOAD_RETRIES
+    type: int
+    default: "60"
+    description: Retries for LightRAG document-ingestion backpressure.
+  - name: LIGHTRAG_UPLOAD_RETRY_DELAY
+    type: string
+    default: "5.0"
+    description: Delay in seconds between LightRAG backpressure retries.
+  - name: N8N_ADAPTIVE_WEBHOOK_URL
+    default: http://n8n:5678/webhook/adaptive-rag
+    description: Adaptive-RAG production webhook invoked by the n8n approach.
+
+depends_on:
+  - litellm
+  - weaviate
+  - tei-reranker
+  - lightrag
+  - n8n

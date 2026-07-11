@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import shutil
 import subprocess
 
@@ -104,3 +105,45 @@ def test_backend_overlay_sets_graph_query_safety_defaults() -> None:
     assert env["LIGHTRAG_QUERY_TOP_K"] == "${LIGHTRAG_QUERY_TOP_K:-10}"
     assert env["LIGHTRAG_QUERY_CHUNK_TOP_K"] == "${LIGHTRAG_QUERY_CHUNK_TOP_K:-5}"
     assert env["LIGHTRAG_QUERY_MAX_TOTAL_TOKENS"] == "${LIGHTRAG_QUERY_MAX_TOTAL_TOKENS:-12000}"
+
+
+def test_resolved_backend_receives_plugin_operator_overrides() -> None:
+    if shutil.which("docker") is None:
+        pytest.skip("Docker Compose CLI is not installed")
+
+    command_env = os.environ.copy()
+    command_env.update(
+        {
+            "RAG_WEAVIATE_GRPC_PORT": "51051",
+            "TEI_RERANKER_MAX_BATCH": "7",
+            "LIGHTRAG_UPLOAD_RETRIES": "9",
+            "LIGHTRAG_UPLOAD_RETRY_DELAY": "0.25",
+        }
+    )
+    result = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "--env-file",
+            "infra/.env.example",
+            "-f",
+            "infra/docker-compose.yml",
+            "-f",
+            "compose/rag-overlay.yml",
+            "config",
+        ],
+        cwd=ROOT,
+        env=command_env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0 and "docker compose" in result.stderr.lower():
+        pytest.skip("Docker Compose plugin is not available")
+    assert result.returncode == 0, result.stderr
+
+    backend_env = yaml.safe_load(result.stdout)["services"]["backend"]["environment"]
+    assert backend_env["RAG_WEAVIATE_GRPC_PORT"] == "51051"
+    assert backend_env["TEI_RERANKER_MAX_BATCH"] == "7"
+    assert backend_env["LIGHTRAG_UPLOAD_RETRIES"] == "9"
+    assert backend_env["LIGHTRAG_UPLOAD_RETRY_DELAY"] == "0.25"

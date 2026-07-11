@@ -32,8 +32,8 @@ def _weaviate() -> Any:
     """Open a Weaviate v4 client to the in-network instance.
 
     The gRPC port defaults to 50051 (Weaviate's standard) but is overridable
-    via WEAVIATE_GRPC_PORT for non-standard deployments — the WEAVIATE_URL
-    scheme only carries the HTTP port.
+    via RAG_WEAVIATE_GRPC_PORT for non-standard deployments — the Atlas-owned
+    WEAVIATE_GRPC_PORT is the host-published port, not the in-network port.
     """
     import weaviate
     from urllib.parse import urlparse
@@ -41,12 +41,12 @@ def _weaviate() -> Any:
     url = urlparse(os.environ.get("WEAVIATE_URL", "http://weaviate:8080"))
     host = url.hostname or "weaviate"
     http_port = url.port or 8080
-    raw_grpc = os.environ.get("WEAVIATE_GRPC_PORT", "50051")
+    raw_grpc = os.environ.get("RAG_WEAVIATE_GRPC_PORT", "50051")
     try:
         grpc_port = int(raw_grpc)
     except ValueError as e:
         raise ValueError(
-            f"WEAVIATE_GRPC_PORT must be an integer, got {raw_grpc!r}") from e
+            f"RAG_WEAVIATE_GRPC_PORT must be an integer, got {raw_grpc!r}") from e
     return weaviate.connect_to_custom(
         http_host=host, http_port=http_port, http_secure=False,
         grpc_host=host, grpc_port=grpc_port, grpc_secure=False,
