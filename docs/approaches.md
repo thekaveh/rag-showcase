@@ -31,14 +31,17 @@ from the incoming request model. See
 [`approach-flavor-tuning.md`](approach-flavor-tuning.md) for the current flavor
 manifest and benchmark invocation rules.
 
-All approaches use the same ingested corpus and the same response wrapper:
+All approaches use the same selected Atlas ingestion profile and response wrapper:
 
-1. Documents are loaded from the selected corpus directory.
-2. Documents are chunked by Docling when configured, otherwise by the fallback
-   800-character / 100-character-overlap chunker.
-3. Base chunks are embedded and stored in Weaviate collection `RagBase`.
-4. Context-prefixed chunks are generated, embedded, and stored in `RagContextual`.
-5. Full source text is uploaded to LightRAG so it can build its own graph index.
+1. `atlas.consumer.yml` maps each dataset to a versioned profile.
+2. Atlas owns discover, parser fallback, Chonkie recursive chunking (800 / 100),
+   embedding, and the base Weaviate write.
+3. Atlas stores plain chunks in `RagBase_<profile>` and uploads parsed documents to
+   LightRAG, recording every phase through drain/finalize.
+4. The showcase contextual post-step reads those exact Atlas chunks, generates the
+   approach-specific blurbs, and writes `RagContextual_<profile>`.
+5. Matrix and judgment snapshots record the Atlas ingestion id, profile revision,
+   and corpus digest that produced their retrieval state.
 6. Each approach returns a normalized answer, source block, and metrics footer.
 
 ### 1.1 Shared Model Roles
@@ -101,7 +104,7 @@ followed by one answer-generation call.
 
 1. Read the latest user message.
 2. Embed the question through LiteLLM.
-3. Search Weaviate collection `RagBase` with `near_vector`.
+3. Search the selected profile's Weaviate collection `RagBase_<profile>` with `near_vector`.
 4. Retrieve the top `K=5` chunks.
 5. Stuff those chunks into the shared answer prompt.
 6. Call the `light_gen` model once.
@@ -110,7 +113,7 @@ followed by one answer-generation call.
 ### 3.3 Dependencies
 
 - LiteLLM embedding route.
-- Weaviate collection `RagBase`.
+- Atlas-ingested Weaviate collection `RagBase_<profile>`.
 - LiteLLM chat route for `light_gen`.
 
 ### 3.4 Models Used
@@ -125,8 +128,8 @@ followed by one answer-generation call.
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
 | `K` | 5 | Via flavor | Default 5 in `vanilla.py`; overridable per flavor via `k` (e.g. `vanilla-rag-wide` uses 8). |
-| Collection | `RagBase` | No | Uses plain chunks only. |
-| Chunk size / overlap | 800 / 100 | No | In ingest fallback and Docling request. |
+| Collection | `RagBase_<profile>` | Yes, profile-selected | Uses Atlas-ingested plain chunks only. |
+| Chunk size / overlap | 800 / 100 | Manifest profile | Changing the profile revision requires re-ingestion. |
 | Prompt template | shared `stuff` prompt | No | Shared with hybrid/contextual. |
 | Generation model | `roles.yaml` `light_gen` | Yes, via roles file | Per-model request defaults come from Atlas's model catalog. |
 
@@ -148,7 +151,7 @@ It does not query LightRAG or use extracted graph entities/relations.
 
 1. Read the latest user message.
 2. Embed the question through LiteLLM.
-3. Search Weaviate collection `RagBase` with native hybrid search:
+3. Search `RagBase_<profile>` with native hybrid search:
    BM25 keyword matching + dense vector search.
 4. Use Weaviate's default relative score fusion with `alpha=0.5`.
 5. Retrieve `RETRIEVE_K=20` candidates.
@@ -161,7 +164,7 @@ It does not query LightRAG or use extracted graph entities/relations.
 ### 4.3 Dependencies
 
 - LiteLLM embedding route.
-- Weaviate collection `RagBase`.
+- Atlas-ingested Weaviate collection `RagBase_<profile>`.
 - Weaviate BM25 + vector indexes.
 - TEI reranker endpoint.
 - LiteLLM chat route for `light_gen`.
@@ -185,7 +188,7 @@ It does not query LightRAG or use extracted graph entities/relations.
 | Rerank | on | Via flavor | TEI cross-encoder rerank; disable via `rerank: false` (e.g. `hybrid-rag-fast`). |
 | Fusion type | Weaviate default | No | Current code relies on Weaviate default relative score fusion. |
 | TEI endpoint | `http://tei-reranker:80` | Yes, `TEI_RERANKER_ENDPOINT` | Reranker quality/model can materially affect results. |
-| Collection | `RagBase` | No | Plain chunks only. |
+| Collection | `RagBase_<profile>` | Yes, profile-selected | Plain chunks only. |
 
 ### 4.6 Observed Behavior
 
@@ -206,18 +209,18 @@ query path as `hybrid-rag`.
 
 Ingest-time:
 
-1. Chunk each document.
+1. Read the plain chunks produced by the completed Atlas ingestion job.
 2. For each chunk, send a 6000-character document window centered on the chunk
    (document-prefix fallback when the chunk isn't found verbatim) plus the chunk
    to the `contextual_blurb` model.
 3. Generate a 1-2 sentence context blurb.
 4. Prefix the chunk with that blurb.
-5. Embed and store the result in Weaviate collection `RagContextual`.
+5. Embed and store the result in `RagContextual_<profile>`.
 
 Query-time:
 
 1. Embed the user question.
-2. Search `RagContextual` with Weaviate hybrid search.
+2. Search `RagContextual_<profile>` with Weaviate hybrid search.
 3. Retrieve `RETRIEVE_K=20` candidates.
 4. Rerank with TEI.
 5. Keep `TOP_N=5`.
@@ -228,7 +231,7 @@ Query-time:
 
 - LiteLLM embedding route.
 - LiteLLM chat route for `contextual_blurb` at ingest time.
-- Weaviate collection `RagContextual`.
+- Showcase-derived Weaviate collection `RagContextual_<profile>`.
 - TEI reranker endpoint.
 - LiteLLM chat route for `light_gen`.
 
@@ -365,7 +368,7 @@ vector search or graph search, instead of following a fixed retrieval path.
 
 1. Start with a system prompt telling the model to gather evidence before answering.
 2. Give the model two tools:
-   - `search_vectors(query)`: hybrid search over `RagBase`.
+   - `search_vectors(query)`: hybrid search over `RagBase_<profile>`.
    - `query_graph(query)`: LightRAG query in hybrid mode.
 3. Run up to `MAX_STEPS=4` model turns.
 4. For each tool call, execute the tool and append an observation.
@@ -377,7 +380,7 @@ vector search or graph search, instead of following a fixed retrieval path.
 
 - LiteLLM chat route for `agentic`.
 - LiteLLM embeddings for vector tool calls.
-- Weaviate `RagBase`.
+- Atlas-ingested Weaviate `RagBase_<profile>`.
 - LightRAG for graph tool calls.
 
 ### 7.4 Models Used

@@ -7,6 +7,17 @@ ATLAS_CONSUMER_MANIFEST="${ATLAS_CONSUMER_MANIFEST:-$ROOT/atlas.consumer.yml}"
 ATLAS_CONSUMER_MANIFEST="$(python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$ATLAS_CONSUMER_MANIFEST")"
 export ATLAS_CONSUMER_MANIFEST
 
+RAG_INGESTION_PROFILE="${RAG_INGESTION_PROFILE:-showcase_default}"
+case "$RAG_INGESTION_PROFILE" in
+  ""|*[!a-z0-9._-]*|[._-]*)
+    echo "Invalid RAG_INGESTION_PROFILE: $RAG_INGESTION_PROFILE" >&2
+    exit 1
+    ;;
+esac
+RAG_BASE_COLLECTION="${RAG_BASE_COLLECTION:-RagBase_${RAG_INGESTION_PROFILE}}"
+RAG_CONTEXTUAL_COLLECTION="${RAG_CONTEXTUAL_COLLECTION:-RagContextual_${RAG_INGESTION_PROFILE}}"
+export RAG_INGESTION_PROFILE RAG_BASE_COLLECTION RAG_CONTEXTUAL_COLLECTION
+
 # Older releases linked this overlay into Atlas's ignored services/_user slot.
 # Remove only that exact generated symlink so an upgraded checkout cannot load
 # the same Compose fragment both there and through atlas.consumer.yml.
@@ -193,9 +204,13 @@ sys.exit(0 if response.json().get("answer") else 1)
 PY
 
 if [ "${RAG_SHOWCASE_SKIP_DEFAULT_INGEST:-0}" != "1" ]; then
-  echo "==> Ingesting corpus inside the backend container…"
-  docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
-    python /app/ingest/ingest.py /app/corpus/raw
+  echo "==> Running Atlas RAG ingestion profile ${RAG_INGESTION_PROFILE}…"
+  uv run python -m ingest.atlas_job \
+    --profile "$RAG_INGESTION_PROFILE" \
+    --base-url "http://127.0.0.1:$(envval BACKEND_PORT)"
+  echo "==> Building the showcase contextual index from Atlas-ingested chunks…"
+  docker exec -e PYTHONPATH=/app/plugins:/app "${PROJECT_NAME}-backend" \
+    python -m ingest.contextual
 fi
 
 OWUI="$(envval OPEN_WEB_UI_PORT)"

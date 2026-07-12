@@ -147,6 +147,8 @@ def main() -> None:
 
     # Aggregate per query: mean score per approach across judges + best-vote tally.
     out: dict = {"judges": JUDGES, "queries": []}
+    if matrix.get("ingestion"):
+        out["ingestion"] = matrix["ingestion"]
     for q in matrix["queries"]:
         qid = q["id"]
         per_judge = {jm: raw.get((qid, jm), {"error": "no valid verdict"}) for jm in JUDGES}

@@ -38,8 +38,9 @@ to the corresponding backend route.
 
 ### 1.3 Retrieval stores and workflow services
 
-The direct retrieval approaches use Weaviate collections (`RagBase` and
-`RagContextual`), with TEI reranking for hybrid/contextual paths. `graph-rag` and
+The direct retrieval approaches use profile-scoped Weaviate collections
+(`RagBase_<profile>` and `RagContextual_<profile>`), with TEI reranking for
+hybrid/contextual paths. `graph-rag` and
 the graph tool inside `agentic-rag` delegate to LightRAG and Neo4j. `n8n-adaptive-rag`
 bridges into the n8n workflow and reports the selected route. The workflow source
 lives in this repository, while `atlas.consumer.yml` delegates its namespacing,
@@ -64,9 +65,12 @@ PNG: [`diagrams/img/approach-flows.png`](diagrams/img/approach-flows.png).
 
 ### 2.1 Shared setup
 
-All approaches start from the same corpus ingestion pipeline: load documents, chunk
-them, embed chunks, build contextual chunks, upload source text to LightRAG, and
-compile the base and flavor aliases into LiteLLM before it starts.
+All approaches start from the same declared Atlas ingestion profile. Atlas discovers
+and parses documents, chunks them with Chonkie, embeds and writes the profile-scoped
+plain collection, uploads parsed documents to LightRAG, and records drain/finalize
+status. Rag-showcase then reads those exact chunks to build the approach-specific
+contextual collection. Atlas also compiles the base and flavor aliases into LiteLLM
+before it starts.
 
 ### 2.2 Direct retrieval lanes
 
@@ -128,7 +132,7 @@ sequenceDiagram
 ```
 
 `vanilla-rag` skips the rerank leg; `contextual-rag` is identical but queries the
-`RagContextual` collection; `graph-rag` and `agentic-rag` delegate the middle to
+selected `RagContextual_<profile>` collection; `graph-rag` and `agentic-rag` delegate the middle to
 LightRAG / a ReAct tool loop; `n8n-adaptive-rag` inserts the n8n workflow between
 the endpoint and a routed approach.
 
@@ -143,10 +147,10 @@ directories, workflow source, and parent-owned `atlas.consumer.yml`, which impor
 ```mermaid
 flowchart LR
     subgraph host["Host (this repository)"]
-        manifest["atlas.consumer.yml<br/>identity · env · paths · models · workflows"]
+        manifest["atlas.consumer.yml<br/>models · workflows · ingestion profiles"]
         overlay["compose/rag-overlay.yml<br/>external manifest overlay"]
         plugdir["backend_plugins/rag/"]
-        tooling["ingest/ · corpus/ · alias reconciler"]
+        tooling["corpus/ · Atlas job client · contextual post-step"]
         n8ndir["n8n/ (workflow JSON)"]
         harness["compare/*.py + scripts/run-dataset-ladder.py<br/>host-run via uv"]
         ollamahost["Ollama (host) — judge panel models"]
@@ -168,6 +172,7 @@ flowchart LR
     end
 
     overlay -. "registered directly by<br/>the consumer manifest" .-> atlas
+    manifest -- "compiled profiles" --> backend
     plugdir -- "bind mount :ro → /app/plugins" --> backend
     tooling -- "bind mounts :ro → /app/*" --> backend
     n8ndir -- "Atlas validates + seeds<br/>namespaced workflow" --> n8n

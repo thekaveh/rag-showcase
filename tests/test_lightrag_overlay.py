@@ -116,8 +116,6 @@ def test_resolved_backend_receives_plugin_operator_overrides() -> None:
         {
             "RAG_WEAVIATE_GRPC_PORT": "51051",
             "TEI_RERANKER_MAX_BATCH": "7",
-            "LIGHTRAG_UPLOAD_RETRIES": "9",
-            "LIGHTRAG_UPLOAD_RETRY_DELAY": "0.25",
         }
     )
     result = subprocess.run(
@@ -145,5 +143,5 @@ def test_resolved_backend_receives_plugin_operator_overrides() -> None:
     backend_env = yaml.safe_load(result.stdout)["services"]["backend"]["environment"]
     assert backend_env["RAG_WEAVIATE_GRPC_PORT"] == "51051"
     assert backend_env["TEI_RERANKER_MAX_BATCH"] == "7"
-    assert backend_env["LIGHTRAG_UPLOAD_RETRIES"] == "9"
-    assert backend_env["LIGHTRAG_UPLOAD_RETRY_DELAY"] == "0.25"
+    assert "LIGHTRAG_UPLOAD_RETRIES" not in backend_env
+    assert "LIGHTRAG_UPLOAD_RETRY_DELAY" not in backend_env

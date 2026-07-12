@@ -74,11 +74,12 @@ one proxy restart and a fresh zero-change verification.
 
 ### 2.4 In-container path mismatch
 
-`backend_plugins` mounts at `/app/plugins` (not `/app/backend_plugins`). Running
-the ingest script in the backend required:
-
-- `PYTHONPATH=/app/plugins`
-- Mounting `ingest/` and `corpus/` directories into the container
+> **Resolved as a generic/local split.** `backend_plugins` still mounts at
+> `/app/plugins`, while the corpus and the small contextual post-processor mount
+> under `/app`. Generic ingestion no longer imports showcase code: Atlas compiles
+> `rag_ingestion_profiles`, mounts them into its backend, and owns parsing,
+> chunking, base vectors, LightRAG upload, and drain. The local post-step uses
+> `PYTHONPATH=/app/plugins:/app` only to derive the contextual collection.
 
 ### 2.5 FastAPI version sensitivity
 
@@ -216,6 +217,37 @@ the database foreign-key cascade is needed to prevent a legacy route from blocki
 or masking the probe. Atlas #514 tracks moving the activation/reload step upstream;
 the manifest and workflow source will remain unchanged when that shim is removed.
 
+### 2.17 Generic ingestion lifecycle
+
+> **Resolved upstream.** Atlas #413 added versioned consumer RAG ingestion profiles,
+> safe corpus mounts, deterministic profile revisions, phase-level job records,
+> idempotent Weaviate writes, LightRAG upload/drain, cancellation, and a headless API.
+> Rag-showcase now declares one profile per dataset and uses that API from both
+> default startup and the dataset ladder. The former all-in-one `ingest/ingest.py`
+> and bespoke LightRAG drain polling are removed.
+
+The one retained local phase is intentional rather than infrastructure duplication:
+`contextual-rag` generates LLM blurbs from Atlas-written chunks and writes a separate
+`RagContextual_<profile>` collection. Matrix and judgment snapshots now carry the
+Atlas ingestion id, profile revision, and content digest. Historical snapshots
+remain immutable and therefore do not claim job provenance they never recorded.
+
+### 2.18 Generated backend profile mounts collide with the `/app` source bind
+
+The first live consumer-profile smoke passed Atlas manifest validation and doctor,
+then failed while Docker Desktop created the backend container. Atlas #413 and
+#414 generate single-file mounts at `/app/rag-ingestion-profiles.json` and
+`/app/lightrag-query-profiles.json`, but the backend already bind-mounts its source
+directory at `/app`. Docker Desktop/VirtioFS rejects that nested file mount as an
+outside-rootfs mountpoint.
+
+[Atlas #533](https://github.com/thekaveh/atlas/issues/533) tracks moving both
+registries to a dedicated read-only config path outside `/app`. The showcase does
+not bypass the manifest with an unvalidated private registry: #21 remains unmerged
+until a fixed Atlas commit can start the backend and complete live Weaviate,
+LightRAG, contextual, and six-alias smoke tests. The same fix is a prerequisite for
+the planned LightRAG query-profile migration in local #22.
+
 ## 3. Recommendations for Atlas
 
 - **(Resolved)** Originally: *upstream the backend plugin seam* as a documented
@@ -263,6 +295,12 @@ the manifest and workflow source will remain unchanged when that shim is removed
 - **Publish active n8n workflows without an API key** (§2.16): honor the effective
   activation policy on fresh volumes, coalesce any required reload, and make required
   webhook readiness deterministic (Atlas #514).
+- **(Resolved) Provide generic RAG ingestion jobs** (§2.17): Atlas #413 now owns
+  discover/parse/chunk/embed/vector-write/LightRAG-upload/drain/finalize; the
+  showcase retains only its approach-specific contextual transform.
+- **Move generated backend registries outside `/app`** (§2.18): fix the nested
+  single-file bind used by ingestion and LightRAG query profiles so Docker Desktop
+  consumers can start (Atlas #533).
 
 ## 4. Live End-to-End Run — Resolved (2026-07-01)
 

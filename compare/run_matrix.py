@@ -67,6 +67,16 @@ def flavors_file() -> Path:
     return Path(os.environ.get("MATRIX_FLAVORS_FILE", str(flavor_config.DEFAULT_MANIFEST)))
 
 
+def ingestion_metadata() -> dict[str, str]:
+    fields = {
+        "id": os.environ.get("MATRIX_INGESTION_ID", ""),
+        "profile": os.environ.get("MATRIX_INGESTION_PROFILE", ""),
+        "revision": os.environ.get("MATRIX_INGESTION_REVISION", ""),
+        "content_digest": os.environ.get("MATRIX_INGESTION_CONTENT_DIGEST", ""),
+    }
+    return {key: value for key, value in fields.items() if value}
+
+
 def selected_profiles() -> list[flavor_config.FlavorProfile]:
     if models := _csv_env("MATRIX_MODELS"):
         return [flavor_config.profile_for_model(model, manifest=flavors_file()) for model in models]
@@ -139,6 +149,8 @@ def main() -> None:
                  "queries": [{k: q.get(k) for k in ("id", "query", "expect_winner", "rationale")}
                              for q in queries],
                  "cells": []}
+    if ingestion := ingestion_metadata():
+        out["ingestion"] = ingestion
     print(f"matrix: {len(queries)} queries x {len(profiles)} approaches/flavors @ {base}")
     with httpx.Client(timeout=httpx.Timeout(420.0, connect=10.0)) as client:
         for q in queries:
@@ -182,6 +194,7 @@ if __name__ == "__main__":
     argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="Configured via env vars: MATRIX_QUERIES_FILE, MATRIX_RESULTS_FILE, "
-               "MATRIX_MODELS, MATRIX_FLAVORS, MATRIX_FLAVORS_FILE.",
+               "MATRIX_MODELS, MATRIX_FLAVORS, MATRIX_FLAVORS_FILE, and "
+               "MATRIX_INGESTION_* provenance fields.",
     ).parse_args()
     main()

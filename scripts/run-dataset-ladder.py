@@ -15,7 +15,6 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -117,103 +116,49 @@ def cold_reset() -> None:
     subprocess.run(["./stop.sh", "--cold"], cwd=ROOT / "infra", check=True)
 
 
-def start_service_only() -> None:
+def start_service_only(dataset: dict[str, Any]) -> None:
     env = os.environ.copy()
     env["RAG_SHOWCASE_SKIP_DEFAULT_INGEST"] = "1"
+    profile = dataset["ingestion_profile"]
+    env["RAG_INGESTION_PROFILE"] = profile
+    env["RAG_BASE_COLLECTION"] = f"RagBase_{profile}"
+    env["RAG_CONTEXTUAL_COLLECTION"] = f"RagContextual_{profile}"
     run(["./scripts/start-all.sh"], env=env)
 
 
-def ingest_dataset(dataset: dict[str, Any]) -> None:
+def ingest_dataset(dataset: dict[str, Any]) -> dict[str, Any]:
     corpus_path = Path(dataset["corpus_path"])
     if not (ROOT / corpus_path).is_dir():
         raise FileNotFoundError(f"dataset corpus not found: {corpus_path}")
+    backend_port = envval("BACKEND_PORT")
+    if not backend_port:
+        raise RuntimeError("BACKEND_PORT not found in infra/.env")
+    record = capture_json(
+        [
+            "uv",
+            "run",
+            "python",
+            "-m",
+            "ingest.atlas_job",
+            "--profile",
+            dataset["ingestion_profile"],
+            "--base-url",
+            f"http://127.0.0.1:{backend_port}",
+        ]
+    )
     run(
         [
             "docker",
             "exec",
             "-e",
-            "PYTHONPATH=/app/plugins",
+            "PYTHONPATH=/app/plugins:/app",
             f"{project_name()}-backend",
             "python",
-            "/app/ingest/ingest.py",
-            f"/app/{corpus_path.as_posix()}",
+            "-m",
+            "ingest.contextual",
         ]
     )
-
-
-def _lightrag_get(path: str, timeout: int) -> dict[str, Any]:
-    """GET a LightRAG endpoint from inside the backend container (in-network URL +
-    the container's LIGHTRAG_API_KEY), returning the parsed JSON."""
-    code = f"""
-import json, os, httpx
-r = httpx.get(
-    "http://lightrag:9621{path}",
-    headers={{"X-API-Key": os.environ.get("LIGHTRAG_API_KEY", "")}},
-    timeout={timeout},
-)
-r.raise_for_status()
-print(json.dumps(r.json()))
-"""
-    return capture_json(["docker", "exec", f"{project_name()}-backend", "python", "-c", code])
-
-
-def lightrag_status() -> dict[str, Any]:
-    return _lightrag_get("/documents/pipeline_status", timeout=10)
-
-
-def lightrag_documents() -> dict[str, Any]:
-    return _lightrag_get("/documents", timeout=20)
-
-
-def wait_for_lightrag(dataset_id: str, timeout_s: int = 3600) -> None:
-    deadline = time.monotonic() + timeout_s
-    last = ""
-    poll_failures = 0
-    while time.monotonic() < deadline:
-        try:
-            # Both probes share the flakiness profile (docker exec + in-network
-            # HTTP), so both live inside the same tolerance window.
-            status = lightrag_status()
-            busy = bool(status.get("busy") or status.get("request_pending"))
-            docs = lightrag_documents() if not busy else None
-            poll_failures = 0
-        except (subprocess.CalledProcessError, ValueError) as exc:
-            # One flaky poll must not abort a multi-hour ladder run; three in a
-            # row means something is genuinely wrong. CalledProcessError's str()
-            # omits the captured stderr, so surface it explicitly.
-            poll_failures += 1
-            detail = ((getattr(exc, "stderr", "") or "")[-300:]).strip()
-            if poll_failures >= 3:
-                raise RuntimeError(
-                    f"LightRAG status poll failed {poll_failures} times in a row "
-                    f"for {dataset_id}: {exc} {detail}") from exc
-            print(f"[{dataset_id}] LightRAG status poll failed "
-                  f"({poll_failures}/3), retrying: {exc} {detail}", flush=True)
-            time.sleep(15)
-            continue
-        message = str(status.get("latest_message") or "")
-        progress = (
-            f"busy={busy} docs={status.get('docs')} "
-            f"batch={status.get('cur_batch')}/{status.get('batchs')} {message[:96]}"
-        )
-        if progress != last:
-            print(f"[{dataset_id}] LightRAG {progress}", flush=True)
-            last = progress
-        if not busy:
-            statuses = (docs or {}).get("statuses", {}) or {}
-            failed = statuses.get("failed") or statuses.get("FAILED")
-            if failed:
-                raise RuntimeError(f"LightRAG reported failed documents for {dataset_id}: {failed}")
-            pending = (statuses.get("pending") or statuses.get("PENDING")
-                       or statuses.get("processing") or statuses.get("PROCESSING"))
-            if pending:
-                # Not-busy gap between enqueue and pipeline pickup: documents are
-                # still queued, so this is not drained yet.
-                time.sleep(15)
-                continue
-            return
-        time.sleep(15)
-    raise TimeoutError(f"LightRAG did not drain for {dataset_id} within {timeout_s}s")
+    return record
 
 
 def validate_matrix_cells(matrix: dict[str, Any], *, dataset_id: str) -> None:
@@ -250,7 +195,8 @@ def validate_judgments(judgments: dict[str, Any], *, dataset_id: str) -> None:
 
 
 def run_matrix_and_judge(
-    dataset: dict[str, Any], date_stamp: str, approaches: str, flavors: str
+    dataset: dict[str, Any], ingestion: dict[str, Any], date_stamp: str,
+    approaches: str, flavors: str
 ) -> tuple[Path, Path]:
     dataset_id = dataset["id"]
     matrix_name = f"live-{date_stamp}-{dataset_id}-matrix.json"
@@ -263,8 +209,19 @@ def run_matrix_and_judge(
     # deliberate and mirrored by validation.
     env.pop("MATRIX_MODELS", None)
     env.pop("MATRIX_FLAVORS", None)
+    for key in (
+        "MATRIX_INGESTION_ID",
+        "MATRIX_INGESTION_PROFILE",
+        "MATRIX_INGESTION_REVISION",
+        "MATRIX_INGESTION_CONTENT_DIGEST",
+    ):
+        env.pop(key, None)
     env["MATRIX_QUERIES_FILE"] = dataset["queries_file"]
     env["MATRIX_RESULTS_FILE"] = matrix_name
+    env["MATRIX_INGESTION_ID"] = str(ingestion["id"])
+    env["MATRIX_INGESTION_PROFILE"] = str(ingestion["profile"])
+    env["MATRIX_INGESTION_REVISION"] = str(ingestion["revision"])
+    env["MATRIX_INGESTION_CONTENT_DIGEST"] = str(ingestion["content_digest"])
     if approaches:
         env["MATRIX_MODELS"] = approaches
     if flavors:
@@ -379,11 +336,10 @@ def main() -> None:
         print(f"\n==> Dataset {index}/{len(datasets)}: {dataset['id']}", flush=True)
         if not args.no_cold_reset:
             cold_reset()
-        start_service_only()
-        ingest_dataset(dataset)
-        wait_for_lightrag(dataset["id"])
+        start_service_only(dataset)
+        ingestion = ingest_dataset(dataset)
         matrix, judgments = run_matrix_and_judge(
-            dataset, args.date_stamp, args.approaches, args.flavors)
+            dataset, ingestion, args.date_stamp, args.approaches, args.flavors)
         update_dataset_snapshots(dataset["id"], matrix, judgments)
         regenerate_report()
 

@@ -118,6 +118,69 @@ n8n_workflows:
           expect_status: 200
           probe: true
 
+rag_ingestion_profiles:
+  version: 1
+  profiles:
+    - name: showcase_default
+      corpus: {source: mount, path: raw}
+      parser_order: &rag_parsers [docling, tika, plain_text]
+      chunker: &rag_chunker
+        strategy: recursive
+        chunk_size: 800
+        overlap: 100
+      vector_targets: &rag_vector_targets
+        - backend: weaviate
+          collection_prefix: RagBase
+          on_unavailable: fail
+      graph_targets: &rag_graph_targets
+        - backend: lightrag
+          mode: upload_documents
+          wait_for_extraction: true
+          timeout_seconds: 3600
+          on_unavailable: fail
+    - name: baseline_curated
+      corpus: {source: mount, path: subset}
+      parser_order: *rag_parsers
+      chunker: *rag_chunker
+      vector_targets: *rag_vector_targets
+      graph_targets: *rag_graph_targets
+    - name: graph_native
+      corpus: {source: mount, path: graph_native}
+      parser_order: *rag_parsers
+      chunker: *rag_chunker
+      vector_targets: *rag_vector_targets
+      graph_targets: *rag_graph_targets
+    - name: stark_prime
+      corpus: {source: mount, path: generated/stark_prime}
+      parser_order: *rag_parsers
+      chunker: *rag_chunker
+      vector_targets: *rag_vector_targets
+      graph_targets: *rag_graph_targets
+    - name: stark_mag
+      corpus: {source: mount, path: generated/stark_mag}
+      parser_order: *rag_parsers
+      chunker: *rag_chunker
+      vector_targets: *rag_vector_targets
+      graph_targets: *rag_graph_targets
+    - name: openalex_scholarly
+      corpus: {source: mount, path: generated/openalex_scholarly}
+      parser_order: *rag_parsers
+      chunker: *rag_chunker
+      vector_targets: *rag_vector_targets
+      graph_targets: *rag_graph_targets
+    - name: gdelt_events
+      corpus: {source: mount, path: generated/gdelt_events}
+      parser_order: *rag_parsers
+      chunker: *rag_chunker
+      vector_targets: *rag_vector_targets
+      graph_targets: *rag_graph_targets
+    - name: cyber_threat_intel
+      corpus: {source: mount, path: cyber_threat_intel}
+      parser_order: *rag_parsers
+      chunker: *rag_chunker
+      vector_targets: *rag_vector_targets
+      graph_targets: *rag_graph_targets
+
 model_sidecars:
   ollama:
     - mistral-small3.2:24b

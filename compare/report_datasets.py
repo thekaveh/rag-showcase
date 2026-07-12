@@ -100,6 +100,8 @@ def build_report() -> str:
         "It deliberately reports by dataset rather than by vector/graph collection,",
         "because the comparison question is how each RAG approach behaves as the",
         "input problem becomes more relational, temporal, and multi-hop.",
+        "Each row also names the Atlas ingestion profile whose revision and job id",
+        "are stored with newly generated matrix and judgment snapshots.",
         "",
         "For the run protocol, model roles, approach invocation details, and",
         "judge-panel design, see [`evaluation-methodology.md`](evaluation-methodology.md).",
@@ -108,12 +110,13 @@ def build_report() -> str:
         "",
         "## 1. Dataset Complexity Ladder",
         "",
-        "| Dataset | Complexity | Status | Graph nature | Query file | Source |",
-        "|---|---:|---|---|---|---|",
+        "| Dataset | Complexity | Status | Atlas ingestion profile | Graph nature | Query file | Source |",
+        "|---|---:|---|---|---|---|---|",
     ]
     for dataset in datasets:
         lines.append(
             f"| `{dataset['id']}` | {dataset['complexity_level']} | {dataset['status']} | "
+            f"`{dataset.get('ingestion_profile', dataset['id'])}` | "
             f"{dataset['graph_nature']} | [`{dataset['queries_file']}`](../{dataset['queries_file']}) | "
             f"{dataset.get('source_url', '')} |"
         )

@@ -20,11 +20,11 @@ showcase test of this repo's six deployed approaches on top of Atlas.
 
 The 2026-07-03 committed run measured three dataset-ladder rungs.
 
-| Dataset | Status | Corpus | Queries | Result snapshots |
-|---|---|---|---|---|
-| `baseline_curated` | measured | `corpus/subset` | `demo/queries.yaml` | `docs/results/live-2026-07-03-baseline_curated-*.json` |
-| `graph_native` | measured | `corpus/graph_native` | `demo/graph_native_queries.yaml` | `docs/results/live-2026-07-03-graph_native-*.json` |
-| `cyber_threat_intel` | measured | `corpus/cyber_threat_intel` | `demo/cyber_threat_intel_queries.yaml` | `docs/results/live-2026-07-03-cyber_threat_intel-*.json` |
+| Dataset | Status | Corpus | Atlas ingestion profile | Queries | Result snapshots |
+|---|---|---|---|---|---|
+| `baseline_curated` | measured | `corpus/subset` | `baseline_curated` | `demo/queries.yaml` | `docs/results/live-2026-07-03-baseline_curated-*.json` |
+| `graph_native` | measured | `corpus/graph_native` | `graph_native` | `demo/graph_native_queries.yaml` | `docs/results/live-2026-07-03-graph_native-*.json` |
+| `cyber_threat_intel` | measured | `corpus/cyber_threat_intel` | `cyber_threat_intel` | `demo/cyber_threat_intel_queries.yaml` | `docs/results/live-2026-07-03-cyber_threat_intel-*.json` |
 
 Candidate future rungs are tracked in `compare/datasets.yaml` and surfaced in the
 dataset report, but they are not ranked until matrix and judgment snapshots exist.
@@ -104,9 +104,9 @@ routing process.
 
 | Approach | Retrieval or routing process | Internal LLM/model calls | Evidence surfaced |
 |---|---|---|---|
-| `vanilla-rag` | Embed query -> dense vector search over `RagBase` -> stuff top chunks into one prompt. | One `embed` call and one `light_gen` call. | Retrieved plain chunks from Weaviate. |
-| `hybrid-rag` | Embed query -> Weaviate BM25+dense hybrid search over `RagBase` -> TEI rerank -> stuff top chunks. | One `embed` call, one TEI rerank call, one `light_gen` call. | Reranked plain chunks with scores. |
-| `contextual-rag` | Ingest-time context blurbs create `RagContextual`; query-time uses hybrid search + TEI rerank over context-prefixed chunks. | Ingest-time `contextual_blurb` calls per chunk; query-time `embed`, TEI rerank, and `light_gen`. | Reranked contextual chunks. |
+| `vanilla-rag` | Embed query -> dense vector search over `RagBase_<profile>` -> stuff top chunks into one prompt. | One `embed` call and one `light_gen` call. | Retrieved plain chunks from Weaviate. |
+| `hybrid-rag` | Embed query -> Weaviate BM25+dense hybrid search over `RagBase_<profile>` -> TEI rerank -> stuff top chunks. | One `embed` call, one TEI rerank call, one `light_gen` call. | Reranked plain chunks with scores. |
+| `contextual-rag` | A showcase post-step derives `RagContextual_<profile>` from Atlas chunks; query-time uses hybrid search + TEI rerank. | Ingest-time `contextual_blurb` calls per chunk; query-time `embed`, TEI rerank, and `light_gen`. | Reranked contextual chunks. |
 | `graph-rag` | Upload full documents to LightRAG; LightRAG extracts entities/relationships and answers through its graph/vector query path. | LightRAG EXTRACT/KEYWORD/QUERY model calls managed by the LightRAG service. | LightRAG knowledge-graph source marker and answer. |
 | `agentic-rag` | Bounded ReAct loop decides between vector search and LightRAG graph query tools. | Up to the configured agent step limit of `agentic` model calls, plus tool calls to vector search or LightRAG. | Tool trace. |
 | `n8n-adaptive-rag` | n8n classifies query as simple/complex, routes to another approach, and normalizes the response. | One n8n classifier call, then the model calls of the selected downstream route. | Selected route and normalized downstream answer. |
@@ -122,16 +122,21 @@ and its own result snapshots.
 
 For each dataset, `scripts/run-dataset-ladder.py` performs this sequence:
 
-1. Cold-reset the Atlas stack unless `--no-cold-reset` is set.
-2. Start rag-showcase with default ingest skipped.
-3. Ingest the selected dataset into Weaviate and LightRAG.
-4. Wait for LightRAG graph extraction to drain.
-5. Run `compare/run_matrix.py` against the dataset's query file.
-6. Validate that every matrix cell returned successfully.
-7. Run `compare/judge.py` over the stored matrix.
-8. Copy matrix and judgment files into `docs/results/`.
-9. Update `compare/datasets.yaml` with snapshot paths.
-10. Regenerate `docs/dataset-complexity-report.md`.
+1. Validate the dataset's declared `ingestion_profile` and corpus directory.
+2. Cold-reset the Atlas stack unless `--no-cold-reset` is set.
+3. Start rag-showcase with the profile-scoped base/contextual collection names and
+   default ingest skipped.
+4. Submit the declared profile to `POST /api/rag/ingestions` and poll its durable
+   record until Atlas completes discover, parse, chunk, embed, vector write,
+   LightRAG upload, drain, and finalize.
+5. Build `RagContextual_<profile>` from the completed Atlas plain chunks. This is
+   the only approach-specific ingestion transform retained locally.
+6. Run `compare/run_matrix.py` against the dataset's query file, recording ingestion
+   id, profile, revision, and content digest in the matrix.
+7. Validate that every matrix cell returned successfully.
+8. Run `compare/judge.py`; it carries the same ingestion provenance forward.
+9. Copy matrix and judgment files into `docs/results/`.
+10. Update `compare/datasets.yaml` with snapshot paths and regenerate the report.
 
 The flavor ladder command shape is:
 
@@ -148,6 +153,8 @@ uv run python scripts/run-dataset-ladder.py \
 `MATRIX_MODELS` selects an exact comma-separated set of model aliases.
 `MATRIX_FLAVORS` expands named profiles from `compare/flavors.yaml`. The dataset
 runner treats those modes as mutually exclusive to keep result metadata clear.
+New snapshots also contain an `ingestion` object. Historical snapshots created
+before this migration remain valid but do not retroactively gain Atlas job ids.
 
 ## 7. Matrix Collection
 

@@ -61,6 +61,10 @@ def test_main_records_failed_cell_and_completes(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("MATRIX_QUERIES_FILE", str(queries))
     monkeypatch.setenv("MATRIX_RESULTS_FILE", str(results))
     monkeypatch.setenv("MATRIX_MODELS", "vanilla-rag,hybrid-rag")
+    monkeypatch.setenv("MATRIX_INGESTION_ID", "ing-1")
+    monkeypatch.setenv("MATRIX_INGESTION_PROFILE", "baseline_curated")
+    monkeypatch.setenv("MATRIX_INGESTION_REVISION", "rev-1")
+    monkeypatch.setenv("MATRIX_INGESTION_CONTENT_DIGEST", "digest-1")
 
     def responder(request):
         body = json.loads(request.content)
@@ -80,6 +84,12 @@ def test_main_records_failed_cell_and_completes(tmp_path, monkeypatch) -> None:
     assert cells["hybrid-rag"]["metrics"] == {"seconds": 1.0, "chunks": 1,
                                               "llm_calls": 2, "cloud_calls": 0}
     assert out["models"] == ["vanilla-rag", "hybrid-rag"]
+    assert out["ingestion"] == {
+        "id": "ing-1",
+        "profile": "baseline_curated",
+        "revision": "rev-1",
+        "content_digest": "digest-1",
+    }
 
 
 def test_parse_content_nested_wrapper_payload_uses_outer_footer() -> None:

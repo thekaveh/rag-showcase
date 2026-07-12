@@ -5,6 +5,8 @@ simplest curated corpus to increasingly graph-heavy real-world candidates.
 It deliberately reports by dataset rather than by vector/graph collection,
 because the comparison question is how each RAG approach behaves as the
 input problem becomes more relational, temporal, and multi-hop.
+Each row also names the Atlas ingestion profile whose revision and job id
+are stored with newly generated matrix and judgment snapshots.
 
 For the run protocol, model roles, approach invocation details, and
 judge-panel design, see [`evaluation-methodology.md`](evaluation-methodology.md).
@@ -13,15 +15,15 @@ For approach-by-approach internals and tuning surfaces, see
 
 ## 1. Dataset Complexity Ladder
 
-| Dataset | Complexity | Status | Graph nature | Query file | Source |
-|---|---:|---|---|---|---|
-| `baseline_curated` | 1 | measured | Mostly textual retrieval with a few multi-hop and exact-keyword prompts. | [`demo/queries.yaml`](../demo/queries.yaml) | https://huggingface.co/datasets/yixuantt/MultiHopRAG |
-| `graph_native` | 2 | measured | Explicit entity and relationship bullets over AI, antitrust, crypto, regulators, witnesses, and timelines. | [`demo/graph_native_queries.yaml`](../demo/graph_native_queries.yaml) | corpus/graph_native |
-| `stark_prime` | 3 | candidate | Biomedical entity retrieval over diseases, drugs, genes, pathways, proteins, phenotypes, and textual descriptions. | [`demo/stark_prime_queries.yaml`](../demo/stark_prime_queries.yaml) | https://github.com/snap-stanford/stark |
-| `stark_mag` | 4 | candidate | Paper, author, venue, field, citation, and affiliation retrieval where query constraints mix text with graph relations. | [`demo/stark_mag_queries.yaml`](../demo/stark_mag_queries.yaml) | https://stark.stanford.edu/ |
-| `openalex_scholarly` | 5 | candidate | Real scholarly graph with works, authors, institutions, concepts, citations, venues, and abstracts. | [`demo/openalex_scholarly_queries.yaml`](../demo/openalex_scholarly_queries.yaml) | https://developers.openalex.org/ |
-| `gdelt_events` | 6 | candidate | Event, actor, location, theme, source, tone, and timeline graph over real news events. | [`demo/gdelt_events_queries.yaml`](../demo/gdelt_events_queries.yaml) | https://www.gdeltproject.org/ |
-| `cyber_threat_intel` | 7 | measured | Intrusion groups, campaigns, malware, tools, ATT&CK techniques, mitigations, and explicit uses/mitigates relationships. | [`demo/cyber_threat_intel_queries.yaml`](../demo/cyber_threat_intel_queries.yaml) | https://attack.mitre.org/ |
+| Dataset | Complexity | Status | Atlas ingestion profile | Graph nature | Query file | Source |
+|---|---:|---|---|---|---|---|
+| `baseline_curated` | 1 | measured | `baseline_curated` | Mostly textual retrieval with a few multi-hop and exact-keyword prompts. | [`demo/queries.yaml`](../demo/queries.yaml) | https://huggingface.co/datasets/yixuantt/MultiHopRAG |
+| `graph_native` | 2 | measured | `graph_native` | Explicit entity and relationship bullets over AI, antitrust, crypto, regulators, witnesses, and timelines. | [`demo/graph_native_queries.yaml`](../demo/graph_native_queries.yaml) | corpus/graph_native |
+| `stark_prime` | 3 | candidate | `stark_prime` | Biomedical entity retrieval over diseases, drugs, genes, pathways, proteins, phenotypes, and textual descriptions. | [`demo/stark_prime_queries.yaml`](../demo/stark_prime_queries.yaml) | https://github.com/snap-stanford/stark |
+| `stark_mag` | 4 | candidate | `stark_mag` | Paper, author, venue, field, citation, and affiliation retrieval where query constraints mix text with graph relations. | [`demo/stark_mag_queries.yaml`](../demo/stark_mag_queries.yaml) | https://stark.stanford.edu/ |
+| `openalex_scholarly` | 5 | candidate | `openalex_scholarly` | Real scholarly graph with works, authors, institutions, concepts, citations, venues, and abstracts. | [`demo/openalex_scholarly_queries.yaml`](../demo/openalex_scholarly_queries.yaml) | https://developers.openalex.org/ |
+| `gdelt_events` | 6 | candidate | `gdelt_events` | Event, actor, location, theme, source, tone, and timeline graph over real news events. | [`demo/gdelt_events_queries.yaml`](../demo/gdelt_events_queries.yaml) | https://www.gdeltproject.org/ |
+| `cyber_threat_intel` | 7 | measured | `cyber_threat_intel` | Intrusion groups, campaigns, malware, tools, ATT&CK techniques, mitigations, and explicit uses/mitigates relationships. | [`demo/cyber_threat_intel_queries.yaml`](../demo/cyber_threat_intel_queries.yaml) | https://attack.mitre.org/ |
 
 ## 2. Ranking Drift by Input Dataset
 
