@@ -42,9 +42,9 @@ def test_shape_node_emits_the_fields_the_wrapper_parses() -> None:
     assert respond["parameters"]["respondWith"] == "firstIncomingItem"
 
 
-def test_workflow_is_active_for_fromjson_import() -> None:
-    # start-all.sh imports with --activeState=fromJson and relies on the file
-    # carrying active:true, then restarts n8n to register the production webhook.
+def test_workflow_is_active_for_manifest_fromjson_policy() -> None:
+    # atlas.consumer.yml declares active: fromJson, so this source value is the
+    # effective activation policy Atlas must preserve while seeding the workflow.
     assert _workflow()["active"] is True
 
 

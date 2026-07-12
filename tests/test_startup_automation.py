@@ -57,7 +57,8 @@ def test_start_does_not_repeat_atlas_owned_health_gates() -> None:
     assert "Waiting for n8n to report healthy" not in script
     assert "Waiting for LightRAG to report healthy" not in script
     assert "Waiting for Weaviate to report ready" not in script
-    assert script.count("wait_for_n8n ||") == 1  # only after wrapper-owned restart
+    assert script.count("n8n did not recover after workflow activation reload") == 1
+    assert "Verifying the Atlas-seeded adaptive-rag production webhook" in script
 
 
 def test_start_handles_only_the_atlas_exited_zero_false_negative() -> None:

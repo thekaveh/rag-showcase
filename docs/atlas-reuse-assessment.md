@@ -19,8 +19,9 @@ A living record of how well Atlas served as reusable infra for this project.
   requiring any custom UI implementation.
 - **The consumer-manifest seam:** `atlas.consumer.yml` now registers project and
   brand metadata, the env file, external Compose overlay, backend plugin root,
-  LiteLLM aliases, and Ollama model sidecar from the parent repository. Atlas validates and
-  launches the assembled integration without any symlink inside the submodule.
+  LiteLLM aliases, Ollama model sidecar, and the adaptive n8n workflow from the
+  parent repository. Atlas validates and launches the assembled integration without
+  any symlink or workflow bind mount inside the submodule.
 
 ## 2. Friction Found / Seams Added
 
@@ -198,6 +199,23 @@ Missing, starting, unhealthy, or nonzero-exit services remain failures. Remove
 this fallback after pinning an Atlas revision that performs the same
 classification before returning.
 
+### 2.16 n8n no-API-key seeding does not publish active workflows
+
+Atlas's consumer workflow contract now validates, namespaces, imports, reconciles,
+and probes the Adaptive-RAG workflow. A fresh-volume validation against n8n 2.28.2
+found one remaining lifecycle gap: with `N8N_API_KEY` unset, the CLI import persists
+normalized `active: true` JSON as inactive. The production webhook remains 404, and
+the best-effort seed reports the failed probe without failing stack startup. A
+restart alone does not change the state.
+
+The showcase temporarily publishes only the Atlas-owned
+`atlas-consumer-adaptive-rag` id, reloads n8n, and then requires a successful real
+webhook answer. For upgrades, it deletes only the exact old `adaptiverag00001`
+identity: n8n's unpublish CLI leaves that workflow's unique webhook row behind, so
+the database foreign-key cascade is needed to prevent a legacy route from blocking
+or masking the probe. Atlas #514 tracks moving the activation/reload step upstream;
+the manifest and workflow source will remain unchanged when that shim is removed.
+
 ## 3. Recommendations for Atlas
 
 - **(Resolved)** Originally: *upstream the backend plugin seam* as a documented
@@ -242,6 +260,9 @@ classification before returning.
   Compose reports an exited service, inspect expected init containers first and
   treat exit code zero as success while preserving failures for nonzero exits or
   unhealthy long-lived services (Atlas #508).
+- **Publish active n8n workflows without an API key** (§2.16): honor the effective
+  activation policy on fresh volumes, coalesce any required reload, and make required
+  webhook readiness deterministic (Atlas #514).
 
 ## 4. Live End-to-End Run — Resolved (2026-07-01)
 

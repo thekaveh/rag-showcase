@@ -158,8 +158,8 @@
         <rect x="1492" y="242" width="170" height="84" rx="6" fill="#0f172a"/>
         <rect x="1492" y="242" width="170" height="84" rx="6" fill="rgba(251,146,60,0.3)" stroke="#fb923c" stroke-width="1.5"/>
         <text x="1577" y="273" fill="white" font-size="13" font-weight="700" text-anchor="middle">3.3 n8n</text>
-        <text x="1577" y="293" fill="#94a3b8" font-size="10" text-anchor="middle">Adaptive-RAG</text>
-        <text x="1577" y="309" fill="#94a3b8" font-size="9" text-anchor="middle">classify -> route</text>
+        <text x="1577" y="293" fill="#94a3b8" font-size="10" text-anchor="middle">Atlas-seeded Adaptive-RAG</text>
+        <text x="1577" y="309" fill="#94a3b8" font-size="9" text-anchor="middle">owned; classify -> route</text>
 
         <rect x="1302" y="372" width="360" height="92" rx="6" fill="#0f172a"/>
         <rect x="1302" y="372" width="360" height="92" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
@@ -242,7 +242,7 @@
         <div class="card-header"><div class="card-dot emerald"></div><h3>2. Plugin boundary</h3></div>
         <ul>
           <li>Atlas owns the infrastructure; rag-showcase adds a mounted FastAPI plugin.</li>
-          <li>atlas.consumer.yml makes every base and flavor route a LiteLLM model.</li>
+          <li>atlas.consumer.yml owns every LiteLLM alias and the seeded n8n workflow.</li>
           <li>roles.yaml selects plugin roles; Atlas scopes model capabilities and request defaults.</li>
         </ul>
       </div>
@@ -255,7 +255,7 @@
         </ul>
       </div>
     </div>
-    <p class="footer">Approach endpoints are mounted in the Atlas FastAPI backend container from backend_plugins/rag; atlas.consumer.yml declares their LiteLLM aliases, and Open WebUI or compare/run_matrix.py invokes them through LiteLLM /v1/chat/completions.</p>
+    <p class="footer">Approach endpoints are mounted in the Atlas FastAPI backend container from backend_plugins/rag; atlas.consumer.yml declares their LiteLLM aliases and seeds the Adaptive-RAG workflow into Atlas n8n; Open WebUI or compare/run_matrix.py invokes every approach through LiteLLM /v1/chat/completions.</p>
   </div>
 </body>
 </html>

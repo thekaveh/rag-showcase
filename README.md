@@ -116,9 +116,12 @@ An alternate `ATLAS_CONSUMER_MANIFEST` can change provider, model, branding, and
 other consumer values, but those four source choices remain wrapper contracts.
 
 The `n8n-adaptive-rag` workflow is checked in at
-[`n8n/adaptive-rag.workflow.json`](n8n/adaptive-rag.workflow.json). `start-all.sh`
-imports it, preserves its active state, and restarts n8n so the production webhook
-is registered. See [`n8n/README.md`](n8n/README.md) for the workflow shape.
+[`n8n/adaptive-rag.workflow.json`](n8n/adaptive-rag.workflow.json) and declared in
+`atlas.consumer.yml`. Atlas validates, namespaces, imports, and probes the workflow
+during startup. Until [Atlas #514](https://github.com/thekaveh/atlas/issues/514)
+lands, `start-all.sh` also publishes the Atlas-owned workflow and reloads n8n when
+no `N8N_API_KEY` is configured. See [`n8n/README.md`](n8n/README.md) for the
+ownership, lifecycle, and tuning contract.
 
 For the full corpus (MultiHop-RAG + keyword docs), `python3 -m pip install datasets`
 on the host before running; without it, ingestion uses only the bundled keyword docs, so
@@ -244,7 +247,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Corpus](corpus/README.md) | Living | How to populate the corpus |
 | [Dataset adapters](corpus/adapters/README.md) | Living | The dataset fetch/adapter CLIs (GDELT, OpenAlex, STaRK, MITRE cyber) behind the candidate real-world graph rungs |
 | [Dataset complexity report](docs/dataset-complexity-report.md) | Living | Approach rankings by input dataset complexity, plus candidate real-world graph datasets |
-| [n8n workflow](n8n/README.md) | Living | Checked-in Adaptive-RAG workflow, startup import behavior, and workflow tuning knobs |
+| [n8n workflow](n8n/README.md) | Living | Checked-in Adaptive-RAG workflow, Atlas seeding lifecycle, and workflow tuning knobs |
 | [Live comparison](docs/comparison.md) | Living | Side-by-side results of all six approaches + live-validation findings (`think:false`, LightRAG role/query tuning, graph-native corpus behavior) |
 | [Result snapshots](docs/results/README.md) | Living | Index of the committed live-run matrix/judgment JSON snapshots — which set is current vs historical |
 
@@ -273,11 +276,11 @@ LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
   be downloading several GB of local models; `start-all.sh` gates on model
   readiness, so let it finish. Watch progress: `docker logs -f "$(grep -E '^PROJECT_NAME=' infra/.env | tail -1 | cut -d= -f2-)-ollama-pull"`.
 - **A model column never answers.** Confirm the Atlas-declared aliases are visible (`GET /v1/models`,
-  or the LiteLLM model list). `n8n-adaptive-rag` additionally needs the checked-in workflow
-  imported and active — `start-all.sh` does that automatically (import + restart); if the
-  column errors, re-run `./scripts/start-all.sh` or re-import manually
-  (`docker exec <project>-n8n n8n import:workflow --input=/showcase-n8n/adaptive-rag.workflow.json --activeState=fromJson`,
-  then restart n8n) — see [`n8n/README.md`](n8n/README.md).
+  or the LiteLLM model list). `n8n-adaptive-rag` additionally needs the Atlas-owned
+  `atlas-consumer-adaptive-rag` workflow active. Re-run `./scripts/start-all.sh`;
+  it verifies the real production webhook and applies the temporary no-API-key
+  activation fallback when required. Do not manually import a second copy. See
+  [`n8n/README.md`](n8n/README.md).
 - **`contextual-rag` doesn't visibly win** on the context-starved query: that contrast needs
   Docling structure-aware chunking. The showcase wrapper explicitly disables Docling for a
   hardware-neutral default and falls back to naive chunking; select an Atlas-supported Docling

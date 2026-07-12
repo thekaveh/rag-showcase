@@ -2,11 +2,12 @@
 
 ## 1. Overview
 
-The Adaptive-RAG workflow is checked in as `adaptive-rag.workflow.json`.
-`scripts/start-all.sh` imports it with `--activeState=fromJson`, then restarts n8n
-so the production webhook is registered. The backend wrapper at
-`backend_plugins/rag/approaches/n8n.py` POSTs `{query}` to this workflow's webhook
-and surfaces the chosen `route` in the comparison column.
+The Adaptive-RAG workflow is checked in as `adaptive-rag.workflow.json` and
+declared under `n8n_workflows` in `atlas.consumer.yml`. Atlas validates the source,
+normalizes its id to `atlas-consumer-adaptive-rag`, imports it idempotently, and
+probes its production webhook during startup. The backend wrapper at
+`backend_plugins/rag/approaches/n8n.py` POSTs `{query}` to that webhook and surfaces
+the chosen `route` in the comparison column.
 
 ## 2. Workflow Nodes
 
@@ -27,17 +28,28 @@ and surfaces the chosen `route` in the comparison column.
    `{ "answer": <chosen answer text>, "route": <route>, "approach": <approach> }`.
 6. **Respond to Webhook**: return the Shape node's JSON.
 
-The checked-in workflow has `"active": true`. The backend POSTs to the
-*production* webhook `/webhook/adaptive-rag`, which n8n registers only for active
-workflows. This is why startup imports the workflow and restarts n8n before model
-registration.
+The checked-in workflow has `"active": true`, and the manifest uses
+`active: fromJson`. The backend POSTs to the *production* webhook
+`/webhook/adaptive-rag`, which n8n registers only for a published workflow.
+
+Atlas owns validation, namespacing, import/update, and the declared readiness probe.
+With an operator-issued `N8N_API_KEY`, Atlas can activate the workflow through the
+n8n API. n8n 2.28.2 currently imports the workflow as inactive when that key is
+absent, despite the normalized JSON carrying `active: true`. Until
+[Atlas #514](https://github.com/thekaveh/atlas/issues/514) resolves that upstream,
+`scripts/start-all.sh` publishes the Atlas-owned id and reloads n8n once. It also
+deletes the exact legacy pre-manifest id `adaptiverag00001`, whose stale webhook
+database row otherwise blocks the namespaced workflow even after unpublishing. The
+foreign-key cascade removes only that retired route. The wrapper then performs a
+real POST and requires a non-empty answer before startup succeeds.
 
 ## 3. Editing the Workflow
 
 If you edit the workflow in the n8n UI, export it back over
 `adaptive-rag.workflow.json` before committing. Keep the top-level `id`, `name`,
-`active`, and webhook path stable unless you also update
-`N8N_ADAPTIVE_WEBHOOK_URL` and the startup import logic.
+`active`, and webhook path stable unless you also update the `n8n_workflows`
+declaration, `N8N_ADAPTIVE_WEBHOOK_URL`, and its contract tests. Do not manually
+import a second production copy: Atlas owns the namespaced runtime identity.
 
 Potential tuning variables live in the workflow JSON rather than Python:
 

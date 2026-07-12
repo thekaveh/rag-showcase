@@ -99,10 +99,12 @@ demo queries have little to work with. See the [Corpus Overview](../components/c
 
 ## 4. The n8n Workflow
 
-The `n8n-adaptive-rag` workflow is checked in and imported automatically by
-`start-all.sh`, which preserves its active state and restarts n8n so the production
-webhook is registered. See the [n8n Adaptive Workflow](../components/n8n.md) page for
-the workflow shape and tuning knobs.
+The `n8n-adaptive-rag` workflow is checked in and declared in
+`atlas.consumer.yml`. Atlas validates, namespaces, imports, and probes it; the
+wrapper verifies the real production webhook before reporting readiness. A narrow
+publish/reload compatibility step remains for no-API-key installs until Atlas #514
+lands. See the [n8n Adaptive Workflow](../components/n8n.md) page for ownership,
+lifecycle, workflow shape, and tuning knobs.
 
 ## 5. Development and Testing
 
