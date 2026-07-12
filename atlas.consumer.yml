@@ -106,6 +106,18 @@ litellm_models:
       tags: [rag-showcase, rag, flavor]
       model_info: {base_approach: n8n-adaptive-rag, flavor: true}
 
+n8n_workflows:
+  version: 1
+  workflows:
+    - id: adaptive-rag
+      path: ./n8n/adaptive-rag.workflow.json
+      active: fromJson
+      required_webhooks:
+        - path: /webhook/adaptive-rag
+          method: POST
+          expect_status: 200
+          probe: true
+
 model_sidecars:
   ollama:
     - mistral-small3.2:24b

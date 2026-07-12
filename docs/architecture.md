@@ -41,7 +41,9 @@ to the corresponding backend route.
 The direct retrieval approaches use Weaviate collections (`RagBase` and
 `RagContextual`), with TEI reranking for hybrid/contextual paths. `graph-rag` and
 the graph tool inside `agentic-rag` delegate to LightRAG and Neo4j. `n8n-adaptive-rag`
-bridges into the n8n workflow and reports the selected route.
+bridges into the n8n workflow and reports the selected route. The workflow source
+lives in this repository, while `atlas.consumer.yml` delegates its namespacing,
+idempotent import, and webhook probe to Atlas.
 
 ### 1.4 Model strategy
 
@@ -84,7 +86,9 @@ call vector search or graph query tools before returning a final answer and tool
 
 `n8n-adaptive-rag` is a workflow bridge. The n8n workflow classifies the query,
 routes it to a selected approach, shapes the response, and returns the answer plus
-route metadata to the OpenAI-compatible wrapper.
+route metadata to the OpenAI-compatible wrapper. Atlas seeds the checked-in workflow
+as `atlas-consumer-adaptive-rag`; the showcase wrapper only retains the temporary
+no-API-key activation compatibility step tracked by Atlas #514.
 
 All six lanes are invoked the same way from the outside: the caller chooses a model
 alias in LiteLLM, and LiteLLM forwards to the mounted FastAPI route in the Atlas
@@ -132,14 +136,14 @@ the endpoint and a routed approach.
 
 The project's central mechanism — vendored Atlas plus a non-invasive overlay —
 shown as the compose-level view. Everything in the `Atlas stack` subgraph is
-Atlas-owned; the showcase contributes only the overlay file, the mounted
-directories, and the parent-owned `atlas.consumer.yml`, which imports
-`config/atlas.env.user` and registers the external paths directly.
+Atlas-owned; the showcase contributes the overlay file, mounted plugin/data
+directories, workflow source, and parent-owned `atlas.consumer.yml`, which imports
+`config/atlas.env.user` and registers those external contracts directly.
 
 ```mermaid
 flowchart LR
     subgraph host["Host (this repository)"]
-        manifest["atlas.consumer.yml<br/>identity · brand · env · paths · models"]
+        manifest["atlas.consumer.yml<br/>identity · env · paths · models · workflows"]
         overlay["compose/rag-overlay.yml<br/>external manifest overlay"]
         plugdir["backend_plugins/rag/"]
         tooling["ingest/ · corpus/ · alias reconciler"]
@@ -150,6 +154,7 @@ flowchart LR
 
     manifest --> overlay
     manifest --> plugdir
+    manifest --> n8ndir
 
     subgraph atlas["Atlas stack (infra/ submodule, docker compose)"]
         backend["backend (FastAPI)<br/>plugin seam mounts /app/plugins"]
@@ -165,7 +170,7 @@ flowchart LR
     overlay -. "registered directly by<br/>the consumer manifest" .-> atlas
     plugdir -- "bind mount :ro → /app/plugins" --> backend
     tooling -- "bind mounts :ro → /app/*" --> backend
-    n8ndir -- "bind mount :ro → /showcase-n8n" --> n8n
+    n8ndir -- "Atlas validates + seeds<br/>namespaced workflow" --> n8n
     harness -- "OpenAI API over localhost" --> litellm
     harness -- "judge calls" --> ollamahost
     owui --> litellm

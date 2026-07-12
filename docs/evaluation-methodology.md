@@ -46,6 +46,11 @@ harness both discover those same aliases through `/v1/models` and call LiteLLM's
 `/v1/chat/completions` endpoint, so interactive and measured runs exercise the same
 deployment path.
 
+The adaptive workflow follows the same ownership model: its source JSON is checked
+in here and declared in `atlas.consumer.yml`; Atlas namespaces and seeds it as
+`atlas-consumer-adaptive-rag`. The matrix therefore invokes the same production
+webhook that startup probes, rather than a separately imported test workflow.
+
 The six canonical aliases are:
 
 - `vanilla-rag`

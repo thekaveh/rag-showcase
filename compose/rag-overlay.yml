@@ -8,10 +8,6 @@ services:
   # service until Atlas launches the resolved enabled-service set.
   asset-baker: !reset null
 
-  n8n:
-    volumes:
-      - ../n8n:/showcase-n8n:ro
-
   lightrag:
     environment:
       # Used only when a LightRAG role is bound directly to Ollama. The default

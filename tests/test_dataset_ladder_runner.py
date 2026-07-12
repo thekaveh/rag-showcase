@@ -35,9 +35,9 @@ def test_start_all_supports_service_only_mode() -> None:
     assert "RAG_SHOWCASE_SKIP_DEFAULT_INGEST" in script
     assert "Skipping default corpus ingest" in script
     assert "Reconciling Atlas-declared LiteLLM model aliases" in script
-    assert "import:workflow" in script
-    assert "--activeState=fromJson" in script
-    assert "adaptive-rag.workflow.json" in script
+    assert "import:workflow" not in script
+    assert "--activeState=fromJson" not in script
+    assert "adaptive-rag.workflow.json" not in script
 
 
 def test_ladder_runner_exposes_measured_dataset_selection() -> None:
@@ -64,7 +64,7 @@ def test_overlay_passes_lightrag_ollama_context_caps() -> None:
     assert "KEYWORD_OLLAMA_LLM_NUM_CTX" in overlay
     assert "QUERY_OLLAMA_LLM_NUM_CTX" in overlay
     assert "RAG_FLAVORS_FILE" in overlay
-    assert "../n8n:/showcase-n8n:ro" in overlay
+    assert "../n8n:/showcase-n8n:ro" not in overlay
 
 
 def test_ladder_runner_rejects_failed_matrix_cells() -> None:

@@ -110,26 +110,39 @@ if [ "$(cat "$ALIAS_CHANGE_FILE")" -gt 0 ]; then
 fi
 rm -f "$ALIAS_CHANGE_FILE"
 
-# Probe n8n /healthz from inside the backend after the wrapper-owned restart.
-wait_for_n8n() {
-  local ready=0
+# Atlas owns workflow import/update. n8n CE can activate the seeded workflow on
+# the running process only when an operator-issued N8N_API_KEY is configured;
+# otherwise Atlas persists it and explicitly requires one reload. Also remove
+# the exact unnamespaced id owned by releases before consumer workflow seeding.
+n8n_reload=0
+if docker exec "${PROJECT_NAME}-n8n" n8n list:workflow 2>/dev/null \
+     | grep -q '^adaptiverag00001|'; then
+  echo "==> Removing the legacy unnamespaced adaptive-rag workflow…"
+  docker exec -i -w /usr/local/lib/node_modules/n8n "${PROJECT_NAME}-n8n" \
+    node - < "$ROOT/scripts/remove_legacy_n8n_workflow.js"
+  n8n_reload=1
+fi
+if [ -z "$(envval N8N_API_KEY)" ]; then
+  # Atlas can call n8n's activation API when a UI-issued key exists. Without
+  # one, n8n 2.28 imports the normalized JSON as inactive despite active:true;
+  # publish the Atlas-owned id through n8n's CLI, then reload as the CLI asks.
+  echo "==> Publishing the Atlas-seeded adaptive-rag workflow…"
+  docker exec "${PROJECT_NAME}-n8n" \
+    n8n publish:workflow --id=atlas-consumer-adaptive-rag >/dev/null
+  n8n_reload=1
+fi
+if [ "$n8n_reload" -eq 1 ]; then
+  echo "==> Reloading n8n to activate the Atlas-seeded workflow…"
+  docker restart "${PROJECT_NAME}-n8n" >/dev/null
+  n8n_ready=0
   for _ in $(seq 1 60); do
     if docker exec "${PROJECT_NAME}-backend" python -c \
          "import httpx,sys; sys.exit(0 if httpx.get('http://n8n:5678/healthz',timeout=5).status_code < 500 else 1)" \
-         >/dev/null 2>&1; then ready=1; break; fi
+         >/dev/null 2>&1; then n8n_ready=1; break; fi
     sleep 5
   done
-  [ "$ready" = 1 ]
-}
-
-echo "==> Importing and activating the n8n adaptive-rag workflow…"
-docker exec "${PROJECT_NAME}-n8n" \
-  n8n import:workflow --input=/showcase-n8n/adaptive-rag.workflow.json --activeState=fromJson
-# n8n's CLI updates the database, but the long-running n8n process only registers
-# production webhooks at startup. Restart it after import so /webhook/adaptive-rag
-# is live before the n8n-adaptive-rag plugin route is used.
-docker restart "${PROJECT_NAME}-n8n" >/dev/null
-wait_for_n8n || { echo "n8n did not become healthy after workflow import restart."; exit 1; }
+  [ "$n8n_ready" = 1 ] || { echo "n8n did not recover after workflow activation reload."; exit 1; }
+fi
 
 if [ "${RAG_SHOWCASE_SKIP_DEFAULT_INGEST:-0}" != "1" ]; then
   echo "==> Assembling corpus on the host (corpus/raw/)…"
@@ -161,6 +174,23 @@ asyncio.run(_probe())
   sleep 10
 done
 [ "$models_ready" = 1 ] || { echo "Local models not ready after ~30 min; aborting before ingest."; exit 1; }
+
+echo "==> Verifying the Atlas-seeded adaptive-rag production webhook…"
+docker exec -i "${PROJECT_NAME}-backend" python - <<'PY'
+import os
+import sys
+
+import httpx
+
+url = os.environ.get("N8N_ADAPTIVE_WEBHOOK_URL", "http://n8n:5678/webhook/adaptive-rag")
+response = httpx.post(
+    url,
+    json={"query": "What is retrieval-augmented generation?"},
+    timeout=240,
+)
+response.raise_for_status()
+sys.exit(0 if response.json().get("answer") else 1)
+PY
 
 if [ "${RAG_SHOWCASE_SKIP_DEFAULT_INGEST:-0}" != "1" ]; then
   echo "==> Ingesting corpus inside the backend container…"
