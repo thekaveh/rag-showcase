@@ -1,7 +1,7 @@
 site_name: RAG Showcase
 site_description: >-
-  Six RAG approaches compared side by side as OpenAI-compatible endpoints on an
-  Atlas stack, with reproducible dataset-ladder evaluation results.
+  Six canonical RAG approaches and an experimental lazy graph prototype served
+  as OpenAI-compatible endpoints on Atlas, with reproducible evaluations.
 sections:
   - title: Home
     pages:
@@ -27,6 +27,9 @@ sections:
       - number: "3.2"
         title: RAG Approach Flavor Tuning
         source: approach-flavor-tuning.md
+      - number: "3.3"
+        title: Experimental Lazy Graph RAG
+        source: lazy-graph-rag.md
   - title: Architecture
     pages:
       - number: "4.1"

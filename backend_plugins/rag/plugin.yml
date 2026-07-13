@@ -67,6 +67,9 @@ env:
   - name: N8N_ADAPTIVE_WEBHOOK_URL
     default: http://n8n:5678/webhook/adaptive-rag
     description: Adaptive-RAG production webhook invoked by the n8n approach.
+  - name: LAZY_GRAPH_CACHE_DIR
+    default: /data/lazy-graph-rag
+    description: Persistent cache for experimental lazy graph indexes keyed by corpus digest.
 
 depends_on:
   - litellm

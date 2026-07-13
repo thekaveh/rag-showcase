@@ -32,6 +32,10 @@ with host Ollama; that is run metadata, not a repo requirement. See
   dataset-ladder process are documented in
   [`evaluation-methodology.md`](evaluation-methodology.md).
 
+The experimental `lazy-graph-rag` family was added after this recorded run and
+is not included in any score or ranking below. Its implementation and evaluation
+gate are documented in [`lazy-graph-rag.md`](lazy-graph-rag.md).
+
 ## 1. Headline
 
 The current ladder completed on all three measured datasets. Winners changed as

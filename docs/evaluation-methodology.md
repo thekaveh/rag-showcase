@@ -71,6 +71,10 @@ The current flavor run also measured:
 - `agentic-rag-deeper`
 - `n8n-adaptive-rag-default`
 
+The experimental `lazy-graph-rag` base and its fast/balanced/wide flavors were
+added after this run. They are explicitly selectable but are not represented in
+the 2026-07-03 scores.
+
 ## 4. Model Roles
 
 The repo separates approach aliases from underlying model roles. A user selects a
@@ -79,8 +83,8 @@ embedding, generation, graph, workflow, or judge models internally.
 
 | Role | Default model in this repo | Used by | Why this model/role exists |
 |---|---|---|---|
-| `embed` | `nomic-embed-text` | `vanilla-rag`, `hybrid-rag`, `contextual-rag`, vector tool inside `agentic-rag` | Small, local embedding model used consistently across Weaviate-backed approaches so their vector retrieval is comparable. |
-| `light_gen` | `qwen3.6:latest` | `vanilla-rag`, `hybrid-rag`, `contextual-rag` | Shared answer-generation role for chunk-based approaches, keeping answer synthesis constant while retrieval strategy changes. |
+| `embed` | `nomic-embed-text` | `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `lazy-graph-rag`, vector tool inside `agentic-rag` | Small, local embedding model used consistently across Weaviate-backed approaches so their vector retrieval is comparable. |
+| `light_gen` | `qwen3.6:latest` | `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `lazy-graph-rag` | Shared answer-generation role for chunk-based approaches, keeping answer synthesis constant while retrieval strategy changes. |
 | `contextual_blurb` | `qwen3.6:latest` | `contextual-rag` ingest | Generates short chunk context blurbs once during ingest; same local model family as generation for reproducibility. |
 | `agentic` | `qwen3.6:latest` | `agentic-rag` | Tool-using ReAct controller; needs instruction following and tool-call reliability more than raw retrieval speed. |
 | LightRAG EXTRACT | `mistral-small3.2:24b` by setup default | `graph-rag`, graph tool inside `agentic-rag` | Non-reasoning, instruction-tuned model for high-volume entity and relationship extraction. Reasoning models were too slow for this call-heavy phase. |
@@ -110,6 +114,7 @@ routing process.
 | `graph-rag` | Upload full documents to LightRAG; LightRAG extracts entities/relationships and answers through its graph/vector query path. | LightRAG EXTRACT/KEYWORD/QUERY model calls managed by the LightRAG service. | LightRAG knowledge-graph source marker and answer. |
 | `agentic-rag` | Bounded ReAct loop decides between vector search and LightRAG graph query tools. | Up to the configured agent step limit of `agentic` model calls, plus tool calls to vector search or LightRAG. | Tool trace. |
 | `n8n-adaptive-rag` | n8n classifies query as simple/complex, routes to another approach, and normalizes the response. | One n8n classifier call, then the model calls of the selected downstream route. | Selected route and normalized downstream answer. |
+| `lazy-graph-rag` (experimental, unmeasured) | Hybrid vector seeds -> deterministic concept/co-occurrence graph expansion under a relevance budget -> shared generation. | One `embed` and one `light_gen` call; zero index-time LLM calls. | Ranked chunks plus structured cache/index/traversal metadata. |
 
 The important contrast is that `hybrid-rag` is not graph RAG. It is hybrid
 chunk retrieval: BM25 keyword search plus dense vector search. Only `graph-rag`
@@ -160,7 +165,7 @@ For every query and every selected approach/flavor, it:
 3. Lets LiteLLM route the request to the mounted Atlas backend endpoint.
 4. Parses the common answer/source/metrics response wrapper.
 5. Records latency, success/error state, base approach, flavor metadata, answer
-   text, source text, and metrics.
+   text, source text, metrics, and optional structured `approach_metadata`.
 
 The resulting matrix JSON is a factual record of what each deployed approach
 actually returned before scoring.

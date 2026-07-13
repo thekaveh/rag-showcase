@@ -1,6 +1,6 @@
 # RAG Showcase
 
-Six modern RAG approaches compared side-by-side in Open WebUI's multi-model chat,
+Six canonical RAG approaches compared side-by-side in Open WebUI's multi-model chat,
 all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
 submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
 as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
@@ -20,10 +20,11 @@ as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse
 
 Each approach is an OpenAI-compatible `/rag/<name>/v1/chat/completions` endpoint in a
 self-contained plugin package (`backend_plugins/rag/`) that is bind-mounted into
-Atlas's FastAPI backend through a generic "plugin seam". The six base approaches
-and eight named flavors are declared in `atlas.consumer.yml`; Atlas validates their
-ownership and routes, compiles them into LiteLLM's startup configuration, and makes
-all fourteen aliases selectable in Open WebUI without admin-API registration.
+Atlas's FastAPI backend through a generic "plugin seam". The six canonical approaches,
+eight canonical flavors, and experimental `lazy-graph-rag` family (base plus three
+flavors) are declared in `atlas.consumer.yml`; Atlas validates their ownership and
+routes, compiles them into LiteLLM's startup configuration, and makes all eighteen
+aliases selectable in Open WebUI without admin-API registration.
 Flavors such as `graph-rag-wide` route to the same base approach with reproducible
 parameter overrides. Open a multi-model chat, select
 the approaches or flavors you want, and one prompt fans out with a uniform answer,
@@ -31,6 +32,8 @@ retrieved-context, and metrics surface.
 
 The six approaches embed via the same LiteLLM model and read the same corpus, so
 the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/roles.yaml`).
+The lazy graph family is excluded from default comparisons and has no committed
+quality ranking yet; see the [experimental design](docs/lazy-graph-rag.md).
 
 ## 2. Architecture Diagrams
 
@@ -109,6 +112,11 @@ download several GB, so it takes a while. Then open the printed URL, start a mul
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
 `n8n-adaptive-rag`. Stop everything with `./scripts/stop-all.sh`.
 
+The explicitly selected experimental aliases are `lazy-graph-rag`,
+`lazy-graph-rag-fast`, `lazy-graph-rag-balanced`, and `lazy-graph-rag-wide`.
+They build an LLM-free concept graph from `RagBase` chunks and are not included
+in the default six-way matrix.
+
 The detached startup is the authoritative effective-config check: Atlas applies
 the wrapper's fixed LightRAG container, TEI CPU, Docling-disabled, and temporary
 MinIO source flags, revalidates the resolved stack, and only then starts Compose.
@@ -147,16 +155,23 @@ measured per-query winners live in
 For exact internal steps, dependencies, tuning variables, and current measured
 performance for each approach, see [`docs/approaches.md`](docs/approaches.md).
 
+### 4.1 Experimental candidate
+
+[`lazy-graph-rag`](docs/lazy-graph-rag.md) combines vector seeds with deterministic,
+budgeted concept-graph expansion. It is a separate experimental approach, not a
+LightRAG flavor, and remains unranked until the Atlas matrix runner in Atlas #565
+supports an evidence-equivalent evaluation.
+
 ## 5. Repository Layout
 
 ```
 rag-showcase/
-├── atlas.consumer.yml       # Atlas integration plus 14 declarative LiteLLM aliases
+├── atlas.consumer.yml       # Atlas integration plus 18 declarative LiteLLM aliases
 ├── infra/                   # Atlas — vendored Git submodule (DO NOT edit here)
 ├── backend_plugins/rag/     # the plugin package mounted into Atlas's backend
 │   ├── plugin.yml           # Atlas route, health, auth, env, and dependency contract
-│   ├── common/              # config, litellm, vectors, openai_io, pipeline, contextual, lightrag, flavors
-│   ├── approaches/          # vanilla, hybrid, contextual, graph, agentic, n8n
+│   ├── common/              # shared routing, vector, LightRAG, flavor, and lazy-graph primitives
+│   ├── approaches/          # six canonical routes plus experimental lazy graph
 │   ├── tests/               # unit tests (mocked I/O)
 │   ├── roles.yaml           # role→model map (local-first)
 │   └── flavors.yaml         # Open WebUI/benchmark aliases with tuning overrides

@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from rag.common.openai_io import build_response, Source, Metrics, ChatRequest
 
@@ -38,6 +40,20 @@ def test_build_response_source_without_score():
     details_end = content.find("</details>")
     source_block = content[details_start:details_end + len("</details>")]
     assert "score" not in source_block
+
+
+def test_build_response_includes_optional_approach_metadata():
+    response = build_response(
+        "lazy-graph-rag",
+        "answer",
+        [],
+        Metrics(seconds=0.1, chunks=2, llm_calls=2, cloud_calls=0),
+        metadata={"lazy_graph": {"cache_hit": True, "relevance_tests": 3}},
+    )
+
+    assert response["rag_showcase"] == {
+        "lazy_graph": {"cache_hit": True, "relevance_tests": 3}
+    }
 
 
 def test_chat_request_last_user():
@@ -108,3 +124,20 @@ async def test_build_stream_response_emits_single_chunk_sse():
     content = first["choices"][0]["delta"]["content"]
     assert "hello" in content and "T" in content  # full rendered body in one chunk
     assert isinstance(first["created"], int)
+
+
+@pytest.mark.asyncio
+async def test_build_stream_response_preserves_optional_approach_metadata():
+    from rag.common.openai_io import build_stream_response
+
+    response = build_stream_response(
+        "lazy-graph-rag",
+        "hello",
+        [],
+        Metrics(0.5, 1, 2, 0),
+        metadata={"lazy_graph": {"cache_hit": False}},
+    )
+    first_event = [part async for part in response.body_iterator][0]
+    payload = json.loads(first_event.removeprefix("data: ").strip())
+
+    assert payload["rag_showcase"] == {"lazy_graph": {"cache_hit": False}}

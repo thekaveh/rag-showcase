@@ -6,7 +6,7 @@ hide:
 # 1 RAG Showcase
 
 <div class="hero-tagline" markdown>
-Six modern RAG approaches, compared side by side — each served as an OpenAI-compatible
+Six canonical RAG approaches, compared side by side — each served as an OpenAI-compatible
 endpoint on a fully-local [Atlas](https://github.com/thekaveh/atlas) stack. Ask one
 question in Open WebUI and watch the approaches answer in parallel, with a uniform
 answer, retrieved-context, and metrics surface. It doubles as a reproducible evaluation
@@ -34,6 +34,10 @@ result — the committed runs contradict some intended contrasts (see the
 Any approach can also expose tuned **flavors** — for example `hybrid-rag-high-recall`
 or `graph-rag-fast` — that route to the same base approach with reproducible parameter
 overrides and their own selectable model alias. See [Flavor Tuning](approach-flavor-tuning.md).
+
+An explicitly selected [experimental `lazy-graph-rag`](lazy-graph-rag.md) endpoint
+adds deterministic concept-graph expansion without changing the canonical six or
+their committed rankings. It is not included in `default` evaluation expansion.
 
 ## 2. Headline Result
 

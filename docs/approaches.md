@@ -16,7 +16,7 @@ approach with BM25 + dense retrieval and TEI reranking.
 
 ## 1. Shared Invocation Model
 
-All six approaches are mounted under the RAG plugin's shared
+All six canonical approaches and the explicit experimental lazy graph route are mounted under the RAG plugin's shared
 `/rag/<approach>/v1/chat/completions` root inside the Atlas backend container.
 [`../backend_plugins/rag/plugin.yml`](../backend_plugins/rag/plugin.yml) declares
 that `/rag` root, `/rag/health`, inherited Kong auth, typed configuration, and
@@ -56,6 +56,7 @@ underlying LLM. The approach then calls one or more configured roles.
 | LightRAG KEYWORD | `mistral-small3.2:24b` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for LightRAG keyword/query decomposition. |
 | LightRAG QUERY | `mistral-small3.2:24b` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for final LightRAG graph answers. |
 | n8n classifier | `qwen3.6:latest` | `n8n-adaptive-rag` | Workflow-level simple/complex classifier. |
+| Lazy graph query | `nomic-embed-text` + `qwen3.6:latest` | experimental `lazy-graph-rag` | Shared embedding and final generation; concept indexing/traversal is LLM-free. |
 
 Atlas's model catalog applies `request_defaults: {think: false}` to
 `qwen3.6:latest`. The setting is scoped to that catalog entry, not injected by
@@ -457,7 +458,22 @@ Very fast in the measured runs because it often delegates to `vanilla-rag` and
 benefits from warm caches. It is not a better retriever by itself; its quality is
 bounded by the classifier and selected downstream route.
 
-## 9. Cross-Approach Comparison
+## 9. Experimental `lazy-graph-rag`
+
+`lazy-graph-rag` is a seventh, explicitly selected prototype. It builds a
+deterministic concept/co-occurrence graph from the existing `RagBase` chunks,
+uses hybrid vector retrieval for seeds, expands concepts under a hard relevance
+budget, and performs one shared `light_gen` call over the selected chunks. It
+does not use LightRAG or Neo4j and it makes no LLM calls while indexing.
+
+The graph is persisted in a named Compose volume and invalidated by a corpus
+content fingerprint. Fast, balanced, and wide flavors tune
+`relevance_budget`, `seed_k`, `max_context_chunks`, and graph density. It is
+excluded from the six canonical defaults and has no committed measured score.
+See [`lazy-graph-rag.md`](lazy-graph-rag.md) for its full design, phases,
+metadata contract, limitations, and Atlas #565 evaluation gate.
+
+## 10. Cross-Approach Comparison
 
 | Question | Best current answer |
 |---|---|
@@ -467,8 +483,9 @@ bounded by the classifier and selected downstream route.
 | True knowledge-graph path? | `graph-rag` |
 | Best place to test tool-use/multi-hop planning? | `agentic-rag` |
 | Best low-code routing demonstration? | `n8n-adaptive-rag` |
+| Experimental LLM-free graph expansion? | `lazy-graph-rag` (not yet ranked) |
 
-## 10. Tuning Priorities
+## 11. Tuning Priorities
 
 The current results are a measured baseline, not the end of the search space.
 The highest-leverage tuning work is:

@@ -86,3 +86,39 @@ flavors:
     description: Explicit alias for the current n8n adaptive workflow.
     requires_reingest: false
     params: {}
+
+  - alias: lazy-graph-rag-fast
+    base: lazy-graph-rag
+    flavor: fast
+    label: Lazy Graph Fast
+    description: Small concept-expansion and context budgets for low query latency.
+    requires_reingest: false
+    params:
+      relevance_budget: 8
+      seed_k: 4
+      max_context_chunks: 4
+      max_concepts_per_chunk: 16
+
+  - alias: lazy-graph-rag-balanced
+    base: lazy-graph-rag
+    flavor: balanced
+    label: Lazy Graph Balanced
+    description: Balanced concept-expansion, vector-seed, and context budgets.
+    requires_reingest: false
+    params:
+      relevance_budget: 24
+      seed_k: 8
+      max_context_chunks: 8
+      max_concepts_per_chunk: 24
+
+  - alias: lazy-graph-rag-wide
+    base: lazy-graph-rag
+    flavor: wide
+    label: Lazy Graph Wide
+    description: Wider concept traversal and context for relationship-heavy questions.
+    requires_reingest: false
+    params:
+      relevance_budget: 64
+      seed_k: 16
+      max_context_chunks: 12
+      max_concepts_per_chunk: 32

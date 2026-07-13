@@ -57,6 +57,12 @@ litellm_models:
       description: RAG showcase - n8n-classified adaptive retrieval
       tags: [rag-showcase, rag, base]
       model_info: {base_approach: n8n-adaptive-rag, flavor: false}
+    - name: lazy-graph-rag
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/lazy-graph-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Experimental LLM-free concept graph with budgeted query-time expansion
+      tags: [rag-showcase, rag, experimental]
+      model_info: {base_approach: lazy-graph-rag, flavor: false, experimental: true}
     - name: vanilla-rag-wide
       api_base: "${ATLAS_BACKEND_INTERNAL}/rag/vanilla-rag/v1"
       api_key_var: LITELLM_MASTER_KEY
@@ -105,6 +111,24 @@ litellm_models:
       description: Explicit alias for the current n8n adaptive workflow
       tags: [rag-showcase, rag, flavor]
       model_info: {base_approach: n8n-adaptive-rag, flavor: true}
+    - name: lazy-graph-rag-fast
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/lazy-graph-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Experimental lazy graph with a small relevance budget
+      tags: [rag-showcase, rag, flavor, experimental]
+      model_info: {base_approach: lazy-graph-rag, flavor: true, experimental: true}
+    - name: lazy-graph-rag-balanced
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/lazy-graph-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Experimental lazy graph with balanced query-time budgets
+      tags: [rag-showcase, rag, flavor, experimental]
+      model_info: {base_approach: lazy-graph-rag, flavor: true, experimental: true}
+    - name: lazy-graph-rag-wide
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/lazy-graph-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Experimental lazy graph with wider relationship traversal
+      tags: [rag-showcase, rag, flavor, experimental]
+      model_info: {base_approach: lazy-graph-rag, flavor: true, experimental: true}
 
 n8n_workflows:
   version: 1

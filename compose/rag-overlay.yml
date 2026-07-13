@@ -33,7 +33,12 @@ services:
       LIGHTRAG_QUERY_MAX_TOTAL_TOKENS: ${LIGHTRAG_QUERY_MAX_TOTAL_TOKENS:-12000}
       LIGHTRAG_UPLOAD_RETRIES: ${LIGHTRAG_UPLOAD_RETRIES:-60}
       LIGHTRAG_UPLOAD_RETRY_DELAY: ${LIGHTRAG_UPLOAD_RETRY_DELAY:-5.0}
+      LAZY_GRAPH_CACHE_DIR: ${LAZY_GRAPH_CACHE_DIR:-/data/lazy-graph-rag}
     volumes:
       - ../backend_plugins:/app/plugins:ro
       - ../ingest:/app/ingest:ro
       - ../corpus:/app/corpus:ro
+      - lazy-graph-cache:/data/lazy-graph-rag
+
+volumes:
+  lazy-graph-cache:

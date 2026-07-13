@@ -301,6 +301,34 @@ def test_search_hybrid_passes_alpha_k_and_requests_score(monkeypatch):
     assert hits == [vectors.Hit("T", "txt", 0.5)]
 
 
+def test_read_chunks_returns_stable_snapshot_without_vectors(monkeypatch):
+    seen = {}
+
+    class _Collection:
+        def iterator(self, *, include_vector):
+            seen["include_vector"] = include_vector
+            return iter([_Obj("B", "beta"), _Obj("A", "alpha")])
+
+    class _Client:
+        @property
+        def collections(self):
+            class _Collections:
+                def get(self, name):
+                    seen["collection"] = name
+                    return _Collection()
+            return _Collections()
+
+        def close(self):
+            seen["closed"] = True
+
+    monkeypatch.setattr(vectors, "_weaviate", lambda: _Client())
+
+    hits = vectors.read_chunks("RagBase")
+
+    assert hits == [Hit("A", "alpha"), Hit("B", "beta")]
+    assert seen == {"collection": "RagBase", "include_vector": False, "closed": True}
+
+
 def test_rag_weaviate_grpc_port_validation(monkeypatch):
     import sys
     import types

@@ -47,7 +47,7 @@ print(json.dumps([model.to_row() for model in config.litellm_models]))
 
 
 def _expected_aliases() -> dict[str, str]:
-    aliases = {name: name for name in flavors.BASE_APPROACHES}
+    aliases = {name: name for name in flavors.SUPPORTED_APPROACHES}
     manifest = yaml.safe_load(
         (ROOT / "backend_plugins" / "rag" / "flavors.yaml").read_text(encoding="utf-8")
     )
@@ -60,7 +60,7 @@ def test_consumer_manifest_declares_every_base_and_flavor_alias() -> None:
     expected = _expected_aliases()
 
     assert {row["model_name"] for row in rows} == set(expected)
-    assert len(rows) == 14
+    assert len(rows) == len(expected)
 
     for row in rows:
         alias = row["model_name"]
@@ -73,6 +73,9 @@ def test_consumer_manifest_declares_every_base_and_flavor_alias() -> None:
         assert info["atlas_managed"] is True
         assert info["base_approach"] == expected[alias]
         assert info["flavor"] is (alias != expected[alias])
+        assert info.get("experimental", False) is (
+            expected[alias] in flavors.EXPERIMENTAL_APPROACHES
+        )
 
 
 def test_aliases_are_declarative_and_startup_only_waits_for_them() -> None:

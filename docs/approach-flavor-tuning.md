@@ -14,13 +14,16 @@ The six stable approaches remain:
 - `agentic-rag`
 - `n8n-adaptive-rag`
 
-A **flavor** is a named model alias that points at one of those base routes with
+A **flavor** is a named model alias that points at a supported base route with
 specific parameter overrides. For example, `graph-rag-wide` is still the
 `graph-rag` backend route, but the request model tells the plugin to use wider
 LightRAG query fanout.
 
 This gives users a clean Open WebUI interface and gives the benchmark harness a
 reproducible experiment surface.
+
+The experimental `lazy-graph-rag` family follows the same alias mechanism but is
+not part of the six canonical `default` profiles. It must be selected explicitly.
 
 ## 2. Open WebUI Invocation
 
@@ -76,6 +79,9 @@ MATRIX_FLAVORS_FILE=path/to/flavors.yaml
 | `graph-rag-wide` | `graph-rag` | LightRAG `top_k=30`, `chunk_top_k=12`, `max_total_tokens=24000` | No |
 | `agentic-rag-deeper` | `agentic-rag` | `max_steps=8`, vector tool top-k `8` | No |
 | `n8n-adaptive-rag-default` | `n8n-adaptive-rag` | explicit alias for current workflow | No |
+| `lazy-graph-rag-fast` | `lazy-graph-rag` | budgets `8/4/4` for relevance/seed/context | No source re-ingest; lazy index may rebuild |
+| `lazy-graph-rag-balanced` | `lazy-graph-rag` | budgets `24/8/8` | No source re-ingest; lazy index may rebuild |
+| `lazy-graph-rag-wide` | `lazy-graph-rag` | budgets `64/16/12` | No source re-ingest; lazy index may rebuild |
 
 ## 5. Benchmark Invocation
 
@@ -97,6 +103,12 @@ Run an exact model list:
 MATRIX_MODELS=graph-rag-wide,hybrid-rag-high-recall uv run python compare/run_matrix.py
 ```
 
+Run the experimental lazy graph family explicitly:
+
+```bash
+MATRIX_FLAVORS=lazy-graph-rag uv run python compare/run_matrix.py
+```
+
 Run the dataset ladder with a flavor selection:
 
 ```bash
@@ -109,8 +121,10 @@ profile expansion.
 
 ## 6. Query-Time Versus Index-Time Knobs
 
-The current shipped flavors are query-time only. They do not require rebuilding
-Weaviate collections or the LightRAG graph.
+The canonical shipped flavors are query-time only. They do not require rebuilding
+Weaviate collections or the LightRAG graph. Lazy graph flavors do not re-ingest
+the source corpus, but a changed concept-density setting can rebuild their derived
+cache from current Weaviate chunks.
 
 Future index-time flavors should set `requires_reingest: true`. Examples:
 

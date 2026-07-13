@@ -132,6 +132,7 @@ def main() -> None:
                          "base_model": p.base,
                          "flavor": p.flavor,
                          "requires_reingest": p.requires_reingest,
+                         "experimental": p.base in flavor_config.EXPERIMENTAL_APPROACHES,
                      }
                      for p in profiles
                  ],
@@ -159,9 +160,12 @@ def main() -> None:
                                           "messages": [{"role": "user", "content": q["query"]}]})
                     dt = time.monotonic() - t0
                     r.raise_for_status()
-                    content = r.json()["choices"][0]["message"]["content"]
+                    payload = r.json()
+                    content = payload["choices"][0]["message"]["content"]
                     cell.update({"ok": True, "latency_s": round(dt, 1),
                                  "raw": content, **parse_content(content)})
+                    if isinstance(payload.get("rag_showcase"), dict):
+                        cell["approach_metadata"] = payload["rag_showcase"]
                 except Exception as e:  # noqa: BLE001 — record, don't abort the run
                     cell.update({"ok": False, "latency_s": round(time.monotonic() - t0, 1),
                                  "error": f"{type(e).__name__}: {e}"})
