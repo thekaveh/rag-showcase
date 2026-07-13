@@ -210,7 +210,14 @@ def load_or_build(
             cached = GraphIndex.from_dict(json.loads(path.read_text(encoding="utf-8")))
             if cached.fingerprint == fingerprint:
                 return cached, _stats(cached, cache_hit=True, started=started)
-        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+        except (
+            OSError,
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            json.JSONDecodeError,
+        ):
             pass
 
     index = build_index(chunks, max_concepts_per_chunk=max_concepts_per_chunk)

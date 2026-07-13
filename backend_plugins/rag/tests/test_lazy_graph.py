@@ -60,6 +60,26 @@ def test_disk_cache_is_reused_and_invalidated_by_chunk_content(tmp_path):
     assert stored["fingerprint"] == fourth.fingerprint
 
 
+def test_structurally_corrupt_cache_is_rebuilt(tmp_path):
+    cache = tmp_path / "test.json"
+    cache.write_text(
+        json.dumps({
+            "version": 1,
+            "fingerprint": "not-the-corpus",
+            "chunks": {},
+            "concept_chunks": {},
+            "edges": {"broken": None},
+        }),
+        encoding="utf-8",
+    )
+
+    index, stats = load_or_build(_chunks(), cache_dir=tmp_path, namespace="test")
+
+    assert stats.cache_hit is False
+    assert len(index.chunks) == len(_chunks())
+    assert json.loads(cache.read_text(encoding="utf-8"))["fingerprint"] == index.fingerprint
+
+
 def test_retrieve_enforces_relevance_and_context_budgets():
     index = build_index(_chunks())
 
