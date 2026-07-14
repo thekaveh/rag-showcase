@@ -177,6 +177,22 @@ def search_hybrid(collection: str, query: str, query_vec: list[float],
         client.close()
 
 
+def read_chunks(collection: str) -> list[Hit]:
+    """Read a deterministic snapshot of every chunk in a collection.
+
+    Lazy graph indexing needs the complete corpus, not only retrieval hits. The
+    returned order is stable so identical collections produce identical content
+    fingerprints even if Weaviate's iterator order changes.
+    """
+    client = _weaviate()
+    try:
+        coll = client.collections.get(collection)
+        hits = _hits_from_objects(coll.iterator(include_vector=False))
+        return sorted(hits, key=lambda hit: (hit.title, hit.text))
+    finally:
+        client.close()
+
+
 async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
     if not hits:
         return []

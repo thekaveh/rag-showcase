@@ -2,7 +2,7 @@
 
 This document is the canonical guide to how each approach in rag-showcase works,
 what it depends on, what can be tuned, and how it performed in the committed
-2026-07-03 live dataset-ladder run.
+2026-07-13 live dataset-ladder run.
 
 The important terminology distinction:
 
@@ -16,7 +16,7 @@ approach with BM25 + dense retrieval and TEI reranking.
 
 ## 1. Shared Invocation Model
 
-All six approaches are mounted under the RAG plugin's shared
+All six canonical approaches and the explicit experimental lazy graph route are mounted under the RAG plugin's shared
 `/rag/<approach>/v1/chat/completions` root inside the Atlas backend container.
 [`../backend_plugins/rag/plugin.yml`](../backend_plugins/rag/plugin.yml) declares
 that `/rag` root, `/rag/health`, inherited Kong auth, typed configuration, and
@@ -60,6 +60,7 @@ underlying LLM. The approach then calls one or more configured roles.
 | LightRAG KEYWORD | `qwen3.6:latest` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for strict LightRAG keyword/query decomposition, with thinking disabled by Atlas model metadata. |
 | LightRAG QUERY | `qwen3.6:latest` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for final LightRAG graph answers, with thinking disabled by Atlas model metadata. |
 | n8n classifier | `qwen3.6:latest` | `n8n-adaptive-rag` | Workflow-level simple/complex classifier. |
+| Lazy graph query | `nomic-embed-text` + `qwen3.6:latest` | experimental `lazy-graph-rag` | Shared embedding and final generation; concept indexing/traversal is LLM-free. |
 
 Atlas's model catalog applies `request_defaults: {think: false}` to
 `qwen3.6:latest`. The setting is scoped to that catalog entry, not injected by
@@ -73,13 +74,13 @@ documented in [`evaluation-methodology.md`](evaluation-methodology.md).
 ### 1.2 Shared Evaluation Contract
 
 The evaluation manifest declares `answer_with_contexts` for vanilla, hybrid,
-contextual, agentic, and adaptive RAG. Their retrieved snippets can be sent to
-Atlas for context-grounding metrics. It declares `answer_only` for graph-rag
+contextual, agentic, adaptive, and lazy graph RAG. Their retrieved snippets can
+be sent to Atlas for context-grounding metrics. It declares `answer_only` for graph-rag
 because the current LightRAG response exposes an answer and graph marker, but not
 the exact text contexts selected internally.
 
-All six approaches can still be compared on successful-answer rate, latency, and
-the optional blinded judge panel. Graph-rag's missing context is recorded as
+All seven selected approaches can still be compared on successful-answer rate,
+latency, and the optional blinded judge panel. Graph-rag's missing context is recorded as
 `not_evaluable` for context-dependent Ragas metrics, never as a zero and never as
 invented evidence. See
 [`evaluation-methodology.md`](evaluation-methodology.md#5-approach-processes-and-evidence-capabilities).
@@ -87,28 +88,33 @@ invented evidence. See
 ## 2. Current Measured Results
 
 The current committed live run measured three dataset-ladder rungs. The table
-below contains historical 1-5 judge-panel means from 2026-07-03, not Ragas scores.
-That run predates canonical evidence/evaluation artifacts. The table shows the six
-canonical approaches only; named flavors are ranked separately in
-[`dataset-complexity-report.md`](dataset-complexity-report.md).
+contains 1-5 means from two blinded local judges. Ragas scores are separate and
+have zero coverage because Atlas #596/#597 rejected the evaluator requests. All
+140 answer cells and all judge prompts completed; named flavor measurements from
+2026-07-03 remain historical tuning evidence.
 
 | Approach | Baseline curated | Graph-native | Cyber threat intel | Direction |
 |---|---:|---:|---:|---|
-| `vanilla-rag` | 4.25 | 3.38 | 3.08 | Strong simple baseline; loses ground as relation/path constraints grow. |
-| `hybrid-rag` | 4.08 | 3.88 | 2.50 | Reliable text retriever; high-recall flavor improves graph-native aggregate. |
-| `contextual-rag` | 4.08 | **3.94** | **3.17** | Best canonical default across the harder rungs. |
-| `graph-rag` | 3.42 | 2.75 | 1.92 | Operational end to end, but current query settings are uneven. |
-| `agentic-rag` | 2.67 | 2.62 | 2.00 | Step-limited and latency-heavy on complex prompts. |
-| `n8n-adaptive-rag` | 4.25 | 3.56 | 3.08 | Very fast, inherits route-map quality. |
+| `vanilla-rag` | **4.42** | 3.62 | 2.67 | Strong simple baseline; loses ground as relation/path constraints grow. |
+| `hybrid-rag` | 4.08 | 3.62 | 3.17 | Reliable text retriever; won two cyber questions. |
+| `contextual-rag` | 3.67 | **4.12** | 3.17 | Best canonical default on graph-native dossiers. |
+| `graph-rag` | 3.00 | 2.38 | 1.50 | Operational end to end, but current query synthesis is uneven. |
+| `agentic-rag` | 2.33 | 2.38 | 1.67 | Step-limited and the slowest path on harder prompts. |
+| `n8n-adaptive-rag` | **4.42** | 3.62 | 2.67 | Fast because it often routes to vanilla; inherits route-map quality. |
+| `lazy-graph-rag` | 3.92 | 3.88 | **3.25** | Experimental; rank improved 4/7 to 2/7 to 1/7. |
 
 Snapshot files:
 
-- Baseline matrix: [`results/live-2026-07-03-baseline_curated-matrix.json`](results/live-2026-07-03-baseline_curated-matrix.json)
-- Baseline judgments: [`results/live-2026-07-03-baseline_curated-judgments.json`](results/live-2026-07-03-baseline_curated-judgments.json)
-- Graph-native matrix: [`results/live-2026-07-03-graph_native-matrix.json`](results/live-2026-07-03-graph_native-matrix.json)
-- Graph-native judgments: [`results/live-2026-07-03-graph_native-judgments.json`](results/live-2026-07-03-graph_native-judgments.json)
-- Cyber matrix: [`results/live-2026-07-03-cyber_threat_intel-matrix.json`](results/live-2026-07-03-cyber_threat_intel-matrix.json)
-- Cyber judgments: [`results/live-2026-07-03-cyber_threat_intel-judgments.json`](results/live-2026-07-03-cyber_threat_intel-judgments.json)
+- Baseline: [`matrix`](results/live-2026-07-13-baseline_curated-matrix.json) and
+  [`evaluation`](results/live-2026-07-13-baseline_curated-evaluation.json)
+- Graph-native: [`matrix`](results/live-2026-07-13-graph_native-matrix.json) and
+  [`evaluation`](results/live-2026-07-13-graph_native-evaluation.json)
+- Cyber: [`matrix`](results/live-2026-07-13-cyber_threat_intel-matrix.json) and
+  [`evaluation`](results/live-2026-07-13-cyber_threat_intel-evaluation.json)
+
+The matching `*-evidence.jsonl` and `*-judgments.json` files are documented in
+the [`results/` artifact index](results/README.md); JSONL remains a downloadable
+repository artifact rather than an MkDocs page.
 
 ## 3. `vanilla-rag`
 
@@ -356,13 +362,13 @@ thousands of tokens instead of the requested compact structure.
 
 ### 6.6 Observed Behavior
 
-`graph-rag` is now operational: it indexed all three measured datasets and answered
-every query cell. It still did not win any dataset on aggregate. The `graph-rag-fast`
-flavor was stronger than default and won individual baseline and graph-native
-questions, while `graph-rag-wide` frequently returned truncated answers and ranked
-last. The weakest graph scores were broader synthesis and cyber path questions
-where current LightRAG query settings under-synthesized compared with
-hybrid/contextual chunk retrieval.
+`graph-rag` is operational: it indexed all three datasets and answered every query
+cell. It did not win an aggregate. It won three baseline questions, tied the top
+mean on the cyber credential path, but returned `No relevant context found` on
+four other cyber questions. Its 67-88 second mean latency was much higher than
+chunk retrieval and lazy graph. Historical flavor evidence still shows
+`graph-rag-fast` can outperform default on some questions, while
+`graph-rag-wide` frequently returned truncated answers.
 
 ### 6.7 Untested Fine-Tuning Opportunities
 
@@ -479,7 +485,23 @@ Very fast in the measured runs because it often delegates to `vanilla-rag` and
 benefits from warm caches. It is not a better retriever by itself; its quality is
 bounded by the classifier and selected downstream route.
 
-## 9. Cross-Approach Comparison
+## 9. Experimental `lazy-graph-rag`
+
+`lazy-graph-rag` is a seventh, explicitly selected prototype. It builds a
+deterministic concept/co-occurrence graph from the existing `RagBase` chunks,
+uses hybrid vector retrieval for seeds, expands concepts under a hard relevance
+budget, and performs one shared `light_gen` call over the selected chunks. It
+does not use LightRAG or Neo4j and it makes no LLM calls while indexing.
+
+The graph is persisted in a named Compose volume and invalidated by a corpus
+content fingerprint. Fast, balanced, and wide flavors tune
+`relevance_budget`, `seed_k`, `max_context_chunks`, and graph density. It is
+excluded from the six canonical defaults but was selected explicitly in the
+2026-07-13 ladder. It ranked fourth on baseline, second on graph-native, and
+first on cyber-threat data. See [`lazy-graph-rag.md`](lazy-graph-rag.md) for its
+full design, phases, metadata contract, limitations, and measured results.
+
+## 10. Cross-Approach Comparison
 
 | Question | Best current answer |
 |---|---|
@@ -489,8 +511,9 @@ bounded by the classifier and selected downstream route.
 | True knowledge-graph path? | `graph-rag` |
 | Best place to test tool-use/multi-hop planning? | `agentic-rag` |
 | Best low-code routing demonstration? | `n8n-adaptive-rag` |
+| Experimental LLM-free graph expansion? | `lazy-graph-rag` (measured, off by default) |
 
-## 10. Tuning Priorities
+## 11. Tuning Priorities
 
 The current results are a measured baseline, not the end of the search space.
 The highest-leverage tuning work is:

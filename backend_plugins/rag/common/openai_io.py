@@ -119,7 +119,7 @@ def _evidence_extension(sources: list[Source], metrics: Metrics) -> dict[str, An
 
 
 def build_response(model: str, answer: str, sources: list[Source],
-                   metrics: Metrics) -> dict[str, Any]:
+                   metrics: Metrics, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
     # `answer` is the choke point for every approach. Coerce a non-string answer
     # (e.g. an operator-built n8n workflow that returns a non-string, or a backend
     # that returns structured/list content) to "" so the concatenation below can't
@@ -130,7 +130,10 @@ def build_response(model: str, answer: str, sources: list[Source],
                      type(answer).__name__, model)
         answer = ""
     content = answer + _render_sources(sources) + _render_footer(metrics)
-    return {
+    extension = _evidence_extension(sources, metrics)
+    if metadata:
+        extension.update(metadata)
+    response = {
         # Unique per response; `created` is required by the OpenAI chat.completion
         # schema and strict SDK consumers reject its absence.
         "id": f"ragshow-{model}-{uuid.uuid4().hex[:8]}",
@@ -143,15 +146,17 @@ def build_response(model: str, answer: str, sources: list[Source],
             "finish_reason": "stop",
         }],
         "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-        "rag_showcase": _evidence_extension(sources, metrics),
+        "rag_showcase": extension,
     }
+    return response
 
 
 def build_stream_response(model: str, answer: str, sources: list[Source],
-                          metrics: Metrics) -> StreamingResponse:
+                          metrics: Metrics,
+                          metadata: dict[str, Any] | None = None) -> StreamingResponse:
     """Minimal OpenAI-compatible SSE for stream=true clients: one
     chat.completion.chunk carrying the full rendered content, then [DONE]."""
-    full = build_response(model, answer, sources, metrics)
+    full = build_response(model, answer, sources, metrics, metadata)
     chunk = {
         "id": full["id"],
         "object": "chat.completion.chunk",
@@ -165,7 +170,6 @@ def build_stream_response(model: str, answer: str, sources: list[Source],
         }],
         "rag_showcase": full["rag_showcase"],
     }
-
     async def gen():
         yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"
@@ -174,9 +178,9 @@ def build_stream_response(model: str, answer: str, sources: list[Source],
 
 
 def respond(req: ChatRequest, model: str, answer: str, sources: list[Source],
-            metrics: Metrics) -> Any:
+            metrics: Metrics, metadata: dict[str, Any] | None = None) -> Any:
     """Uniform response for every approach: honors stream=true with the
     single-chunk SSE fallback, plain JSON otherwise."""
     if req.stream:
-        return build_stream_response(model, answer, sources, metrics)
-    return build_response(model, answer, sources, metrics)
+        return build_stream_response(model, answer, sources, metrics, metadata)
+    return build_response(model, answer, sources, metrics, metadata)

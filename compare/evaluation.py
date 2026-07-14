@@ -268,6 +268,13 @@ def completion_evidence(payload: dict[str, Any]) -> dict[str, Any]:
             normalized["contexts"] = [row["snippet"] for row in sources if row["snippet"]]
         if isinstance(extension.get("metrics"), dict):
             normalized["server_metrics"] = dict(extension["metrics"])
+        approach_metadata = {
+            key: value
+            for key, value in extension.items()
+            if key not in {"schema_version", "sources", "metrics"}
+        }
+        if approach_metadata:
+            normalized["approach_metadata"] = approach_metadata
         transport = "structured"
 
     usage = payload.get("usage")

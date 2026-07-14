@@ -2,6 +2,14 @@
 # Relative paths resolve against the project dir = infra/ (the dir of the
 # first -f file, docker-compose.yml), so ../backend_plugins == repo root.
 services:
+  lazy-graph-cache-init:
+    image: alpine:3.24.1
+    restart: "no"
+    entrypoint: ["sh", "-c"]
+    command: ["chown -R 1001:1001 /data/lazy-graph-rag"]
+    volumes:
+      - lazy-graph-cache:/data/lazy-graph-rag
+
   lightrag:
     environment:
       # Used only when a LightRAG role is bound directly to Ollama. The default
@@ -13,6 +21,9 @@ services:
       QUERY_OLLAMA_LLM_NUM_CTX: ${LIGHTRAG_QUERY_OLLAMA_LLM_NUM_CTX:-8192}
 
   backend:
+    depends_on:
+      lazy-graph-cache-init:
+        condition: service_completed_successfully
     environment:
       BACKEND_PLUGINS_DIR: /app/plugins
       RAG_ROLES_FILE: ${RAG_ROLES_FILE:-/app/plugins/rag/roles.yaml}
@@ -28,7 +39,12 @@ services:
       LIGHTRAG_QUERY_TOP_K: ${LIGHTRAG_QUERY_TOP_K:-10}
       LIGHTRAG_QUERY_CHUNK_TOP_K: ${LIGHTRAG_QUERY_CHUNK_TOP_K:-5}
       LIGHTRAG_QUERY_MAX_TOTAL_TOKENS: ${LIGHTRAG_QUERY_MAX_TOTAL_TOKENS:-12000}
+      LAZY_GRAPH_CACHE_DIR: ${LAZY_GRAPH_CACHE_DIR:-/data/lazy-graph-rag}
     volumes:
       - ../backend_plugins:/app/plugins:ro
       - ../ingest:/app/ingest:ro
       - ../corpus:/app/corpus:ro
+      - lazy-graph-cache:/data/lazy-graph-rag
+
+volumes:
+  lazy-graph-cache:

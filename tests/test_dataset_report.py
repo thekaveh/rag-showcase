@@ -26,12 +26,13 @@ def test_dataset_report_ranks_measured_inputs_by_dataset() -> None:
     assert "baseline_curated" in out
     assert "graph_native" in out
     assert "contextual-rag" in out
-    assert "on `graph_native`, `hybrid-rag-high-recall` leads" in out
-    assert "on `cyber_threat_intel`, `contextual-rag-high-recall` leads" in out
+    assert "on `graph_native`, `contextual-rag` leads" in out
+    assert "on `cyber_threat_intel`, `lazy-graph-rag` leads" in out
     assert "## 3. Canonical Evaluation Metrics" in out
     assert "## 4. Per-Query Winners" in out
     assert "stark_prime" in out
     assert "pending live run" in out
+    assert "`stark_prime` | not measured | not measured | not measured" in out
     # --stdout must emit exactly the bytes the write path produces (the committed
     # report), so `diff <(… --stdout) docs/dataset-complexity-report.md` is a
     # valid drift check — no extra trailing newline from print().

@@ -206,6 +206,8 @@ def _legacy_cell(row: dict) -> dict:
                 "metrics": evidence["server_metrics"],
             }
         )
+        if metadata := evidence.get("approach_metadata"):
+            cell["approach_metadata"] = metadata
     else:
         error = row.get("error") or {}
         cell["error"] = f"{error.get('type', 'Error')}: {error.get('message', '')}"
@@ -257,6 +259,7 @@ def main() -> None:
                          "base_model": p.base,
                          "flavor": p.flavor,
                          "requires_reingest": p.requires_reingest,
+                         "experimental": p.base in flavor_config.EXPERIMENTAL_APPROACHES,
                      }
                      for p in profiles
                  ],

@@ -176,9 +176,14 @@ def build_report() -> str:
     for dataset in datasets:
         evaluation = measured_evaluations.get(dataset["id"])
         if not evaluation:
+            unavailable = (
+                "legacy snapshot; rerun required"
+                if dataset["status"] == "measured"
+                else "not measured"
+            )
             lines.append(
-                f"| `{dataset['id']}` | legacy snapshot; rerun required | "
-                "legacy snapshot; rerun required | legacy snapshot; rerun required | "
+                f"| `{dataset['id']}` | {unavailable} | "
+                f"{unavailable} | {unavailable} | "
                 "not available | not available |"
             )
             continue

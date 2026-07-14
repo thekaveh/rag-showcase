@@ -10,8 +10,9 @@ dataset view is [`dataset-complexity-report.md`](dataset-complexity-report.md).
 The comparison asks:
 
 > Given the same corpus, query set, deployed gateway, and declared model roles,
-> how do the six approaches and their named flavors change as the data becomes
-> more relational and graph-shaped?
+> how do the six canonical approaches, explicitly selected experimental
+> candidates, and their named flavors change as the data becomes more relational
+> and graph-shaped?
 
 This is a live showcase comparison, not a universal RAG benchmark. The experiment
 is consumer-owned:
@@ -30,7 +31,8 @@ import Atlas implementation modules or mutate the `infra/` submodule.
 of truth. Schema version `1` declares:
 
 - the dataset catalog in [`compare/datasets.yaml`](../compare/datasets.yaml);
-- the six canonical aliases and each approach's evidence capability;
+- the six canonical aliases, the explicitly selected experimental lazy-graph
+  family, and each approach's evidence capability;
 - requested Ragas metrics;
 - whether the judge panel is enabled, its OpenAI-compatible endpoint, models,
   temperature, and optional thinking setting;
@@ -48,7 +50,8 @@ requirement. `JUDGE_ENDPOINT`, `JUDGE_API_KEY`, `JUDGE_MODELS`, and
 
 ## 3. Deployment and Invocation Flow
 
-All six approaches run under Atlas's `gen-ai-rag` track. Rag-showcase contributes
+All six canonical approaches and the experimental lazy graph route run under
+Atlas's `gen-ai-rag` track. Rag-showcase contributes
 the mounted FastAPI plugin in [`backend_plugins/rag/`](../backend_plugins/rag/)
 and declares routes and aliases in [`atlas.consumer.yml`](../atlas.consumer.yml).
 
@@ -70,6 +73,11 @@ set LiteLLM's `no-cache` and `no-store` controls so a renewed run cannot reuse a
 answer cached before the selected corpus was ingested. Approach-internal caches,
 including LightRAG's query cache, remain part of the measured approach.
 
+The experimental `lazy-graph-rag` base and its fast/balanced/wide flavors require
+explicit selection. They do not change the default six-way matrix. The base alias
+is represented in the active 2026-07-13 seven-way run; its flavors remain outside
+that published ladder.
+
 ## 4. Model Roles
 
 The selected Open WebUI model is an approach alias, not necessarily the LLM used
@@ -77,8 +85,8 @@ inside that approach.
 
 | Role | Current setup default | Used by | Purpose |
 |---|---|---|---|
-| `embed` | `nomic-embed-text` | Weaviate-backed approaches and agent vector tool | Keep dense retrieval embeddings comparable. |
-| `light_gen` | `qwen3.6:latest` | vanilla, hybrid, contextual | Shared answer synthesis while retrieval changes. |
+| `embed` | `nomic-embed-text` | Weaviate-backed approaches, lazy graph, and agent vector tool | Keep dense retrieval embeddings comparable. |
+| `light_gen` | `qwen3.6:latest` | vanilla, hybrid, contextual, lazy graph | Shared answer synthesis while retrieval changes. |
 | `contextual_blurb` | `qwen3.6:latest` | contextual ingest | Generate context prefixes once at ingest. |
 | `agentic` | `qwen3.6:latest` | agentic | ReAct control and tool selection. |
 | LightRAG EXTRACT | `mistral-small3.2:24b` | graph ingest | High-volume entity and relationship extraction. |
@@ -105,6 +113,7 @@ contexts needed by context-grounding metrics.
 | `graph-rag` | Atlas uploads full documents; LightRAG extracts entities/relationships once and answers through its graph/vector query path. | LightRAG EXTRACT/KEYWORD/QUERY model calls managed by the LightRAG service. | `answer_only` |
 | `agentic-rag` | Bounded ReAct loop decides between vector search and LightRAG graph query tools. | Up to the configured agent step limit of `agentic` calls, plus tool calls. | `answer_with_contexts` |
 | `n8n-adaptive-rag` | n8n classifies the query, routes to another approach, and normalizes the response. | One classifier call, then the selected route's model calls. | `answer_with_contexts` |
+| `lazy-graph-rag` (experimental) | Hybrid vector seeds -> deterministic concept/co-occurrence expansion under a relevance budget -> shared generation. | One `embed` and one `light_gen` call; zero index-time LLM calls. | `answer_with_contexts` plus `lazy_graph` index/cache/traversal metadata |
 
 The plugin adds a top-level `rag_showcase` extension to JSON and SSE responses:
 
@@ -121,6 +130,11 @@ The plugin adds a top-level `rag_showcase` extension to JSON and SSE responses:
 The existing rendered source block and metrics footer remain the compatibility
 fallback. Structured evidence wins when both forms are present.
 
+Approach-specific fields are additive. Lazy graph responses retain the common
+`schema_version`, `sources`, and `metrics` fields and add `lazy_graph`; the canonical
+row stores that object as `evidence.approach_metadata`, and the compatibility matrix
+projects it as `approach_metadata`.
+
 LightRAG currently returns an answer and a knowledge-graph source marker, not the
 actual text contexts selected during graph/vector synthesis. The runner therefore
 does not invent contexts from that marker. Graph answers still receive operational
@@ -132,13 +146,13 @@ not an answer failure or a numeric zero.
 ## 6. Dataset-Ladder Procedure
 
 The dataset ladder measures one corpus at a time so ingestion provenance and
-result files stay dataset-specific. The 2026-07-03 committed run contains:
+result files stay dataset-specific. The active 2026-07-13 committed run contains:
 
 | Dataset | Corpus | Queries | Current snapshot generation |
 |---|---|---|---|
-| `baseline_curated` | `corpus/subset` | `demo/queries.yaml` | Legacy matrix + judgments |
-| `graph_native` | `corpus/graph_native` | `demo/graph_native_queries.yaml` | Legacy matrix + judgments |
-| `cyber_threat_intel` | `corpus/cyber_threat_intel` | `demo/cyber_threat_intel_queries.yaml` | Legacy matrix + judgments |
+| `baseline_curated` | `corpus/subset` | `demo/queries.yaml` | Matrix + judgments + canonical evidence/evaluation |
+| `graph_native` | `corpus/graph_native` | `demo/graph_native_queries.yaml` | Matrix + judgments + canonical evidence/evaluation |
+| `cyber_threat_intel` | `corpus/cyber_threat_intel` | `demo/cyber_threat_intel_queries.yaml` | Matrix + judgments + canonical evidence/evaluation |
 
 For each selected dataset, [`scripts/run-dataset-ladder.py`](../scripts/run-dataset-ladder.py):
 
@@ -296,10 +310,10 @@ deterministic long-form view from the same summary. Each row retains its
 timeouts, and unevaluable counts; the CSV is a generated view, not a fifth source
 of truth.
 
-The current 2026-07-03 published snapshots predate the canonical contract. Their
-documented rankings are judge-panel rankings; they do not contain Ragas scores.
-The generated report labels those datasets `legacy snapshot; rerun required`
-instead of fabricating new metrics from old output.
+The active 2026-07-13 snapshots implement this contract for all three measured
+datasets. Atlas Ragas requests were attempted and their #596/#597 contract errors
+are retained per row, so the summaries show zero objective-metric coverage. The
+2026-07-03 matrix/judgment-only flavor snapshots remain readable historical data.
 
 ## 12. Reproduction and Overrides
 
@@ -337,9 +351,8 @@ Relevant inputs include `MATRIX_MANIFEST_FILE`, `MATRIX_FLAVORS`,
 
 ## 13. Implementation Validation
 
-The 2026-07-13 implementation smoke used Atlas commit `087a5a5d` without changing
-the repository's pinned submodule reference. It exercised `vanilla-rag` and
-`graph-rag` over two datasets through the public LiteLLM aliases:
+The 2026-07-13 implementation smoke first exercised `vanilla-rag` and `graph-rag`
+over two datasets through the public LiteLLM aliases:
 
 - graph-native: eight questions by two approaches, producing 16 successful,
   uniquely identified canonical rows;
@@ -363,23 +376,27 @@ completed generic `graph_native` ingestion job
 LightRAG queue, 10 contextual chunks, and all eight six-alias smoke checks. That
 pass validates the ingestion transport and serving path, not comparative quality.
 
-These smoke runs do not add quality scores to the published historical ladder:
-Atlas evaluator defects [#596](https://github.com/thekaveh/atlas/issues/596) and
-[#597](https://github.com/thekaveh/atlas/issues/597) prevented valid Ragas scores,
-so partial smoke artifacts remain under gitignored `compare/results/`. A complete
-six-approach ladder should be published only after those evaluator contracts are
-fixed and the renewed run passes artifact validation.
+The subsequent full ladder used pinned Atlas `3c33250b`, completed fresh ingestion
+and LightRAG drain for all three datasets, and published 140/140 successful cells
+across the six canonical approaches plus experimental lazy graph. Both judges
+completed every query. Atlas evaluator defects
+[#596](https://github.com/thekaveh/atlas/issues/596) and
+[#597](https://github.com/thekaveh/atlas/issues/597) prevented valid Ragas scores;
+that limitation is represented as zero coverage and explicit errors, not as a
+blocker to publishing the independently valid answer, operational, and judge data.
 
 ## 14. Reading the Current Results
 
-The historical ladder shows ranking drift: wider vanilla retrieval led the
-baseline corpus, high-recall hybrid retrieval led the graph-native dossiers, and
-high-recall contextual retrieval led the cyber corpus. Default graph-rag was
-operational but did not win an aggregate; graph flavor behavior varied sharply.
+The active ladder shows ranking drift: adaptive/vanilla retrieval tied on the
+baseline corpus, contextual retrieval led graph-native dossiers, and experimental
+lazy graph led the cyber corpus. Default graph-rag was operational but did not win
+an aggregate; agentic retrieval was strongly constrained by latency and
+`MAX_STEPS`.
 
-Those conclusions remain useful as a directional historical record, but the next
-live ladder is the first run that can support direct faithfulness, answer-relevancy,
-coverage, failure, and latency comparisons from canonical evidence. See
+The canonical rows support direct coverage, failure, latency, answer, context,
+and judge comparisons now. Faithfulness and answer-relevancy rankings remain
+unavailable until the Atlas evaluator contract is fixed and the run is repeated.
+See
 [`comparison.md`](comparison.md) for narrative findings and
 [`approaches.md`](approaches.md) for each approach's internal steps and tuning
 surface.

@@ -22,6 +22,17 @@ def test_get_returns_default_profile_for_canonical_approach(tmp_path, monkeypatc
     assert profile.params == {}
 
 
+def test_experimental_approach_resolves_without_changing_canonical_set(tmp_path, monkeypatch):
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(tmp_path / "missing.yaml"))
+
+    profile = flavors.get("lazy-graph-rag")
+
+    assert profile.base == "lazy-graph-rag"
+    assert "lazy-graph-rag" in flavors.EXPERIMENTAL_APPROACHES
+    assert "lazy-graph-rag" not in flavors.BASE_APPROACHES
+    assert len(flavors.BASE_APPROACHES) == 6
+
+
 def test_get_resolves_alias_from_yaml(tmp_path, monkeypatch):
     f = tmp_path / "flavors.yaml"
     f.write_text(

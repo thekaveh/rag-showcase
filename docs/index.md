@@ -6,7 +6,7 @@ hide:
 # 1 RAG Showcase
 
 <div class="hero-tagline" markdown>
-Six modern RAG approaches, compared side by side — each served as an OpenAI-compatible
+Six canonical RAG approaches, compared side by side — each served as an OpenAI-compatible
 endpoint on a fully-local [Atlas](https://github.com/thekaveh/atlas) stack. Ask one
 question in Open WebUI and watch the approaches answer in parallel, with a uniform
 answer, retrieved-context, and metrics surface. It doubles as a reproducible evaluation
@@ -35,16 +35,22 @@ Any approach can also expose tuned **flavors** — for example `hybrid-rag-high-
 or `graph-rag-fast` — that route to the same base approach with reproducible parameter
 overrides and their own selectable model alias. See [Flavor Tuning](approach-flavor-tuning.md).
 
+An explicitly selected [experimental `lazy-graph-rag`](lazy-graph-rag.md) endpoint
+adds deterministic concept-graph expansion without changing the canonical six.
+It is not included in `default` evaluation expansion, but its 2026-07-13
+seven-way dataset-ladder measurements are committed alongside the canonical runs.
+
 ## 2. Headline Result
 
-The 2026-07-03 ladder ran fourteen approach and flavor aliases across three datasets of
-increasing structure. The winner shifts with input complexity, which is the point:
+The 2026-07-13 ladder ran the six canonical approaches plus experimental lazy
+graph across three datasets of increasing structure. All 140 cells succeeded,
+and the winner shifts with input complexity:
 
 | Dataset | Winning configuration | Judge score |
 |---------|-----------------------|:-----------:|
-| Baseline curated | `vanilla-rag-wide` | 4.42 |
-| Graph-native dossiers | `hybrid-rag-high-recall` | 4.25 |
-| Cyber-threat graph (MITRE ATT&CK) | `contextual-rag-high-recall` | 3.58 |
+| Baseline curated | `n8n-adaptive-rag` / `vanilla-rag` | 4.42 |
+| Graph-native dossiers | `contextual-rag` | 4.12 |
+| Cyber-threat graph (MITRE ATT&CK) | `lazy-graph-rag` | 3.25 |
 
 Full per-query winners, judge methodology, and raw snapshots are in
 [Evaluation and Results](evaluation-methodology.md).

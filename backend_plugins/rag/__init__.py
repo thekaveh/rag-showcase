@@ -14,6 +14,7 @@ async def health() -> dict[str, object]:
         "status": "ok",
         "plugin": "rag-showcase",
         "approaches": sorted(flavors.BASE_APPROACHES),
+        "experimental_approaches": sorted(flavors.EXPERIMENTAL_APPROACHES),
     }
 
 # Include all six approach routers onto the aggregate router the seam loads.
@@ -29,3 +30,5 @@ from .approaches import agentic  # noqa: E402
 router.include_router(agentic.router)
 from .approaches import n8n  # noqa: E402
 router.include_router(n8n.router)
+from .approaches import lazy  # noqa: E402
+router.include_router(lazy.router)

@@ -1,19 +1,20 @@
 # RAG Showcase
 
-Six modern RAG approaches compared side-by-side in Open WebUI's multi-model chat,
+Six canonical RAG approaches compared side-by-side in Open WebUI's multi-model chat,
 all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
 submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
 as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
 
-> **Live results (2026-07-03).** The current committed ladder ran 14 approach/flavor
-> aliases across three datasets: baseline curated, graph-native dossiers, and a
-> MITRE ATT&CK cyber-threat graph slice. Winners shifted with complexity:
-> `vanilla-rag-wide` led baseline, `hybrid-rag-high-recall` led graph-native, and
-> `contextual-rag-high-recall` led cyber. `graph-rag-fast` won several individual
-> baseline/graph-native questions; `graph-rag-wide` ranked last and is a bad current
-> tuning. These are historical blinded judge-panel scores; the 2026-07-03 run
-> predates canonical Atlas/Ragas evidence, which the renewed harness reports
-> separately with coverage and latency. Full analysis, per-query winners,
+> **Live results (2026-07-13).** The current committed base-approach ladder ran
+> seven approaches across three datasets: baseline curated, graph-native dossiers,
+> and a MITRE ATT&CK cyber-threat graph slice. All **140/140** matrix cells
+> succeeded. `n8n-adaptive-rag` and `vanilla-rag` tied on baseline score,
+> `contextual-rag` led graph-native, and experimental `lazy-graph-rag` led cyber.
+> Lazy graph ranked fourth, second, then first as graph complexity increased while
+> remaining much faster than LightRAG and agentic retrieval. Atlas Ragas calls
+> were recorded but rejected by the tracked evaluator contract defects; blinded
+> two-model judge scores, latency, failures, answers, contexts, and reproducibility
+> metadata remain valid. Full analysis, per-query winners,
 > methodology, raw snapshots, and findings:
 > **[`docs/evaluation-methodology.md`](docs/evaluation-methodology.md)**,
 > **[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md)**, and
@@ -23,10 +24,11 @@ as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse
 
 Each approach is an OpenAI-compatible `/rag/<name>/v1/chat/completions` endpoint in a
 self-contained plugin package (`backend_plugins/rag/`) that is bind-mounted into
-Atlas's FastAPI backend through a generic "plugin seam". The six base approaches
-and eight named flavors are declared in `atlas.consumer.yml`; Atlas validates their
-ownership and routes, compiles them into LiteLLM's startup configuration, and makes
-all fourteen aliases selectable in Open WebUI without admin-API registration.
+Atlas's FastAPI backend through a generic "plugin seam". The six canonical approaches,
+eight canonical flavors, and experimental `lazy-graph-rag` family (base plus three
+flavors) are declared in `atlas.consumer.yml`; Atlas validates their ownership and
+routes, compiles them into LiteLLM's startup configuration, and makes all eighteen
+aliases selectable in Open WebUI without admin-API registration.
 Flavors such as `graph-rag-wide` route to the same base approach with reproducible
 parameter overrides. Open a multi-model chat, select
 the approaches or flavors you want, and one prompt fans out with a uniform answer,
@@ -37,6 +39,9 @@ judge panel.
 
 The six approaches embed via the same LiteLLM model and read the same corpus, so
 the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/roles.yaml`).
+The lazy graph family remains excluded from default comparisons, but now has a
+committed three-dataset quality and latency evaluation; see the
+[experimental design and results](docs/lazy-graph-rag.md).
 
 ## 2. Architecture Diagrams
 
@@ -118,6 +123,11 @@ download several GB, so it takes a while. Then open the printed URL, start a mul
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
 `n8n-adaptive-rag`. Stop everything with `./scripts/stop-all.sh`.
 
+The explicitly selected experimental aliases are `lazy-graph-rag`,
+`lazy-graph-rag-fast`, `lazy-graph-rag-balanced`, and `lazy-graph-rag-wide`.
+They build an LLM-free concept graph from `RagBase` chunks and are not included
+in the default six-way matrix.
+
 The detached startup is the authoritative effective-config check: Atlas applies
 the wrapper's fixed LightRAG container, TEI CPU, and Docling-disabled source flags,
 revalidates the resolved stack, and only then starts the enabled Compose services.
@@ -151,21 +161,30 @@ the thematic / multi-hop demo queries have little to work with — see
 The last column is the design intent behind each demo query family, not a measured
 result — several intended contrasts did not materialize in the committed runs (the
 measured per-query winners live in
-[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md) §3).
+[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md) §4).
 
 For exact internal steps, dependencies, tuning variables, and current measured
 performance for each approach, see [`docs/approaches.md`](docs/approaches.md).
+
+### 4.1 Experimental candidate
+
+[`lazy-graph-rag`](docs/lazy-graph-rag.md) combines vector seeds with deterministic,
+budgeted concept-graph expansion. It is a separate experimental approach, not a
+LightRAG flavor. In the 2026-07-13 base-approach ladder it ranked fourth on
+baseline, second on graph-native, and first on cyber-threat data. It remains
+experimental and off by default while its lightweight concept extraction and
+co-occurrence semantics are evaluated on additional corpora.
 
 ## 5. Repository Layout
 
 ```
 rag-showcase/
-├── atlas.consumer.yml       # Atlas integration, aliases, workflows, and ingestion profiles
+├── atlas.consumer.yml       # Atlas integration plus 18 aliases, workflows, and ingestion profiles
 ├── infra/                   # Atlas — vendored Git submodule (DO NOT edit here)
 ├── backend_plugins/rag/     # the plugin package mounted into Atlas's backend
 │   ├── plugin.yml           # Atlas route, health, auth, env, and dependency contract
-│   ├── common/              # config, litellm, vectors, openai_io, pipeline, contextual, lightrag, flavors
-│   ├── approaches/          # vanilla, hybrid, contextual, graph, agentic, n8n
+│   ├── common/              # shared routing, vector, LightRAG, flavor, and lazy-graph primitives
+│   ├── approaches/          # six canonical routes plus experimental lazy graph
 │   ├── tests/               # unit tests (mocked I/O)
 │   ├── roles.yaml           # role→model map (local-first)
 │   └── flavors.yaml         # Open WebUI/benchmark aliases with tuning overrides
@@ -258,7 +277,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Dataset complexity report](docs/dataset-complexity-report.md) | Living | Judge and canonical metric rankings by dataset complexity, with coverage and legacy fallback |
 | [n8n workflow](n8n/README.md) | Living | Checked-in Adaptive-RAG workflow, Atlas seeding lifecycle, and workflow tuning knobs |
 | [Live comparison](docs/comparison.md) | Living | Side-by-side results of all six approaches + live-validation findings (`think:false`, LightRAG role/query tuning, graph-native corpus behavior) |
-| [Result snapshots](docs/results/README.md) | Living | Canonical evidence/evaluation and compatibility matrix/judgment artifact contract, plus current historical snapshots |
+| [Result snapshots](docs/results/README.md) | Living | Canonical evidence/evaluation and compatibility matrix/judgment artifact contract, plus active and historical snapshots |
 
 ## 8. Development & Testing
 

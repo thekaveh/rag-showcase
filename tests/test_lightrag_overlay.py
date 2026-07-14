@@ -107,6 +107,22 @@ def test_backend_overlay_sets_graph_query_safety_defaults() -> None:
     assert env["LIGHTRAG_QUERY_MAX_TOTAL_TOKENS"] == "${LIGHTRAG_QUERY_MAX_TOTAL_TOKENS:-12000}"
 
 
+def test_lazy_graph_cache_is_initialized_for_the_non_root_backend() -> None:
+    overlay = _load_overlay()
+    initializer = overlay["services"]["lazy-graph-cache-init"]
+    backend = overlay["services"]["backend"]
+
+    assert initializer["image"] == "alpine:3.24.1"
+    assert initializer["restart"] == "no"
+    assert initializer["volumes"] == ["lazy-graph-cache:/data/lazy-graph-rag"]
+    assert initializer["command"] == [
+        "chown -R 1001:1001 /data/lazy-graph-rag"
+    ]
+    assert backend["depends_on"]["lazy-graph-cache-init"] == {
+        "condition": "service_completed_successfully"
+    }
+
+
 def test_resolved_backend_receives_plugin_operator_overrides() -> None:
     if shutil.which("docker") is None:
         pytest.skip("Docker Compose CLI is not installed")

@@ -91,7 +91,19 @@ def test_main_records_failed_cell_and_completes(tmp_path, monkeypatch) -> None:
         if body["model"] == "vanilla-rag":
             raise httpx.ConnectError("backend down")
         return httpx.Response(200, json={
-            "choices": [{"message": {"content": "fine answer\n\n---\n📊 1.0s · 1 chunk · 2 LLM calls · 0 cloud"}}]})
+            "choices": [{"message": {"content": "fine answer\n\n---\n📊 1.0s · 1 chunk · 2 LLM calls · 0 cloud"}}],
+            "rag_showcase": {
+                "schema_version": 1,
+                "sources": [],
+                "metrics": {
+                    "seconds": 1.0,
+                    "chunks": 1,
+                    "llm_calls": 2,
+                    "cloud_calls": 0,
+                },
+                "lazy_graph": {"cache_hit": True},
+            },
+        })
     respx.post("http://localhost:9/v1/chat/completions").mock(side_effect=responder)
     respx.post("http://localhost:8/api/rag/evaluate").mock(
         return_value=httpx.Response(503, text="evaluator unavailable")
@@ -106,6 +118,9 @@ def test_main_records_failed_cell_and_completes(tmp_path, monkeypatch) -> None:
     assert cells["hybrid-rag"]["ok"] is True
     assert cells["hybrid-rag"]["metrics"] == {"seconds": 1.0, "chunks": 1,
                                               "llm_calls": 2, "cloud_calls": 0}
+    assert cells["hybrid-rag"]["approach_metadata"] == {
+        "lazy_graph": {"cache_hit": True}
+    }
     assert out["models"] == ["vanilla-rag", "hybrid-rag"]
     assert out["ingestion"] == {
         "id": "ing-1",
