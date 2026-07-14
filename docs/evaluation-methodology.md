@@ -89,7 +89,7 @@ providers, adapters, capabilities, and model-scoped request defaults. In
 particular, Atlas's catalog currently applies `think:false` to its Qwen entry;
 rag-showcase no longer injects that property globally.
 
-## 5. Approach and Evidence Capabilities
+## 5. Approach Processes and Evidence Capabilities
 
 Every approach returns an answer, but not every service exposes the retrieved
 contexts needed by context-grounding metrics.
@@ -124,7 +124,7 @@ does not invent contexts from that marker. Graph answers still receive operation
 and judge evaluation, while context-dependent Ragas metrics are explicitly
 `not_evaluable`. This is an evidence limitation, not an answer failure or a zero.
 
-## 6. Dataset Ladder
+## 6. Dataset-Ladder Procedure
 
 The dataset ladder measures one corpus at a time so ingestion provenance and
 result files stay dataset-specific. The 2026-07-03 committed run contains:
@@ -194,7 +194,7 @@ Evaluator and embedding model names returned by Atlas are stored with scores.
 Ragas failures never erase a successful answer, and missing evidence never becomes
 a numeric zero.
 
-## 9. Independent Judge Panel
+## 9. Independent Judgment Panel
 
 [`compare/judge.py`](../compare/judge.py) operates only on the compatibility
 matrix after approach execution. The current manifest selects

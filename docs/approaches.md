@@ -79,7 +79,7 @@ All six approaches can still be compared on successful-answer rate, latency, and
 the optional blinded judge panel. Graph-rag's missing context is recorded as
 `not_evaluable` for context-dependent Ragas metrics, never as a zero and never as
 invented evidence. See
-[`evaluation-methodology.md`](evaluation-methodology.md#5-approach-and-evidence-capabilities).
+[`evaluation-methodology.md`](evaluation-methodology.md#5-approach-processes-and-evidence-capabilities).
 
 ## 2. Current Measured Results
 
