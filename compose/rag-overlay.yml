@@ -2,12 +2,6 @@
 # Relative paths resolve against the project dir = infra/ (the dir of the
 # first -f file, docker-compose.yml), so ../backend_plugins == repo root.
 services:
-  # Atlas #504: Compose builds missing local images even when a service has
-  # deploy.replicas=0. Asset Baker is outside this track and disabled, but its
-  # upstream Blender download currently fails (#505), so remove that disabled
-  # service until Atlas launches the resolved enabled-service set.
-  asset-baker: !reset null
-
   lightrag:
     environment:
       # Used only when a LightRAG role is bound directly to Ollama. The default

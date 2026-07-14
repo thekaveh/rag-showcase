@@ -18,7 +18,8 @@ Atlas's requirements apply:
   use the local manifest/env pattern below with
   `LLM_PROVIDER_SOURCE=ollama-localhost` to select an existing host Ollama.
 - Disk / RAM / headroom for the `gen-ai-rag` stack plus your chosen local models. The
-  default local run activates `mistral-small3.2:24b` for LightRAG's graph roles — see
+  default local run activates `mistral-small3.2:24b` for LightRAG extraction and
+  uses `qwen3.6:latest` for graph keyword/query roles — see
   [Hardware Sizing](../hardware.md) for minimum and recommended profiles.
 
 ## 2. Bring It Up
@@ -29,9 +30,9 @@ Atlas's requirements apply:
 
 This single script:
 
-1. Selects `atlas.consumer.yml`, materializes its values into a temporary active
-   env, and runs Atlas's headless env backfill, manifest-aware Compose validation,
-   and consumer doctor. The manifest declares project/brand metadata, the env
+1. Selects `atlas.consumer.yml` and runs Atlas's native headless env backfill,
+   manifest-aware Compose validation, and consumer doctor. The manifest declares
+   project/brand metadata, the env
    file, external Compose overlay, backend plugin root, fourteen LiteLLM aliases,
    Ollama sidecar, adaptive workflow, and RAG ingestion profiles without tracked
    Atlas modifications or a `_user` symlink.
@@ -42,8 +43,8 @@ This single script:
    stack includes LightRAG, TEI reranker, Weaviate, Neo4j,
    n8n, Open WebUI, and LiteLLM. The showcase wrapper explicitly disables the
    hardware-dependent Docling source, so Atlas falls back to plain-text parsing and
-   the selected profile's Chonkie recursive chunker, and temporarily enables MinIO
-   for [Atlas #503](https://github.com/thekaveh/atlas/issues/503).
+   the selected profile's Chonkie recursive chunker. Atlas starts only the enabled
+   service set and owns dependency and initial one-shot classification.
 3. Proceeds after Atlas's detached health summary, then **assembles the corpus**
    on the host (`corpus/fetch_corpus.py`). If Atlas reports the known
    [exited-zero one-shot race](https://github.com/thekaveh/atlas/issues/508), the

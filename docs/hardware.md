@@ -42,8 +42,8 @@ supplies Atlas LightRAG role defaults:
 
 ```dotenv
 LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b
-LIGHTRAG_KEYWORD_LLM_MODEL=mistral-small3.2:24b
-LIGHTRAG_QUERY_LLM_MODEL=mistral-small3.2:24b
+LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.6:latest
+LIGHTRAG_QUERY_LLM_MODEL=qwen3.6:latest
 LIGHTRAG_EXTRACT_MAX_ASYNC_LLM=1
 LIGHTRAG_EXTRACT_LLM_TIMEOUT=900
 ```
@@ -53,7 +53,9 @@ that list into `OLLAMA_CUSTOM_MODELS` for a containerized Ollama source. If Atla
 `LLM_PROVIDER_SOURCE=ollama-localhost`, pull models on the host yourself; Atlas
 does not mutate a host-managed Ollama installation.
 
-For local runs:
+The split keeps high-volume extraction on a non-reasoning model and reuses Atlas's
+thinking-disabled default chat model for the strict keyword schema and final query
+answer. For local runs:
 
 - Prefer a non-reasoning or thinking-disabled model for extraction.
 - Prefer accelerated inference for 20B+ local models.

@@ -29,7 +29,7 @@ def _load_overlay() -> dict:
     )
 
 
-def test_overlay_removes_disabled_asset_baker_from_resolved_compose() -> None:
+def test_atlas_resolves_asset_baker_but_does_not_need_a_consumer_override() -> None:
     if shutil.which("docker") is None:
         pytest.skip("Docker Compose CLI is not installed")
 
@@ -63,14 +63,14 @@ def test_overlay_removes_disabled_asset_baker_from_resolved_compose() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "asset-baker" not in result.stdout.splitlines()
+    assert "asset-baker" in result.stdout.splitlines()
 
 
 def test_lightrag_overlay_only_adds_optional_lightrag_ollama_context_caps() -> None:
     overlay = _load_overlay()
     env = overlay["services"]["lightrag"]["environment"]
 
-    assert overlay["services"]["asset-baker"] is None
+    assert "asset-baker" not in overlay["services"]
     assert "lightrag-init" not in overlay["services"]
     assert env == {
         "OLLAMA_LLM_NUM_CTX": "${LIGHTRAG_OLLAMA_LLM_NUM_CTX:-8192}",
@@ -85,8 +85,8 @@ def test_manifest_env_sets_atlas_lightrag_inputs_not_native_runtime_envs() -> No
     manifest = (ROOT / "atlas.consumer.yml").read_text(encoding="utf-8")
 
     assert "LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b" in env_file
-    assert "LIGHTRAG_KEYWORD_LLM_MODEL=mistral-small3.2:24b" in env_file
-    assert "LIGHTRAG_QUERY_LLM_MODEL=mistral-small3.2:24b" in env_file
+    assert "LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.6:latest" in env_file
+    assert "LIGHTRAG_QUERY_LLM_MODEL=qwen3.6:latest" in env_file
     assert "model_sidecars:" in manifest
     assert "mistral-small3.2:24b" in manifest
 

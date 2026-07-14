@@ -153,24 +153,16 @@ texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
 
 ### 2.12 Disabled manifest services can be treated as enabled during dependency checks
 
-Atlas `fe55e838`'s dependency manager uses hard-coded source/scale maps that do
-not include newer manifest services such as Trino and Redpanda. It therefore
-reports disabled Trino as enabled and rejects a RAG-track start when MinIO is
-disabled. This is tracked upstream as
-[Atlas #503](https://github.com/thekaveh/atlas/issues/503). Until a fixed Atlas
-commit is pinned, `start-all.sh` explicitly enables MinIO; no Atlas source is
-patched locally.
+> **Resolved upstream.** Atlas #503 now derives dependency enablement from service
+> manifest source metadata. Rag-showcase no longer enables MinIO solely to satisfy
+> a disabled Trino dependency.
 
 ### 2.13 Disabled services can still be built during unrelated track startup
 
-Atlas starts the full assembled Compose graph. Compose may build a missing local
-image even when that service has `deploy.replicas: 0`, so the disabled Asset
-Baker's failing Blender download blocked the RAG track. Atlas-wide service
-selection is tracked in [Atlas #504](https://github.com/thekaveh/atlas/issues/504),
-and the Asset Baker artifact itself in
-[Atlas #505](https://github.com/thekaveh/atlas/issues/505). The showcase overlay
-temporarily removes the entire disabled `asset-baker` service from its resolved
-Compose project; the service remains out of the RAG track.
+> **Resolved upstream.** Atlas #504 now computes the enabled-service target set
+> from the rendered project and passes it to build and startup. The showcase no
+> longer removes `asset-baker` from its Compose overlay. Atlas #505 still tracks
+> that service's own Blender artifact independently of this RAG track.
 
 ### 2.14 Existing local images can remain stale after a submodule upgrade
 
@@ -183,22 +175,19 @@ is tracked in [Atlas #506](https://github.com/thekaveh/atlas/issues/506).
 
 ### 2.15 Detached startup can reject an exited-zero init service
 
-Atlas's detached path can return immediately when `docker compose up --wait`
-reports that an expected one-shot init container exited, even when its exit code
-is zero. That bypasses Atlas's later one-shot-aware status classifier and turns a
-fully converged stack into a false startup failure. This is tracked in
-[Atlas #508](https://github.com/thekaveh/atlas/issues/508).
+> **Partially resolved upstream.** Atlas #508 inspects the rendered service state
+> when `docker compose up --wait` returns nonzero and accepts a fully converged
+> snapshot. A 2026-07-13 live run exposed a remaining timing case: Compose reports
+> an exited-zero `n8n-init` while otherwise healthy long-lived services still have
+> `starting` health. Atlas inspects once and returns failure instead of waiting for
+> that snapshot to converge.
 
-The showcase keeps Atlas's detached result authoritative. Only after a nonzero
-result with Atlas's exact exited-zero failure signature,
-`scripts/verify_atlas_runtime.py` inspects containers in the `rag-showcase`
-Compose project. It accepts only the fixed `gen-ai-rag` topology plus the
-selected provider's required services (including `ollama` and `ollama-pull` for
-container-backed Ollama), with every long-lived service running and healthy
-(where a healthcheck exists) and every expected init service exited zero.
-Missing, starting, unhealthy, or nonzero-exit services remain failures. Remove
-this fallback after pinning an Atlas revision that performs the same
-classification before returning.
+The showcase therefore retains a narrow fallback. It activates only when Atlas's
+output contains both the exact exited-zero signature and failed-start summary,
+then waits for the fixed RAG topology. Every long-lived service must become
+running and healthy and every expected one-shot must exit zero; missing,
+unhealthy, restarting, timed-out, or nonzero-exit services still fail. Remove the
+fallback when Atlas performs this bounded convergence wait itself.
 
 ### 2.16 n8n no-API-key seeding does not publish active workflows
 
@@ -232,7 +221,7 @@ The one retained local phase is intentional rather than infrastructure duplicati
 Atlas ingestion id, profile revision, and content digest. Historical snapshots
 remain immutable and therefore do not claim job provenance they never recorded.
 
-### 2.18 Generated backend profile mounts collide with the `/app` source bind
+### 2.18 Generated backend profile mounts collided with the `/app` source bind
 
 The first live consumer-profile smoke passed Atlas manifest validation and doctor,
 then failed while Docker Desktop created the backend container. Atlas #413 and
@@ -241,12 +230,23 @@ then failed while Docker Desktop created the backend container. Atlas #413 and
 directory at `/app`. Docker Desktop/VirtioFS rejects that nested file mount as an
 outside-rootfs mountpoint.
 
-[Atlas #533](https://github.com/thekaveh/atlas/issues/533) tracks moving both
-registries to a dedicated read-only config path outside `/app`. The showcase does
-not bypass the manifest with an unvalidated private registry: #21 remains unmerged
-until a fixed Atlas commit can start the backend and complete live Weaviate,
-LightRAG, contextual, and six-alias smoke tests. The same fix is a prerequisite for
-the planned LightRAG query-profile migration in local #22.
+> **Resolved upstream.** Atlas #533 moved both registries to the dedicated
+> read-only `/atlas-consumer-config/` path. The showcase consumes that contract
+> directly and does not carry an unvalidated private registry.
+
+### 2.19 Generic ingestion runtime and LightRAG upload contract
+
+The first Atlas-job validation on the corrected mount path found two independent
+runtime mismatches: the backend image's `appuser` had no writable home for the
+Chonkie/tokie tokenizer cache, and Atlas sent LightRAG's retired `description`
+field instead of the 1.5.x-required `file_source`. Both failures occurred after
+manifest validation and therefore needed real ingestion evidence.
+
+> **Resolved upstream.** Atlas #602 creates `/home/appuser` in the backend image,
+> sends `file_source`, and records bounded upstream response bodies on failures.
+> Rag-showcase pins Atlas `3c33250b` and removed its temporary cache environment
+> override. Live job `7127dcc3-7a45-40ad-ae28-5b547cf0bc8b` then completed all
+> discover/parse/chunk/embed/vector-write/upload/drain/finalize phases.
 
 ## 3. Recommendations for Atlas
 
@@ -280,27 +280,28 @@ the planned LightRAG query-profile migration in local #22.
   `LIGHTRAG_QUERY_LLM_MODEL` to LightRAG's native runtime vars.
 - **(Resolved) Adapt LightRAG query rerank for TEI** (§2.11): Atlas defaults the
   incompatible direct path off and provides an opt-in authenticated backend adapter.
-- **Derive dependency enablement from service manifests** (§2.12): remove the
-  hard-coded source/scale mapping so disabled and newly added services are
-  interpreted consistently (Atlas #503).
-- **Exclude disabled local builds from startup** (§2.13): launch only the
-  resolved enabled service set so unrelated build failures cannot block a track
-  (Atlas #504); separately restore the pinned Asset Baker artifact (Atlas #505).
+- **(Resolved) Derive dependency enablement from service manifests** (§2.12):
+  Atlas #503 now interprets disabled and newly added services consistently.
+- **(Resolved) Exclude disabled local builds from startup** (§2.13): Atlas #504
+  launches only the resolved enabled service set. Atlas #505 separately tracks
+  the Asset Baker artifact.
 - **Rebuild stale local images after source upgrades** (§2.14): detect build-context
   drift and refresh enabled images without rebuilding unchanged services (Atlas #506).
-- **Classify successful one-shots before failing detached startup** (§2.15): when
-  Compose reports an exited service, inspect expected init containers first and
-  treat exit code zero as success while preserving failures for nonzero exits or
-  unhealthy long-lived services (Atlas #508).
+- **Complete successful one-shot convergence handling** (§2.15): Atlas #508
+  handles already-converged zero-exit snapshots, but should wait through the
+  observed intermediate `starting` state while preserving genuine failures.
 - **Publish active n8n workflows without an API key** (§2.16): honor the effective
   activation policy on fresh volumes, coalesce any required reload, and make required
   webhook readiness deterministic (Atlas #514).
 - **(Resolved) Provide generic RAG ingestion jobs** (§2.17): Atlas #413 now owns
   discover/parse/chunk/embed/vector-write/LightRAG-upload/drain/finalize; the
   showcase retains only its approach-specific contextual transform.
-- **Move generated backend registries outside `/app`** (§2.18): fix the nested
-  single-file bind used by ingestion and LightRAG query profiles so Docker Desktop
-  consumers can start (Atlas #533).
+- **(Resolved) Move generated backend registries outside `/app`** (§2.18): Atlas
+  #533 mounts ingestion and LightRAG query profile registries under the reserved
+  `/atlas-consumer-config/` directory.
+- **(Resolved) Make generic ingestion runnable against LightRAG 1.5** (§2.19):
+  Atlas #602 supplies a writable backend runtime home, uses `file_source`, and
+  retains bounded upstream error evidence.
 
 ## 4. Live End-to-End Run — Resolved (2026-07-01)
 
@@ -329,3 +330,17 @@ previously-open items are now assessed:
   `graph-rag` correctly joined Project Cedar's lead, dependent service, and
   disrupting incident with the inserted document cited.
 - The stack was stopped normally after verification; data volumes were preserved.
+
+### 4.2 Atlas `3c33250b` generic-ingestion validation (2026-07-14)
+
+- `scripts/start-all.sh` converged all 27 enabled services and registered all 14
+  canonical/flavor aliases without a consumer-owned backend cache override.
+- Atlas job `7127dcc3-7a45-40ad-ae28-5b547cf0bc8b` completed all eight phases for
+  `graph_native`: 10 files discovered and parsed, 10 chunks, 10 vectors written,
+  10 LightRAG uploads, a 320.5-second graph-extraction drain, and zero errors.
+- The local contextual post-step read the Atlas chunks and produced 10 objects in
+  `RagContextual_graph_native`; `RagBase_graph_native` also contained 10 objects.
+- LightRAG reported no busy or pending work after drain. The shared Neo4j graph
+  contained 455 nodes and 411 relationships after the preserved-volume run.
+- The live canonical six-approach suite passed all **8 tests** in 92.72 seconds,
+  including one non-empty, metrics-bearing answer through each public alias.
