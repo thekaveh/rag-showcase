@@ -1,4 +1,4 @@
-# RAG Showcase Implementation Plan
+# 7.3 RAG Showcase Implementation Plan
 
 > **Status:** Historical artifact — Tasks 0–19 are complete. This is the as-built plan, not a live task list.
 
@@ -2338,7 +2338,7 @@ git commit -m "docs: Atlas reuse assessment (living deliverable)"
 - Atlas-reuse assessment (§10) → Task 19. ✔
 - Deferred custom dashboard (§12) → intentionally out of scope. ✔
 
-**Placeholder scan:** No "TBD"/"add error handling"/"write tests for the above" — every code step has complete code. The two intentional non-code artifacts (`n8n/adaptive-rag.workflow.json` placeholder and the in-container ingest path in `start-all.sh`) are explicitly flagged to finalize on first run, not silent gaps.
+**Placeholder scan:** No pending-content markers or vague follow-up instructions remain — every code step has complete code. The two intentional non-code artifacts (`n8n/adaptive-rag.workflow.json` placeholder and the in-container ingest path in `start-all.sh`) are explicitly flagged to finalize on first run, not silent gaps.
 
 **Type consistency:** `Hit(title,text,score)`, `Source(title,snippet,score)`, `Metrics(seconds,chunks,llm_calls,cloud_calls)`, `ChatRequest.last_user()`, `build_response(model,answer,sources,metrics)`, `config.role(name)`, `litellm.embed(texts,model=None)`, `litellm.chat(model,messages,tools=None,temperature=0.0)` — used consistently across Tasks 5–14. Collections `RagBase`/`RagContextual` consistent across Tasks 6, 7, 8, 9, 11, 13. Model names consistent across Tasks 7–12, 14, 18.
 

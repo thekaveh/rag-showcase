@@ -21,11 +21,21 @@ from compare.flavors import BASE_APPROACHES  # noqa: E402
 
 MANIFEST = ROOT / "compare" / "datasets.yaml"
 DEFAULT_OUTPUT = ROOT / "docs" / "dataset-complexity-report.md"
+DOCS_MANIFEST = ROOT / "docs" / "manifest.yaml"
 
 
 def _load_manifest() -> list[dict]:
     data = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
     return sorted(data["datasets"], key=lambda d: d["complexity_level"])
+
+
+def _report_h1() -> str:
+    data = yaml.safe_load(DOCS_MANIFEST.read_text(encoding="utf-8"))
+    for section in data["sections"]:
+        for page in section["pages"]:
+            if page["source"] == "dataset-complexity-report.md":
+                return f"# {page['number']} {page['title']}"
+    return "# Dataset Complexity Report"
 
 
 def _mean_scores(judgments: dict) -> dict[str, float]:
@@ -39,6 +49,10 @@ def _mean_scores(judgments: dict) -> dict[str, float]:
 
 def _load_judgments(judgment_path: Path) -> dict:
     return json.loads(judgment_path.read_text(encoding="utf-8"))
+
+
+def _load_evaluation_summary(summary_path: Path) -> dict:
+    return json.loads(summary_path.read_text(encoding="utf-8"))
 
 
 def _ranking(scores: dict[str, float]) -> list[tuple[str, float]]:
@@ -70,6 +84,21 @@ def _query_rows(judgments: dict) -> list[tuple[str, str, str]]:
     return rows
 
 
+def _canonical_ranking_text(ranking: list[dict], *, latency: bool = False) -> str:
+    if not ranking:
+        return "not evaluated"
+    rendered = []
+    for group in ranking:
+        value = float(group["value"])
+        for approach in group["approaches"]:
+            coverage = group.get("coverage", {}).get(approach, {})
+            evaluated = coverage.get("evaluated", 0)
+            total = coverage.get("total", 0)
+            score = f"{value:.0f} ms" if latency else f"{value:.3f}"
+            rendered.append(f"{approach} {score} ({evaluated}/{total})")
+    return " > ".join(rendered)
+
+
 def build_report() -> str:
     datasets = _load_manifest()
     # Load each measured judgments snapshot exactly once; every downstream section
@@ -82,14 +111,21 @@ def build_report() -> str:
     measured_scores = {d_id: _mean_scores(j) for d_id, j in measured_judgments.items()}
     measured_rows = {d_id: (_winner(s), _ranking_text(s))
                      for d_id, s in measured_scores.items()}
+    measured_evaluations = {
+        dataset["id"]: _load_evaluation_summary(ROOT / dataset["evaluation_snapshot"])
+        for dataset in datasets
+        if dataset["status"] == "measured" and dataset.get("evaluation_snapshot")
+    }
     lines = [
-        "# Dataset Complexity Report",
+        _report_h1(),
         "",
         "This report tracks approach rankings by input dataset, ordered from the",
         "simplest curated corpus to increasingly graph-heavy real-world candidates.",
         "It deliberately reports by dataset rather than by vector/graph collection,",
         "because the comparison question is how each RAG approach behaves as the",
         "input problem becomes more relational, temporal, and multi-hop.",
+        "Each row also names the Atlas ingestion profile whose revision and job id",
+        "are stored with newly generated matrix and judgment snapshots.",
         "",
         "For the run protocol, model roles, approach invocation details, and",
         "judge-panel design, see [`evaluation-methodology.md`](evaluation-methodology.md).",
@@ -98,19 +134,20 @@ def build_report() -> str:
         "",
         "## 1. Dataset Complexity Ladder",
         "",
-        "| Dataset | Complexity | Status | Graph nature | Query file | Source |",
-        "|---|---:|---|---|---|---|",
+        "| Dataset | Complexity | Status | Atlas ingestion profile | Graph nature | Query file | Source |",
+        "|---|---:|---|---|---|---|---|",
     ]
     for dataset in datasets:
         lines.append(
             f"| `{dataset['id']}` | {dataset['complexity_level']} | {dataset['status']} | "
+            f"`{dataset.get('ingestion_profile', dataset['id'])}` | "
             f"{dataset['graph_nature']} | [`{dataset['queries_file']}`](../{dataset['queries_file']}) | "
             f"{dataset.get('source_url', '')} |"
         )
 
     lines.extend([
         "",
-        "## 2. Ranking Drift by Input Dataset",
+        "## 2. Judge-Panel Ranking Drift by Input Dataset",
         "",
         "| Dataset | Complexity | Status | Winner | Ranking |",
         "|---|---:|---|---|---|",
@@ -122,6 +159,50 @@ def build_report() -> str:
         lines.append(
             f"| `{dataset['id']}` | {dataset['complexity_level']} | {dataset['status']} | "
             f"{winner} | {ranking} |"
+        )
+
+    lines.extend([
+        "",
+        "## 3. Canonical Evaluation Metrics",
+        "",
+        "These columns come from the append-safe evidence rows. Ragas values are",
+        "evaluator-model scores, latency and failures are operational measurements,",
+        "and coverage is shown beside every ranking so unevaluable or failed cells",
+        "cannot disappear from the comparison.",
+        "",
+        "| Dataset | Faithfulness ranking | Answer relevancy ranking | Latency ranking | Row coverage | Failures |",
+        "|---|---|---|---|---|---|",
+    ])
+    for dataset in datasets:
+        evaluation = measured_evaluations.get(dataset["id"])
+        if not evaluation:
+            unavailable = (
+                "legacy snapshot; rerun required"
+                if dataset["status"] == "measured"
+                else "not measured"
+            )
+            lines.append(
+                f"| `{dataset['id']}` | {unavailable} | "
+                f"{unavailable} | {unavailable} | "
+                "not available | not available |"
+            )
+            continue
+        dataset_summary = evaluation.get("datasets", {}).get(dataset["id"], {})
+        rankings = dataset_summary.get("rankings", {})
+        ragas = rankings.get("ragas", {})
+        operational = rankings.get("operational", {})
+        coverage = dataset_summary.get("coverage", {})
+        total = int(coverage.get("total_rows", 0))
+        ok = int(coverage.get("ok", 0))
+        errors = int(coverage.get("errors", 0))
+        timeouts = int(coverage.get("timeouts", 0))
+        lines.append(
+            f"| `{dataset['id']}` | "
+            f"{_canonical_ranking_text(ragas.get('faithfulness', []))} | "
+            f"{_canonical_ranking_text(ragas.get('answer_relevancy', []))} | "
+            f"{_canonical_ranking_text(operational.get('mean_latency_ms', []), latency=True)} | "
+            f"{ok}/{total} successful | {errors} {'error' if errors == 1 else 'errors'}, "
+            f"{timeouts} {'timeout' if timeouts == 1 else 'timeouts'} |"
         )
 
     # The interpretation below is DERIVED from the loaded snapshots. This file is
@@ -187,7 +268,7 @@ def build_report() -> str:
 
     lines.extend([
         "",
-        "## 3. Per-Query Winners",
+        "## 4. Per-Query Winners",
         "",
         "The **Winner** column is the judge panel's `observed_winner`: the approach with the",
         "highest mean score, breaking ties by best-answer votes. The **Top 3 mean scores**",
@@ -213,7 +294,7 @@ def build_report() -> str:
     )
     lines.extend([
         "",
-        "## 4. Interpretation",
+        "## 5. Interpretation",
         "",
         rung_sentence,
         "",
@@ -233,7 +314,7 @@ def build_report() -> str:
         "candidate rungs should be added only after live",
         "matrix and judge runs produce committed snapshots.",
         "",
-        "## 5. Candidate Dataset Sources",
+        "## 6. Candidate Dataset Sources",
         "",
         "- STaRK: semi-structured textual + relational retrieval benchmark with Amazon, MAG, and Prime domains.",
         "- OpenAlex: CC0 scholarly graph of works, authors, institutions, concepts, venues, and citations.",

@@ -91,34 +91,6 @@ flavors:
 
 
 @pytest.mark.asyncio
-async def test_lightrag_upload_text_posts_to_documents_text(monkeypatch):
-    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
-    with respx.mock:
-        upload = respx.post("http://lightrag:9621/documents/text").mock(
-            return_value=httpx.Response(200))
-        await lightrag.upload_text("My Doc", "some content")
-        assert upload.called
-        body = json.loads(upload.calls.last.request.content)
-        assert body["text"] == "some content" and body["file_source"] == "My Doc"
-
-
-@pytest.mark.asyncio
-async def test_lightrag_upload_text_retries_409_backpressure(monkeypatch):
-    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
-    monkeypatch.setenv("LIGHTRAG_UPLOAD_RETRIES", "2")
-    monkeypatch.setenv("LIGHTRAG_UPLOAD_RETRY_DELAY", "0")
-    with respx.mock:
-        upload = respx.post("http://lightrag:9621/documents/text").mock(
-            side_effect=[
-                httpx.Response(409, json={"status": "busy"}),
-                httpx.Response(200),
-            ]
-        )
-        await lightrag.upload_text("My Doc", "some content")
-        assert upload.call_count == 2
-
-
-@pytest.mark.asyncio
 async def test_lightrag_query_guards_short_input(monkeypatch):
     # a <3-char query must not reach LightRAG (which 422s on min_length=3): no
     # HTTP call is attempted and a clear message is returned instead of a 500.
@@ -187,37 +159,6 @@ async def test_lightrag_query_options_are_env_overridable(monkeypatch):
         assert sent["top_k"] == 7
         assert sent["chunk_top_k"] == 3
         assert sent["max_total_tokens"] == 4096
-
-
-@pytest.mark.asyncio
-async def test_lightrag_upload_text_raises_after_retry_exhaustion(monkeypatch):
-    # Permanent 409 backpressure must raise after retries+1 attempts — not loop
-    # forever and not silently return with the document never ingested.
-    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
-    monkeypatch.setenv("LIGHTRAG_UPLOAD_RETRIES", "1")
-    monkeypatch.setenv("LIGHTRAG_UPLOAD_RETRY_DELAY", "0")
-    with respx.mock:
-        upload = respx.post("http://lightrag:9621/documents/text").mock(
-            return_value=httpx.Response(409, json={"status": "busy"}))
-        with pytest.raises(httpx.HTTPStatusError):
-            await lightrag.upload_text("My Doc", "some content")
-        assert upload.call_count == 2  # initial attempt + 1 retry, then raise
-
-
-@pytest.mark.asyncio
-async def test_lightrag_upload_text_negative_retries_env_still_attempts_once(monkeypatch):
-    # A negative LIGHTRAG_UPLOAD_RETRIES would make range(retries + 1) empty and
-    # upload_text return without a single POST — the file counted as ingested
-    # while the KG silently misses it. The max(0, ...) clamp must floor it so
-    # exactly one attempt still happens (delay is clamped alongside).
-    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
-    monkeypatch.setenv("LIGHTRAG_UPLOAD_RETRIES", "-3")
-    monkeypatch.setenv("LIGHTRAG_UPLOAD_RETRY_DELAY", "-1")
-    with respx.mock:
-        upload = respx.post("http://lightrag:9621/documents/text").mock(
-            return_value=httpx.Response(200))
-        await lightrag.upload_text("My Doc", "some content")
-        assert upload.call_count == 1
 
 
 @pytest.mark.asyncio

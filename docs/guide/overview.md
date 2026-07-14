@@ -1,4 +1,4 @@
-# Overview
+# 2.1 Overview
 
 RAG Showcase compares six modern retrieval-augmented-generation (RAG) approaches
 under **identical conditions** — same corpus, same embedding model, and the same
@@ -10,11 +10,12 @@ generator of whichever approach it routes to (see
 
 ## 1. How It Runs
 
-Each approach is an OpenAI-compatible `/<name>/v1/chat/completions` endpoint in a
+Each approach is an OpenAI-compatible `/rag/<name>/v1/chat/completions` endpoint in a
 self-contained plugin package (`backend_plugins/rag/`) that is **bind-mounted** into
-Atlas's FastAPI backend through a generic *plugin seam*. Each endpoint is registered
-into Atlas's **LiteLLM** gateway via its `/model/new` admin API, so the six approaches
-appear automatically as selectable models in **Open WebUI**.
+Atlas's FastAPI backend through a generic *plugin seam*. `atlas.consumer.yml`
+declaratively maps the six base routes and eight flavor aliases into Atlas's
+**LiteLLM** startup configuration, so they appear automatically as selectable
+models in **Open WebUI** without runtime registration calls.
 
 ```mermaid
 flowchart LR
@@ -45,8 +46,10 @@ without code changes. See [Flavor Tuning](../approach-flavor-tuning.md).
 
 ## 3. Fair-Comparison Guarantees
 
-- **One corpus, ingested once** into both a plain vector collection (`RagBase`) and a
-  context-prefixed collection (`RagContextual`), plus a LightRAG knowledge graph.
+- **One declared ingestion profile per dataset** — Atlas writes the namespaced plain
+  collection (`RagBase_<profile>`) and LightRAG graph once; the showcase derives the
+  matching context-prefixed collection (`RagContextual_<profile>`) from those exact
+  chunks.
 - **Shared models** — the chunk-based approaches generate through the same LiteLLM
   model and every approach embeds with the same embedding model (`graph-rag`'s
   generator is LightRAG's QUERY role model by design); LLM roles are **local-first**

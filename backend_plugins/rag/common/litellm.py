@@ -38,11 +38,6 @@ async def chat(model: str, messages: list[dict[str, Any]],
                                "temperature": temperature}
     if tools:
         payload["tools"] = tools
-    # Per-model request properties from models.yaml (e.g. think:false to suppress a
-    # local reasoning model's chain-of-thought). Scoped to this model only; explicit
-    # args above win via setdefault, and an unlisted model contributes nothing.
-    for _k, _v in config.model_params(model).items():
-        payload.setdefault(_k, _v)
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.post(
             f"{config.litellm_base()}/v1/chat/completions",

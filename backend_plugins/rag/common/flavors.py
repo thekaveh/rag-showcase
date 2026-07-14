@@ -22,6 +22,8 @@ BASE_APPROACHES = {
     "agentic-rag",
     "n8n-adaptive-rag",
 }
+EXPERIMENTAL_APPROACHES = {"lazy-graph-rag"}
+SUPPORTED_APPROACHES = BASE_APPROACHES | EXPERIMENTAL_APPROACHES
 
 
 @dataclass(frozen=True)
@@ -42,6 +44,8 @@ _CACHE: dict[str, FlavorProfile] = {}
 _NUMERIC_PARAMS: dict[str, type] = {
     "k": int, "retrieve_k": int, "top_n": int, "alpha": float, "max_steps": int,
     "vector_top_k": int, "top_k": int, "chunk_top_k": int, "max_total_tokens": int,
+    "relevance_budget": int, "seed_k": int, "max_context_chunks": int,
+    "max_concepts_per_chunk": int,
 }
 # Bool params get the same load-time strictness: a quoted "false" is truthy, so a
 # hand-edited rerank: "false" would silently INVERT the intent per request.
@@ -77,7 +81,7 @@ def _load() -> dict[str, FlavorProfile]:
     # `if _CACHE` short-circuit above would silently return on later calls — dropping
     # every flavor defined after the bad row. Mirrors config._load's atomic .update().
     table: dict[str, FlavorProfile] = {
-        base: _default(base) for base in sorted(BASE_APPROACHES)
+        base: _default(base) for base in sorted(SUPPORTED_APPROACHES)
     }
 
     path = _path()
@@ -99,7 +103,7 @@ def _load() -> dict[str, FlavorProfile]:
             base = str(row.get("base") or "").strip()
             if not alias:
                 raise ValueError(f"{path} contains a flavor without alias")
-            if alias in BASE_APPROACHES:
+            if alias in SUPPORTED_APPROACHES:
                 # Enforce the module contract stated above: the canonical six always
                 # resolve to their default profile. A row shadowing a base name would
                 # silently change what the stable endpoints mean (and a cross-base
@@ -107,7 +111,7 @@ def _load() -> dict[str, FlavorProfile]:
                 raise ValueError(f"flavor alias {alias!r} shadows a canonical base approach")
             if alias in table:
                 raise ValueError(f"duplicate flavor alias {alias!r}")
-            if base not in BASE_APPROACHES:
+            if base not in SUPPORTED_APPROACHES:
                 raise KeyError(f"flavor {alias!r} uses unknown base approach {base!r}")
             params = row.get("params") or {}
             if not isinstance(params, dict):
@@ -171,7 +175,7 @@ def get_for_base(alias_or_base: str, base: str) -> FlavorProfile:
 
 
 def aliases_for_base(base: str) -> list[str]:
-    if base not in BASE_APPROACHES:
+    if base not in SUPPORTED_APPROACHES:
         raise KeyError(f"unknown base approach {base!r}")
     profiles = _load()
     return [p.alias for p in profiles.values() if p.base == base]

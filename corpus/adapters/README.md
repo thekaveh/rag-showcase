@@ -100,24 +100,20 @@ Use [`demo/cyber_threat_intel_queries.yaml`](../../demo/cyber_threat_intel_queri
 
 ## 5. Evaluation Loop
 
-For each generated dataset:
+For each generated dataset, first ensure its `corpus_path` and
+`ingestion_profile` are declared in `compare/datasets.yaml` and that the matching
+profile exists in `atlas.consumer.yml`. Then run the headless ladder:
 
 ```bash
-./scripts/start-all.sh
-docker exec -e PYTHONPATH=/app/plugins rag-showcase-backend \
-  python /app/ingest/ingest.py /app/<corpus_path-from-compare-datasets.yaml>
-
-MATRIX_QUERIES_FILE=demo/<dataset>_queries.yaml \
-MATRIX_RESULTS_FILE=<dataset>_matrix.json \
-uv run python compare/run_matrix.py
-
-JUDGE_MATRIX_FILE=<dataset>_matrix.json \
-JUDGE_RESULTS_FILE=<dataset>_judgments.json \
-uv run python compare/judge.py
-
-uv run python compare/report_datasets.py --output docs/dataset-complexity-report.md
+uv run python scripts/run-dataset-ladder.py \
+  --dataset <dataset-id> \
+  --include-candidates \
+  --date-stamp YYYY-MM-DD
 ```
 
-After a successful run, copy the raw result files from `compare/results/` into
-`docs/results/`, update `compare/datasets.yaml` from `candidate` to `measured`,
-and regenerate the report.
+The runner cold-resets the stack, starts with profile-scoped collection names,
+submits the Atlas ingestion job, waits for all recorded phases, derives the
+contextual collection, runs the matrix and judges, copies snapshots into
+`docs/results/`, updates the dataset manifest, and regenerates the report. New
+snapshots record Atlas ingestion id/profile/revision/content digest so later runs
+can prove which corpus state they evaluated.

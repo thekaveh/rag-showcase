@@ -1,0 +1,294 @@
+{
+  "status": "ok",
+  "dataset_id": "baseline_curated",
+  "judges": [
+    "qwen3.6:latest",
+    "gemma4:31b"
+  ],
+  "queries": [
+    {
+      "query_id": "keyword",
+      "query": "What does error code WIDGET-ERR-7741 mean and how do I reset it?",
+      "expect_winner": "hybrid-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "lazy-graph-rag": 4.0,
+            "n8n-adaptive-rag": 4.0,
+            "hybrid-rag": 4.0,
+            "graph-rag": 5.0,
+            "vanilla-rag": 4.0,
+            "contextual-rag": 4.0,
+            "agentic-rag": 4.0
+          },
+          "best": "graph-rag",
+          "reason": "D provides the clearest structure, explicit source citation, and complete explanation that best aligns with RAG system standards."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "lazy-graph-rag": 5.0,
+            "n8n-adaptive-rag": 5.0,
+            "hybrid-rag": 5.0,
+            "graph-rag": 5.0,
+            "vanilla-rag": 5.0,
+            "contextual-rag": 5.0,
+            "agentic-rag": 5.0
+          },
+          "best": "graph-rag",
+          "reason": "All answers are factually correct and precise, but Answer D is the most comprehensive and professional, providing additional context and a reference."
+        }
+      },
+      "mean_by_approach": {
+        "lazy-graph-rag": 4.5,
+        "n8n-adaptive-rag": 4.5,
+        "hybrid-rag": 4.5,
+        "graph-rag": 5.0,
+        "vanilla-rag": 4.5,
+        "contextual-rag": 4.5,
+        "agentic-rag": 4.5
+      },
+      "votes": {
+        "graph-rag": 2
+      },
+      "observed_winner": "graph-rag"
+    },
+    {
+      "query_id": "thematic",
+      "query": "What are the main recurring themes across all the documents?",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "hybrid-rag": 4.0,
+            "contextual-rag": 2.0,
+            "n8n-adaptive-rag": 3.0,
+            "agentic-rag": 1.0,
+            "graph-rag": 1.0,
+            "vanilla-rag": 3.0,
+            "lazy-graph-rag": 2.0
+          },
+          "best": "hybrid-rag",
+          "reason": "A accurately identifies the corpus's distinct thematic clusters and provides a complete, grounded analysis without hallucinating connections or truncating."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "hybrid-rag": 5.0,
+            "contextual-rag": 2.0,
+            "n8n-adaptive-rag": 5.0,
+            "agentic-rag": 1.0,
+            "graph-rag": 1.0,
+            "vanilla-rag": 5.0,
+            "lazy-graph-rag": 2.0
+          },
+          "best": "hybrid-rag",
+          "reason": "Answer A correctly identifies that the corpus is fragmented into distinct communities (Google/Big Tech vs. SBF) and logically concludes that no single theme recurs across all documents."
+        }
+      },
+      "mean_by_approach": {
+        "hybrid-rag": 4.5,
+        "contextual-rag": 2.0,
+        "n8n-adaptive-rag": 4.0,
+        "agentic-rag": 1.0,
+        "graph-rag": 1.0,
+        "vanilla-rag": 4.0,
+        "lazy-graph-rag": 2.0
+      },
+      "votes": {
+        "hybrid-rag": 2
+      },
+      "observed_winner": "hybrid-rag"
+    },
+    {
+      "query_id": "multihop",
+      "query": "Compare what two different sources concluded on the same event and reconcile them.",
+      "expect_winner": "agentic-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "n8n-adaptive-rag": 4.0,
+            "lazy-graph-rag": 3.0,
+            "contextual-rag": 3.0,
+            "hybrid-rag": 2.0,
+            "vanilla-rag": 4.0,
+            "graph-rag": 1.0,
+            "agentic-rag": 2.0
+          },
+          "best": "n8n-adaptive-rag",
+          "reason": "A explicitly details retrieved source contents and demonstrates the comparative analysis process, best fulfilling the requirement to show its work."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "n8n-adaptive-rag": 3.0,
+            "lazy-graph-rag": 2.0,
+            "contextual-rag": 2.0,
+            "hybrid-rag": 1.0,
+            "vanilla-rag": 3.0,
+            "graph-rag": 1.0,
+            "agentic-rag": 1.0
+          },
+          "best": "n8n-adaptive-rag",
+          "reason": "Answer A (and E) provides the most detailed analysis of the available sources to explain why a reconciliation is not possible, showing more 'work' than the others."
+        }
+      },
+      "mean_by_approach": {
+        "n8n-adaptive-rag": 3.5,
+        "lazy-graph-rag": 2.5,
+        "contextual-rag": 2.5,
+        "hybrid-rag": 1.5,
+        "vanilla-rag": 3.5,
+        "graph-rag": 1.0,
+        "agentic-rag": 1.5
+      },
+      "votes": {
+        "n8n-adaptive-rag": 2
+      },
+      "observed_winner": "n8n-adaptive-rag"
+    },
+    {
+      "query_id": "factoid",
+      "query": "What is the firmware version referenced in the widget bootloader error?",
+      "expect_winner": "any",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "graph-rag": 5.0,
+            "lazy-graph-rag": 5.0,
+            "agentic-rag": 1.0,
+            "hybrid-rag": 5.0,
+            "vanilla-rag": 5.0,
+            "n8n-adaptive-rag": 5.0,
+            "contextual-rag": 5.0
+          },
+          "best": "graph-rag",
+          "reason": "Directly answers the question with accurate grounding and helpful context."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "graph-rag": 5.0,
+            "lazy-graph-rag": 5.0,
+            "agentic-rag": 1.0,
+            "hybrid-rag": 5.0,
+            "vanilla-rag": 5.0,
+            "n8n-adaptive-rag": 5.0,
+            "contextual-rag": 5.0
+          },
+          "best": "graph-rag",
+          "reason": "Answer A provides the correct version along with supporting context and a reference."
+        }
+      },
+      "mean_by_approach": {
+        "graph-rag": 5.0,
+        "lazy-graph-rag": 5.0,
+        "agentic-rag": 1.0,
+        "hybrid-rag": 5.0,
+        "vanilla-rag": 5.0,
+        "n8n-adaptive-rag": 5.0,
+        "contextual-rag": 5.0
+      },
+      "votes": {
+        "graph-rag": 2
+      },
+      "observed_winner": "graph-rag"
+    },
+    {
+      "query_id": "context_starved",
+      "query": "What does the safety relay do when the coil overheats, and how do I clear it?",
+      "expect_winner": "contextual-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "n8n-adaptive-rag": 5.0,
+            "hybrid-rag": 5.0,
+            "lazy-graph-rag": 5.0,
+            "graph-rag": 5.0,
+            "contextual-rag": 5.0,
+            "agentic-rag": 5.0,
+            "vanilla-rag": 5.0
+          },
+          "best": "graph-rag",
+          "reason": "All answers correctly identify the relay's action and reset procedure, but D provides the most comprehensive, well-structured explanation with relevant error codes and clear instructions."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "n8n-adaptive-rag": 4.0,
+            "hybrid-rag": 4.0,
+            "lazy-graph-rag": 4.0,
+            "graph-rag": 5.0,
+            "contextual-rag": 4.0,
+            "agentic-rag": 5.0,
+            "vanilla-rag": 4.0
+          },
+          "best": "graph-rag",
+          "reason": "Answer D provides the most comprehensive detail, including the specific error code and a reference, which indicates successful retrieval of disambiguating context."
+        }
+      },
+      "mean_by_approach": {
+        "n8n-adaptive-rag": 4.5,
+        "hybrid-rag": 4.5,
+        "lazy-graph-rag": 4.5,
+        "graph-rag": 5.0,
+        "contextual-rag": 4.5,
+        "agentic-rag": 5.0,
+        "vanilla-rag": 4.5
+      },
+      "votes": {
+        "graph-rag": 2
+      },
+      "observed_winner": "graph-rag"
+    },
+    {
+      "query_id": "mixed_batch",
+      "query": "List the widget error codes, then explain how they relate to each other across the docs.",
+      "expect_winner": "n8n-adaptive-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "graph-rag": 1.0,
+            "agentic-rag": 1.0,
+            "contextual-rag": 4.0,
+            "n8n-adaptive-rag": 5.0,
+            "lazy-graph-rag": 5.0,
+            "hybrid-rag": 4.0,
+            "vanilla-rag": 5.0
+          },
+          "best": "n8n-adaptive-rag",
+          "reason": "Directly answers both parts with specific details and correctly notes the lack of cross-document relation based on the provided context."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "graph-rag": 1.0,
+            "agentic-rag": 1.0,
+            "contextual-rag": 3.0,
+            "n8n-adaptive-rag": 5.0,
+            "lazy-graph-rag": 5.0,
+            "hybrid-rag": 5.0,
+            "vanilla-rag": 5.0
+          },
+          "best": "n8n-adaptive-rag",
+          "reason": "Answers D, E, F, and G all provide the specific technical details of the error codes and correctly synthesize that they only appear in one document while identifying the unrelated content of the other documents."
+        }
+      },
+      "mean_by_approach": {
+        "graph-rag": 1.0,
+        "agentic-rag": 1.0,
+        "contextual-rag": 3.5,
+        "n8n-adaptive-rag": 5.0,
+        "lazy-graph-rag": 5.0,
+        "hybrid-rag": 4.5,
+        "vanilla-rag": 5.0
+      },
+      "votes": {
+        "n8n-adaptive-rag": 2
+      },
+      "observed_winner": "n8n-adaptive-rag"
+    }
+  ],
+  "ingestion": {
+    "id": "e77bc045-4fb8-4555-be76-8bb76a9c778d",
+    "job_id": "e77bc045-4fb8-4555-be76-8bb76a9c778d",
+    "profile": "baseline_curated",
+    "revision": "64ce0e99ef6a24b1",
+    "content_digest": "b7d1802412255e14",
+    "mode": "atlas-job"
+  }
+}

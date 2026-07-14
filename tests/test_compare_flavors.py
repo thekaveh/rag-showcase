@@ -155,10 +155,33 @@ def test_both_loaders_reject_the_same_malformed_manifests(
 
 
 def test_canonical_six_names_agree_across_modules() -> None:
-    # The six names deliberately live in three modules (host-side list, backend
-    # set, register's ordered list); this is the cross-module drift pin.
-    import register.register_models as reg
+    # The host-side and backend loaders must agree on the stable base aliases.
     from rag.common import flavors as backend_flavors
 
-    assert set(reg._NAMES) == backend_flavors.BASE_APPROACHES == set(flavors.BASE_APPROACHES)
-    assert len(reg._NAMES) == 6
+    assert backend_flavors.BASE_APPROACHES == set(flavors.BASE_APPROACHES)
+    assert len(flavors.BASE_APPROACHES) == 6
+
+
+def test_lazy_graph_is_explicit_only_and_never_added_to_default_selection(tmp_path) -> None:
+    manifest = tmp_path / "flavors.yaml"
+    manifest.write_text(
+        """
+flavors:
+  - alias: lazy-graph-rag-fast
+    base: lazy-graph-rag
+    params:
+      relevance_budget: 8
+      seed_k: 4
+      max_context_chunks: 4
+""",
+        encoding="utf-8",
+    )
+
+    defaults = flavors.expand_selection(["default"], manifest=manifest)
+    explicit = flavors.expand_selection(["lazy-graph-rag"], manifest=manifest)
+
+    assert [profile.alias for profile in defaults] == flavors.BASE_APPROACHES
+    assert [profile.alias for profile in explicit] == [
+        "lazy-graph-rag",
+        "lazy-graph-rag-fast",
+    ]

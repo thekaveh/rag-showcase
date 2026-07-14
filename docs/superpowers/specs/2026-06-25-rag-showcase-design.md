@@ -1,4 +1,4 @@
-# RAG Showcase — Design Spec
+# 7.1 RAG Showcase — Design Spec
 
 - **Date:** 2026-06-25
 - **Status:** Historical design artifact — implemented (see deviations below). The code and the [Atlas-reuse assessment](../../atlas-reuse-assessment.md) are authoritative where they differ from this snapshot.

@@ -18,6 +18,8 @@ BASE_APPROACHES = [
     "agentic-rag",
     "n8n-adaptive-rag",
 ]
+EXPERIMENTAL_APPROACHES = ["lazy-graph-rag"]
+SUPPORTED_APPROACHES = BASE_APPROACHES + EXPERIMENTAL_APPROACHES
 
 # Load-time param typing, kept semantically identical to the backend loader
 # (rag/common/flavors.py) — the two are separate implementations by design, and
@@ -25,6 +27,8 @@ BASE_APPROACHES = [
 _NUMERIC_PARAMS: dict[str, type] = {
     "k": int, "retrieve_k": int, "top_n": int, "alpha": float, "max_steps": int,
     "vector_top_k": int, "top_k": int, "chunk_top_k": int, "max_total_tokens": int,
+    "relevance_budget": int, "seed_k": int, "max_context_chunks": int,
+    "max_concepts_per_chunk": int,
 }
 _BOOL_PARAMS = {"rerank", "enable_rerank"}
 
@@ -45,7 +49,7 @@ def _default(alias: str) -> FlavorProfile:
 
 
 def load_flavors(manifest: Path = DEFAULT_MANIFEST) -> dict[str, FlavorProfile]:
-    profiles = {base: _default(base) for base in BASE_APPROACHES}
+    profiles = {base: _default(base) for base in SUPPORTED_APPROACHES}
     if not manifest.is_file():
         return profiles
 
@@ -65,13 +69,13 @@ def load_flavors(manifest: Path = DEFAULT_MANIFEST) -> dict[str, FlavorProfile]:
         base = str(row.get("base") or "").strip()
         if not alias:
             raise ValueError(f"{manifest} contains a flavor without alias")
-        if alias in BASE_APPROACHES:
+        if alias in SUPPORTED_APPROACHES:
             # The canonical six always resolve to their default profile; a manifest
             # row shadowing a base name would silently change what "default" means.
             raise ValueError(f"flavor alias {alias!r} shadows a canonical base approach")
         if alias in profiles:
             raise ValueError(f"duplicate flavor alias {alias!r}")
-        if base not in BASE_APPROACHES:
+        if base not in SUPPORTED_APPROACHES:
             raise KeyError(f"flavor {alias!r} uses unknown base approach {base!r}")
         params = row.get("params") or {}
         if not isinstance(params, dict):
@@ -129,7 +133,7 @@ def expand_selection(selection: list[str], manifest: Path = DEFAULT_MANIFEST) ->
     for item in selection:
         if item == "default":
             candidates = [profiles[base] for base in BASE_APPROACHES]
-        elif item in BASE_APPROACHES:
+        elif item in SUPPORTED_APPROACHES:
             candidates = [p for p in profiles.values() if p.base == item]
         else:
             candidates = [profile_for_model(item, manifest)]

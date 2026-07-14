@@ -234,6 +234,62 @@ def test_hits_from_objects_tolerates_metadata_without_score():
     assert vectors._hits_from_objects([obj]) == [vectors.Hit("C", "gamma", None)]
 
 
+def test_hits_from_objects_accepts_atlas_ingestion_properties():
+    obj = _Obj("ignored", "ignored", 0.8)
+    obj.properties = {
+        "source": "graph_native/d.md",
+        "content": "Atlas-owned plain chunk",
+        "profile": "graph_native",
+        "chunkIndex": 3,
+    }
+
+    assert vectors._hits_from_objects([obj]) == [
+        vectors.Hit("graph_native/d.md", "Atlas-owned plain chunk", 0.8)
+    ]
+
+
+def test_read_ingested_chunks_preserves_source_order_and_closes(monkeypatch):
+    seen = {"closed": False}
+
+    class _Stored:
+        def __init__(self, source, content, index):
+            self.properties = {
+                "source": source,
+                "content": content,
+                "chunkIndex": index,
+            }
+
+    class _Collection:
+        def iterator(self):
+            return iter([
+                _Stored("b.md", "b1", 1),
+                _Stored("a.md", "a0", 0),
+                _Stored("b.md", "b0", 0),
+            ])
+
+    class _Client:
+        @property
+        def collections(self):
+            class _Collections:
+                def get(self, name):
+                    assert name == "RagBase_graph_native"
+                    return _Collection()
+
+            return _Collections()
+
+        def close(self):
+            seen["closed"] = True
+
+    monkeypatch.setattr(vectors, "_weaviate", _Client)
+
+    assert vectors.read_ingested_chunks("RagBase_graph_native") == [
+        vectors.IngestedChunk("a.md", "a0", 0),
+        vectors.IngestedChunk("b.md", "b0", 0),
+        vectors.IngestedChunk("b.md", "b1", 1),
+    ]
+    assert seen["closed"] is True
+
+
 def _fake_query_client(seen):
     """Fake Weaviate client capturing near_vector/hybrid kwargs (search-path twin
     of _FakeWeaviateClient, which covers the batch-insert path)."""
@@ -301,14 +357,49 @@ def test_search_hybrid_passes_alpha_k_and_requests_score(monkeypatch):
     assert hits == [vectors.Hit("T", "txt", 0.5)]
 
 
-def test_weaviate_grpc_port_validation(monkeypatch):
+def test_read_chunks_returns_stable_snapshot_without_vectors(monkeypatch):
+    seen = {}
+    atlas_obj = _Obj("ignored", "ignored")
+    atlas_obj.properties = {
+        "source": "C",
+        "content": "charlie",
+        "profile": "graph_native",
+        "chunkIndex": 0,
+    }
+
+    class _Collection:
+        def iterator(self, *, include_vector):
+            seen["include_vector"] = include_vector
+            return iter([_Obj("B", "beta"), atlas_obj, _Obj("A", "alpha")])
+
+    class _Client:
+        @property
+        def collections(self):
+            class _Collections:
+                def get(self, name):
+                    seen["collection"] = name
+                    return _Collection()
+            return _Collections()
+
+        def close(self):
+            seen["closed"] = True
+
+    monkeypatch.setattr(vectors, "_weaviate", lambda: _Client())
+
+    hits = vectors.read_chunks("RagBase")
+
+    assert hits == [Hit("A", "alpha"), Hit("B", "beta"), Hit("C", "charlie")]
+    assert seen == {"collection": "RagBase", "include_vector": False, "closed": True}
+
+
+def test_rag_weaviate_grpc_port_validation(monkeypatch):
     import sys
     import types
     # the port parse (and its self-describing ValueError) happens before any
     # client construction, so an empty module stub suffices for the guard path.
     monkeypatch.setitem(sys.modules, "weaviate", types.ModuleType("weaviate"))
-    monkeypatch.setenv("WEAVIATE_GRPC_PORT", "not-a-port")
-    with pytest.raises(ValueError, match="WEAVIATE_GRPC_PORT"):
+    monkeypatch.setenv("RAG_WEAVIATE_GRPC_PORT", "not-a-port")
+    with pytest.raises(ValueError, match="RAG_WEAVIATE_GRPC_PORT"):
         vectors._weaviate()
 
 

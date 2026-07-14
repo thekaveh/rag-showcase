@@ -1,0 +1,1177 @@
+{
+  "datasets": {
+    "graph_native": {
+      "approaches": {
+        "agentic-rag": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 8,
+            "mean": 2.375,
+            "total": 8
+          },
+          "operational": {
+            "attempted": 8,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 141716.75,
+            "successful": 8,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 0.0,
+              "errors": 8,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 8
+            },
+            "faithfulness": {
+              "coverage": 0.0,
+              "errors": 8,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 8
+            }
+          }
+        },
+        "contextual-rag": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 8,
+            "mean": 4.125,
+            "total": 8
+          },
+          "operational": {
+            "attempted": 8,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 11852.5,
+            "successful": 8,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 0.0,
+              "errors": 8,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 8
+            },
+            "faithfulness": {
+              "coverage": 0.0,
+              "errors": 8,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 8
+            }
+          }
+        },
+        "graph-rag": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 8,
+            "mean": 2.375,
+            "total": 8
+          },
+          "operational": {
+            "attempted": 8,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 88033.75,
+            "successful": 8,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 0.0,
+              "errors": 8,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 8
+            },
+            "faithfulness": {
+              "coverage": 0.0,
+              "errors": 0,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 8,
+              "timeouts": 0,
+              "total": 8
+            }
+          }
+        },
+        "hybrid-rag": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 8,
+            "mean": 3.625,
+            "total": 8
+          },
+          "operational": {
+            "attempted": 8,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 10384.0,
+            "successful": 8,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 0.0,
+              "errors": 8,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 8
+            },
+            "faithfulness": {
+              "coverage": 0.0,
+              "errors": 8,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 8
+            }
+          }
+        },
+        "lazy-graph-rag": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 8,
+            "mean": 3.875,
+            "total": 8
+          },
+          "operational": {
+            "attempted": 8,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 6073.75,
+            "successful": 8,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 0.0,
+              "errors": 8,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 8
+            },
+            "faithfulness": {
+              "coverage": 0.0,
+              "errors": 8,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 8
+            }
+          }
+        },
+        "n8n-adaptive-rag": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 8,
+            "mean": 3.625,
+            "total": 8
+          },
+          "operational": {
+            "attempted": 8,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 2371.875,
+            "successful": 8,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 0.0,
+              "errors": 8,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 8
+            },
+            "faithfulness": {
+              "coverage": 0.0,
+              "errors": 8,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 8
+            }
+          }
+        },
+        "vanilla-rag": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 8,
+            "mean": 3.625,
+            "total": 8
+          },
+          "operational": {
+            "attempted": 8,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 4771.125,
+            "successful": 8,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 0.0,
+              "errors": 8,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 8
+            },
+            "faithfulness": {
+              "coverage": 0.0,
+              "errors": 8,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 8
+            }
+          }
+        }
+      },
+      "complexity_level": 2,
+      "coverage": {
+        "errors": 0,
+        "ok": 56,
+        "timeouts": 0,
+        "total_rows": 56
+      },
+      "judge_panel": {
+        "evaluated_queries": 8,
+        "models": [
+          "qwen3.6:latest",
+          "gemma4:31b"
+        ],
+        "status": "ok",
+        "total_queries": 8
+      },
+      "label": "Curated graph-native real-world dossiers",
+      "rankings": {
+        "judge_panel": [
+          {
+            "approaches": [
+              "contextual-rag"
+            ],
+            "coverage": {
+              "contextual-rag": {
+                "evaluated": 8,
+                "total": 8
+              }
+            },
+            "rank": 1,
+            "value": 4.125
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag"
+            ],
+            "coverage": {
+              "lazy-graph-rag": {
+                "evaluated": 8,
+                "total": 8
+              }
+            },
+            "rank": 2,
+            "value": 3.875
+          },
+          {
+            "approaches": [
+              "hybrid-rag",
+              "n8n-adaptive-rag",
+              "vanilla-rag"
+            ],
+            "coverage": {
+              "hybrid-rag": {
+                "evaluated": 8,
+                "total": 8
+              },
+              "n8n-adaptive-rag": {
+                "evaluated": 8,
+                "total": 8
+              },
+              "vanilla-rag": {
+                "evaluated": 8,
+                "total": 8
+              }
+            },
+            "rank": 3,
+            "value": 3.625
+          },
+          {
+            "approaches": [
+              "agentic-rag",
+              "graph-rag"
+            ],
+            "coverage": {
+              "agentic-rag": {
+                "evaluated": 8,
+                "total": 8
+              },
+              "graph-rag": {
+                "evaluated": 8,
+                "total": 8
+              }
+            },
+            "rank": 6,
+            "value": 2.375
+          }
+        ],
+        "operational": {
+          "mean_latency_ms": [
+            {
+              "approaches": [
+                "n8n-adaptive-rag"
+              ],
+              "coverage": {
+                "n8n-adaptive-rag": {
+                  "evaluated": 8,
+                  "total": 8
+                }
+              },
+              "rank": 1,
+              "value": 2371.875
+            },
+            {
+              "approaches": [
+                "vanilla-rag"
+              ],
+              "coverage": {
+                "vanilla-rag": {
+                  "evaluated": 8,
+                  "total": 8
+                }
+              },
+              "rank": 2,
+              "value": 4771.125
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag"
+              ],
+              "coverage": {
+                "lazy-graph-rag": {
+                  "evaluated": 8,
+                  "total": 8
+                }
+              },
+              "rank": 3,
+              "value": 6073.75
+            },
+            {
+              "approaches": [
+                "hybrid-rag"
+              ],
+              "coverage": {
+                "hybrid-rag": {
+                  "evaluated": 8,
+                  "total": 8
+                }
+              },
+              "rank": 4,
+              "value": 10384.0
+            },
+            {
+              "approaches": [
+                "contextual-rag"
+              ],
+              "coverage": {
+                "contextual-rag": {
+                  "evaluated": 8,
+                  "total": 8
+                }
+              },
+              "rank": 5,
+              "value": 11852.5
+            },
+            {
+              "approaches": [
+                "graph-rag"
+              ],
+              "coverage": {
+                "graph-rag": {
+                  "evaluated": 8,
+                  "total": 8
+                }
+              },
+              "rank": 6,
+              "value": 88033.75
+            },
+            {
+              "approaches": [
+                "agentic-rag"
+              ],
+              "coverage": {
+                "agentic-rag": {
+                  "evaluated": 8,
+                  "total": 8
+                }
+              },
+              "rank": 7,
+              "value": 141716.75
+            }
+          ]
+        },
+        "ragas": {
+          "answer_relevancy": [],
+          "faithfulness": []
+        }
+      }
+    }
+  },
+  "longitudinal": {
+    "agentic-rag": [
+      {
+        "complexity_level": 2,
+        "dataset_id": "graph_native",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 8,
+          "mean": 2.375,
+          "total": 8
+        },
+        "operational": {
+          "attempted": 8,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 141716.75,
+          "successful": 8,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          }
+        }
+      }
+    ],
+    "contextual-rag": [
+      {
+        "complexity_level": 2,
+        "dataset_id": "graph_native",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 8,
+          "mean": 4.125,
+          "total": 8
+        },
+        "operational": {
+          "attempted": 8,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 11852.5,
+          "successful": 8,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          }
+        }
+      }
+    ],
+    "graph-rag": [
+      {
+        "complexity_level": 2,
+        "dataset_id": "graph_native",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 8,
+          "mean": 2.375,
+          "total": 8
+        },
+        "operational": {
+          "attempted": 8,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 88033.75,
+          "successful": 8,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 0,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 8,
+            "timeouts": 0,
+            "total": 8
+          }
+        }
+      }
+    ],
+    "hybrid-rag": [
+      {
+        "complexity_level": 2,
+        "dataset_id": "graph_native",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 8,
+          "mean": 3.625,
+          "total": 8
+        },
+        "operational": {
+          "attempted": 8,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 10384.0,
+          "successful": 8,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          }
+        }
+      }
+    ],
+    "lazy-graph-rag": [
+      {
+        "complexity_level": 2,
+        "dataset_id": "graph_native",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 8,
+          "mean": 3.875,
+          "total": 8
+        },
+        "operational": {
+          "attempted": 8,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 6073.75,
+          "successful": 8,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          }
+        }
+      }
+    ],
+    "n8n-adaptive-rag": [
+      {
+        "complexity_level": 2,
+        "dataset_id": "graph_native",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 8,
+          "mean": 3.625,
+          "total": 8
+        },
+        "operational": {
+          "attempted": 8,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 2371.875,
+          "successful": 8,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          }
+        }
+      }
+    ],
+    "vanilla-rag": [
+      {
+        "complexity_level": 2,
+        "dataset_id": "graph_native",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 8,
+          "mean": 3.625,
+          "total": 8
+        },
+        "operational": {
+          "attempted": 8,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 4771.125,
+          "successful": 8,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          }
+        }
+      }
+    ]
+  },
+  "overall": {
+    "approaches": {
+      "agentic-rag": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 8,
+          "mean": 2.375,
+          "total": 8
+        },
+        "operational": {
+          "attempted": 8,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 141716.75,
+          "successful": 8,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          }
+        }
+      },
+      "contextual-rag": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 8,
+          "mean": 4.125,
+          "total": 8
+        },
+        "operational": {
+          "attempted": 8,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 11852.5,
+          "successful": 8,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          }
+        }
+      },
+      "graph-rag": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 8,
+          "mean": 2.375,
+          "total": 8
+        },
+        "operational": {
+          "attempted": 8,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 88033.75,
+          "successful": 8,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 0,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 8,
+            "timeouts": 0,
+            "total": 8
+          }
+        }
+      },
+      "hybrid-rag": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 8,
+          "mean": 3.625,
+          "total": 8
+        },
+        "operational": {
+          "attempted": 8,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 10384.0,
+          "successful": 8,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          }
+        }
+      },
+      "lazy-graph-rag": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 8,
+          "mean": 3.875,
+          "total": 8
+        },
+        "operational": {
+          "attempted": 8,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 6073.75,
+          "successful": 8,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          }
+        }
+      },
+      "n8n-adaptive-rag": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 8,
+          "mean": 3.625,
+          "total": 8
+        },
+        "operational": {
+          "attempted": 8,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 2371.875,
+          "successful": 8,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          }
+        }
+      },
+      "vanilla-rag": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 8,
+          "mean": 3.625,
+          "total": 8
+        },
+        "operational": {
+          "attempted": 8,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 4771.125,
+          "successful": 8,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 8,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 8
+          }
+        }
+      }
+    },
+    "coverage": {
+      "errors": 0,
+      "ok": 56,
+      "timeouts": 0,
+      "total_rows": 56
+    },
+    "judge_panel": {
+      "evaluated_queries": 8,
+      "models": [
+        "qwen3.6:latest",
+        "gemma4:31b"
+      ],
+      "status": "ok",
+      "total_queries": 8
+    },
+    "rankings": {
+      "judge_panel": [
+        {
+          "approaches": [
+            "contextual-rag"
+          ],
+          "coverage": {
+            "contextual-rag": {
+              "evaluated": 8,
+              "total": 8
+            }
+          },
+          "rank": 1,
+          "value": 4.125
+        },
+        {
+          "approaches": [
+            "lazy-graph-rag"
+          ],
+          "coverage": {
+            "lazy-graph-rag": {
+              "evaluated": 8,
+              "total": 8
+            }
+          },
+          "rank": 2,
+          "value": 3.875
+        },
+        {
+          "approaches": [
+            "hybrid-rag",
+            "n8n-adaptive-rag",
+            "vanilla-rag"
+          ],
+          "coverage": {
+            "hybrid-rag": {
+              "evaluated": 8,
+              "total": 8
+            },
+            "n8n-adaptive-rag": {
+              "evaluated": 8,
+              "total": 8
+            },
+            "vanilla-rag": {
+              "evaluated": 8,
+              "total": 8
+            }
+          },
+          "rank": 3,
+          "value": 3.625
+        },
+        {
+          "approaches": [
+            "agentic-rag",
+            "graph-rag"
+          ],
+          "coverage": {
+            "agentic-rag": {
+              "evaluated": 8,
+              "total": 8
+            },
+            "graph-rag": {
+              "evaluated": 8,
+              "total": 8
+            }
+          },
+          "rank": 6,
+          "value": 2.375
+        }
+      ],
+      "operational": {
+        "mean_latency_ms": [
+          {
+            "approaches": [
+              "n8n-adaptive-rag"
+            ],
+            "coverage": {
+              "n8n-adaptive-rag": {
+                "evaluated": 8,
+                "total": 8
+              }
+            },
+            "rank": 1,
+            "value": 2371.875
+          },
+          {
+            "approaches": [
+              "vanilla-rag"
+            ],
+            "coverage": {
+              "vanilla-rag": {
+                "evaluated": 8,
+                "total": 8
+              }
+            },
+            "rank": 2,
+            "value": 4771.125
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag"
+            ],
+            "coverage": {
+              "lazy-graph-rag": {
+                "evaluated": 8,
+                "total": 8
+              }
+            },
+            "rank": 3,
+            "value": 6073.75
+          },
+          {
+            "approaches": [
+              "hybrid-rag"
+            ],
+            "coverage": {
+              "hybrid-rag": {
+                "evaluated": 8,
+                "total": 8
+              }
+            },
+            "rank": 4,
+            "value": 10384.0
+          },
+          {
+            "approaches": [
+              "contextual-rag"
+            ],
+            "coverage": {
+              "contextual-rag": {
+                "evaluated": 8,
+                "total": 8
+              }
+            },
+            "rank": 5,
+            "value": 11852.5
+          },
+          {
+            "approaches": [
+              "graph-rag"
+            ],
+            "coverage": {
+              "graph-rag": {
+                "evaluated": 8,
+                "total": 8
+              }
+            },
+            "rank": 6,
+            "value": 88033.75
+          },
+          {
+            "approaches": [
+              "agentic-rag"
+            ],
+            "coverage": {
+              "agentic-rag": {
+                "evaluated": 8,
+                "total": 8
+              }
+            },
+            "rank": 7,
+            "value": 141716.75
+          }
+        ]
+      },
+      "ragas": {
+        "answer_relevancy": [],
+        "faithfulness": []
+      }
+    }
+  },
+  "run_ids": [
+    "live-2026-07-13-graph_native"
+  ],
+  "runner_versions": [
+    1
+  ],
+  "schema_version": 1
+}

@@ -1,24 +1,27 @@
-# Atlas Reuse Assessment — RAG Showcase
+# 4.4 Atlas Reuse Assessment — RAG Showcase
 
 A living record of how well Atlas served as reusable infra for this project.
 
 ## 1. What Reused Cleanly (Out of the Box)
 
-- **LiteLLM service-as-a-model pattern:** Registered all six custom-`api_base`
-  approaches via LiteLLM's `/model/new` admin API (`STORE_MODEL_IN_DB=True`) with
-  **zero Atlas edits** for registration. Atlas's existing `lightrag` and
-  `hermes-agent` model entries were the existence proof.
-- **The `gen-ai-rag` track:** Brought up Weaviate + Neo4j + LightRAG + TEI
-  reranker + Docling + Open WebUI in a single flag, all pre-wired into the base
-  stack.
+- **Declarative LiteLLM consumer models:** `atlas.consumer.yml` declares all six
+  base approaches and eight flavor aliases. Atlas validates endpoint ownership,
+  compiles model rows before LiteLLM starts, and exposes the same aliases to Open
+  WebUI and API clients without database registration calls.
+- **The `gen-ai-rag` track:** Brings up Weaviate + Neo4j + LightRAG + TEI
+  reranker + Docling + n8n + Open WebUI in a single flag, all pre-wired into the
+  base stack. Rag-showcase explicitly disables Docling for a hardware-neutral
+  default, while n8n now needs no out-of-track source override.
 - **Backend's pre-wired environment:** LiteLLM/Weaviate/Neo4j/Redis/Docling/
   LightRAG URLs and credentials were already plumbed into the backend; our plugin
   read them directly with zero re-plumbing.
 - **Open WebUI multi-model chat:** Served as the comparison frontend without
   requiring any custom UI implementation.
-- **The `services/_user/` overlay slot:** Auto-discovered our compose fragment and
-  merged it into the existing `backend` service via compose service-name
-  merge — worked on first try.
+- **The consumer-manifest seam:** `atlas.consumer.yml` now registers project and
+  brand metadata, the env file, external Compose overlay, backend plugin root,
+  LiteLLM aliases, Ollama model sidecar, and the adaptive n8n workflow from the
+  parent repository. Atlas validates and launches the assembled integration without
+  any symlink or workflow bind mount inside the submodule.
 
 ## 2. Friction Found / Seams Added
 
@@ -39,6 +42,11 @@ overlay).
 > the unchanged compose overlay (`BACKEND_PLUGINS_DIR=/app/plugins` + the
 > `backend_plugins/` mount). The override mechanism is identical — only the seam's
 > provider moved from the fork to upstream.
+>
+> The RAG package now also ships Atlas's optional `plugin.yml` contract. Its six
+> approach routes share `/rag`, with `/rag/health`, inherited Kong auth, typed
+> configuration, and dependency metadata validated by consumer doctor before
+> startup and by the backend before import.
 
 ### 2.2 Client-library version floors
 
@@ -50,25 +58,28 @@ satisfies it, so no startup reinstall normally happens. The plugin does not use
 `neo4j` directly — it reaches the graph only via LightRAG over HTTP — so it
 neither installs nor imports it.
 
-### 2.3 No `api_base` column in `public.llms`
+### 2.3 Custom LiteLLM endpoint ownership
 
-`public.llms` has no `api_base` column and its `openai` provider routes to
-`api.openai.com`. The table cannot express custom-endpoint models. The
-`/model/new` admin API was the correct channel and worked well; this pattern
-should be **documented for Atlas** as the preferred way to register custom
-OpenAI-compatible endpoints.
-
-> **Resolved upstream.** Atlas `ec927c5` removed `public.llms` entirely — model
-> source-of-truth moved to per-service YAML — so this table-level limitation no
-> longer applies. The `/model/new` admin API remains the channel the showcase uses.
+The original implementation stored custom endpoint rows through LiteLLM's admin
+API because Atlas had no consumer-owned alias contract. That made ownership
+implicit and left persisted duplicates during migration. Atlas #411 resolved the
+gap with versioned `litellm_models` declarations, approved endpoint templates,
+derived ownership metadata, collision checks, secret references, and generated
+startup configuration. Rag-showcase now uses that contract exclusively during
+normal operation. An idempotent exact-match reconciliation removes only unowned
+rows created by the retired registration script, including both the historical
+`/<approach>/v1` and current `/rag/<approach>/v1` route shapes. Because LiteLLM's
+four workers retain per-process route caches, a changed reconciliation triggers
+one proxy restart and a fresh zero-change verification.
 
 ### 2.4 In-container path mismatch
 
-`backend_plugins` mounts at `/app/plugins` (not `/app/backend_plugins`). Running
-the ingest script in the backend required:
-
-- `PYTHONPATH=/app/plugins`
-- Mounting `ingest/` and `corpus/` directories into the container
+> **Resolved as a generic/local split.** `backend_plugins` still mounts at
+> `/app/plugins`, while the corpus and the small contextual post-processor mount
+> under `/app`. Generic ingestion no longer imports showcase code: Atlas compiles
+> `rag_ingestion_profiles`, mounts them into its backend, and owns parsing,
+> chunking, base vectors, LightRAG upload, and drain. The local post-step uses
+> `PYTHONPATH=/app/plugins:/app` only to derive the contextual collection.
 
 ### 2.5 FastAPI version sensitivity
 
@@ -77,23 +88,24 @@ The seam test's `r.path` route introspection only works on FastAPI `<0.137`
 
 ### 2.6 Overlay slot location and setup
 
-The `_user/` overlay slot lives inside the Atlas submodule (which is gitignored
-upstream). We symlink our fragment in via `scripts/setup-overlay.sh`, so the
-showcase repo owns the compose-fragment file while the overlay slot remains under
-Atlas's gitignore.
+> **Resolved upstream.** The original integration symlinked the parent-owned
+> Compose fragment into Atlas's gitignored `_user/` slot. Atlas's consumer
+> manifest now accepts external `compose_overlays` and `backend_plugins` paths,
+> so `atlas.consumer.yml` owns that registration directly and
+> `scripts/setup-overlay.sh` has been removed. `start-all.sh` only removes the
+> exact legacy symlink left by an older checkout; it refuses to touch an
+> unexpected symlink or regular file.
 
-### 2.7 `start.sh`/`start.py` blocks non-interactive callers by tailing logs
+### 2.7 Non-interactive detached startup
 
-Atlas's `start.py` brings the stack up detached (`up -d`), then ends by **following
-logs** — `show_container_logs(follow=True)` in `bootstrapper/start.py`,
-called unconditionally with only a `KeyboardInterrupt` handler (line numbers
-shift on every Atlas bump, so this cites the symbol, not a line). On a non-TTY caller
-(this repo's `scripts/start-all.sh`, CI, any automation), `docker compose … logs -f`
-blocks **forever**, so control never returns and the wrapper's downstream steps
-(corpus ingest, model registration) never run. **This was why live e2e had never
-been verified.** Workaround: after the stack is healthy, run ingest + register
-directly via `docker exec`. (First confirmed via the live process tree: a wedged
-`docker compose … logs -f` child of `start.py`.)
+> **Resolved upstream.** Atlas now exposes `--no-tui --detach` (alias
+> `--no-follow`) for automation. It runs the normal start pipeline, waits for
+> Compose health, prints a final status summary, and exits nonzero when the final
+> state is unhealthy. Rag-showcase now invokes that mode directly after Atlas's
+> headless env backfill, manifest-aware Compose validation, and consumer doctor;
+> it no longer backgrounds or kills the bootstrapper process. Detached startup
+> performs the authoritative effective-env validation after applying the
+> manifest and source flags.
 
 ### 2.8 Host-Ollama provider option
 
@@ -121,8 +133,8 @@ chosen provider source.
 > **Resolved upstream.** Atlas now exposes `LIGHTRAG_EXTRACT_*`,
 > `LIGHTRAG_KEYWORD_*`, and `LIGHTRAG_QUERY_*` inputs and maps them to
 > LightRAG's native runtime role variables. Rag-showcase now sets those public
-> Atlas inputs in `infra/.env` instead of carrying a compose override that writes
-> native LightRAG variables directly.
+> Atlas inputs through the parent-owned `config/atlas.env.user` overlay instead of
+> carrying a compose override that writes native LightRAG variables directly.
 
 ### 2.11 LightRAG query rerank does not match Atlas's TEI reranker API
 
@@ -132,10 +144,109 @@ TEI endpoint with a Jina-style payload; TEI rejected it with `422 missing field
 texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
 (`top_k=10`, `chunk_top_k=5`, `max_total_tokens=12000`) produced usable answers.
 
-> **Default fixed upstream.** Atlas now leaves direct LightRAG->TEI rerank disabled
-> by default and exposes concrete LightRAG query fanout defaults. A future TEI
-> adapter could still make rerank useful, but the boot-loop / 422-retry path is no
-> longer the default.
+> **Resolved upstream.** Atlas leaves direct LightRAG->TEI rerank disabled by
+> default, exposes concrete query fanout defaults, and now ships an authenticated
+> backend adapter (`POST /lightrag/rerank`). Operators can opt in with
+> `LIGHTRAG_RERANK_ADAPTER_ENABLED=true` while keeping the incompatible direct path
+> disabled. Rag-showcase has not enabled the adapter by default; profile adoption
+> and evaluation remain a separate tuning decision.
+
+### 2.12 Disabled manifest services can be treated as enabled during dependency checks
+
+> **Resolved upstream.** Atlas #503 now derives dependency enablement from service
+> manifest source metadata. Rag-showcase no longer enables MinIO solely to satisfy
+> a disabled Trino dependency.
+
+### 2.13 Disabled services can still be built during unrelated track startup
+
+> **Resolved upstream.** Atlas #504 now computes the enabled-service target set
+> from the rendered project and passes it to build and startup. The showcase no
+> longer removes `asset-baker` from its Compose overlay. Atlas #505 still tracks
+> that service's own Blender artifact independently of this RAG track.
+
+### 2.14 Existing local images can remain stale after a submodule upgrade
+
+Atlas uses `docker compose up --force-recreate`, which recreates containers but
+does not rebuild an existing local image after its Dockerfile, requirements, or
+source changes. During this upgrade, a June 29 backend image lacked Celery added
+to Atlas on July 3 and restart-looped against the July 11 source mount. A one-time
+`docker compose build backend` restored parity. Automatic source-drift detection
+is tracked in [Atlas #506](https://github.com/thekaveh/atlas/issues/506).
+
+### 2.15 Detached startup can reject an exited-zero init service
+
+> **Partially resolved upstream.** Atlas #508 inspects the rendered service state
+> when `docker compose up --wait` returns nonzero and accepts a fully converged
+> snapshot. A 2026-07-13 live run exposed a remaining timing case: Compose reports
+> an exited-zero `n8n-init` while otherwise healthy long-lived services still have
+> `starting` health. Atlas inspects once and returns failure instead of waiting for
+> that snapshot to converge.
+
+The showcase therefore retains a narrow fallback. It activates only when Atlas's
+output contains both the exact exited-zero signature and failed-start summary,
+then waits for the fixed RAG topology. Every long-lived service must become
+running and healthy and every expected one-shot must exit zero; missing,
+unhealthy, restarting, timed-out, or nonzero-exit services still fail. Remove the
+fallback when Atlas performs this bounded convergence wait itself.
+
+### 2.16 n8n no-API-key seeding does not publish active workflows
+
+Atlas's consumer workflow contract now validates, namespaces, imports, reconciles,
+and probes the Adaptive-RAG workflow. A fresh-volume validation against n8n 2.28.2
+found one remaining lifecycle gap: with `N8N_API_KEY` unset, the CLI import persists
+normalized `active: true` JSON as inactive. The production webhook remains 404, and
+the best-effort seed reports the failed probe without failing stack startup. A
+restart alone does not change the state.
+
+The showcase temporarily publishes only the Atlas-owned
+`atlas-consumer-adaptive-rag` id, reloads n8n, and then requires a successful real
+webhook answer. For upgrades, it deletes only the exact old `adaptiverag00001`
+identity: n8n's unpublish CLI leaves that workflow's unique webhook row behind, so
+the database foreign-key cascade is needed to prevent a legacy route from blocking
+or masking the probe. Atlas #514 tracks moving the activation/reload step upstream;
+the manifest and workflow source will remain unchanged when that shim is removed.
+
+### 2.17 Generic ingestion lifecycle
+
+> **Resolved upstream.** Atlas #413 added versioned consumer RAG ingestion profiles,
+> safe corpus mounts, deterministic profile revisions, phase-level job records,
+> idempotent Weaviate writes, LightRAG upload/drain, cancellation, and a headless API.
+> Rag-showcase now declares one profile per dataset and uses that API from both
+> default startup and the dataset ladder. The former all-in-one `ingest/ingest.py`
+> and bespoke LightRAG drain polling are removed.
+
+The one retained local phase is intentional rather than infrastructure duplication:
+`contextual-rag` generates LLM blurbs from Atlas-written chunks and writes a separate
+`RagContextual_<profile>` collection. Matrix and judgment snapshots now carry the
+Atlas ingestion id, profile revision, and content digest. Historical snapshots
+remain immutable and therefore do not claim job provenance they never recorded.
+
+### 2.18 Generated backend profile mounts collided with the `/app` source bind
+
+The first live consumer-profile smoke passed Atlas manifest validation and doctor,
+then failed while Docker Desktop created the backend container. Atlas #413 and
+#414 generate single-file mounts at `/app/rag-ingestion-profiles.json` and
+`/app/lightrag-query-profiles.json`, but the backend already bind-mounts its source
+directory at `/app`. Docker Desktop/VirtioFS rejects that nested file mount as an
+outside-rootfs mountpoint.
+
+> **Resolved upstream.** Atlas #533 moved both registries to the dedicated
+> read-only `/atlas-consumer-config/` path. The showcase consumes that contract
+> directly and does not carry an unvalidated private registry.
+
+### 2.19 Generic ingestion runtime and LightRAG upload contract
+
+The first Atlas-job validation on the corrected mount path found two independent
+runtime mismatches: the backend image's `appuser` had no writable home for the
+Chonkie/tokie tokenizer cache, and Atlas sent LightRAG's retired `description`
+field instead of the 1.5.x-required `file_source`. Both failures occurred after
+manifest validation and therefore needed real ingestion evidence.
+
+> **Resolved upstream.** Atlas #602 creates `/home/appuser` in the backend image,
+> sends `file_source`, and records bounded upstream response bodies on failures.
+> Rag-showcase pins Atlas `3c33250b` and removed its temporary cache environment
+> override. Live job `7127dcc3-7a45-40ad-ae28-5b547cf0bc8b` then completed all
+> discover/parse/chunk/embed/vector-write/upload/drain/finalize phases.
 
 ## 3. Recommendations for Atlas
 
@@ -149,17 +260,15 @@ texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
   already ships `weaviate-client` and `neo4j`; the plugin's own range is a
   compatibility cap that Atlas's install already satisfies. (Originally filed as
   a gap — corrected after checking the vendored image's `requirements.txt`.)
-- **(Resolved)** Originally: *add an `api_base` column to `public.llms`* to express
-  custom-endpoint models natively. Atlas has since removed `public.llms` outright
-  (model source-of-truth moved to per-service YAML, `ec927c5`); the showcase now
-  registers its custom OpenAI-compatible endpoints via the `/model/new` admin API,
-  which remains the supported pattern.
-- **Add a `--extra-compose <file>` flag to `start.sh`** so consumers can add
-  overlays without symlinking into the gitignored `_user/` slot.
-- **(HIGH) Don't block non-interactive callers on `logs -f`** (§2.7). Guard
-  `start.py`'s `show_container_logs(follow=True)` on `sys.stdout.isatty()`, or add a
-  `--no-follow`/`--detach` flag, so scripted bring-ups return after the stack is
-  healthy. This is the single change that unblocks automated end-to-end runs.
+- **(Resolved) Consumer-owned LiteLLM aliases:** Atlas #411 added declarative
+  `litellm_models` support. The showcase now owns all fourteen route aliases in
+  `atlas.consumer.yml`; Atlas renders and validates them without admin API calls.
+- **(Resolved) Load parent-owned Compose overlays directly:** Atlas's
+  `atlas.consumer.yml` `compose_overlays` block supersedes the proposed
+  `--extra-compose` flag and removes the `_user/` symlink requirement.
+- **(Resolved) Support detached scripted startup** (§2.7): Atlas now provides
+  `--no-tui --detach` / `--no-follow` with health-gated exit status and an optional
+  JSON summary.
 - **(Resolved) Add a host-Ollama provider option** (§2.8): Atlas now supports
   `LLM_PROVIDER_SOURCE=ollama-localhost`.
 - **(MED) Surface LightRAG extraction failures** (§2.9): a timed-out / empty-graph
@@ -169,9 +278,30 @@ texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
 - **(Resolved) Expose LightRAG role-specific models** (§2.10): Atlas now maps
   `LIGHTRAG_EXTRACT_LLM_MODEL`, `LIGHTRAG_KEYWORD_LLM_MODEL`, and
   `LIGHTRAG_QUERY_LLM_MODEL` to LightRAG's native runtime vars.
-- **(Partially resolved) Fix or disable LightRAG query rerank for TEI** (§2.11):
-  Atlas now defaults direct LightRAG rerank off. A compatible adapter remains a
-  future enhancement.
+- **(Resolved) Adapt LightRAG query rerank for TEI** (§2.11): Atlas defaults the
+  incompatible direct path off and provides an opt-in authenticated backend adapter.
+- **(Resolved) Derive dependency enablement from service manifests** (§2.12):
+  Atlas #503 now interprets disabled and newly added services consistently.
+- **(Resolved) Exclude disabled local builds from startup** (§2.13): Atlas #504
+  launches only the resolved enabled service set. Atlas #505 separately tracks
+  the Asset Baker artifact.
+- **Rebuild stale local images after source upgrades** (§2.14): detect build-context
+  drift and refresh enabled images without rebuilding unchanged services (Atlas #506).
+- **Complete successful one-shot convergence handling** (§2.15): Atlas #508
+  handles already-converged zero-exit snapshots, but should wait through the
+  observed intermediate `starting` state while preserving genuine failures.
+- **Publish active n8n workflows without an API key** (§2.16): honor the effective
+  activation policy on fresh volumes, coalesce any required reload, and make required
+  webhook readiness deterministic (Atlas #514).
+- **(Resolved) Provide generic RAG ingestion jobs** (§2.17): Atlas #413 now owns
+  discover/parse/chunk/embed/vector-write/LightRAG-upload/drain/finalize; the
+  showcase retains only its approach-specific contextual transform.
+- **(Resolved) Move generated backend registries outside `/app`** (§2.18): Atlas
+  #533 mounts ingestion and LightRAG query profile registries under the reserved
+  `/atlas-consumer-config/` directory.
+- **(Resolved) Make generic ingestion runnable against LightRAG 1.5** (§2.19):
+  Atlas #602 supplies a writable backend runtime home, uses `file_source`, and
+  retains bounded upstream error evidence.
 
 ## 4. Live End-to-End Run — Resolved (2026-07-01)
 
@@ -190,3 +320,27 @@ previously-open items are now assessed:
   (keyword, context_starved) via the vector tool.
 - **Text approaches (vanilla / hybrid / contextual)** — worked well and differentiated
   modestly on the curated corpus (full results in `comparison.md`).
+
+### 4.1 Atlas `fe55e838` baseline revalidation (2026-07-11)
+
+- `scripts/start-all.sh` completed in service-only mode and verified every
+  canonical and flavor alias.
+- The live six-approach smoke suite passed: **8 tests passed**.
+- A graph-native document was inserted through LightRAG, extraction drained, and
+  `graph-rag` correctly joined Project Cedar's lead, dependent service, and
+  disrupting incident with the inserted document cited.
+- The stack was stopped normally after verification; data volumes were preserved.
+
+### 4.2 Atlas `3c33250b` generic-ingestion validation (2026-07-14)
+
+- `scripts/start-all.sh` converged all 27 enabled services and registered all 14
+  canonical/flavor aliases without a consumer-owned backend cache override.
+- Atlas job `7127dcc3-7a45-40ad-ae28-5b547cf0bc8b` completed all eight phases for
+  `graph_native`: 10 files discovered and parsed, 10 chunks, 10 vectors written,
+  10 LightRAG uploads, a 320.5-second graph-extraction drain, and zero errors.
+- The local contextual post-step read the Atlas chunks and produced 10 objects in
+  `RagContextual_graph_native`; `RagBase_graph_native` also contained 10 objects.
+- LightRAG reported no busy or pending work after drain. The shared Neo4j graph
+  contained 455 nodes and 411 relationships after the preserved-volume run.
+- The live canonical six-approach suite passed all **8 tests** in 92.72 seconds,
+  including one non-empty, metrics-bearing answer through each public alias.

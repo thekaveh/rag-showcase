@@ -1,0 +1,210 @@
+name: rag-showcase
+project_name: rag-showcase
+
+brand:
+  name: RAG-SHOWCASE
+  tagline: Six RAG approaches, side by side
+  author: Kaveh Razavi
+  license: Apache License 2.0
+  repo_url: https://github.com/thekaveh/rag-showcase
+  logo_file: ./brand/rag-showcase.logo
+
+env:
+  file: ./config/atlas.env.user
+
+compose_overlays:
+  - ./compose/rag-overlay.yml
+
+backend_plugins:
+  - ./backend_plugins
+
+litellm_models:
+  version: 1
+  models:
+    - name: vanilla-rag
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/vanilla-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: RAG showcase - dense vector retrieval
+      tags: [rag-showcase, rag, base]
+      model_info: {base_approach: vanilla-rag, flavor: false}
+    - name: hybrid-rag
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/hybrid-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: RAG showcase - hybrid dense and lexical retrieval with reranking
+      tags: [rag-showcase, rag, base]
+      model_info: {base_approach: hybrid-rag, flavor: false}
+    - name: contextual-rag
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/contextual-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: RAG showcase - context-enriched hybrid retrieval with reranking
+      tags: [rag-showcase, rag, base]
+      model_info: {base_approach: contextual-rag, flavor: false}
+    - name: graph-rag
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/graph-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: RAG showcase - LightRAG knowledge-graph retrieval
+      tags: [rag-showcase, rag, base]
+      model_info: {base_approach: graph-rag, flavor: false}
+    - name: agentic-rag
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/agentic-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: RAG showcase - ReAct agent over vector and graph tools
+      tags: [rag-showcase, rag, base]
+      model_info: {base_approach: agentic-rag, flavor: false}
+    - name: n8n-adaptive-rag
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/n8n-adaptive-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: RAG showcase - n8n-classified adaptive retrieval
+      tags: [rag-showcase, rag, base]
+      model_info: {base_approach: n8n-adaptive-rag, flavor: false}
+    - name: lazy-graph-rag
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/lazy-graph-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Experimental LLM-free concept graph with budgeted query-time expansion
+      tags: [rag-showcase, rag, experimental]
+      model_info: {base_approach: lazy-graph-rag, flavor: false, experimental: true}
+    - name: vanilla-rag-wide
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/vanilla-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Dense retrieval with a larger stuffed context window
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: vanilla-rag, flavor: true}
+    - name: hybrid-rag-high-recall
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/hybrid-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Larger BM25 and dense candidate pool before TEI reranking
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: hybrid-rag, flavor: true}
+    - name: hybrid-rag-fast
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/hybrid-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Smaller hybrid candidate pool without TEI reranking
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: hybrid-rag, flavor: true}
+    - name: contextual-rag-high-recall
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/contextual-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Contextual retrieval with a larger candidate pool before reranking
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: contextual-rag, flavor: true}
+    - name: graph-rag-fast
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/graph-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Lower LightRAG fanout for faster graph answers
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: graph-rag, flavor: true}
+    - name: graph-rag-wide
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/graph-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Wider LightRAG graph and chunk fanout for relationship-heavy queries
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: graph-rag, flavor: true}
+    - name: agentic-rag-deeper
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/agentic-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: More ReAct steps and wider vector-tool retrieval
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: agentic-rag, flavor: true}
+    - name: n8n-adaptive-rag-default
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/n8n-adaptive-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Explicit alias for the current n8n adaptive workflow
+      tags: [rag-showcase, rag, flavor]
+      model_info: {base_approach: n8n-adaptive-rag, flavor: true}
+    - name: lazy-graph-rag-fast
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/lazy-graph-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Experimental lazy graph with a small relevance budget
+      tags: [rag-showcase, rag, flavor, experimental]
+      model_info: {base_approach: lazy-graph-rag, flavor: true, experimental: true}
+    - name: lazy-graph-rag-balanced
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/lazy-graph-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Experimental lazy graph with balanced query-time budgets
+      tags: [rag-showcase, rag, flavor, experimental]
+      model_info: {base_approach: lazy-graph-rag, flavor: true, experimental: true}
+    - name: lazy-graph-rag-wide
+      api_base: "${ATLAS_BACKEND_INTERNAL}/rag/lazy-graph-rag/v1"
+      api_key_var: LITELLM_MASTER_KEY
+      description: Experimental lazy graph with wider relationship traversal
+      tags: [rag-showcase, rag, flavor, experimental]
+      model_info: {base_approach: lazy-graph-rag, flavor: true, experimental: true}
+
+n8n_workflows:
+  version: 1
+  workflows:
+    - id: adaptive-rag
+      path: ./n8n/adaptive-rag.workflow.json
+      active: fromJson
+      required_webhooks:
+        - path: /webhook/adaptive-rag
+          method: POST
+          expect_status: 200
+          probe: true
+
+rag_ingestion_profiles:
+  version: 1
+  profiles:
+    - name: showcase_default
+      corpus: {source: mount, path: raw}
+      parser_order: &rag_parsers [docling, tika, plain_text]
+      chunker: &rag_chunker
+        strategy: recursive
+        chunk_size: 800
+        overlap: 100
+      vector_targets: &rag_vector_targets
+        - backend: weaviate
+          collection_prefix: RagBase
+          on_unavailable: fail
+      graph_targets: &rag_graph_targets
+        - backend: lightrag
+          mode: upload_documents
+          wait_for_extraction: true
+          timeout_seconds: 3600
+          on_unavailable: fail
+    - name: baseline_curated
+      corpus: {source: mount, path: subset}
+      parser_order: *rag_parsers
+      chunker: *rag_chunker
+      vector_targets: *rag_vector_targets
+      graph_targets: *rag_graph_targets
+    - name: graph_native
+      corpus: {source: mount, path: graph_native}
+      parser_order: *rag_parsers
+      chunker: *rag_chunker
+      vector_targets: *rag_vector_targets
+      graph_targets: *rag_graph_targets
+    - name: stark_prime
+      corpus: {source: mount, path: generated/stark_prime}
+      parser_order: *rag_parsers
+      chunker: *rag_chunker
+      vector_targets: *rag_vector_targets
+      graph_targets: *rag_graph_targets
+    - name: stark_mag
+      corpus: {source: mount, path: generated/stark_mag}
+      parser_order: *rag_parsers
+      chunker: *rag_chunker
+      vector_targets: *rag_vector_targets
+      graph_targets: *rag_graph_targets
+    - name: openalex_scholarly
+      corpus: {source: mount, path: generated/openalex_scholarly}
+      parser_order: *rag_parsers
+      chunker: *rag_chunker
+      vector_targets: *rag_vector_targets
+      graph_targets: *rag_graph_targets
+    - name: gdelt_events
+      corpus: {source: mount, path: generated/gdelt_events}
+      parser_order: *rag_parsers
+      chunker: *rag_chunker
+      vector_targets: *rag_vector_targets
+      graph_targets: *rag_graph_targets
+    - name: cyber_threat_intel
+      corpus: {source: mount, path: cyber_threat_intel}
+      parser_order: *rag_parsers
+      chunker: *rag_chunker
+      vector_targets: *rag_vector_targets
+      graph_targets: *rag_graph_targets
+
+model_sidecars:
+  ollama:
+    - mistral-small3.2:24b

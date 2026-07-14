@@ -1,15 +1,76 @@
 from pathlib import Path
+import os
+import shutil
+import subprocess
 
+import pytest
 import yaml
 
 # Anchor to the repo root so the suite passes from any CWD (siblings do the same).
 ROOT = Path(__file__).resolve().parents[1]
 
 
+class _ComposeLoader(yaml.SafeLoader):
+    pass
+
+
+def _construct_reset(loader: yaml.SafeLoader, node: yaml.Node) -> None:
+    loader.construct_scalar(node)
+    return None
+
+
+_ComposeLoader.add_constructor("!reset", _construct_reset)
+
+
+def _load_overlay() -> dict:
+    return yaml.load(
+        (ROOT / "compose/rag-overlay.yml").read_text(encoding="utf-8"),
+        Loader=_ComposeLoader,
+    )
+
+
+def test_atlas_resolves_asset_baker_but_does_not_need_a_consumer_override() -> None:
+    if shutil.which("docker") is None:
+        pytest.skip("Docker Compose CLI is not installed")
+
+    version = subprocess.run(
+        ["docker", "compose", "version"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if version.returncode != 0:
+        pytest.skip("Docker Compose plugin is not available")
+
+    result = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "--env-file",
+            "infra/.env.example",
+            "-f",
+            "infra/docker-compose.yml",
+            "-f",
+            "compose/rag-overlay.yml",
+            "config",
+            "--services",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "asset-baker" in result.stdout.splitlines()
+
+
 def test_lightrag_overlay_only_adds_optional_lightrag_ollama_context_caps() -> None:
-    overlay = yaml.safe_load((ROOT / "compose/rag-overlay.yml").read_text(encoding="utf-8"))
+    overlay = _load_overlay()
     env = overlay["services"]["lightrag"]["environment"]
 
+    assert "asset-baker" not in overlay["services"]
     assert "lightrag-init" not in overlay["services"]
     assert env == {
         "OLLAMA_LLM_NUM_CTX": "${LIGHTRAG_OLLAMA_LLM_NUM_CTX:-8192}",
@@ -19,25 +80,84 @@ def test_lightrag_overlay_only_adds_optional_lightrag_ollama_context_caps() -> N
     }
 
 
-def test_setup_overlay_sets_atlas_lightrag_inputs_not_native_runtime_envs() -> None:
-    script = (ROOT / "scripts/setup-overlay.sh").read_text(encoding="utf-8")
+def test_manifest_env_sets_atlas_lightrag_inputs_not_native_runtime_envs() -> None:
+    env_file = (ROOT / "config/atlas.env.user").read_text(encoding="utf-8")
+    manifest = (ROOT / "atlas.consumer.yml").read_text(encoding="utf-8")
 
-    assert "set_env_default LIGHTRAG_EXTRACT_LLM_MODEL" in script
-    assert "set_env_default LIGHTRAG_KEYWORD_LLM_MODEL" in script
-    assert "set_env_default LIGHTRAG_QUERY_LLM_MODEL" in script
-    assert "append_csv_env OLLAMA_CUSTOM_MODELS" in script
+    assert "LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b" in env_file
+    assert "LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.6:latest" in env_file
+    assert "LIGHTRAG_QUERY_LLM_MODEL=qwen3.6:latest" in env_file
+    assert "model_sidecars:" in manifest
+    assert "mistral-small3.2:24b" in manifest
 
-    assert "set_env_default EXTRACT_LLM_MODEL" not in script
-    assert "set_env_default KEYWORD_LLM_MODEL" not in script
-    assert "set_env_default QUERY_LLM_MODEL" not in script
-    assert "host.docker.internal:11434" not in script
+    assert "\nEXTRACT_LLM_MODEL=" not in env_file
+    assert "\nKEYWORD_LLM_MODEL=" not in env_file
+    assert "\nQUERY_LLM_MODEL=" not in env_file
+    assert "host.docker.internal:11434" not in env_file
 
 
 def test_backend_overlay_sets_graph_query_safety_defaults() -> None:
-    overlay = yaml.safe_load((ROOT / "compose/rag-overlay.yml").read_text(encoding="utf-8"))
+    overlay = _load_overlay()
     env = overlay["services"]["backend"]["environment"]
 
+    assert "RAG_MODELS_FILE" not in env
     assert env["LIGHTRAG_QUERY_ENABLE_RERANK"] == "${LIGHTRAG_QUERY_ENABLE_RERANK:-false}"
     assert env["LIGHTRAG_QUERY_TOP_K"] == "${LIGHTRAG_QUERY_TOP_K:-10}"
     assert env["LIGHTRAG_QUERY_CHUNK_TOP_K"] == "${LIGHTRAG_QUERY_CHUNK_TOP_K:-5}"
     assert env["LIGHTRAG_QUERY_MAX_TOTAL_TOKENS"] == "${LIGHTRAG_QUERY_MAX_TOTAL_TOKENS:-12000}"
+
+
+def test_lazy_graph_cache_is_initialized_for_the_non_root_backend() -> None:
+    overlay = _load_overlay()
+    initializer = overlay["services"]["lazy-graph-cache-init"]
+    backend = overlay["services"]["backend"]
+
+    assert initializer["image"] == "alpine:3.24.1"
+    assert initializer["restart"] == "no"
+    assert initializer["volumes"] == ["lazy-graph-cache:/data/lazy-graph-rag"]
+    assert initializer["command"] == [
+        "chown -R 1001:1001 /data/lazy-graph-rag"
+    ]
+    assert backend["depends_on"]["lazy-graph-cache-init"] == {
+        "condition": "service_completed_successfully"
+    }
+
+
+def test_resolved_backend_receives_plugin_operator_overrides() -> None:
+    if shutil.which("docker") is None:
+        pytest.skip("Docker Compose CLI is not installed")
+
+    command_env = os.environ.copy()
+    command_env.update(
+        {
+            "RAG_WEAVIATE_GRPC_PORT": "51051",
+            "TEI_RERANKER_MAX_BATCH": "7",
+        }
+    )
+    result = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "--env-file",
+            "infra/.env.example",
+            "-f",
+            "infra/docker-compose.yml",
+            "-f",
+            "compose/rag-overlay.yml",
+            "config",
+        ],
+        cwd=ROOT,
+        env=command_env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0 and "docker compose" in result.stderr.lower():
+        pytest.skip("Docker Compose plugin is not available")
+    assert result.returncode == 0, result.stderr
+
+    backend_env = yaml.safe_load(result.stdout)["services"]["backend"]["environment"]
+    assert backend_env["RAG_WEAVIATE_GRPC_PORT"] == "51051"
+    assert backend_env["TEI_RERANKER_MAX_BATCH"] == "7"
+    assert "LIGHTRAG_UPLOAD_RETRIES" not in backend_env
+    assert "LIGHTRAG_UPLOAD_RETRY_DELAY" not in backend_env

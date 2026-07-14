@@ -1,4 +1,4 @@
-# Hardware Sizing Guide
+# 2.3 Hardware Sizing Guide
 
 This repo is hardware-neutral: it can use any Atlas-supported LLM provider source,
 including containerized Ollama, host Ollama, GPU-backed Ollama, or remote/cloud
@@ -37,23 +37,25 @@ the real requirement up or down.
 
 ## 3. Local Model Guidance
 
-The default setup writes Atlas LightRAG role defaults into `infra/.env`:
+The parent-owned `atlas.consumer.yml` imports `config/atlas.env.user`, which
+supplies Atlas LightRAG role defaults:
 
 ```dotenv
 LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b
-LIGHTRAG_KEYWORD_LLM_MODEL=mistral-small3.2:24b
-LIGHTRAG_QUERY_LLM_MODEL=mistral-small3.2:24b
+LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.6:latest
+LIGHTRAG_QUERY_LLM_MODEL=qwen3.6:latest
 LIGHTRAG_EXTRACT_MAX_ASYNC_LLM=1
 LIGHTRAG_EXTRACT_LLM_TIMEOUT=900
 ```
 
-`setup-overlay.sh` appends that model to `OLLAMA_CUSTOM_MODELS` idempotently on
-every run; when Atlas uses a containerized Ollama source, Atlas activates it from
-that list. If Atlas is using
+The manifest also declares the model under `model_sidecars.ollama`; Atlas compiles
+that list into `OLLAMA_CUSTOM_MODELS` for a containerized Ollama source. If Atlas is using
 `LLM_PROVIDER_SOURCE=ollama-localhost`, pull models on the host yourself; Atlas
 does not mutate a host-managed Ollama installation.
 
-For local runs:
+The split keeps high-volume extraction on a non-reasoning model and reuses Atlas's
+thinking-disabled default chat model for the strict keyword schema and final query
+answer. For local runs:
 
 - Prefer a non-reasoning or thinking-disabled model for extraction.
 - Prefer accelerated inference for 20B+ local models.

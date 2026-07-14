@@ -42,21 +42,21 @@ def test_shape_node_emits_the_fields_the_wrapper_parses() -> None:
     assert respond["parameters"]["respondWith"] == "firstIncomingItem"
 
 
-def test_workflow_is_active_for_fromjson_import() -> None:
-    # start-all.sh imports with --activeState=fromJson and relies on the file
-    # carrying active:true, then restarts n8n to register the production webhook.
+def test_workflow_is_active_for_manifest_fromjson_policy() -> None:
+    # atlas.consumer.yml declares active: fromJson, so this source value is the
+    # effective activation policy Atlas must preserve while seeding the workflow.
     assert _workflow()["active"] is True
 
 
-def test_classify_node_disables_thinking() -> None:
-    # The classifier is the latency-critical call inside a 60s node timeout; it
-    # must carry the same top-level think:false the plugin's models.yaml plumbs
-    # for qwen3.6:latest (LiteLLM forwards it to Ollama).
+def test_classify_node_delegates_model_defaults_to_litellm() -> None:
+    # Atlas's qwen3.6 catalog entry owns think:false. The workflow specifies only
+    # approach-level request arguments so model defaults stay provider-scoped.
     body = _node(_workflow(), "Classify")["parameters"]["jsonBody"]
     assert "qwen3.6:latest" in body
-    assert "think: false" in body
+    assert "think" not in body
 
 
 def test_route_node_targets_registered_base_approaches() -> None:
     js = _node(_workflow(), "Route")["parameters"]["jsCode"]
     assert "agentic-rag" in js and "vanilla-rag" in js
+    assert "http://backend:8000/rag/" in js

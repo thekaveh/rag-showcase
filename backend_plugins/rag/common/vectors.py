@@ -17,8 +17,8 @@ _TIMEOUT = httpx.Timeout(60.0, connect=10.0)
 
 # Single source of truth for the two collection names, shared by the approaches
 # and the ingest tool (renaming a collection was previously a six-site edit).
-BASE_COLLECTION = "RagBase"
-CONTEXTUAL_COLLECTION = "RagContextual"
+BASE_COLLECTION = os.environ.get("RAG_BASE_COLLECTION", "RagBase")
+CONTEXTUAL_COLLECTION = os.environ.get("RAG_CONTEXTUAL_COLLECTION", "RagContextual")
 
 
 @dataclass
@@ -28,12 +28,19 @@ class Hit:
     score: float | None = None
 
 
+@dataclass(frozen=True)
+class IngestedChunk:
+    source: str
+    text: str
+    index: int
+
+
 def _weaviate() -> Any:
     """Open a Weaviate v4 client to the in-network instance.
 
     The gRPC port defaults to 50051 (Weaviate's standard) but is overridable
-    via WEAVIATE_GRPC_PORT for non-standard deployments — the WEAVIATE_URL
-    scheme only carries the HTTP port.
+    via RAG_WEAVIATE_GRPC_PORT for non-standard deployments — the Atlas-owned
+    WEAVIATE_GRPC_PORT is the host-published port, not the in-network port.
     """
     import weaviate
     from urllib.parse import urlparse
@@ -41,12 +48,12 @@ def _weaviate() -> Any:
     url = urlparse(os.environ.get("WEAVIATE_URL", "http://weaviate:8080"))
     host = url.hostname or "weaviate"
     http_port = url.port or 8080
-    raw_grpc = os.environ.get("WEAVIATE_GRPC_PORT", "50051")
+    raw_grpc = os.environ.get("RAG_WEAVIATE_GRPC_PORT", "50051")
     try:
         grpc_port = int(raw_grpc)
     except ValueError as e:
         raise ValueError(
-            f"WEAVIATE_GRPC_PORT must be an integer, got {raw_grpc!r}") from e
+            f"RAG_WEAVIATE_GRPC_PORT must be an integer, got {raw_grpc!r}") from e
     return weaviate.connect_to_custom(
         http_host=host, http_port=http_port, http_secure=False,
         grpc_host=host, grpc_port=grpc_port, grpc_secure=False,
@@ -115,9 +122,29 @@ def _hits_from_objects(objs: Any) -> list[Hit]:
         score = None
         if o.metadata is not None and o.metadata.score is not None:
             score = float(o.metadata.score)
-        out.append(Hit(title=str(o.properties.get("title", "")),
-                       text=str(o.properties.get("text", "")), score=score))
+        title = o.properties.get("title") or o.properties.get("source") or ""
+        text = o.properties.get("text") or o.properties.get("content") or ""
+        out.append(Hit(title=str(title), text=str(text), score=score))
     return out
+
+
+def read_ingested_chunks(collection: str) -> list[IngestedChunk]:
+    """Read Atlas ingestion objects for contextual-RAG's local enrichment step."""
+    client = _weaviate()
+    try:
+        coll = client.collections.get(collection)
+        chunks = []
+        for obj in coll.iterator():
+            properties = obj.properties or {}
+            source = str(properties.get("source") or properties.get("title") or "")
+            text = str(properties.get("content") or properties.get("text") or "")
+            raw_index = properties.get("chunkIndex", 0)
+            index = raw_index if isinstance(raw_index, int) else 0
+            if source and text:
+                chunks.append(IngestedChunk(source=source, text=text, index=index))
+        return sorted(chunks, key=lambda chunk: (chunk.source, chunk.index))
+    finally:
+        client.close()
 
 
 def search_dense(collection: str, query_vec: list[float], k: int) -> list[Hit]:
@@ -146,6 +173,22 @@ def search_hybrid(collection: str, query: str, query_vec: list[float],
         res = coll.query.hybrid(query=query, vector=query_vec, alpha=alpha, limit=k,
                                 return_metadata=wq.MetadataQuery(score=True))
         return _hits_from_objects(res.objects)
+    finally:
+        client.close()
+
+
+def read_chunks(collection: str) -> list[Hit]:
+    """Read a deterministic snapshot of every chunk in a collection.
+
+    Lazy graph indexing needs the complete corpus, not only retrieval hits. The
+    returned order is stable so identical collections produce identical content
+    fingerprints even if Weaviate's iterator order changes.
+    """
+    client = _weaviate()
+    try:
+        coll = client.collections.get(collection)
+        hits = _hits_from_objects(coll.iterator(include_vector=False))
+        return sorted(hits, key=lambda hit: (hit.title, hit.text))
     finally:
         client.close()
 

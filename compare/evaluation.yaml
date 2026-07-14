@@ -1,0 +1,39 @@
+version: 1
+root: ..
+datasets_file: datasets.yaml
+
+approaches:
+  - model: vanilla-rag
+    evidence: answer_with_contexts
+  - model: hybrid-rag
+    evidence: answer_with_contexts
+  - model: contextual-rag
+    evidence: answer_with_contexts
+  - model: graph-rag
+    evidence: answer_only
+  - model: agentic-rag
+    evidence: answer_with_contexts
+  - model: n8n-adaptive-rag
+    evidence: answer_with_contexts
+  - model: lazy-graph-rag
+    evidence: answer_with_contexts
+
+metrics:
+  ragas:
+    - faithfulness
+    - answer_relevancy
+  judge_panel:
+    enabled: true
+    endpoint: http://localhost:11434/v1/chat/completions
+    temperature: 0
+    thinking: false
+    models:
+      - qwen3.6:latest
+      - gemma4:31b
+
+run:
+  retries: 1
+  timeout_s: 420
+  evaluator_timeout_s: 420
+  concurrency: 1
+  seed: rag-showcase-v1

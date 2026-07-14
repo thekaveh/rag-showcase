@@ -1,10 +1,11 @@
-# Atlas LightRAG Role Model Integration Spec
+# 4.6 Atlas LightRAG Role Model Integration Spec
 
 Date: 2026-07-01
 
 Status: implemented upstream in Atlas and retained here as a historical handoff
-record. Rag-showcase now configures these Atlas inputs through `infra/.env`
-instead of patching LightRAG's runtime environment directly.
+record. Rag-showcase now configures these Atlas inputs through its parent-owned
+`config/atlas.env.user` overlay instead of patching LightRAG's runtime environment
+directly.
 
 ## 1. Purpose
 
@@ -135,8 +136,8 @@ The most reliable assertion is request-level observation through LiteLLM logs, a
 
 ## 7. Rag-Showcase Configuration
 
-Rag-showcase now sets Atlas's public inputs in `infra/.env` during
-`scripts/setup-overlay.sh`:
+Rag-showcase now declares Atlas's public inputs in `config/atlas.env.user`, which
+`atlas.consumer.yml` imports through its `env.file` declaration:
 
 ```dotenv
 LIGHTRAG_EMBEDDING_MODEL=nomic-embed-text
@@ -147,8 +148,9 @@ LIGHTRAG_EXTRACT_MAX_ASYNC_LLM=1
 LIGHTRAG_EXTRACT_LLM_TIMEOUT=900
 ```
 
-Those defaults are written only when the variables are unset, so operators can
-choose different models or provider sources without editing the compose overlay.
+Operators can choose different models or provider sources without editing Atlas
+or the Compose overlay by selecting a local `atlas.consumer.yml` copy whose
+`env.file` points at a customized ignored env file.
 
 The rag-showcase graph wrapper also sends these `/query` defaults:
 

@@ -1,7 +1,6 @@
 """Client for Atlas's LightRAG server (graph + vector RAG)."""
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 
@@ -47,17 +46,6 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
-def _env_float(name: str, default: float) -> float:
-    raw = os.environ.get(name)
-    if raw is None:
-        return default
-    try:
-        return float(raw)
-    except ValueError:
-        _log.warning("%s=%r is not a number; using default %s", name, raw, default)
-        return default
-
-
 def _query_payload(question: str, mode: str, options: dict | None = None) -> dict:
     options = options or {}
     return {
@@ -95,25 +83,3 @@ async def query(question: str, mode: str = "hybrid", options: dict | None = None
         # (which slices the raw observation, observation[:300]) — instead of only
         # the one that happens to coerce downstream.
         return answer if isinstance(answer, str) else str(answer)
-
-
-async def upload_text(title: str, text: str) -> None:
-    # Clamped: a negative retries value would make range(retries + 1) empty and
-    # silently skip the upload entirely (file counted as ingested, KG missing it).
-    retries = max(0, _env_int("LIGHTRAG_UPLOAD_RETRIES", 60))
-    delay = max(0.0, _env_float("LIGHTRAG_UPLOAD_RETRY_DELAY", 5.0))
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        # LightRAG v1.5.4 InsertTextRequest accepts text / file_source / chunking
-        # (the optional source label is "file_source", not "description").
-        for attempt in range(retries + 1):
-            resp = await client.post(f"{_base()}/documents/text", headers=_headers(),
-                                     json={"text": text, "file_source": title})
-            if resp.status_code != 409:
-                resp.raise_for_status()
-                return
-            if attempt >= retries:
-                resp.raise_for_status()
-            _log.info(
-                "LightRAG upload backpressure for %s; retrying in %.1fs (%d/%d)",
-                title, delay, attempt + 1, retries)
-            await asyncio.sleep(delay)
