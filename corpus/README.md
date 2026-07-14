@@ -66,3 +66,17 @@ Candidate heavy datasets are mostly generated, not committed:
   `corpus/cyber_threat_intel/` slice is committed for repeatable local runs.
 
 Adapter commands and evaluation steps live in [`corpus/adapters/README.md`](adapters/README.md).
+
+## 4. Atlas ingestion profiles
+
+`compare/datasets.yaml` maps every ladder dataset to an identically named profile
+in `atlas.consumer.yml`. Profile corpus paths are relative to the backend's
+read-only `/app/corpus` mount, so `corpus/graph_native` becomes `graph_native` in
+the Atlas manifest. Atlas owns discovery, parser fallback, Chonkie chunking,
+embedding, the `RagBase_<profile>` write, LightRAG upload, and extraction drain.
+
+The showcase owns the dataset files and questions. After Atlas completes, it also
+builds `RagContextual_<profile>` from the exact plain chunks because contextual
+blurb generation is an approach-specific transform. Warm re-submission is
+idempotent at the Atlas job level; the measured ladder uses a cold reset per dataset
+so removed chunks and LightRAG graph state cannot leak between rungs.

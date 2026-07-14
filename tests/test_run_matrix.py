@@ -42,10 +42,24 @@ def test_main_fails_fast_without_gateway_config(monkeypatch) -> None:
 def test_main_rejects_malformed_query_rows_before_running(tmp_path, monkeypatch) -> None:
     queries = tmp_path / "queries.yaml"
     queries.write_text("- id: q1\n  query: ok\n- query: missing id\n", encoding="utf-8")
-    monkeypatch.setattr(run_matrix, "envval",
-                        lambda key, default="": {"LITELLM_PORT": "9", "LITELLM_MASTER_KEY": "k"}[key])
+    values = {"LITELLM_PORT": "9", "LITELLM_MASTER_KEY": "k", "BACKEND_PORT": "8"}
+    monkeypatch.setattr(run_matrix, "envval", lambda key, default="": values.get(key, default))
     monkeypatch.setenv("MATRIX_QUERIES_FILE", str(queries))
     with pytest.raises(SystemExit, match="missing id/query"):
+        run_matrix.main()
+
+
+def test_main_rejects_duplicate_query_ids_before_running(tmp_path, monkeypatch) -> None:
+    queries = tmp_path / "queries.yaml"
+    queries.write_text(
+        "- id: same\n  query: first\n- id: same\n  query: second\n",
+        encoding="utf-8",
+    )
+    values = {"LITELLM_PORT": "9", "LITELLM_MASTER_KEY": "k", "BACKEND_PORT": "8"}
+    monkeypatch.setattr(run_matrix, "envval", lambda key, default="": values.get(key, default))
+    monkeypatch.setenv("MATRIX_QUERIES_FILE", str(queries))
+
+    with pytest.raises(SystemExit, match="duplicate query id.*same"):
         run_matrix.main()
 
 
@@ -56,21 +70,44 @@ def test_main_records_failed_cell_and_completes(tmp_path, monkeypatch) -> None:
     queries = tmp_path / "queries.yaml"
     queries.write_text("- id: q1\n  query: what is alpha?\n", encoding="utf-8")
     results = tmp_path / "matrix.json"
-    monkeypatch.setattr(run_matrix, "envval",
-                        lambda key, default="": {"LITELLM_PORT": "9", "LITELLM_MASTER_KEY": "k"}[key])
+    values = {"LITELLM_PORT": "9", "LITELLM_MASTER_KEY": "k", "BACKEND_PORT": "8"}
+    monkeypatch.setattr(run_matrix, "envval", lambda key, default="": values.get(key, default))
     monkeypatch.setenv("MATRIX_QUERIES_FILE", str(queries))
     monkeypatch.setenv("MATRIX_RESULTS_FILE", str(results))
+    canonical = tmp_path / "matrix.jsonl"
+    summary = tmp_path / "summary.json"
+    monkeypatch.setenv("MATRIX_CANONICAL_FILE", str(canonical))
+    monkeypatch.setenv("MATRIX_SUMMARY_FILE", str(summary))
+    monkeypatch.setenv("MATRIX_RUN_ID", "test-failure-run")
     monkeypatch.setenv("MATRIX_MODELS", "vanilla-rag,hybrid-rag")
+    monkeypatch.setenv("MATRIX_INGESTION_ID", "ing-1")
+    monkeypatch.setenv("MATRIX_INGESTION_PROFILE", "baseline_curated")
+    monkeypatch.setenv("MATRIX_INGESTION_REVISION", "rev-1")
+    monkeypatch.setenv("MATRIX_INGESTION_CONTENT_DIGEST", "digest-1")
 
     def responder(request):
         body = json.loads(request.content)
+        assert body["cache"] == {"no-cache": True, "no-store": True}
         if body["model"] == "vanilla-rag":
             raise httpx.ConnectError("backend down")
         return httpx.Response(200, json={
             "choices": [{"message": {"content": "fine answer\n\n---\n📊 1.0s · 1 chunk · 2 LLM calls · 0 cloud"}}],
-            "rag_showcase": {"lazy_graph": {"cache_hit": True}},
+            "rag_showcase": {
+                "schema_version": 1,
+                "sources": [],
+                "metrics": {
+                    "seconds": 1.0,
+                    "chunks": 1,
+                    "llm_calls": 2,
+                    "cloud_calls": 0,
+                },
+                "lazy_graph": {"cache_hit": True},
+            },
         })
     respx.post("http://localhost:9/v1/chat/completions").mock(side_effect=responder)
+    respx.post("http://localhost:8/api/rag/evaluate").mock(
+        return_value=httpx.Response(503, text="evaluator unavailable")
+    )
 
     run_matrix.main()
 
@@ -85,6 +122,27 @@ def test_main_records_failed_cell_and_completes(tmp_path, monkeypatch) -> None:
         "lazy_graph": {"cache_hit": True}
     }
     assert out["models"] == ["vanilla-rag", "hybrid-rag"]
+    assert out["ingestion"] == {
+        "id": "ing-1",
+        "job_id": "ing-1",
+        "profile": "baseline_curated",
+        "revision": "rev-1",
+        "content_digest": "digest-1",
+        "mode": "showcase-managed",
+    }
+    rows = [json.loads(line) for line in canonical.read_text(encoding="utf-8").splitlines()]
+    assert len(rows) == 2
+    assert {row["status"] for row in rows} == {"error", "ok"}
+    successful = next(row for row in rows if row["status"] == "ok")
+    ragas = successful["metrics"]["ragas"]
+    assert ragas["status"] == "error"
+    assert ragas["not_evaluable"] == {"faithfulness": "retrieved_contexts_required"}
+    assert "HTTPStatusError" in ragas["error"]
+    assert out["canonical_rows_file"] == str(canonical)
+    assert out["evaluation_summary_file"] == str(summary)
+    summary_payload = json.loads(summary.read_text(encoding="utf-8"))
+    assert summary_payload["datasets"]["queries"]["coverage"]["total_rows"] == 2
+    assert rows[0]["reproducibility"]["ingestion"] == out["ingestion"]
 
 
 def test_parse_content_nested_wrapper_payload_uses_outer_footer() -> None:
@@ -115,8 +173,92 @@ def test_main_rejects_empty_queries_file(tmp_path, monkeypatch) -> None:
     # clean message, not a TypeError from iterating None.
     queries = tmp_path / "queries.yaml"
     queries.write_text("# no rows here\n", encoding="utf-8")
-    monkeypatch.setattr(run_matrix, "envval",
-                        lambda key, default="": {"LITELLM_PORT": "9", "LITELLM_MASTER_KEY": "k"}[key])
+    values = {"LITELLM_PORT": "9", "LITELLM_MASTER_KEY": "k", "BACKEND_PORT": "8"}
+    monkeypatch.setattr(run_matrix, "envval", lambda key, default="": values.get(key, default))
     monkeypatch.setenv("MATRIX_QUERIES_FILE", str(queries))
     with pytest.raises(SystemExit, match="no query rows"):
         run_matrix.main()
+
+
+@respx.mock
+def test_main_routes_structured_evidence_to_atlas_evaluator(tmp_path, monkeypatch) -> None:
+    queries = tmp_path / "queries.yaml"
+    queries.write_text("- id: q1\n  query: grounded question\n", encoding="utf-8")
+    results = tmp_path / "matrix.json"
+    canonical = tmp_path / "evidence.jsonl"
+    values = {"LITELLM_PORT": "9", "LITELLM_MASTER_KEY": "k", "BACKEND_PORT": "8"}
+    monkeypatch.setattr(run_matrix, "envval", lambda key, default="": values.get(key, default))
+    monkeypatch.setenv("MATRIX_QUERIES_FILE", str(queries))
+    monkeypatch.setenv("MATRIX_RESULTS_FILE", str(results))
+    monkeypatch.setenv("MATRIX_CANONICAL_FILE", str(canonical))
+    monkeypatch.setenv("MATRIX_RUN_ID", "atlas-eval-run")
+    monkeypatch.setenv("MATRIX_MODELS", "vanilla-rag")
+
+    respx.post("http://localhost:9/v1/chat/completions").mock(return_value=httpx.Response(
+        200,
+        json={
+            "id": "completion-1",
+            "model": "vanilla-rag",
+            "choices": [{"message": {"content": "grounded answer"}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
+            "rag_showcase": {
+                "schema_version": 1,
+                "sources": [{"title": "Doc", "snippet": "source context", "score": 0.9}],
+                "metrics": {"seconds": 1.0, "chunks": 1, "llm_calls": 2, "cloud_calls": 0},
+            },
+        },
+    ))
+    evaluator = respx.post("http://localhost:8/api/rag/evaluate").mock(
+        return_value=httpx.Response(200, json={
+            "metrics": ["faithfulness", "answer_relevancy"],
+            "record_count": 1,
+            "evaluator_model": "eval-model",
+            "embeddings_model": "embed-model",
+            "results": [{
+                "record_index": 0,
+                "scores": {"faithfulness": 0.8, "answer_relevancy": 0.7},
+                "metadata": {},
+            }],
+            "metadata": {"runner": "ragas"},
+        })
+    )
+
+    run_matrix.main()
+
+    assert evaluator.called
+    row = json.loads(canonical.read_text(encoding="utf-8"))
+    assert row["metrics"]["ragas"]["status"] == "ok"
+    assert row["metrics"]["ragas"]["scores"] == {
+        "answer_relevancy": 0.7,
+        "faithfulness": 0.8,
+    }
+    assert row["metrics"]["ragas"]["evaluator_model"] == "eval-model"
+
+
+@respx.mock
+def test_main_resume_does_not_repeat_completed_gateway_call(tmp_path, monkeypatch) -> None:
+    queries = tmp_path / "queries.yaml"
+    queries.write_text("- id: q1\n  query: resume me\n", encoding="utf-8")
+    results = tmp_path / "matrix.json"
+    canonical = tmp_path / "evidence.jsonl"
+    values = {"LITELLM_PORT": "9", "LITELLM_MASTER_KEY": "k", "BACKEND_PORT": "8"}
+    monkeypatch.setattr(run_matrix, "envval", lambda key, default="": values.get(key, default))
+    monkeypatch.setenv("MATRIX_QUERIES_FILE", str(queries))
+    monkeypatch.setenv("MATRIX_RESULTS_FILE", str(results))
+    monkeypatch.setenv("MATRIX_CANONICAL_FILE", str(canonical))
+    monkeypatch.setenv("MATRIX_RUN_ID", "resume-run")
+    monkeypatch.setenv("MATRIX_MODELS", "vanilla-rag")
+    route = respx.post("http://localhost:9/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json={
+            "id": "completion-1",
+            "model": "vanilla-rag",
+            "choices": [{"message": {"content": "answer"}}],
+            "usage": {},
+        })
+    )
+
+    run_matrix.main()
+    run_matrix.main()
+
+    assert route.call_count == 1
+    assert len(canonical.read_text(encoding="utf-8").splitlines()) == 1

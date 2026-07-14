@@ -46,11 +46,12 @@ async def lazy_graph_rag(req: ChatRequest):
         asyncio.to_thread(vectors.read_chunks, COLLECTION),
     )
     cache_dir = Path(os.getenv("LAZY_GRAPH_CACHE_DIR", "/data/lazy-graph-rag"))
+    cache_namespace = f"{COLLECTION}.concepts-{max_concepts}"
     index, build_stats = await asyncio.to_thread(
         load_or_build,
         chunks,
         cache_dir=cache_dir,
-        namespace=COLLECTION,
+        namespace=cache_namespace,
         max_concepts_per_chunk=max_concepts,
     )
     result = await asyncio.to_thread(
@@ -80,7 +81,7 @@ async def lazy_graph_rag(req: ChatRequest):
             "seed_k": seed_k,
             "max_context_chunks": max_context_chunks,
             "llm_index_calls": 0,
-            "cache_namespace": COLLECTION,
+            "cache_namespace": cache_namespace,
         }
     }
     metrics = Metrics(

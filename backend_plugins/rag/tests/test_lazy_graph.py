@@ -134,5 +134,7 @@ async def test_lazy_graph_route_returns_openai_shape_sources_and_graph_metrics(
     assert "Retrieved context" in payload["choices"][0]["message"]["content"]
     graph_metrics = payload["rag_showcase"]["lazy_graph"]
     assert graph_metrics["cache_hit"] is False
+    assert graph_metrics["cache_namespace"] == f"{lazy.COLLECTION}.concepts-24"
+    assert (tmp_path / f"{lazy.COLLECTION}.concepts-24.json").is_file()
     assert graph_metrics["llm_index_calls"] == 0
     assert graph_metrics["relevance_tests"] >= 1

@@ -102,6 +102,22 @@ def _render_footer(m: Metrics) -> str:
             f"{_plural(m.llm_calls, 'LLM call')} · {m.cloud_calls} cloud")
 
 
+def _evidence_extension(sources: list[Source], metrics: Metrics) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "sources": [
+            {"title": source.title, "snippet": source.snippet, "score": source.score}
+            for source in sources
+        ],
+        "metrics": {
+            "seconds": metrics.seconds,
+            "chunks": metrics.chunks,
+            "llm_calls": metrics.llm_calls,
+            "cloud_calls": metrics.cloud_calls,
+        },
+    }
+
+
 def build_response(model: str, answer: str, sources: list[Source],
                    metrics: Metrics, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
     # `answer` is the choke point for every approach. Coerce a non-string answer
@@ -114,6 +130,9 @@ def build_response(model: str, answer: str, sources: list[Source],
                      type(answer).__name__, model)
         answer = ""
     content = answer + _render_sources(sources) + _render_footer(metrics)
+    extension = _evidence_extension(sources, metrics)
+    if metadata:
+        extension.update(metadata)
     response = {
         # Unique per response; `created` is required by the OpenAI chat.completion
         # schema and strict SDK consumers reject its absence.
@@ -127,9 +146,8 @@ def build_response(model: str, answer: str, sources: list[Source],
             "finish_reason": "stop",
         }],
         "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+        "rag_showcase": extension,
     }
-    if metadata is not None:
-        response["rag_showcase"] = metadata
     return response
 
 
@@ -150,10 +168,8 @@ def build_stream_response(model: str, answer: str, sources: list[Source],
                       "content": full["choices"][0]["message"]["content"]},
             "finish_reason": "stop",
         }],
+        "rag_showcase": full["rag_showcase"],
     }
-    if metadata is not None:
-        chunk["rag_showcase"] = metadata
-
     async def gen():
         yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"

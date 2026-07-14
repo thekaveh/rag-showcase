@@ -73,11 +73,10 @@ def test_rag_plugin_manifest_declares_required_files_and_typed_knobs() -> None:
         "LIGHTRAG_QUERY_TOP_K",
         "LIGHTRAG_QUERY_CHUNK_TOP_K",
         "LIGHTRAG_QUERY_MAX_TOTAL_TOKENS",
-        "LIGHTRAG_UPLOAD_RETRIES",
     ):
         assert env[name]["type"] == "int"
-    assert env["LIGHTRAG_UPLOAD_RETRY_DELAY"]["type"] == "string"
-    assert env["LIGHTRAG_UPLOAD_RETRY_DELAY"]["default"] == "5.0"
+    assert "LIGHTRAG_UPLOAD_RETRIES" not in env
+    assert "LIGHTRAG_UPLOAD_RETRY_DELAY" not in env
     assert env["LAZY_GRAPH_CACHE_DIR"]["default"] == "/data/lazy-graph-rag"
 
 

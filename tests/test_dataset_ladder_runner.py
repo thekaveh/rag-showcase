@@ -28,12 +28,17 @@ def test_start_all_supports_service_only_mode() -> None:
     script = (ROOT / "scripts" / "start-all.sh").read_text(encoding="utf-8")
 
     assert "--n8n-source" not in script
-    assert "--minio-source container" in script
+    assert "--minio-source" not in script
     assert "--no-tui --detach" in script
-    assert "atlas_preflight.py" in script
+    assert "atlas_preflight.py" not in script
     assert "ATLAS_START_PID" not in script
     assert "RAG_SHOWCASE_SKIP_DEFAULT_INGEST" in script
     assert "Skipping default corpus ingest" in script
+    assert "RAG_INGESTION_PROFILE" in script
+    assert "*[!a-z0-9._-]*|[._-]*" in script
+    assert "ingest.atlas_job" in script
+    assert "ingest.contextual" in script
+    assert "/app/ingest/ingest.py" not in script
     assert "Reconciling Atlas-declared LiteLLM model aliases" in script
     assert "import:workflow" not in script
     assert "--activeState=fromJson" not in script
@@ -59,12 +64,69 @@ def test_ladder_runner_exposes_measured_dataset_selection() -> None:
 def test_overlay_passes_lightrag_ollama_context_caps() -> None:
     overlay = (ROOT / "compose" / "rag-overlay.yml").read_text(encoding="utf-8")
 
-    assert "asset-baker: !reset null" in overlay
+    assert "asset-baker" not in overlay
     assert "EXTRACT_OLLAMA_LLM_NUM_CTX" in overlay
     assert "KEYWORD_OLLAMA_LLM_NUM_CTX" in overlay
     assert "QUERY_OLLAMA_LLM_NUM_CTX" in overlay
     assert "RAG_FLAVORS_FILE" in overlay
+    assert "RAG_BASE_COLLECTION" in overlay
+    assert "RAG_CONTEXTUAL_COLLECTION" in overlay
     assert "../n8n:/showcase-n8n:ro" not in overlay
+
+
+def test_ladder_starts_profile_scoped_collections(monkeypatch) -> None:
+    module = _load_ladder_module()
+    seen: list[dict[str, str]] = []
+    monkeypatch.setattr(module, "run", lambda cmd, env=None: seen.append(dict(env or {})))
+
+    module.start_service_only({"ingestion_profile": "graph_native"})
+
+    assert seen[0]["RAG_INGESTION_PROFILE"] == "graph_native"
+    assert seen[0]["RAG_BASE_COLLECTION"] == "RagBase_graph_native"
+    assert seen[0]["RAG_CONTEXTUAL_COLLECTION"] == "RagContextual_graph_native"
+
+
+def test_ladder_uses_atlas_job_then_contextual_post_step(monkeypatch, tmp_path) -> None:
+    module = _load_ladder_module()
+    (tmp_path / "corpus" / "subset").mkdir(parents=True)
+    monkeypatch.setattr(module, "ROOT", tmp_path)
+    commands: list[list[str]] = []
+    record = {
+        "id": "ing-1",
+        "profile": "baseline_curated",
+        "revision": "rev-1",
+        "content_digest": "digest-1",
+        "status": "completed",
+        "phases": [{"name": "finalize", "status": "completed"}],
+    }
+    monkeypatch.setattr(module, "envval", lambda key, default="": "63093")
+    monkeypatch.setattr(module, "project_name", lambda: "rag-showcase")
+    monkeypatch.setattr(module, "capture_json", lambda cmd: commands.append(cmd) or record)
+    monkeypatch.setattr(module, "run", lambda cmd, env=None: commands.append(cmd))
+
+    actual = module.ingest_dataset(
+        {
+            "id": "baseline_curated",
+            "ingestion_profile": "baseline_curated",
+            "corpus_path": "corpus/subset",
+        }
+    )
+
+    assert actual == record
+    assert commands[0][:5] == ["uv", "run", "python", "-m", "ingest.atlas_job"]
+    assert "--profile" in commands[0]
+    assert "baseline_curated" in commands[0]
+    assert "http://127.0.0.1:63093" in commands[0]
+    assert commands[1] == [
+        "docker",
+        "exec",
+        "-e",
+        "PYTHONPATH=/app/plugins:/app",
+        "rag-showcase-backend",
+        "python",
+        "-m",
+        "ingest.contextual",
+    ]
 
 
 def test_ladder_runner_rejects_failed_matrix_cells() -> None:
@@ -124,70 +186,39 @@ def test_ladder_runner_rejects_judgments_without_valid_verdicts() -> None:
 
     with pytest.raises(RuntimeError, match="no queries"):
         module.validate_judgments({"queries": []}, dataset_id="example")
+    module.validate_judgments(
+        {"status": "disabled", "judges": [], "queries": []}, dataset_id="example"
+    )
 
 
-def test_wait_for_lightrag_drains_only_when_nothing_pending(monkeypatch) -> None:
+def test_ladder_validates_canonical_rows_and_summary() -> None:
     module = _load_ladder_module()
-    monkeypatch.setattr(module.time, "sleep", lambda s: None)
+    rows = [
+        {"row_id": "a", "dataset": {"id": "example"}, "status": "ok"},
+        {"row_id": "b", "dataset": {"id": "example"}, "status": "error"},
+    ]
+    module.validate_canonical_rows(rows, dataset_id="example", expected_cells=2)
+    with pytest.raises(RuntimeError, match="duplicate row ids"):
+        module.validate_canonical_rows(rows + [rows[0]], dataset_id="example", expected_cells=3)
+    with pytest.raises(RuntimeError, match="expected 3.*found 2"):
+        module.validate_canonical_rows(rows, dataset_id="example", expected_cells=3)
 
-    # busy -> not busy but docs still PENDING (the enqueue/pickup gap) -> drained
-    status_seq = iter([{"busy": True}, {"busy": False}, {"busy": False}])
-    docs_seq = iter([{"statuses": {"PENDING": ["d1"]}}, {"statuses": {"PROCESSED": ["d1"]}}])
-    monkeypatch.setattr(module, "lightrag_status", lambda: next(status_seq))
-    monkeypatch.setattr(module, "lightrag_documents", lambda: next(docs_seq))
-    module.wait_for_lightrag("ds")  # returns without raising
-
-    # failed documents must raise
-    monkeypatch.setattr(module, "lightrag_status", lambda: {"busy": False})
-    monkeypatch.setattr(module, "lightrag_documents",
-                        lambda: {"statuses": {"failed": ["d9"]}})
-    with pytest.raises(RuntimeError, match="failed documents"):
-        module.wait_for_lightrag("ds")
+    summary = {
+        "schema_version": 1,
+        "datasets": {"example": {"coverage": {
+            "total_rows": 2, "ok": 1, "errors": 1, "timeouts": 0,
+        }}},
+    }
+    module.validate_evaluation_summary(summary, dataset_id="example", expected_cells=2)
+    with pytest.raises(RuntimeError, match="missing dataset"):
+        module.validate_evaluation_summary(summary, dataset_id="other", expected_cells=2)
 
 
-def test_wait_for_lightrag_tolerates_transient_poll_failures(monkeypatch) -> None:
-    # One flaky docker-exec poll must not abort a multi-hour ladder run; three in
-    # a row must.
-    import subprocess as sp
+def test_ladder_delegates_lightrag_drain_to_atlas() -> None:
     module = _load_ladder_module()
-    monkeypatch.setattr(module.time, "sleep", lambda s: None)
-
-    calls = {"n": 0}
-    def flaky_status():
-        calls["n"] += 1
-        if calls["n"] <= 2:
-            raise sp.CalledProcessError(1, ["docker", "exec"])
-        return {"busy": False}
-    monkeypatch.setattr(module, "lightrag_status", flaky_status)
-    monkeypatch.setattr(module, "lightrag_documents", lambda: {"statuses": {}})
-    module.wait_for_lightrag("ds")  # two failures tolerated, then drains
-    assert calls["n"] == 3
-
-    def always_broken():
-        raise sp.CalledProcessError(1, ["docker", "exec"])
-    monkeypatch.setattr(module, "lightrag_status", always_broken)
-    with pytest.raises(RuntimeError, match="3 times in a row"):
-        module.wait_for_lightrag("ds")
-
-
-def test_wait_for_lightrag_tolerates_flaky_documents_poll(monkeypatch) -> None:
-    # The DOCUMENTS probe shares the flakiness profile of the status probe and
-    # must sit inside the same tolerance window — moving it back outside the
-    # try (the original exposure) fails this test.
-    import subprocess as sp
-    module = _load_ladder_module()
-    monkeypatch.setattr(module.time, "sleep", lambda s: None)
-
-    monkeypatch.setattr(module, "lightrag_status", lambda: {"busy": False})
-    calls = {"n": 0}
-    def flaky_documents():
-        calls["n"] += 1
-        if calls["n"] <= 2:
-            raise sp.CalledProcessError(1, ["docker", "exec"], stderr="boom")
-        return {"statuses": {}}
-    monkeypatch.setattr(module, "lightrag_documents", flaky_documents)
-    module.wait_for_lightrag("ds")  # two failures tolerated, then drains
-    assert calls["n"] == 3
+    assert not hasattr(module, "wait_for_lightrag")
+    assert not hasattr(module, "lightrag_status")
+    assert not hasattr(module, "lightrag_documents")
 
 
 def test_ladder_rejects_unknown_selection_before_any_destructive_step(monkeypatch) -> None:
@@ -236,6 +267,9 @@ def test_run_matrix_and_judge_ignores_exported_selection_env(monkeypatch, tmp_pa
     monkeypatch.setattr(module, "RESULTS", tmp_path / "results")
     monkeypatch.setattr(module, "DOC_RESULTS", tmp_path / "doc-results")
     module.RESULTS.mkdir(parents=True)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (corpus / "doc.md").write_text("alpha", encoding="utf-8")
 
     seen_envs: list[dict] = []
     def fake_run(cmd, env=None, **kw):
@@ -243,28 +277,111 @@ def test_run_matrix_and_judge_ignores_exported_selection_env(monkeypatch, tmp_pa
         seen_envs.append(env)
         if "MATRIX_RESULTS_FILE" in env:
             (module.RESULTS / env["MATRIX_RESULTS_FILE"]).write_text(json.dumps(
-                {"cells": [{"query_id": "q1", "model": "vanilla-rag", "ok": True}]}),
+                {"models": ["vanilla-rag"], "queries": [{"id": "q1"}],
+                 "cells": [{"query_id": "q1", "model": "vanilla-rag", "ok": True}]}),
                 encoding="utf-8")
-        else:
+            (module.RESULTS / env["MATRIX_CANONICAL_FILE"]).write_text(json.dumps({
+                "row_id": env["MATRIX_RUN_ID"] + "-q1",
+                "dataset": {"id": env["MATRIX_DATASET_ID"]},
+                "status": "ok",
+            }) + "\n", encoding="utf-8")
+            (module.RESULTS / env["MATRIX_SUMMARY_FILE"]).write_text(json.dumps({
+                "schema_version": 1,
+                "datasets": {env["MATRIX_DATASET_ID"]: {"coverage": {
+                    "total_rows": 1, "ok": 1, "errors": 0, "timeouts": 0,
+                }}},
+            }), encoding="utf-8")
+        elif "JUDGE_RESULTS_FILE" in env:
             (module.RESULTS / env["JUDGE_RESULTS_FILE"]).write_text(json.dumps(
-                {"queries": [{"query_id": "q1", "mean_by_approach": {"vanilla-rag": 4.0}}]}),
+                {"dataset_id": env.get("MATRIX_DATASET_ID", "ds"),
+                 "queries": [{"query_id": "q1", "mean_by_approach": {"vanilla-rag": 4.0}}]}),
                 encoding="utf-8")
     monkeypatch.setattr(module, "run", fake_run)
 
-    module.run_matrix_and_judge({"id": "ds", "queries_file": "q.json"}, "2026-07-04",
+    ingestion = {"id": "ing-1", "profile": "ds", "revision": "rev", "content_digest": "digest"}
+    module.run_matrix_and_judge({"id": "ds", "queries_file": "q.json",
+                                 "corpus_path": str(corpus)}, ingestion, "2026-07-04",
                                 approaches="", flavors="")
     matrix_env = seen_envs[0]
     assert matrix_env["MATRIX_QUERIES_FILE"] == "q.json"
+    assert matrix_env["MATRIX_DATASET_ID"] == "ds"
+    assert matrix_env["MATRIX_RUN_ID"] == "live-2026-07-04-ds"
+    assert matrix_env["MATRIX_CANONICAL_FILE"].endswith("-evidence.jsonl")
+    assert matrix_env["MATRIX_SUMMARY_FILE"].endswith("-evaluation.json")
+    assert matrix_env["MATRIX_INGESTION_ID"] == "ing-1"
+    assert matrix_env["MATRIX_INGESTION_JOB_ID"] == "ing-1"
+    assert matrix_env["MATRIX_INGESTION_PROFILE"] == "ds"
+    assert matrix_env["MATRIX_INGESTION_REVISION"] == "rev"
+    assert matrix_env["MATRIX_INGESTION_CONTENT_DIGEST"] == "digest"
+    assert matrix_env["MATRIX_INGESTION_MODE"] == "atlas-job"
     assert "MATRIX_MODELS" not in matrix_env
     assert "MATRIX_FLAVORS" not in matrix_env
 
     # The validated flags must still reach the subprocess (the scrub above must
     # not eat them).
-    module.run_matrix_and_judge({"id": "ds2", "queries_file": "q.json"}, "2026-07-04",
+    module.run_matrix_and_judge({"id": "ds2", "queries_file": "q.json",
+                                 "corpus_path": str(corpus)}, ingestion, "2026-07-04",
                                 approaches="vanilla-rag", flavors="graph-rag-wide")
-    matrix_env = seen_envs[2]
+    matrix_env = seen_envs[3]
     assert matrix_env["MATRIX_MODELS"] == "vanilla-rag"
     assert matrix_env["MATRIX_FLAVORS"] == "graph-rag-wide"
+
+
+def test_cold_ingestion_discards_stale_working_evidence_before_matrix(
+        monkeypatch, tmp_path) -> None:
+    module = _load_ladder_module()
+    monkeypatch.setattr(module, "RESULTS", tmp_path / "results")
+    monkeypatch.setattr(module, "DOC_RESULTS", tmp_path / "doc-results")
+    module.RESULTS.mkdir(parents=True)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (corpus / "doc.md").write_text("alpha", encoding="utf-8")
+    dataset = {"id": "ds", "queries_file": "q.json", "corpus_path": str(corpus)}
+    date_stamp = "2026-07-04"
+    stale = module.RESULTS / f"live-{date_stamp}-ds-evidence.jsonl"
+    stale.write_text('{"row_id":"stale"}\n', encoding="utf-8")
+
+    seen_matrix_env: dict[str, str] = {}
+
+    def fake_run(cmd, env=None, **kw):
+        env = dict(env or {})
+        if "MATRIX_RESULTS_FILE" in env:
+            assert not stale.exists()
+            seen_matrix_env.update(env)
+            (module.RESULTS / env["MATRIX_RESULTS_FILE"]).write_text(json.dumps(
+                {"models": ["vanilla-rag"], "queries": [{"id": "q1"}],
+                 "cells": [{"query_id": "q1", "model": "vanilla-rag", "ok": True}]}),
+                encoding="utf-8",
+            )
+            (module.RESULTS / env["MATRIX_CANONICAL_FILE"]).write_text(json.dumps({
+                "row_id": "new", "dataset": {"id": "ds"}, "status": "ok",
+            }) + "\n", encoding="utf-8")
+            (module.RESULTS / env["MATRIX_SUMMARY_FILE"]).write_text(json.dumps({
+                "schema_version": 1,
+                "datasets": {"ds": {"coverage": {"total_rows": 1}}},
+            }), encoding="utf-8")
+        elif "JUDGE_RESULTS_FILE" in env:
+            (module.RESULTS / env["JUDGE_RESULTS_FILE"]).write_text(json.dumps({
+                "dataset_id": "ds",
+                "queries": [{"query_id": "q1", "mean_by_approach": {
+                    "vanilla-rag": 4.0,
+                }}],
+            }), encoding="utf-8")
+
+    monkeypatch.setattr(module, "run", fake_run)
+    ingestion = {
+        "id": "job-1",
+        "profile": "ds",
+        "revision": "rev-1",
+        "content_digest": "digest-1",
+    }
+    module.run_matrix_and_judge(
+        dataset, ingestion, date_stamp, approaches="vanilla-rag", flavors="",
+        fresh_ingestion=True,
+    )
+
+    assert seen_matrix_env["MATRIX_INGESTION_REVISION"] == "rev-1"
+    assert seen_matrix_env["MATRIX_INGESTION_JOB_ID"] == "job-1"
 
 
 def test_selection_validation_resolves_relative_manifest_against_repo_root(

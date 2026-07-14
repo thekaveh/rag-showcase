@@ -18,7 +18,8 @@ Atlas's requirements apply:
   use the local manifest/env pattern below with
   `LLM_PROVIDER_SOURCE=ollama-localhost` to select an existing host Ollama.
 - Disk / RAM / headroom for the `gen-ai-rag` stack plus your chosen local models. The
-  default local run activates `mistral-small3.2:24b` for LightRAG's graph roles — see
+  default local run activates `mistral-small3.2:24b` for LightRAG extraction and
+  uses `qwen3.6:latest` for graph keyword/query roles — see
   [Hardware Sizing](../hardware.md) for minimum and recommended profiles.
 
 ## 2. Bring It Up
@@ -29,27 +30,31 @@ Atlas's requirements apply:
 
 This single script:
 
-1. Selects `atlas.consumer.yml`, materializes its values into a temporary active
-   env, and runs Atlas's headless env backfill, manifest-aware Compose validation,
-   and consumer doctor. The manifest declares project/brand metadata, the env
+1. Selects `atlas.consumer.yml` and runs Atlas's native headless env backfill,
+   manifest-aware Compose validation, and consumer doctor. The manifest declares
+   project/brand metadata, the env
    file, external Compose overlay, backend plugin root, fourteen LiteLLM aliases,
-   and Ollama sidecar without tracked Atlas modifications or a `_user` symlink.
+   Ollama sidecar, adaptive workflow, and RAG ingestion profiles without tracked
+   Atlas modifications or a `_user` symlink.
 2. Starts the Atlas `gen-ai-rag` stack with `--no-tui --detach`; Atlas applies
    the `rag-showcase` project and brand metadata, waits on Compose health, and
    returns. On a fresh checkout, the initial bootstrap banner can retain Atlas
    artwork because Atlas renders it before applying the consumer manifest. The
    stack includes LightRAG, TEI reranker, Weaviate, Neo4j,
    n8n, Open WebUI, and LiteLLM. The showcase wrapper explicitly disables the
-   hardware-dependent Docling source, so ingestion uses portable naive text chunking,
-   and temporarily enables MinIO for [Atlas #503](https://github.com/thekaveh/atlas/issues/503).
+   hardware-dependent Docling source, so Atlas falls back to plain-text parsing and
+   the selected profile's Chonkie recursive chunker. Atlas starts only the enabled
+   service set and owns dependency and initial one-shot classification.
 3. Proceeds after Atlas's detached health summary, then **assembles the corpus**
    on the host (`corpus/fetch_corpus.py`). If Atlas reports the known
    [exited-zero one-shot race](https://github.com/thekaveh/atlas/issues/508), the
    wrapper proceeds only when that exact log signature is present and a strict,
    provider-aware Docker-state check confirms every long-lived service is ready
    and every expected init service exited zero.
-4. Waits for model readiness (embed + chat), **ingests** the corpus into the backend,
-   and verifies all Atlas-declared base and flavor aliases. Each start also removes
+4. Waits for model readiness (embed + chat), submits the `showcase_default` Atlas
+   **RAG ingestion job**, waits on its machine-readable phase record, and then builds
+   the contextual collection from Atlas-written plain chunks. It verifies all
+   Atlas-declared base and flavor aliases. Each start also removes
    any exact legacy database duplicates from the retired registration script,
    including rows restored with an older database, without touching unrelated models.
    If cleanup occurs, LiteLLM reloads once so all four workers discard stale routes.
@@ -96,6 +101,12 @@ python3 -m pip install datasets
 
 Without it, ingestion uses only the bundled keyword docs, so the thematic / multi-hop
 demo queries have little to work with. See the [Corpus Overview](../components/corpus.md).
+
+The dataset ladder selects the matching manifest profile (`baseline_curated`,
+`graph_native`, and so on) before the stack starts. Atlas owns discover, parse,
+chunk, embed, base-vector write, LightRAG upload, drain, and phase status. The
+showcase retains only contextual-blurb generation because that transform belongs to
+the `contextual-rag` approach rather than generic infrastructure.
 
 ## 4. The n8n Workflow
 

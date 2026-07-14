@@ -5,13 +5,17 @@ all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
 submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
 as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
 
-> **Live results (2026-07-03).** The current committed ladder ran 14 approach/flavor
-> aliases across three datasets: baseline curated, graph-native dossiers, and a
-> MITRE ATT&CK cyber-threat graph slice. Winners shifted with complexity:
-> `vanilla-rag-wide` led baseline, `hybrid-rag-high-recall` led graph-native, and
-> `contextual-rag-high-recall` led cyber. `graph-rag-fast` won several individual
-> baseline/graph-native questions; `graph-rag-wide` ranked last and is a bad current
-> tuning. Full analysis, per-query winners, methodology, raw snapshots, and findings:
+> **Live results (2026-07-13).** The current committed base-approach ladder ran
+> seven approaches across three datasets: baseline curated, graph-native dossiers,
+> and a MITRE ATT&CK cyber-threat graph slice. All **140/140** matrix cells
+> succeeded. `n8n-adaptive-rag` and `vanilla-rag` tied on baseline score,
+> `contextual-rag` led graph-native, and experimental `lazy-graph-rag` led cyber.
+> Lazy graph ranked fourth, second, then first as graph complexity increased while
+> remaining much faster than LightRAG and agentic retrieval. Atlas Ragas calls
+> were recorded but rejected by the tracked evaluator contract defects; blinded
+> two-model judge scores, latency, failures, answers, contexts, and reproducibility
+> metadata remain valid. Full analysis, per-query winners,
+> methodology, raw snapshots, and findings:
 > **[`docs/evaluation-methodology.md`](docs/evaluation-methodology.md)**,
 > **[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md)**, and
 > **[`docs/comparison.md`](docs/comparison.md)**.
@@ -28,12 +32,16 @@ aliases selectable in Open WebUI without admin-API registration.
 Flavors such as `graph-rag-wide` route to the same base approach with reproducible
 parameter overrides. Open a multi-model chat, select
 the approaches or flavors you want, and one prompt fans out with a uniform answer,
-retrieved-context, and metrics surface.
+retrieved-context, and metrics surface. The evaluation harness persists each cell
+to append-safe JSONL, sends eligible evidence to Atlas's generic Ragas endpoint,
+and keeps deterministic operational metrics separate from the optional blinded
+judge panel.
 
 The six approaches embed via the same LiteLLM model and read the same corpus, so
 the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/roles.yaml`).
-The lazy graph family is excluded from default comparisons and has no committed
-quality ranking yet; see the [experimental design](docs/lazy-graph-rag.md).
+The lazy graph family remains excluded from default comparisons, but now has a
+committed three-dataset quality and latency evaluation; see the
+[experimental design and results](docs/lazy-graph-rag.md).
 
 ## 2. Architecture Diagrams
 
@@ -74,39 +82,42 @@ requirements apply:
   described below and set `LLM_PROVIDER_SOURCE=ollama-localhost` in its env file.
 - Disk/RAM/headroom for the `gen-ai-rag` stack plus whichever local models you
   choose. The default local run asks Atlas to activate `mistral-small3.2:24b`
-  for LightRAG's role-specific graph calls. See the
+  for LightRAG extraction and uses Atlas's default `qwen3.6:latest` for graph
+  keyword and query calls. See the
   [hardware sizing guide](docs/hardware.md) for minimum and recommended profiles.
 
 ```bash
 ./scripts/start-all.sh
 ```
 
-This selects the parent-owned `atlas.consumer.yml`, materializes its values into
-a temporary active env for Atlas's headless env backfill, manifest-aware Compose
-validation, and consumer doctor, then starts Atlas with `--no-tui --detach`. The
+This selects the parent-owned `atlas.consumer.yml`, runs Atlas's native headless
+env backfill, manifest-aware Compose validation, and consumer doctor, then starts
+Atlas with `--no-tui --detach`. The
 manifest registers the project identity, branding, `config/atlas.env.user`,
-external Compose overlay, backend plugin root, and Ollama model sidecar without
-tracked Atlas modifications or a `_user` symlink. Atlas applies the showcase
+    external Compose overlay, backend plugin root, Ollama model sidecar, and
+    dataset-specific RAG ingestion profiles without tracked Atlas modifications or
+    a `_user` symlink. Atlas applies the showcase
 project and brand metadata (`rag-showcase-*` resources), waits on Compose health,
 and returns before the script continues with the `gen-ai-rag` services (LightRAG,
 TEI reranker, Weaviate, Neo4j, n8n, Open WebUI, and LiteLLM). The wrapper disables
-the hardware-dependent Docling source so ingestion uses portable naive text
-chunking, and temporarily enables MinIO to work around
-[Atlas #503](https://github.com/thekaveh/atlas/issues/503), then relies on Atlas's
-detached health summary before continuing,
-assembles the corpus on the host (`corpus/fetch_corpus.py`), waits for model
-readiness (embed + chat), ingests it into the backend container, verifies every
+    the hardware-dependent Docling source; Atlas therefore falls through to its
+    plain-text parser and uses the profile's Chonkie recursive chunker. Atlas derives
+    dependency enablement from service manifests, targets only enabled services,
+    and returns its detached health summary before the wrapper continues,
+    assembles the corpus on the host (`corpus/fetch_corpus.py`), waits for model
+    readiness (embed + chat), submits the `showcase_default` Atlas ingestion job,
+    builds only the approach-specific contextual index from Atlas-written chunks,
+    verifies every
 Atlas-declared base and flavor alias, and prints the Open WebUI URL. Every start
 reconciles exact legacy duplicates from the former database-backed registration;
 unrelated LiteLLM rows and Atlas-owned declarations are never deleted. When rows
 are removed, the wrapper reloads LiteLLM once to clear every worker's route cache.
 On a fresh checkout, Atlas renders its initial bootstrap banner before applying
 the consumer manifest, so that first banner can retain Atlas artwork; subsequent
-starts use the configured RAG-SHOWCASE logo. If Atlas hits the known
-[exited-zero one-shot race](https://github.com/thekaveh/atlas/issues/508), the
-wrapper first requires that exact Atlas log signature, then accepts only a fully
-converged, provider-aware runtime verified from Docker state; any missing,
-unhealthy, or nonzero-exit service still aborts startup.
+starts use the configured RAG-SHOWCASE logo. Atlas classifies a fully converged
+successful one-shot race. If Compose returns while other services are still
+starting, the wrapper accepts only that exact exited-zero signature and waits for
+the same strict state; missing, unhealthy, or nonzero-exit services still fail.
 If you use local models, the first run may
 download several GB, so it takes a while. Then open the printed URL, start a multi-model chat, and select:
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
@@ -118,10 +129,10 @@ They build an LLM-free concept graph from `RagBase` chunks and are not included
 in the default six-way matrix.
 
 The detached startup is the authoritative effective-config check: Atlas applies
-the wrapper's fixed LightRAG container, TEI CPU, Docling-disabled, and temporary
-MinIO source flags, revalidates the resolved stack, and only then starts Compose.
+the wrapper's fixed LightRAG container, TEI CPU, and Docling-disabled source flags,
+revalidates the resolved stack, and only then starts the enabled Compose services.
 An alternate `ATLAS_CONSUMER_MANIFEST` can change provider, model, branding, and
-other consumer values, but those four source choices remain wrapper contracts.
+other consumer values, but those three source choices remain wrapper contracts.
 
 The `n8n-adaptive-rag` workflow is checked in at
 [`n8n/adaptive-rag.workflow.json`](n8n/adaptive-rag.workflow.json) and declared in
@@ -150,7 +161,7 @@ the thematic / multi-hop demo queries have little to work with — see
 The last column is the design intent behind each demo query family, not a measured
 result — several intended contrasts did not materialize in the committed runs (the
 measured per-query winners live in
-[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md) §3).
+[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md) §4).
 
 For exact internal steps, dependencies, tuning variables, and current measured
 performance for each approach, see [`docs/approaches.md`](docs/approaches.md).
@@ -159,14 +170,16 @@ performance for each approach, see [`docs/approaches.md`](docs/approaches.md).
 
 [`lazy-graph-rag`](docs/lazy-graph-rag.md) combines vector seeds with deterministic,
 budgeted concept-graph expansion. It is a separate experimental approach, not a
-LightRAG flavor, and remains unranked until the Atlas matrix runner in Atlas #565
-supports an evidence-equivalent evaluation.
+LightRAG flavor. In the 2026-07-13 base-approach ladder it ranked fourth on
+baseline, second on graph-native, and first on cyber-threat data. It remains
+experimental and off by default while its lightweight concept extraction and
+co-occurrence semantics are evaluated on additional corpora.
 
 ## 5. Repository Layout
 
 ```
 rag-showcase/
-├── atlas.consumer.yml       # Atlas integration plus 18 declarative LiteLLM aliases
+├── atlas.consumer.yml       # Atlas integration plus 18 aliases, workflows, and ingestion profiles
 ├── infra/                   # Atlas — vendored Git submodule (DO NOT edit here)
 ├── backend_plugins/rag/     # the plugin package mounted into Atlas's backend
 │   ├── plugin.yml           # Atlas route, health, auth, env, and dependency contract
@@ -175,7 +188,7 @@ rag-showcase/
 │   ├── tests/               # unit tests (mocked I/O)
 │   ├── roles.yaml           # role→model map (local-first)
 │   └── flavors.yaml         # Open WebUI/benchmark aliases with tuning overrides
-├── ingest/                  # corpus → chunk (Docling optional) → Weaviate(base+contextual) + LightRAG
+├── ingest/                  # Atlas job client + contextual-index post-processor
 ├── corpus/                  # curated corpora + fetch/adapter scripts (MultiHop-RAG, keyword, graph-native, cyber-threat)
 ├── compose/                 # backend plugin compose overlay
 ├── config/                  # manifest-imported Atlas env values (LightRAG runtime defaults)
@@ -183,7 +196,7 @@ rag-showcase/
 ├── scripts/                 # start-all / stop-all / Atlas preflight / run-dataset-ladder
 ├── n8n/                     # Adaptive-RAG workflow recipe
 ├── demo/                    # contrasting query matrices (queries.yaml + per-dataset)
-├── compare/                 # host comparison harness (run_matrix, judge, report_datasets, flavors/datasets)
+├── compare/                 # consumer evaluation manifest, resumable matrix, Ragas summaries, judges, reports
 ├── tests/                   # end-to-end integration harness (skips without the stack)
 └── docs/                    # architecture, approaches, evaluation, comparison, results, specs & plans
 ```
@@ -213,17 +226,17 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | `TEI_RERANKER_MAX_BATCH` | `32` | vectors (rerank request batch cap) | plugin manifest + overlay |
 | `LIGHTRAG_ENDPOINT` | `http://lightrag:9621` | lightrag client | Atlas backend env |
 | `LIGHTRAG_API_KEY` | — | lightrag client | Atlas backend env |
-| `LIGHTRAG_UPLOAD_RETRIES` | `60` | ingest → LightRAG (409 backpressure retries) | plugin manifest + overlay |
-| `LIGHTRAG_UPLOAD_RETRY_DELAY` | `5.0` | ingest → LightRAG (retry delay seconds) | plugin manifest + overlay; string-typed because Atlas manifest v1 has no float type |
-| `DOCLING_ENDPOINT` | `""` (unset → naive chunking) | ingest | Atlas backend env (set only when Docling is enabled) |
 | `N8N_ADAPTIVE_WEBHOOK_URL` | `http://n8n:5678/webhook/adaptive-rag` | n8n approach | overlay |
 | `RAG_ROLES_FILE` | `/app/plugins/rag/roles.yaml` | config | plugin manifest; supplied by `config/atlas.env.user` and overlay |
 | `RAG_FLAVORS_FILE` | `/app/plugins/rag/flavors.yaml` | runtime flavor parameter loader | plugin manifest; supplied by `config/atlas.env.user` and overlay; aliases are declared in `atlas.consumer.yml` and drift-tested against this file |
+| `RAG_INGESTION_PROFILE` | `showcase_default` | startup, Atlas ingestion job, collection selection | host env + overlay; dataset ladder sets the selected dataset id |
+| `RAG_BASE_COLLECTION` | `RagBase_<profile>` | vanilla, hybrid, agentic vector tool, contextual post-step | derived by `start-all.sh`; override only with a matching Atlas profile target |
+| `RAG_CONTEXTUAL_COLLECTION` | `RagContextual_<profile>` | contextual post-step and contextual-rag | derived by `start-all.sh` |
 | `BACKEND_PLUGINS_DIR` | `/app/plugins` | plugin seam (Atlas) | overlay |
 | `ATLAS_CONSUMER_MANIFEST` | `atlas.consumer.yml` | Atlas bootstrapper | host env; absolute path to the parent-owned consumer manifest |
 | `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | `config/atlas.env.user` |
-| `LIGHTRAG_KEYWORD_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG KEYWORD role | `config/atlas.env.user` |
-| `LIGHTRAG_QUERY_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG QUERY role | `config/atlas.env.user` |
+| `LIGHTRAG_KEYWORD_LLM_MODEL` | `qwen3.6:latest` | LightRAG KEYWORD role | `config/atlas.env.user`; Atlas applies model-scoped `think:false` |
+| `LIGHTRAG_QUERY_LLM_MODEL` | `qwen3.6:latest` | LightRAG QUERY role | `config/atlas.env.user`; Atlas applies model-scoped `think:false` |
 | `LIGHTRAG_EMBEDDING_MODEL` | `nomic-embed-text` | LightRAG embedding model | `config/atlas.env.user` |
 | `LIGHTRAG_EXTRACT_MAX_ASYNC_LLM` | `1` | LightRAG EXTRACT concurrency | `config/atlas.env.user` |
 | `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | `900` | LightRAG EXTRACT timeout seconds | `config/atlas.env.user` |
@@ -236,7 +249,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | `LIGHTRAG_EXTRACT_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG EXTRACT-role Ollama context cap | overlay |
 | `LIGHTRAG_KEYWORD_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG KEYWORD-role Ollama context cap | overlay |
 | `LIGHTRAG_QUERY_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG QUERY-role Ollama context cap | overlay |
-| `RAG_SHOWCASE_SKIP_DEFAULT_INGEST` | `0` | `start-all.sh` (skips corpus assembly + demo ingest; the dataset ladder sets it automatically) | host env |
+| `RAG_SHOWCASE_SKIP_DEFAULT_INGEST` | `0` | `start-all.sh` (skips corpus assembly + the default Atlas ingestion job; the dataset ladder sets it automatically) | host env |
 
 ## 7. Documentation Index
 
@@ -254,17 +267,17 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Approach flow diagram (interactive)](docs/diagrams/approach-flows.md) | Living | Rendered parallel-lane diagram of the six approach flow phases (HTML/SVG in an inline iframe) |
 | [Approach internals](docs/approaches.md) | Living | Step-by-step flow, dependencies, tuning variables, tradeoffs, and measured performance for every approach |
 | [Approach flavor tuning](docs/approach-flavor-tuning.md) | Living | Open WebUI model aliases, benchmark flavor selection, and query-time versus index-time tuning knobs |
-| [Evaluation methodology](docs/evaluation-methodology.md) | Living | Dataset ladder protocol, model roles, approach invocation flow, judge panel design, and result artifacts |
+| [Evaluation methodology](docs/evaluation-methodology.md) | Living | Atlas/showcase ownership, evidence schema, resumable ladder, Ragas states, operational metrics, judge panel, and four-artifact contract |
 | [Hardware sizing](docs/hardware.md) | Living | Minimum and recommended hardware profiles for live stack, local models, and graph-heavy runs |
 | [Atlas-reuse assessment](docs/atlas-reuse-assessment.md) | Living | What reused cleanly, friction found, recommendations for Atlas |
 | [Dependency contract ledger](docs/dependency-contracts.md) | Living | Each consumed external dependency (LiteLLM, Weaviate, LightRAG, TEI, n8n, Atlas) and the exact pinned version its contract was verified against |
 | [Atlas LightRAG role-model spec](docs/atlas-lightrag-role-model-spec.md) | Implemented upstream | Historical Atlas-side spec for first-class LightRAG EXTRACT/KEYWORD/QUERY model wiring |
 | [Corpus](corpus/README.md) | Living | How to populate the corpus |
 | [Dataset adapters](corpus/adapters/README.md) | Living | The dataset fetch/adapter CLIs (GDELT, OpenAlex, STaRK, MITRE cyber) behind the candidate real-world graph rungs |
-| [Dataset complexity report](docs/dataset-complexity-report.md) | Living | Approach rankings by input dataset complexity, plus candidate real-world graph datasets |
+| [Dataset complexity report](docs/dataset-complexity-report.md) | Living | Judge and canonical metric rankings by dataset complexity, with coverage and legacy fallback |
 | [n8n workflow](n8n/README.md) | Living | Checked-in Adaptive-RAG workflow, Atlas seeding lifecycle, and workflow tuning knobs |
 | [Live comparison](docs/comparison.md) | Living | Side-by-side results of all six approaches + live-validation findings (`think:false`, LightRAG role/query tuning, graph-native corpus behavior) |
-| [Result snapshots](docs/results/README.md) | Living | Index of the committed live-run matrix/judgment JSON snapshots — which set is current vs historical |
+| [Result snapshots](docs/results/README.md) | Living | Canonical evidence/evaluation and compatibility matrix/judgment artifact contract, plus active and historical snapshots |
 
 ## 8. Development & Testing
 
@@ -298,8 +311,8 @@ LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
   [`n8n/README.md`](n8n/README.md).
 - **`contextual-rag` doesn't visibly win** on the context-starved query: that contrast needs
   Docling structure-aware chunking. The showcase wrapper explicitly disables Docling for a
-  hardware-neutral default and falls back to naive chunking; select an Atlas-supported Docling
-  source to enable it.
+  hardware-neutral default, so Atlas uses plain-text parsing plus the profile's recursive
+  chunker; select an Atlas-supported Docling source to preserve document structure.
 - **Stack fails to come up with a Supabase / Postgres auth error** — e.g. `lightrag-init` exits
   with `password authentication failed for user "supabase_admin"`. This is an **Atlas stack**
   matter (the Supabase DB role/secret wiring), *not* the showcase. The reliable fix is a clean
@@ -329,7 +342,8 @@ LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
 - **A manual `cd infra && ./start.sh` follows logs.** For scripted Atlas bring-up,
   use `./start.sh --no-tui --detach` (or `--no-follow`) so Atlas waits for health,
   prints a status summary, and returns. `start-all.sh` already uses this path,
-  then runs showcase-specific ingestion and model registration. See the
+  then submits the Atlas-owned ingestion job and runs the showcase-only contextual
+  enrichment step. See the
   [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
 - **Integration tests skip.** `tests/test_demo_matrix.py` self-skips unless a live LiteLLM is
   reachable; with a started stack the gateway is derived from `infra/.env`

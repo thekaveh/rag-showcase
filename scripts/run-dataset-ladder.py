@@ -15,7 +15,6 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -117,103 +116,49 @@ def cold_reset() -> None:
     subprocess.run(["./stop.sh", "--cold"], cwd=ROOT / "infra", check=True)
 
 
-def start_service_only() -> None:
+def start_service_only(dataset: dict[str, Any]) -> None:
     env = os.environ.copy()
     env["RAG_SHOWCASE_SKIP_DEFAULT_INGEST"] = "1"
+    profile = dataset["ingestion_profile"]
+    env["RAG_INGESTION_PROFILE"] = profile
+    env["RAG_BASE_COLLECTION"] = f"RagBase_{profile}"
+    env["RAG_CONTEXTUAL_COLLECTION"] = f"RagContextual_{profile}"
     run(["./scripts/start-all.sh"], env=env)
 
 
-def ingest_dataset(dataset: dict[str, Any]) -> None:
+def ingest_dataset(dataset: dict[str, Any]) -> dict[str, Any]:
     corpus_path = Path(dataset["corpus_path"])
     if not (ROOT / corpus_path).is_dir():
         raise FileNotFoundError(f"dataset corpus not found: {corpus_path}")
+    backend_port = envval("BACKEND_PORT")
+    if not backend_port:
+        raise RuntimeError("BACKEND_PORT not found in infra/.env")
+    record = capture_json(
+        [
+            "uv",
+            "run",
+            "python",
+            "-m",
+            "ingest.atlas_job",
+            "--profile",
+            dataset["ingestion_profile"],
+            "--base-url",
+            f"http://127.0.0.1:{backend_port}",
+        ]
+    )
     run(
         [
             "docker",
             "exec",
             "-e",
-            "PYTHONPATH=/app/plugins",
+            "PYTHONPATH=/app/plugins:/app",
             f"{project_name()}-backend",
             "python",
-            "/app/ingest/ingest.py",
-            f"/app/{corpus_path.as_posix()}",
+            "-m",
+            "ingest.contextual",
         ]
     )
-
-
-def _lightrag_get(path: str, timeout: int) -> dict[str, Any]:
-    """GET a LightRAG endpoint from inside the backend container (in-network URL +
-    the container's LIGHTRAG_API_KEY), returning the parsed JSON."""
-    code = f"""
-import json, os, httpx
-r = httpx.get(
-    "http://lightrag:9621{path}",
-    headers={{"X-API-Key": os.environ.get("LIGHTRAG_API_KEY", "")}},
-    timeout={timeout},
-)
-r.raise_for_status()
-print(json.dumps(r.json()))
-"""
-    return capture_json(["docker", "exec", f"{project_name()}-backend", "python", "-c", code])
-
-
-def lightrag_status() -> dict[str, Any]:
-    return _lightrag_get("/documents/pipeline_status", timeout=10)
-
-
-def lightrag_documents() -> dict[str, Any]:
-    return _lightrag_get("/documents", timeout=20)
-
-
-def wait_for_lightrag(dataset_id: str, timeout_s: int = 3600) -> None:
-    deadline = time.monotonic() + timeout_s
-    last = ""
-    poll_failures = 0
-    while time.monotonic() < deadline:
-        try:
-            # Both probes share the flakiness profile (docker exec + in-network
-            # HTTP), so both live inside the same tolerance window.
-            status = lightrag_status()
-            busy = bool(status.get("busy") or status.get("request_pending"))
-            docs = lightrag_documents() if not busy else None
-            poll_failures = 0
-        except (subprocess.CalledProcessError, ValueError) as exc:
-            # One flaky poll must not abort a multi-hour ladder run; three in a
-            # row means something is genuinely wrong. CalledProcessError's str()
-            # omits the captured stderr, so surface it explicitly.
-            poll_failures += 1
-            detail = ((getattr(exc, "stderr", "") or "")[-300:]).strip()
-            if poll_failures >= 3:
-                raise RuntimeError(
-                    f"LightRAG status poll failed {poll_failures} times in a row "
-                    f"for {dataset_id}: {exc} {detail}") from exc
-            print(f"[{dataset_id}] LightRAG status poll failed "
-                  f"({poll_failures}/3), retrying: {exc} {detail}", flush=True)
-            time.sleep(15)
-            continue
-        message = str(status.get("latest_message") or "")
-        progress = (
-            f"busy={busy} docs={status.get('docs')} "
-            f"batch={status.get('cur_batch')}/{status.get('batchs')} {message[:96]}"
-        )
-        if progress != last:
-            print(f"[{dataset_id}] LightRAG {progress}", flush=True)
-            last = progress
-        if not busy:
-            statuses = (docs or {}).get("statuses", {}) or {}
-            failed = statuses.get("failed") or statuses.get("FAILED")
-            if failed:
-                raise RuntimeError(f"LightRAG reported failed documents for {dataset_id}: {failed}")
-            pending = (statuses.get("pending") or statuses.get("PENDING")
-                       or statuses.get("processing") or statuses.get("PROCESSING"))
-            if pending:
-                # Not-busy gap between enqueue and pipeline pickup: documents are
-                # still queued, so this is not drained yet.
-                time.sleep(15)
-                continue
-            return
-        time.sleep(15)
-    raise TimeoutError(f"LightRAG did not drain for {dataset_id} within {timeout_s}s")
+    return record
 
 
 def validate_matrix_cells(matrix: dict[str, Any], *, dataset_id: str) -> None:
@@ -237,6 +182,8 @@ def validate_judgments(judgments: dict[str, Any], *, dataset_id: str) -> None:
     judgments whose per-query mean_by_approach is empty — previously committed as
     "measured" with no scores. Symmetric counterpart to validate_matrix_cells.
     """
+    if judgments.get("status") == "disabled":
+        return
     queries = judgments.get("queries", [])
     if not queries:
         raise RuntimeError(f"Judgments for {dataset_id} contain no queries")
@@ -249,12 +196,79 @@ def validate_judgments(judgments: dict[str, Any], *, dataset_id: str) -> None:
         )
 
 
+def validate_canonical_rows(
+    rows: list[dict[str, Any]], *, dataset_id: str, expected_cells: int
+) -> None:
+    if len(rows) != expected_cells:
+        raise RuntimeError(
+            f"Canonical rows for {dataset_id}: expected {expected_cells}, found {len(rows)}"
+        )
+    row_ids = [row.get("row_id") for row in rows]
+    if len(set(row_ids)) != len(row_ids):
+        raise RuntimeError(f"Canonical rows for {dataset_id} contain duplicate row ids")
+    wrong_dataset = [
+        row_id
+        for row_id, row in zip(row_ids, rows)
+        if row.get("dataset", {}).get("id") != dataset_id
+    ]
+    if wrong_dataset:
+        raise RuntimeError(
+            f"Canonical rows for {dataset_id} contain rows from another dataset: "
+            f"{wrong_dataset[:5]}"
+        )
+
+
+def validate_evaluation_summary(
+    summary: dict[str, Any], *, dataset_id: str, expected_cells: int
+) -> None:
+    if summary.get("schema_version") != 1:
+        raise RuntimeError(f"Evaluation summary for {dataset_id} has unsupported schema version")
+    dataset = summary.get("datasets", {}).get(dataset_id)
+    if not isinstance(dataset, dict):
+        raise RuntimeError(f"Evaluation summary is missing dataset {dataset_id}")
+    actual = dataset.get("coverage", {}).get("total_rows")
+    if actual != expected_cells:
+        raise RuntimeError(
+            f"Evaluation summary for {dataset_id}: expected {expected_cells} rows, found {actual}"
+        )
+
+
+def _load_jsonl(path: Path) -> list[dict[str, Any]]:
+    rows = []
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"{path}:{line_number}: invalid JSONL: {exc}") from exc
+    return rows
+
+
 def run_matrix_and_judge(
-    dataset: dict[str, Any], date_stamp: str, approaches: str, flavors: str
-) -> tuple[Path, Path]:
+    dataset: dict[str, Any],
+    ingestion: dict[str, Any],
+    date_stamp: str,
+    approaches: str,
+    flavors: str,
+    *,
+    fresh_ingestion: bool = False,
+) -> tuple[Path, Path, Path, Path]:
     dataset_id = dataset["id"]
+    run_id = f"live-{date_stamp}-{dataset_id}"
     matrix_name = f"live-{date_stamp}-{dataset_id}-matrix.json"
     judgments_name = f"live-{date_stamp}-{dataset_id}-judgments.json"
+    evidence_name = f"live-{date_stamp}-{dataset_id}-evidence.jsonl"
+    evaluation_name = f"live-{date_stamp}-{dataset_id}-evaluation.json"
+    working_paths = [
+        RESULTS / matrix_name,
+        RESULTS / judgments_name,
+        RESULTS / evidence_name,
+        RESULTS / evaluation_name,
+    ]
+    if fresh_ingestion:
+        for path in working_paths:
+            path.unlink(missing_ok=True)
     env = os.environ.copy()
     # Exported MATRIX_MODELS/MATRIX_FLAVORS (e.g. left over from the documented
     # manual run_matrix.py workflow) must not govern the run: they'd bypass
@@ -263,38 +277,94 @@ def run_matrix_and_judge(
     # deliberate and mirrored by validation.
     env.pop("MATRIX_MODELS", None)
     env.pop("MATRIX_FLAVORS", None)
+    for key in (
+        "MATRIX_INGESTION_ID",
+        "MATRIX_INGESTION_JOB_ID",
+        "MATRIX_INGESTION_PROFILE",
+        "MATRIX_INGESTION_REVISION",
+        "MATRIX_INGESTION_CONTENT_DIGEST",
+        "MATRIX_INGESTION_MODE",
+    ):
+        env.pop(key, None)
     env["MATRIX_QUERIES_FILE"] = dataset["queries_file"]
     env["MATRIX_RESULTS_FILE"] = matrix_name
+    env["MATRIX_CANONICAL_FILE"] = evidence_name
+    env["MATRIX_SUMMARY_FILE"] = evaluation_name
+    env["MATRIX_DATASET_ID"] = dataset_id
+    env["MATRIX_RUN_ID"] = run_id
+    env["MATRIX_INGESTION_ID"] = str(ingestion["id"])
+    env["MATRIX_INGESTION_JOB_ID"] = str(ingestion["id"])
+    env["MATRIX_INGESTION_PROFILE"] = str(ingestion["profile"])
+    env["MATRIX_INGESTION_REVISION"] = str(ingestion["revision"])
+    env["MATRIX_INGESTION_CONTENT_DIGEST"] = str(ingestion["content_digest"])
+    env["MATRIX_INGESTION_MODE"] = "atlas-job"
     if approaches:
         env["MATRIX_MODELS"] = approaches
     if flavors:
         env["MATRIX_FLAVORS"] = flavors
     run(["uv", "run", "python", "compare/run_matrix.py"], env=env)
     matrix_src = RESULTS / matrix_name
-    validate_matrix_cells(json.loads(matrix_src.read_text(encoding="utf-8")), dataset_id=dataset_id)
+    matrix_payload = json.loads(matrix_src.read_text(encoding="utf-8"))
+    validate_matrix_cells(matrix_payload, dataset_id=dataset_id)
+    expected_cells = len(matrix_payload.get("cells", []))
+    evidence_src = RESULTS / evidence_name
+    evaluation_src = RESULTS / evaluation_name
+    validate_canonical_rows(
+        _load_jsonl(evidence_src), dataset_id=dataset_id, expected_cells=expected_cells
+    )
+    validate_evaluation_summary(
+        json.loads(evaluation_src.read_text(encoding="utf-8")),
+        dataset_id=dataset_id,
+        expected_cells=expected_cells,
+    )
 
     env = os.environ.copy()
     env["JUDGE_MATRIX_FILE"] = matrix_name
     env["JUDGE_RESULTS_FILE"] = judgments_name
+    if manifest_path := os.environ.get("MATRIX_MANIFEST_FILE"):
+        env["JUDGE_MANIFEST_FILE"] = manifest_path
     run(["uv", "run", "python", "compare/judge.py"], env=env)
     judgments_src = RESULTS / judgments_name
     validate_judgments(json.loads(judgments_src.read_text(encoding="utf-8")),
                        dataset_id=dataset_id)
+    run([
+        "uv", "run", "python", "compare/summarize.py",
+        "--rows", str(evidence_src),
+        "--judgments", str(judgments_src),
+        "--output", str(evaluation_src),
+    ])
+    validate_evaluation_summary(
+        json.loads(evaluation_src.read_text(encoding="utf-8")),
+        dataset_id=dataset_id,
+        expected_cells=expected_cells,
+    )
 
     DOC_RESULTS.mkdir(parents=True, exist_ok=True)
     matrix_dst = DOC_RESULTS / matrix_name
     judgments_dst = DOC_RESULTS / judgments_name
+    evidence_dst = DOC_RESULTS / evidence_name
+    evaluation_dst = DOC_RESULTS / evaluation_name
     shutil.copy2(matrix_src, matrix_dst)
     shutil.copy2(judgments_src, judgments_dst)
-    return matrix_dst, judgments_dst
+    shutil.copy2(evidence_src, evidence_dst)
+    shutil.copy2(evaluation_src, evaluation_dst)
+    return matrix_dst, judgments_dst, evidence_dst, evaluation_dst
 
 
-def update_dataset_snapshots(dataset_id: str, matrix_path: Path, judgments_path: Path) -> None:
+def update_dataset_snapshots(
+    dataset_id: str,
+    matrix_path: Path,
+    judgments_path: Path,
+    evidence_path: Path,
+    evaluation_path: Path,
+) -> None:
     manifest = load_manifest()
     for dataset in manifest["datasets"]:
         if dataset["id"] == dataset_id:
             dataset["matrix_snapshot"] = str(matrix_path.relative_to(ROOT))
             dataset["judgment_snapshot"] = str(judgments_path.relative_to(ROOT))
+            dataset["evidence_snapshot"] = str(evidence_path.relative_to(ROOT))
+            dataset["evaluation_snapshot"] = str(evaluation_path.relative_to(ROOT))
             dataset["status"] = "measured"
             break
     else:
@@ -379,12 +449,19 @@ def main() -> None:
         print(f"\n==> Dataset {index}/{len(datasets)}: {dataset['id']}", flush=True)
         if not args.no_cold_reset:
             cold_reset()
-        start_service_only()
-        ingest_dataset(dataset)
-        wait_for_lightrag(dataset["id"])
-        matrix, judgments = run_matrix_and_judge(
-            dataset, args.date_stamp, args.approaches, args.flavors)
-        update_dataset_snapshots(dataset["id"], matrix, judgments)
+        start_service_only(dataset)
+        ingestion = ingest_dataset(dataset)
+        matrix, judgments, evidence, evaluation = run_matrix_and_judge(
+            dataset,
+            ingestion,
+            args.date_stamp,
+            args.approaches,
+            args.flavors,
+            fresh_ingestion=not args.no_cold_reset,
+        )
+        update_dataset_snapshots(
+            dataset["id"], matrix, judgments, evidence, evaluation
+        )
         regenerate_report()
 
 

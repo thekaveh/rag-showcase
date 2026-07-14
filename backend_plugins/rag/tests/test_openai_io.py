@@ -1,5 +1,3 @@
-import json
-
 import pytest
 from rag.common.openai_io import build_response, Source, Metrics, ChatRequest
 
@@ -22,6 +20,11 @@ def test_build_response_shapes_openai_and_embeds_sources():
     # checks the None case shows nothing). Drop/invert the score block and per-source
     # relevance silently disappears from this comparison surface, with tests green.
     assert "score 0.900" in content
+    assert resp["rag_showcase"] == {
+        "schema_version": 1,
+        "sources": [{"title": "Doc A", "snippet": "alpha", "score": 0.9}],
+        "metrics": {"seconds": 1.2, "chunks": 1, "llm_calls": 1, "cloud_calls": 0},
+    }
 
 
 def test_build_response_handles_empty_sources():
@@ -51,9 +54,11 @@ def test_build_response_includes_optional_approach_metadata():
         metadata={"lazy_graph": {"cache_hit": True, "relevance_tests": 3}},
     )
 
-    assert response["rag_showcase"] == {
-        "lazy_graph": {"cache_hit": True, "relevance_tests": 3}
-    }
+    extension = response["rag_showcase"]
+    assert extension["schema_version"] == 1
+    assert extension["sources"] == []
+    assert extension["metrics"]["chunks"] == 2
+    assert extension["lazy_graph"] == {"cache_hit": True, "relevance_tests": 3}
 
 
 def test_chat_request_last_user():
@@ -124,20 +129,26 @@ async def test_build_stream_response_emits_single_chunk_sse():
     content = first["choices"][0]["delta"]["content"]
     assert "hello" in content and "T" in content  # full rendered body in one chunk
     assert isinstance(first["created"], int)
+    assert first["rag_showcase"]["sources"][0]["snippet"] == "snip"
 
 
 @pytest.mark.asyncio
-async def test_build_stream_response_preserves_optional_approach_metadata():
+async def test_build_stream_response_preserves_evidence_and_approach_metadata():
+    import json as _json
     from rag.common.openai_io import build_stream_response
 
     response = build_stream_response(
         "lazy-graph-rag",
         "hello",
-        [],
+        [Source("Doc", "context")],
         Metrics(0.5, 1, 2, 0),
         metadata={"lazy_graph": {"cache_hit": False}},
     )
     first_event = [part async for part in response.body_iterator][0]
-    payload = json.loads(first_event.removeprefix("data: ").strip())
+    payload = _json.loads(first_event.removeprefix("data: ").strip())
 
-    assert payload["rag_showcase"] == {"lazy_graph": {"cache_hit": False}}
+    extension = payload["rag_showcase"]
+    assert extension["schema_version"] == 1
+    assert extension["sources"][0]["snippet"] == "context"
+    assert extension["metrics"]["llm_calls"] == 2
+    assert extension["lazy_graph"] == {"cache_hit": False}

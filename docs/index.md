@@ -36,19 +36,21 @@ or `graph-rag-fast` — that route to the same base approach with reproducible p
 overrides and their own selectable model alias. See [Flavor Tuning](approach-flavor-tuning.md).
 
 An explicitly selected [experimental `lazy-graph-rag`](lazy-graph-rag.md) endpoint
-adds deterministic concept-graph expansion without changing the canonical six or
-their committed rankings. It is not included in `default` evaluation expansion.
+adds deterministic concept-graph expansion without changing the canonical six.
+It is not included in `default` evaluation expansion, but its 2026-07-13
+seven-way dataset-ladder measurements are committed alongside the canonical runs.
 
 ## 2. Headline Result
 
-The 2026-07-03 ladder ran fourteen approach and flavor aliases across three datasets of
-increasing structure. The winner shifts with input complexity, which is the point:
+The 2026-07-13 ladder ran the six canonical approaches plus experimental lazy
+graph across three datasets of increasing structure. All 140 cells succeeded,
+and the winner shifts with input complexity:
 
 | Dataset | Winning configuration | Judge score |
 |---------|-----------------------|:-----------:|
-| Baseline curated | `vanilla-rag-wide` | 4.42 |
-| Graph-native dossiers | `hybrid-rag-high-recall` | 4.25 |
-| Cyber-threat graph (MITRE ATT&CK) | `contextual-rag-high-recall` | 3.58 |
+| Baseline curated | `n8n-adaptive-rag` / `vanilla-rag` | 4.42 |
+| Graph-native dossiers | `contextual-rag` | 4.12 |
+| Cyber-threat graph (MITRE ATT&CK) | `lazy-graph-rag` | 3.25 |
 
 Full per-query winners, judge methodology, and raw snapshots are in
 [Evaluation and Results](evaluation-methodology.md).
@@ -94,10 +96,11 @@ Full per-query winners, judge methodology, and raw snapshots are in
 ## 4. Fully Local by Default
 
 Everything runs on your own machine: local models through Atlas's Ollama provider
-(`qwen3.6:latest` for chat, `nomic-embed-text` for embeddings, and `mistral-small3.2:24b`
-for LightRAG's graph roles), Weaviate and LightRAG for retrieval, a TEI reranker, and a
-local judge panel. No cloud calls are required to run the showcase or reproduce its
-results. See the [Hardware Sizing](hardware.md) guide for minimum and recommended profiles.
+(`qwen3.6:latest` for chat and LightRAG keyword/query roles, `nomic-embed-text` for
+embeddings, and `mistral-small3.2:24b` for LightRAG extraction), Weaviate and LightRAG
+for retrieval, a TEI reranker, and a local judge panel. No cloud calls are required to
+run the showcase or reproduce its results. See the [Hardware Sizing](hardware.md) guide
+for minimum and recommended profiles.
 
 The project is also a deliberate test-drive of Atlas as reusable infrastructure. The
 [Atlas Reuse Assessment](atlas-reuse-assessment.md) records what reused cleanly, the

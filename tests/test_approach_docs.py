@@ -61,7 +61,7 @@ def test_flavor_tuning_doc_is_linked_and_covers_invocation() -> None:
     assert "compare/flavors.yaml" in doc
 
 
-def test_experimental_lazy_graph_design_is_linked_and_explicitly_unmeasured() -> None:
+def test_experimental_lazy_graph_design_is_linked_and_measured() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     approaches = (ROOT / "docs" / "approaches.md").read_text(encoding="utf-8")
     design = (ROOT / "docs" / "lazy-graph-rag.md").read_text(encoding="utf-8")
@@ -75,8 +75,8 @@ def test_experimental_lazy_graph_design_is_linked_and_explicitly_unmeasured() ->
         "seed_k",
         "max_context_chunks",
         "content fingerprint",
-        "not yet measured",
-        "Atlas #565",
+        "2026-07-13",
+        "cyber_threat_intel",
     ]:
         assert phrase in design
 

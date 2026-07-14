@@ -6,12 +6,14 @@ GraphRAG code and not a claim of implementation parity. It is registered for
 explicit testing but excluded from the six-approach default comparison. Its
 concept indexing and graph traversal are LLM-free.
 
-The prototype is **not yet measured** in a committed dataset-ladder run. Atlas
-currently has only the per-record Ragas endpoint, while the reusable matrix
-runner required by showcase issue #24 is tracked upstream as
-[Atlas #565](https://github.com/thekaveh/atlas/issues/565). Until that runner
-lands, this page documents independently verified design and unit/integration
-behavior rather than benchmark rankings.
+The prototype is now measured in the committed 2026-07-13 dataset ladder. It
+participated beside all six canonical approaches on baseline, graph-native, and
+MITRE ATT&CK cyber-threat corpora. All 20 lazy-graph cells succeeded. The result
+supports keeping the approach: its judge rank improved from fourth to second to
+first as the corpus became more graph-shaped, with substantially lower latency
+than LightRAG or agentic retrieval. It remains experimental and off by default
+because its untyped co-occurrence graph is a useful approximation, not a
+general-purpose knowledge graph.
 
 ## 1. Why It Is a Separate Approach
 
@@ -61,19 +63,23 @@ The first query for a corpus performs these steps:
 1. Read a deterministic snapshot of all chunks in Weaviate collection `RagBase`.
 2. Compute a SHA-256 **content fingerprint** over the index algorithm version,
    chunk titles, and chunk text.
-3. Load `/data/lazy-graph-rag/RagBase.json` when its version and fingerprint
-   match.
+3. Load the density-specific cache under `/data/lazy-graph-rag/` when its version
+   and fingerprint match, for example `RagBase_graph_native.concepts-24.json`.
 4. Otherwise extract concepts using deterministic token, identifier, and
    capitalized-phrase rules. No LLM is called.
 5. Create concept-to-chunk memberships.
 6. Add weighted undirected edges for concepts that co-occur in a chunk.
-7. Atomically replace the cache file in the `lazy-graph-cache` Compose volume.
+7. Atomically replace that density-specific cache file in the
+   `lazy-graph-cache` Compose volume.
 
 The complete chunk snapshot is fingerprinted on each query, so an ingest that
 changes content invalidates the graph even when the chunk count is unchanged.
-The named volume preserves matching indexes across backend restarts. A cold
-volume reset removes the cache and forces a rebuild. Corrupt or incompatible
-cache files are ignored and replaced.
+Each `max_concepts_per_chunk` value gets an independent cache namespace, so
+switching between fast, balanced, and wide flavors does not evict another
+density. The named volume preserves matching indexes across backend restarts. A
+cold volume reset removes the caches and forces rebuilds. Corrupt or incompatible
+cache files are ignored and replaced. A one-shot Compose initializer assigns the
+named volume to Atlas's non-root backend user before the backend starts.
 
 Index construction uses zero LLM calls. The response records cache hit/miss,
 index duration, chunk/concept/edge counts, and `llm_index_calls: 0`.
@@ -112,10 +118,9 @@ not call an LLM or cloud service.
 - `max_concepts_per_chunk` controls graph density and cache size.
 
 The last knob changes the generated lazy index but does not require source
-corpus re-ingestion. Its flavor gets a distinct fingerprint-equivalent cache
-build at query time. The current single cache namespace is replaced when a
-different concept limit is selected; this is correct but can cause rebuild
-churn when alternating flavors and is a prototype limitation.
+corpus re-ingestion. Its flavor gets a distinct cache file at query time. Live
+validation alternated base, fast, balanced, and wide calls and confirmed that
+all three graph densities remained independently reusable.
 
 Run an explicit comparison selection with:
 
@@ -139,25 +144,59 @@ Recorded fields include:
 - zero index-time LLM calls;
 - cache namespace.
 
-Future Atlas matrix output must combine those operational fields with cold/warm
-latency, Ragas evaluator-model metrics, judge-panel scores, errors, and dataset/
-model/config provenance. Ragas and judge scores must remain separate.
+The consumer-owned Atlas-backed matrix combines those operational fields with
+cold/warm cache state, latency, Ragas state, judge-panel scores, errors, and
+dataset/model/config provenance. Ragas and judge scores remain separate. In this
+run Atlas rejected Ragas evaluation requests because of Atlas #596/#597; the
+evidence rows retain those errors and the reports show zero coverage rather than
+substituting judge scores.
 
-## 7. Limitations and Evaluation Gate
+## 7. Measured Results
+
+The 2026-07-13 run used the same Atlas ingestion revision, generation role,
+embedding role, questions, and blinded judges for every approach. The complete
+artifacts are under [`docs/results/`](results/) and the generated per-query view
+is [`dataset-complexity-report.md`](dataset-complexity-report.md).
+
+| Dataset | Lazy rank | Judge mean | Mean latency | Graph size | Result |
+|---|---:|---:|---:|---|---|
+| `baseline_curated` | 4/7 | 3.92 | 5.12 s | 30 chunks, 453 concepts, 7,523 edges | Competitive, but simpler adaptive/vector paths led. |
+| `graph_native` | 2/7 | 3.88 | 6.07 s | 10 chunks, 162 concepts, 2,475 edges | Won the ecosystem and cross-regulator questions. |
+| `cyber_threat_intel` | 1/7 | 3.25 | 11.95 s | 66 chunks, 762 concepts, 13,949 edges | Won mitigation coverage and campaign timeline synthesis. |
+
+Across the same rungs, default LightRAG averaged 67.39, 88.03, and 67.61 seconds;
+agentic retrieval averaged 35.91, 141.72, and 204.67 seconds. Lazy graph made
+exactly two model calls per query: one embedding and one final generation call.
+It made zero index-time model calls.
+
+Cold deterministic index construction was 0.020 seconds for 30 baseline chunks
+and 0.032 seconds for 66 cyber chunks. The first end-to-end lazy calls, including
+embedding, retrieval, graph build, and generation, were 3.67 and 19.28 seconds.
+Subsequent fingerprint/cache checks took roughly 0.002-0.010 seconds. A separate
+live flavor gate built base, fast, and wide graph densities, then confirmed warm
+hits for base/balanced and fast without cross-flavor rebuild churn.
+
+These numbers do not establish universal superiority. The graph-native aggregate
+winner was contextual RAG, and lazy graph lost several exact path questions where
+typed entity/relation extraction or high-recall chunk retrieval produced better
+evidence. The cyber win nevertheless satisfies the prototype's keep criterion,
+so the implementation remains available for explicit selection.
+
+## 8. Limitations and Decision
 
 - The concept extractor is intentionally lightweight; aliases, morphology, and
   domain-specific entity resolution are limited.
 - Co-occurrence is evidence of proximity, not a typed factual relationship.
-- Fetching all chunk text to verify the fingerprint adds steady-state overhead.
-- Alternating concept-density flavors can rebuild the one cache namespace.
 - The implementation currently uses the shared generation prompt rather than a
   claim-synthesis stage.
-- No committed quality ranking, cold/warm benchmark, or cost comparison exists.
+- The steady path still scans all chunk text to verify the content fingerprint.
+- Results cover three bounded corpora and two local judges, not a broad benchmark.
+- Objective Ragas coverage is unavailable until Atlas #596/#597 are fixed and
+  this exact run is repeated.
 
-The prototype must remain experimental and off by default until Atlas #565
-enables the same evidence-aware matrix used by the canonical approaches. A
-future measured run must compare it with `graph-rag`, `hybrid-rag`, and
-`agentic-rag` on graph-native rungs and report index time, cold/warm latency,
-LLM calls, failures, Ragas metrics, judge quality, and ranking changes. If it
-does not win any graph-native task or proves too costly or fragile, the correct
-result is to document that outcome and keep it experimental.
+**Decision:** retain the prototype as an experimental seventh approach, keep it
+excluded from `default`, and continue measuring it. It beat existing approaches
+on graph-native tasks and led the cyber aggregate without added index-time LLM
+cost, so removal is not warranted. Promotion to a canonical default would require
+more datasets, objective evaluator coverage, stronger concept/entity resolution,
+and explicit typed-relation or community semantics.

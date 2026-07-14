@@ -124,7 +124,9 @@ profile expansion.
 The canonical shipped flavors are query-time only. They do not require rebuilding
 Weaviate collections or the LightRAG graph. Lazy graph flavors do not re-ingest
 the source corpus, but a changed concept-density setting can rebuild their derived
-cache from current Weaviate chunks.
+cache from current Weaviate chunks. Each density uses an independent cache
+namespace, so alternating fast, balanced, and wide flavors does not evict another
+density.
 
 Future index-time flavors should set `requires_reingest: true`. Examples:
 
