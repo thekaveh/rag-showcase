@@ -77,7 +77,8 @@ requirements apply:
   described below and set `LLM_PROVIDER_SOURCE=ollama-localhost` in its env file.
 - Disk/RAM/headroom for the `gen-ai-rag` stack plus whichever local models you
   choose. The default local run asks Atlas to activate `mistral-small3.2:24b`
-  for LightRAG's role-specific graph calls. See the
+  for LightRAG extraction and uses Atlas's default `qwen3.6:latest` for graph
+  keyword and query calls. See the
   [hardware sizing guide](docs/hardware.md) for minimum and recommended profiles.
 
 ```bash
@@ -213,8 +214,8 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | `BACKEND_PLUGINS_DIR` | `/app/plugins` | plugin seam (Atlas) | overlay |
 | `ATLAS_CONSUMER_MANIFEST` | `atlas.consumer.yml` | Atlas bootstrapper | host env; absolute path to the parent-owned consumer manifest |
 | `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | `config/atlas.env.user` |
-| `LIGHTRAG_KEYWORD_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG KEYWORD role | `config/atlas.env.user` |
-| `LIGHTRAG_QUERY_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG QUERY role | `config/atlas.env.user` |
+| `LIGHTRAG_KEYWORD_LLM_MODEL` | `qwen3.6:latest` | LightRAG KEYWORD role | `config/atlas.env.user`; Atlas applies model-scoped `think:false` |
+| `LIGHTRAG_QUERY_LLM_MODEL` | `qwen3.6:latest` | LightRAG QUERY role | `config/atlas.env.user`; Atlas applies model-scoped `think:false` |
 | `LIGHTRAG_EMBEDDING_MODEL` | `nomic-embed-text` | LightRAG embedding model | `config/atlas.env.user` |
 | `LIGHTRAG_EXTRACT_MAX_ASYNC_LLM` | `1` | LightRAG EXTRACT concurrency | `config/atlas.env.user` |
 | `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | `900` | LightRAG EXTRACT timeout seconds | `config/atlas.env.user` |

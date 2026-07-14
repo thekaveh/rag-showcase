@@ -65,7 +65,10 @@ query + alias
 
 Open WebUI and the matrix runner invoke the same LiteLLM aliases. The runner does
 not call private approach functions directly, so measurements include gateway,
-plugin, retrieval, generation, and response-normalization behavior.
+plugin, retrieval, generation, and response-normalization behavior. Matrix requests
+set LiteLLM's `no-cache` and `no-store` controls so a renewed run cannot reuse an
+answer cached before the selected corpus was ingested. Approach-internal caches,
+including LightRAG's query cache, remain part of the measured approach.
 
 ## 4. Model Roles
 
@@ -79,8 +82,8 @@ inside that approach.
 | `contextual_blurb` | `qwen3.6:latest` | contextual ingest | Generate context prefixes once at ingest. |
 | `agentic` | `qwen3.6:latest` | agentic | ReAct control and tool selection. |
 | LightRAG EXTRACT | `mistral-small3.2:24b` | graph ingest | High-volume entity and relationship extraction. |
-| LightRAG KEYWORD | `mistral-small3.2:24b` | graph query | Keyword and query decomposition. |
-| LightRAG QUERY | `mistral-small3.2:24b` | graph query | Final graph/vector answer synthesis. |
+| LightRAG KEYWORD | `qwen3.6:latest` | graph query | Strict keyword/query decomposition with Atlas-scoped thinking disabled. |
+| LightRAG QUERY | `qwen3.6:latest` | graph query | Final graph/vector answer synthesis with Atlas-scoped thinking disabled. |
 | n8n classifier | `qwen3.6:latest` | adaptive workflow | Route a request to a downstream approach. |
 | Judge panel | `qwen3.6:latest`, `gemma4:31b` | stored-answer evaluation only | Two-family subjective quality signal. |
 
@@ -121,8 +124,10 @@ fallback. Structured evidence wins when both forms are present.
 LightRAG currently returns an answer and a knowledge-graph source marker, not the
 actual text contexts selected during graph/vector synthesis. The runner therefore
 does not invent contexts from that marker. Graph answers still receive operational
-and judge evaluation, while context-dependent Ragas metrics are explicitly
-`not_evaluable`. This is an evidence limitation, not an answer failure or a zero.
+and judge evaluation. Faithfulness and other context-dependent Ragas metrics are
+explicitly `not_evaluable`; answer relevancy remains semantically eligible because
+it needs only the question and answer. This distinction is an evidence contract,
+not an answer failure or a numeric zero.
 
 ## 6. Dataset-Ladder Procedure
 
@@ -150,6 +155,12 @@ For each selected dataset, [`scripts/run-dataset-ladder.py`](../scripts/run-data
 11. Validates all artifacts before publishing them to `docs/results/`.
 12. Updates the dataset catalog and regenerates the dataset report.
 
+A cold-reset run deletes only that dataset/date's gitignored working artifacts
+before evaluation and records a SHA-256 revision of the ingested corpus. This
+prevents partial rows from an earlier graph instance from being merged into a new
+ingestion. To resume an interrupted run without rebuilding the graph, rerun one
+dataset with `--no-cold-reset`; the existing provenance must still match.
+
 ## 7. Canonical Row Contract and Resume Safety
 
 The canonical artifact is newline-delimited JSON. Each row represents one
@@ -164,11 +175,16 @@ The canonical artifact is newline-delimited JSON. Each row represents one
 - seed, configuration hashes, and ingestion provenance;
 - durable timeout/error information when the cell fails.
 
-Rows are append-only, flushed, and `fsync`-ed after each cell. Resume skips an
-existing stable row rather than invoking it again. A duplicate row id, malformed
-JSONL line, changed query, changed flavor, changed seed, changed config hash, or
-changed ingestion metadata aborts resume. The operator must use a new run id or
-remove the stale working artifact; incompatible evidence is never merged silently.
+Rows are append-only, flushed, and `fsync`-ed after each cell. Reads and appends use
+an OS-appropriate sidecar lock and re-read the complete on-disk artifact while
+holding it. Each row id also has a process-level claim held across invocation and
+append. Concurrent runners can execute different cells, but a second runner waits
+for an in-flight copy of the same cell and then reuses its durable row instead of
+calling the model twice. Resume skips an existing stable row. A duplicate row id,
+malformed JSONL line, changed query, changed flavor, changed seed, changed config
+hash, or changed ingestion metadata aborts resume. The operator must use a new run
+id or remove the stale working artifact; incompatible evidence is never merged
+silently.
 
 ## 8. Atlas-Backed Ragas Evaluation
 
@@ -192,7 +208,26 @@ require a ground-truth/reference value. Metric state is explicit:
 
 Evaluator and embedding model names returned by Atlas are stored with scores.
 Ragas failures never erase a successful answer, and missing evidence never becomes
-a numeric zero.
+a numeric zero. Every eligible score must be present, numeric, and finite; a
+successful HTTP response containing a missing, null, or invalid score produces an
+explicit per-metric error. Evaluator timeouts remain separate from other evaluator
+errors in aggregate JSON and CSV coverage.
+
+The live validation on 2026-07-13 found an Atlas dependency-contract defect at
+`POST /api/rag/evaluate`: Atlas imports `ResponseRelevancy`, while its pinned
+`ragas==0.4.3` exports `AnswerRelevancy`. Because the import occurs with the other
+metric classes, every evaluator call currently returns an error, including a
+faithfulness-only request. The generic infrastructure fix is tracked in
+[Atlas #596](https://github.com/thekaveh/atlas/issues/596). Rag-showcase records
+that failure as Ragas state `error` and preserves answers, contexts, operational
+metrics, and judge eligibility; it does not patch or duplicate Atlas's evaluator.
+
+Atlas's current request schema also requires a non-empty `contexts` array before
+metric-specific validation. Consequently, an answer-only graph row reaches the
+evaluator with only `answer_relevancy` selected but currently receives a schema
+error. [Atlas #597](https://github.com/thekaveh/atlas/issues/597) tracks making
+input requirements metric-aware. The showcase records this as an evaluator error;
+it does not mislabel answer relevancy as context-dependent or fabricate a context.
 
 ## 9. Independent Judgment Panel
 
@@ -213,7 +248,9 @@ For each query, the harness:
 
 Judges are a subjective, directional signal. They are kept separate from Ragas
 and operational metrics so an unavailable or biased panel cannot change grounding
-scores or erase latency/error evidence.
+scores or erase latency/error evidence. A missing, malformed, or non-object judge
+artifact marks only the judge section as `error`; operational and Ragas summaries
+are still generated.
 
 ## 10. Metric Taxonomy and Coverage-Aware Ranking
 
@@ -245,6 +282,12 @@ Each renewed dataset run produces four files:
 Working artifacts live under gitignored `compare/results/`. The ladder publishes
 all four to [`docs/results/`](results/) only after validation. Historical rows
 with only matrix/judgment snapshots remain valid and readable.
+
+For spreadsheet analysis, `compare/summarize.py --csv-output <path>` writes a
+deterministic long-form view from the same summary. Each row retains its
+`operational`, `ragas`, or `judge_panel` metric class plus coverage, errors,
+timeouts, and unevaluable counts; the CSV is a generated view, not a fifth source
+of truth.
 
 The current 2026-07-03 published snapshots predate the canonical contract. Their
 documented rankings are judge-panel rankings; they do not contain Ragas scores.
@@ -279,7 +322,36 @@ Relevant inputs include `MATRIX_MANIFEST_FILE`, `MATRIX_FLAVORS`,
 `MATRIX_EVALUATOR_URL`, `MATRIX_EVALUATOR_API_KEY`, `JUDGE_MANIFEST_FILE`,
 `JUDGE_MODELS`, `JUDGE_ENDPOINT`, `JUDGE_API_KEY`, and `JUDGE_THINK`.
 
-## 13. Reading the Current Results
+## 13. Implementation Validation
+
+The 2026-07-13 implementation smoke used Atlas commit `087a5a5d` without changing
+the repository's pinned submodule reference. It exercised `vanilla-rag` and
+`graph-rag` over two datasets through the public LiteLLM aliases:
+
+- graph-native: eight questions by two approaches, producing 16 successful,
+  uniquely identified canonical rows;
+- baseline: the exact-keyword question by two approaches, producing two
+  successful, uniquely identified canonical rows;
+- resume: a controlled interruption after the first durable row followed by the
+  same run id, which skipped the completed cell without appending a duplicate;
+- projections: deterministic summary JSON and long-form CSV generated from the
+  canonical JSONL.
+
+The first baseline attempt also exposed a role/model mismatch: using Mistral for
+LightRAG KEYWORD could emit unbounded prose instead of the requested compact
+keyword structure. The checked-in setup now keeps Mistral on EXTRACT and uses
+Atlas's thinking-disabled Qwen model for KEYWORD and QUERY. With that split, the
+previously blocked graph keyword query completed successfully.
+
+These runs validate orchestration, evidence durability, resume, graph invocation,
+and reporting. They do not add quality scores to the published historical ladder:
+Atlas evaluator defects [#596](https://github.com/thekaveh/atlas/issues/596) and
+[#597](https://github.com/thekaveh/atlas/issues/597) prevented valid Ragas scores,
+so partial smoke artifacts remain under gitignored `compare/results/`. A complete
+six-approach ladder should be published only after those evaluator contracts are
+fixed and the renewed run passes artifact validation.
+
+## 14. Reading the Current Results
 
 The historical ladder shows ranking drift: wider vanilla retrieval led the
 baseline corpus, high-recall hybrid retrieval led the graph-native dossiers, and

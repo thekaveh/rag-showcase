@@ -10,6 +10,7 @@ regenerate docs/dataset-complexity-report.md.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -300,8 +301,25 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def corpus_revision(corpus_path: str) -> str:
+    root = ROOT / Path(corpus_path)
+    digest = hashlib.sha256()
+    for path in sorted(item for item in root.rglob("*") if item.is_file()):
+        digest.update(path.relative_to(root).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        with path.open("rb") as handle:
+            for block in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(block)
+    return f"sha256:{digest.hexdigest()}"
+
+
 def run_matrix_and_judge(
-    dataset: dict[str, Any], date_stamp: str, approaches: str, flavors: str
+    dataset: dict[str, Any],
+    date_stamp: str,
+    approaches: str,
+    flavors: str,
+    *,
+    fresh_ingestion: bool = False,
 ) -> tuple[Path, Path, Path, Path]:
     dataset_id = dataset["id"]
     run_id = f"live-{date_stamp}-{dataset_id}"
@@ -309,6 +327,15 @@ def run_matrix_and_judge(
     judgments_name = f"live-{date_stamp}-{dataset_id}-judgments.json"
     evidence_name = f"live-{date_stamp}-{dataset_id}-evidence.jsonl"
     evaluation_name = f"live-{date_stamp}-{dataset_id}-evaluation.json"
+    working_paths = [
+        RESULTS / matrix_name,
+        RESULTS / judgments_name,
+        RESULTS / evidence_name,
+        RESULTS / evaluation_name,
+    ]
+    if fresh_ingestion:
+        for path in working_paths:
+            path.unlink(missing_ok=True)
     env = os.environ.copy()
     # Exported MATRIX_MODELS/MATRIX_FLAVORS (e.g. left over from the documented
     # manual run_matrix.py workflow) must not govern the run: they'd bypass
@@ -323,6 +350,10 @@ def run_matrix_and_judge(
     env["MATRIX_SUMMARY_FILE"] = evaluation_name
     env["MATRIX_DATASET_ID"] = dataset_id
     env["MATRIX_RUN_ID"] = run_id
+    env["MATRIX_INGESTION_PROFILE"] = dataset_id
+    env["MATRIX_INGESTION_REVISION"] = corpus_revision(dataset["corpus_path"])
+    env["MATRIX_INGESTION_JOB_ID"] = f"ladder:{date_stamp}:{dataset_id}"
+    env["MATRIX_INGESTION_MODE"] = "dataset-ladder"
     if approaches:
         env["MATRIX_MODELS"] = approaches
     if flavors:
@@ -478,7 +509,12 @@ def main() -> None:
         ingest_dataset(dataset)
         wait_for_lightrag(dataset["id"])
         matrix, judgments, evidence, evaluation = run_matrix_and_judge(
-            dataset, args.date_stamp, args.approaches, args.flavors)
+            dataset,
+            args.date_stamp,
+            args.approaches,
+            args.flavors,
+            fresh_ingestion=not args.no_cold_reset,
+        )
         update_dataset_snapshots(
             dataset["id"], matrix, judgments, evidence, evaluation
         )

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
+import sys
 
-from compare.evaluation_summary import build_summary, write_summary
+from compare.evaluation_summary import build_summary, write_summary, write_summary_csv
 
 
 def _row(
@@ -74,6 +76,7 @@ def test_summary_reports_coverage_failures_ties_and_longitudinal_progression() -
         "total": 2,
         "not_evaluable": 1,
         "errors": 0,
+        "timeouts": 0,
         "coverage": 0.5,
     }
     assert easy["approaches"]["b"]["operational"]["successful"] == 1
@@ -184,3 +187,87 @@ def test_write_summary_is_byte_stable_for_reordered_jsonl(tmp_path: Path) -> Non
     write_summary(second_rows, second)
 
     assert first.read_bytes() == second.read_bytes()
+
+
+def test_write_summary_preserves_metrics_when_judgments_artifact_is_invalid(
+    tmp_path: Path,
+) -> None:
+    rows_path = tmp_path / "rows.jsonl"
+    rows_path.write_text(json.dumps(_row("easy", 1, "q1", "a")) + "\n", encoding="utf-8")
+
+    for judgments_path in (
+        tmp_path / "missing.json",
+        tmp_path / "malformed.json",
+        tmp_path / "non-object.json",
+        tmp_path / "invalid-shape.json",
+    ):
+        if judgments_path.name == "malformed.json":
+            judgments_path.write_text("[not an object]", encoding="utf-8")
+        elif judgments_path.name == "non-object.json":
+            judgments_path.write_text("[]", encoding="utf-8")
+        elif judgments_path.name == "invalid-shape.json":
+            judgments_path.write_text('{"queries":["invalid"]}', encoding="utf-8")
+        output = tmp_path / f"{judgments_path.stem}-summary.json"
+        summary = write_summary(rows_path, output, judgments_path)
+
+        judge = summary["datasets"]["easy"]["judge_panel"]
+        assert judge["status"] == "error"
+        assert judge["error"]
+        assert summary["datasets"]["easy"]["approaches"]["a"]["ragas"][
+            "faithfulness"
+        ]["mean"] == 0.8
+
+
+def test_summary_separates_metric_timeouts_from_errors(tmp_path: Path) -> None:
+    summary = build_summary(
+        [_row("easy", 1, "q1", "a", status="timeout", faithfulness=None)],
+        judgments=None,
+    )
+    metric = summary["datasets"]["easy"]["approaches"]["a"]["ragas"]["faithfulness"]
+    assert metric["errors"] == 0
+    assert metric["timeouts"] == 1
+
+    output = tmp_path / "summary.csv"
+    write_summary_csv(summary, output)
+    ragas_line = next(
+        line for line in output.read_text(encoding="utf-8").splitlines()
+        if line.startswith("dataset,easy,1,a,ragas,faithfulness")
+    )
+    assert ragas_line.endswith(",0,1,0")
+
+
+def test_write_summary_csv_keeps_metric_classes_and_coverage_separate(tmp_path: Path) -> None:
+    rows = [
+        _row("easy", 1, "q1", "a", faithfulness=0.8),
+        _row("easy", 1, "q2", "a", faithfulness=None,
+             ragas_status="not_evaluable"),
+    ]
+    summary = build_summary(rows, judgments=None)
+    output = tmp_path / "summary.csv"
+
+    write_summary_csv(summary, output)
+
+    assert output.read_text(encoding="utf-8").splitlines() == [
+        "scope,dataset_id,complexity_level,approach,metric_class,metric,value,"
+        "evaluated,total,coverage,errors,timeouts,not_evaluable",
+        "dataset,easy,1,a,operational,mean_latency_ms,100.0,2,2,1.0,0,0,0",
+        "dataset,easy,1,a,ragas,faithfulness,0.8,1,2,0.5,0,0,1",
+        "dataset,easy,1,a,judge_panel,mean_score,,0,2,0.0,0,0,0",
+        "overall,,,a,operational,mean_latency_ms,100.0,2,2,1.0,0,0,0",
+        "overall,,,a,ragas,faithfulness,0.8,1,2,0.5,0,0,1",
+        "overall,,,a,judge_panel,mean_score,,0,2,0.0,0,0,0",
+    ]
+
+
+def test_summarize_cli_help_runs_from_repo_root() -> None:
+    root = Path(__file__).parents[1]
+    result = subprocess.run(
+        [sys.executable, "compare/summarize.py", "--help"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "--csv-output" in result.stdout

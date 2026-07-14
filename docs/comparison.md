@@ -52,7 +52,8 @@ At the time of the recorded 2026-07-03 run, the key fixes were:
 - LightRAG role-specific EXTRACT/KEYWORD/QUERY models configured separately;
 - LightRAG EXTRACT tuned to `max_async=1` and `timeout=900`;
 - `nomic-embed-text` embeddings for graph ingestion;
-- LightRAG upload retry on HTTP 409 backpressure;
+- LightRAG upload retry on HTTP 409 backpressure, with exact already-processed
+  conflicts treated as idempotent during a resumed ingest;
 - TEI rerank batching for high-recall flavors, capped to the reranker's 32-item
   client batch limit;
 - graph query payload tuned to avoid the broken TEI rerank path and reduce context fanout:
@@ -97,6 +98,7 @@ uv run python compare/judge.py
 uv run python compare/summarize.py \
   --rows compare/results/graph_native_evidence.jsonl \
   --output compare/results/graph_native_evaluation.json \
+  --csv-output compare/results/graph_native_evaluation.csv \
   --judgments compare/results/graph_native_judgments.json
 ```
 

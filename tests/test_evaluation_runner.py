@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
+import sys
 
 import httpx
 import pytest
@@ -16,6 +18,31 @@ from compare.evaluation import (
     load_manifest,
     run_evaluation,
 )
+
+
+def test_evaluation_module_imports_without_posix_fcntl() -> None:
+    script = """
+import builtins
+
+real_import = builtins.__import__
+
+def guarded_import(name, *args, **kwargs):
+    if name == "fcntl":
+        raise ImportError("fcntl is unavailable")
+    return real_import(name, *args, **kwargs)
+
+builtins.__import__ = guarded_import
+import compare.evaluation
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=Path(__file__).parents[1],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 def _manifest(tmp_path: Path, *, retries: int = 0) -> tuple[object, object]:
@@ -205,6 +232,54 @@ def test_jsonl_store_rejects_duplicate_existing_row_ids(tmp_path: Path) -> None:
         JsonlStore(path).rows()
 
 
+def test_jsonl_store_rechecks_disk_before_append_from_stale_writer(tmp_path: Path) -> None:
+    path = tmp_path / "rows.jsonl"
+    first = JsonlStore(path)
+    stale = JsonlStore(path)
+    first.rows()
+    stale.rows()
+
+    first.append({"row_id": "same", "status": "ok"})
+
+    with pytest.raises(ValueError, match="duplicate row_id.*same"):
+        stale.append({"row_id": "same", "status": "ok"})
+    assert len(path.read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_jsonl_store_claim_prevents_duplicate_cross_process_invocation(tmp_path: Path) -> None:
+    path = tmp_path / "rows.jsonl"
+    calls = tmp_path / "calls.txt"
+    script = """
+import sys
+import time
+from pathlib import Path
+from compare.evaluation import JsonlStore
+
+store = JsonlStore(Path(sys.argv[1]))
+with store.claim("same") as claimed:
+    if claimed:
+        with Path(sys.argv[2]).open("a", encoding="utf-8") as handle:
+            handle.write("invoked\\n")
+        time.sleep(0.2)
+        store.append({"row_id": "same", "status": "ok"})
+"""
+    processes = [
+        subprocess.Popen(
+            [sys.executable, "-c", script, str(path), str(calls)],
+            cwd=Path(__file__).parents[1],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        for _ in range(2)
+    ]
+    completed = [process.communicate(timeout=10) for process in processes]
+
+    assert [process.returncode for process in processes] == [0, 0], completed
+    assert calls.read_text(encoding="utf-8").splitlines() == ["invoked"]
+    assert len(JsonlStore(path).rows()) == 1
+
+
 @respx.mock
 def test_atlas_evaluator_calls_only_eligible_metrics_and_records_models() -> None:
     route = respx.post("http://atlas.test/api/rag/evaluate").mock(
@@ -244,8 +319,17 @@ def test_atlas_evaluator_calls_only_eligible_metrics_and_records_models() -> Non
 
 
 @respx.mock
-def test_atlas_evaluator_marks_missing_contexts_without_http_call() -> None:
-    route = respx.post("http://atlas.test/api/rag/evaluate")
+def test_atlas_evaluator_sends_contextless_eligible_metrics_only() -> None:
+    route = respx.post("http://atlas.test/api/rag/evaluate").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "evaluator_model": "eval-model",
+                "embeddings_model": "embed-model",
+                "results": [{"scores": {"answer_relevancy": 0.9}}],
+            },
+        )
+    )
     client = AtlasEvaluationClient("http://atlas.test/api/rag/evaluate", timeout_s=2)
 
     result = client.evaluate(
@@ -254,11 +338,14 @@ def test_atlas_evaluator_marks_missing_contexts_without_http_call() -> None:
     )
     client.close()
 
-    assert not route.called
-    assert result["status"] == "not_evaluable"
+    assert route.called
+    request = json.loads(route.calls[0].request.content)
+    assert request["metrics"] == ["answer_relevancy"]
+    assert request["records"][0]["contexts"] == []
+    assert result["status"] == "partial"
+    assert result["scores"] == {"answer_relevancy": 0.9}
     assert result["not_evaluable"] == {
         "faithfulness": "retrieved_contexts_required",
-        "answer_relevancy": "retrieved_contexts_required",
     }
 
 
@@ -278,3 +365,28 @@ def test_atlas_evaluator_failure_is_metric_error_not_lost_answer() -> None:
     assert result["status"] == "error"
     assert result["scores"] == {}
     assert "503" in result["error"]
+
+
+@respx.mock
+def test_atlas_evaluator_records_null_scores_as_metric_errors() -> None:
+    respx.post("http://atlas.test/api/rag/evaluate").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "evaluator_model": "eval-model",
+                "embeddings_model": "embed-model",
+                "results": [{"scores": {"faithfulness": None}}],
+            },
+        )
+    )
+    client = AtlasEvaluationClient("http://atlas.test/api/rag/evaluate", timeout_s=2)
+
+    result = client.evaluate(
+        question="q", answer="a", contexts=["c"], reference=None,
+        metrics=["faithfulness"], metadata={},
+    )
+    client.close()
+
+    assert result["status"] == "error"
+    assert result["scores"] == {}
+    assert result["metric_errors"] == {"faithfulness": "score_missing_or_null"}

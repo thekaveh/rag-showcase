@@ -61,6 +61,7 @@ the active report unless `compare/datasets.yaml` still references them.
   [`dataset-complexity-report.md`](../dataset-complexity-report.md).
 - [`compare/judge.py`](../../compare/judge.py) reads the compatibility matrix only.
 - [`compare/summarize.py`](../../compare/summarize.py) rebuilds deterministic
-  evaluation summaries from canonical JSONL and an optional judgment artifact.
+  evaluation summaries from canonical JSONL and an optional judgment artifact;
+  its optional `--csv-output` is a long-form generated view of the same summary.
 - [`evaluation-methodology.md`](../evaluation-methodology.md) defines the full
   ownership, metric, evidence, resume, and ranking contract.

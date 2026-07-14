@@ -85,8 +85,8 @@ def test_manifest_env_sets_atlas_lightrag_inputs_not_native_runtime_envs() -> No
     manifest = (ROOT / "atlas.consumer.yml").read_text(encoding="utf-8")
 
     assert "LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b" in env_file
-    assert "LIGHTRAG_KEYWORD_LLM_MODEL=mistral-small3.2:24b" in env_file
-    assert "LIGHTRAG_QUERY_LLM_MODEL=mistral-small3.2:24b" in env_file
+    assert "LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.6:latest" in env_file
+    assert "LIGHTRAG_QUERY_LLM_MODEL=qwen3.6:latest" in env_file
     assert "model_sidecars:" in manifest
     assert "mistral-small3.2:24b" in manifest
 

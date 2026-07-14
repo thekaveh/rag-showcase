@@ -54,8 +54,8 @@ underlying LLM. The approach then calls one or more configured roles.
 | `contextual_blurb` | `qwen3.6:latest` | `contextual-rag` ingest | Generates short context blurbs before embedding contextual chunks. |
 | `agentic` | `qwen3.6:latest` | `agentic-rag` | Controls the ReAct loop and tool selection. |
 | LightRAG EXTRACT | `mistral-small3.2:24b` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for entity and relationship extraction. |
-| LightRAG KEYWORD | `mistral-small3.2:24b` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for LightRAG keyword/query decomposition. |
-| LightRAG QUERY | `mistral-small3.2:24b` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for final LightRAG graph answers. |
+| LightRAG KEYWORD | `qwen3.6:latest` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for strict LightRAG keyword/query decomposition, with thinking disabled by Atlas model metadata. |
+| LightRAG QUERY | `qwen3.6:latest` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for final LightRAG graph answers, with thinking disabled by Atlas model metadata. |
 | n8n classifier | `qwen3.6:latest` | `n8n-adaptive-rag` | Workflow-level simple/complex classifier. |
 
 Atlas's model catalog applies `request_defaults: {think: false}` to
@@ -320,9 +320,9 @@ Query-time:
 - Graph extraction: Atlas LightRAG EXTRACT role, setup default
   `mistral-small3.2:24b`.
 - Graph keyword/query decomposition: Atlas LightRAG KEYWORD role, setup default
-  `mistral-small3.2:24b`.
+  `qwen3.6:latest` with Atlas-scoped thinking disabled.
 - Graph answer generation: Atlas LightRAG QUERY role, setup default
-  `mistral-small3.2:24b`.
+  `qwen3.6:latest` with Atlas-scoped thinking disabled.
 - LightRAG embeddings: setup default `nomic-embed-text`.
 - External evaluation: operational and judge metrics remain available. The current
   LightRAG response lacks retrievable contexts, so context-dependent Ragas metrics
@@ -330,9 +330,10 @@ Query-time:
 
 These LightRAG role models are configured through Atlas `LIGHTRAG_*` inputs, not
 through this plugin's `roles.yaml` `extraction` entry. The shipped default uses a
-non-reasoning Mistral model because LightRAG extraction makes many structured
-entity/relationship calls and reasoning-model chain-of-thought overhead was too
-slow for that phase.
+non-reasoning Mistral model for the high-volume entity/relationship phase, then
+reuses Atlas's thinking-disabled Qwen model for strict keyword output and final
+answers. Live validation found that assigning Mistral to KEYWORD could produce
+thousands of tokens instead of the requested compact structure.
 
 ### 6.5 Tuning Surface
 
@@ -344,8 +345,8 @@ slow for that phase.
 | `LIGHTRAG_QUERY_CHUNK_TOP_K` | 5 | Yes | Chunk context fanout. |
 | `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS` | 12000 | Yes | Query prompt/context budget. |
 | `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | Yes, Atlas `.env` | Extraction model choice has large quality/latency impact. |
-| `LIGHTRAG_KEYWORD_LLM_MODEL` | `mistral-small3.2:24b` | Yes, Atlas `.env` | Keyword/query decomposition role. |
-| `LIGHTRAG_QUERY_LLM_MODEL` | `mistral-small3.2:24b` | Yes, Atlas `.env` | Final graph answer model. |
+| `LIGHTRAG_KEYWORD_LLM_MODEL` | `qwen3.6:latest` | Yes, Atlas `.env` | Keyword/query decomposition role; model metadata supplies `think:false`. |
+| `LIGHTRAG_QUERY_LLM_MODEL` | `qwen3.6:latest` | Yes, Atlas `.env` | Final graph answer model; model metadata supplies `think:false`. |
 | `LIGHTRAG_EXTRACT_MAX_ASYNC_LLM` | 1 | Yes, Atlas `.env` | Stability vs throughput. |
 | `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | 900 | Yes, Atlas `.env` | Prevents slow extraction calls from failing too early. |
 | Ollama role context caps | 8192 defaults when native Ollama binding is used | Yes | Passed through overlay as `*_OLLAMA_LLM_NUM_CTX`. |
@@ -402,8 +403,8 @@ vector search or graph search, instead of following a fixed retrieval path.
 
 - Agent controller: `agentic` role, default `qwen3.6:latest`.
 - Vector tool embedding: `embed` role, default `nomic-embed-text`.
-- Graph tool: LightRAG EXTRACT/KEYWORD/QUERY roles, setup default
-  `mistral-small3.2:24b`.
+- Graph tool: LightRAG EXTRACT uses `mistral-small3.2:24b`; KEYWORD and QUERY
+  use Atlas's thinking-disabled `qwen3.6:latest` setup default.
 - External evaluation: Atlas scores eligible tool evidence through the Ragas
   endpoint; the manifest-configured judge panel scores stored answers separately.
 

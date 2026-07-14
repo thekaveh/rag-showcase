@@ -216,6 +216,17 @@ def main() -> None:
            if not (isinstance(q, dict) and q.get("id") and q.get("query"))]
     if bad:
         raise SystemExit(f"{query_path}: query rows missing id/query at indices {bad}")
+    seen_ids: set[str] = set()
+    duplicate_ids: set[str] = set()
+    for query in queries:
+        query_id = str(query["id"])
+        if query_id in seen_ids:
+            duplicate_ids.add(query_id)
+        seen_ids.add(query_id)
+    if duplicate_ids:
+        raise SystemExit(
+            f"{query_path}: duplicate query id(s): {', '.join(sorted(duplicate_ids))}"
+        )
     question_specs = [QuestionSpec.model_validate(query) for query in queries]
     profiles = selected_profiles()
     approaches = _selected_approaches(manifest, profiles)
@@ -260,7 +271,11 @@ def main() -> None:
             response = client.post(
                 f"{base}/v1/chat/completions",
                 headers={"Authorization": f"Bearer {key}"},
-                json={"model": model, "messages": [{"role": "user", "content": query}]},
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": query}],
+                    "cache": {"no-cache": True, "no-store": True},
+                },
                 timeout=httpx.Timeout(timeout_s, connect=10.0),
             )
             response.raise_for_status()

@@ -51,14 +51,14 @@
 - Modify: `tests/test_compare_harness.py`
 
 **Interfaces:**
-- Produces: `JsonlStore(path).completed_ids()` and `.append(row)` with duplicate protection and flush/fsync durability.
+- Produces: `JsonlStore(path).completed_ids()`, `.claim(row_id)`, and `.append(row)` with cross-process duplicate-invocation protection and flush/fsync durability.
 - Produces: `AtlasEvaluationClient.evaluate(question, answer, contexts, reference, metrics) -> dict`.
 - Produces: `run_evaluation(run_spec, invoke, evaluator, store) -> list[dict]`, where callables are injectable for deterministic tests.
 - `compare/run_matrix.py` remains the host CLI and compatibility JSON writer.
 
 - [x] **Step 1: Write failing 2x2 runner tests** asserting four stable row ids, one row per cell, explicit error/timeout rows, and successful cells surviving another cell's failure.
 - [x] **Step 2: Write failing resume tests** asserting a pre-existing completed row is not invoked again and duplicate row identities are rejected rather than silently appended.
-- [x] **Step 3: Implement stable row identity, JSONL loading/appending, retries, timeout classification, and sequential/concurrent task execution** with default concurrency `1`.
+- [x] **Step 3: Implement stable row identity, locked JSONL loading/appending, per-row process claims, retries, timeout classification, and sequential/concurrent task execution** with default concurrency `1`.
 - [x] **Step 4: Write failing evaluator tests** for eligible metrics, missing contexts, missing references, evaluator failure, model metadata, and metric-class separation.
 - [x] **Step 5: Implement the HTTP client** against configurable Atlas `POST /api/rag/evaluate`, splitting reference-required metrics and preserving `ok`, `partial`, `not_evaluable`, `error`, and `disabled` states.
 - [x] **Step 6: Refactor `run_matrix.py`** to validate before calls, append canonical rows immediately, skip completed ids on resume, and still emit the current matrix JSON view.
@@ -77,12 +77,13 @@
 **Interfaces:**
 - Produces: `build_summary(rows: list[dict], judgments: dict | None) -> dict` with dataset and overall sections.
 - Produces: `write_summary(rows_path, output_path, judgments_path=None)` with byte-stable sorted JSON.
+- Produces: an optional deterministic long-form CSV projection with metric class, coverage, failures, timeouts, and unevaluable counts.
 - Judge models default from `compare/evaluation.yaml`; `JUDGE_MODELS` remains an explicit operator override.
 
 - [x] **Step 1: Write failing summary tests** for per-dataset and overall Ragas means, latency/error coverage, failed and unevaluable denominators, explicit ties, and longitudinal per-approach progression.
 - [x] **Step 2: Implement pure deterministic aggregation and tie grouping** without timestamps or row-order dependence in the summary function.
 - [x] **Step 3: Write failing judge-join tests** proving judge scores live in a separate metric section and judge failure does not change Ragas or operational aggregates.
-- [x] **Step 4: Implement optional judgment joining and the summary CLI**; malformed or absent judge artifacts produce explicit disabled/error metadata rather than deleting other metrics.
+- [x] **Step 4: Implement optional judgment joining and the summary CLI/CSV projection**; malformed, non-object, or absent judge artifacts produce explicit disabled/error metadata rather than deleting other metrics.
 - [x] **Step 5: Make judge model selection manifest-driven** while preserving stable anonymization, batching, `think:false`, and existing output compatibility.
 - [x] **Step 6: Run `uv run pytest tests/test_evaluation_summary.py tests/test_judge.py -q`** and verify GREEN.
 
@@ -132,9 +133,14 @@
 **Interfaces:**
 - A controlled two-alias live smoke proves Atlas alias invocation, Ragas evaluation, interrupted resume, and validated output before a full ladder run is attempted.
 
-- [ ] **Step 1: Run `uv run pytest tests backend_plugins/rag/tests -q`**, `uv run ruff check backend_plugins compare scripts tests`, and `make docs-check`.
-- [ ] **Step 2: Run Atlas consumer-manifest/preflight and Compose configuration checks** using the pinned submodule and showcase overlay.
-- [ ] **Step 3: Start the scoped RAG stack without hardware assumptions**; if startup fails, diagnose and fix showcase-owned faults while recording genuine external blockers.
-- [ ] **Step 4: Run a live two-approach/two-dataset smoke**, interrupt after at least one canonical row, resume, and verify no duplicate row ids.
+- [x] **Step 1: Run `uv run pytest tests backend_plugins/rag/tests -q`**, `uv run ruff check backend_plugins compare scripts tests`, and `make docs-check` (283 passed, 8 environment-gated skips; Ruff and docs checks passed).
+- [x] **Step 2: Run Atlas consumer-manifest/preflight and Compose configuration checks** using the pinned submodule and showcase overlay (all required checks passed; only the documented no-API-key n8n restart warning remained).
+- [x] **Step 3: Start the scoped RAG stack without hardware assumptions**; Atlas commit `087a5a5d` converged through the consumer manifest, and the showcase-owned fallback correctly handled Atlas's transient detached-start status.
+- [x] **Step 4: Run a live two-approach/two-dataset smoke**, interrupt after at least one canonical row, resume, and verify no duplicate row ids. Graph-native produced 16 successful rows; the baseline keyword smoke produced two after splitting LightRAG EXTRACT from KEYWORD/QUERY.
 - [ ] **Step 5: Run the six canonical approaches across eligible measured ladder datasets**, evaluate eligible rows, run the optional judges, validate all artifacts, regenerate reports, and tear the stack down.
 - [ ] **Step 6: Re-run all static verification after generated report changes**, inspect the final diff, commit focused changes, push, open a PR into `develop`, and update issue #24 with evidence.
+
+Live Ragas scoring remains blocked upstream: Atlas #596 tracks its Ragas 0.4.3
+metric import mismatch, and Atlas #597 tracks metric-aware context validation.
+The runner records both failures without losing successful approach evidence; no
+partial smoke result is promoted into the historical comparison report.

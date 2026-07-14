@@ -49,6 +49,20 @@ def test_main_rejects_malformed_query_rows_before_running(tmp_path, monkeypatch)
         run_matrix.main()
 
 
+def test_main_rejects_duplicate_query_ids_before_running(tmp_path, monkeypatch) -> None:
+    queries = tmp_path / "queries.yaml"
+    queries.write_text(
+        "- id: same\n  query: first\n- id: same\n  query: second\n",
+        encoding="utf-8",
+    )
+    values = {"LITELLM_PORT": "9", "LITELLM_MASTER_KEY": "k", "BACKEND_PORT": "8"}
+    monkeypatch.setattr(run_matrix, "envval", lambda key, default="": values.get(key, default))
+    monkeypatch.setenv("MATRIX_QUERIES_FILE", str(queries))
+
+    with pytest.raises(SystemExit, match="duplicate query id.*same"):
+        run_matrix.main()
+
+
 @respx.mock
 def test_main_records_failed_cell_and_completes(tmp_path, monkeypatch) -> None:
     # The per-cell contract the dataset ladder depends on: one failed approach is
@@ -69,11 +83,15 @@ def test_main_records_failed_cell_and_completes(tmp_path, monkeypatch) -> None:
 
     def responder(request):
         body = json.loads(request.content)
+        assert body["cache"] == {"no-cache": True, "no-store": True}
         if body["model"] == "vanilla-rag":
             raise httpx.ConnectError("backend down")
         return httpx.Response(200, json={
             "choices": [{"message": {"content": "fine answer\n\n---\n📊 1.0s · 1 chunk · 2 LLM calls · 0 cloud"}}]})
     respx.post("http://localhost:9/v1/chat/completions").mock(side_effect=responder)
+    respx.post("http://localhost:8/api/rag/evaluate").mock(
+        return_value=httpx.Response(503, text="evaluator unavailable")
+    )
 
     run_matrix.main()
 
@@ -89,7 +107,10 @@ def test_main_records_failed_cell_and_completes(tmp_path, monkeypatch) -> None:
     assert len(rows) == 2
     assert {row["status"] for row in rows} == {"error", "ok"}
     successful = next(row for row in rows if row["status"] == "ok")
-    assert successful["metrics"]["ragas"]["status"] == "not_evaluable"
+    ragas = successful["metrics"]["ragas"]
+    assert ragas["status"] == "error"
+    assert ragas["not_evaluable"] == {"faithfulness": "retrieved_contexts_required"}
+    assert "HTTPStatusError" in ragas["error"]
     assert out["canonical_rows_file"] == str(canonical)
     assert out["evaluation_summary_file"] == str(summary)
     summary_payload = json.loads(summary.read_text(encoding="utf-8"))
