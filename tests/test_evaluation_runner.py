@@ -176,6 +176,26 @@ def test_run_evaluation_resume_skips_completed_rows_without_duplicates(tmp_path:
     assert len((tmp_path / "rows.jsonl").read_text(encoding="utf-8").splitlines()) == 2
 
 
+def test_run_evaluation_resume_rejects_changed_configuration(tmp_path: Path) -> None:
+    manifest, dataset = _manifest(tmp_path)
+    questions = [QuestionSpec(id="q1", query="one")]
+    approaches = [SelectedApproach(model="vanilla-rag", base_model="vanilla-rag",
+                                   flavor="default", evidence="answer_with_contexts")]
+    path = tmp_path / "rows.jsonl"
+    run_evaluation(
+        manifest=manifest, run_id="same-run", dataset=dataset, questions=questions,
+        approaches=approaches, invoke=lambda *args: _completion("vanilla-rag"),
+        evaluator=None, store=JsonlStore(path), config_hashes={"manifest": "old"},
+    )
+
+    with pytest.raises(ValueError, match="resume row.*configuration"):
+        run_evaluation(
+            manifest=manifest, run_id="same-run", dataset=dataset, questions=questions,
+            approaches=approaches, invoke=lambda *args: _completion("vanilla-rag"),
+            evaluator=None, store=JsonlStore(path), config_hashes={"manifest": "new"},
+        )
+
+
 def test_jsonl_store_rejects_duplicate_existing_row_ids(tmp_path: Path) -> None:
     row = {"row_id": "same", "status": "ok"}
     path = tmp_path / "rows.jsonl"

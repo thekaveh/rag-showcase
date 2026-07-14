@@ -19,13 +19,15 @@ def test_dataset_report_ranks_measured_inputs_by_dataset() -> None:
 
     out = result.stdout
     assert "## 1. Dataset Complexity Ladder" in out
+    assert "## 2. Judge-Panel Ranking Drift by Input Dataset" in out
     assert "| Dataset | Complexity | Status | Winner | Ranking |" in out
     assert "baseline_curated" in out
     assert "graph_native" in out
     assert "contextual-rag" in out
     assert "on `graph_native`, `hybrid-rag-high-recall` leads" in out
     assert "on `cyber_threat_intel`, `contextual-rag-high-recall` leads" in out
-    assert "## 3. Per-Query Winners" in out
+    assert "## 3. Canonical Evaluation Metrics" in out
+    assert "## 4. Per-Query Winners" in out
     assert "stark_prime" in out
     assert "pending live run" in out
     # --stdout must emit exactly the bytes the write path produces (the committed
@@ -50,8 +52,9 @@ def test_dataset_report_write_mode_matches_committed_documentation(tmp_path) -> 
     assert f"wrote {out}" in result.stdout
     generated = out.read_text(encoding="utf-8")
     assert "## 1. Dataset Complexity Ladder" in generated
-    assert "## 2. Ranking Drift by Input Dataset" in generated
-    assert "## 3. Per-Query Winners" in generated
+    assert "## 2. Judge-Panel Ranking Drift by Input Dataset" in generated
+    assert "## 3. Canonical Evaluation Metrics" in generated
+    assert "## 4. Per-Query Winners" in generated
     committed = (ROOT / "docs" / "dataset-complexity-report.md").read_text(encoding="utf-8")
     assert generated == committed, (
         "docs/dataset-complexity-report.md is stale — regenerate it with "
@@ -142,3 +145,55 @@ def test_graph_measured_claim_requires_graph_on_every_rung(monkeypatch) -> None:
                      "mean_by_approach": {"vanilla-rag": 3.5, "graph-rag": 1.5}}]}
     report = rd.build_report()
     assert "`graph-rag` is measured end to end" in report
+
+
+def test_dataset_report_surfaces_canonical_metric_classes_when_available(monkeypatch) -> None:
+    import compare.report_datasets as rd
+
+    manifest = [{
+        "id": "ds_a",
+        "status": "measured",
+        "complexity_level": 1,
+        "graph_nature": "graph",
+        "queries_file": "demo/queries.yaml",
+        "judgment_snapshot": "judgments.json",
+        "evaluation_snapshot": "evaluation.json",
+    }]
+    judgments = {
+        "queries": [{"query_id": "q1", "observed_winner": "a",
+                     "mean_by_approach": {"a": 4.0, "b": 3.0}}]
+    }
+    summary = {
+        "datasets": {"ds_a": {
+            "coverage": {"total_rows": 4, "ok": 3, "errors": 1, "timeouts": 0},
+            "rankings": {
+                "ragas": {
+                    "faithfulness": [{
+                        "rank": 1, "approaches": ["a"], "value": 0.8,
+                        "coverage": {"a": {"evaluated": 1, "total": 2}},
+                    }],
+                    "answer_relevancy": [{
+                        "rank": 1, "approaches": ["b"], "value": 0.7,
+                        "coverage": {"b": {"evaluated": 2, "total": 2}},
+                    }],
+                },
+                "operational": {"mean_latency_ms": [{
+                    "rank": 1, "approaches": ["a"], "value": 125.0,
+                    "coverage": {"a": {"evaluated": 2, "total": 2}},
+                }]},
+                "judge_panel": [],
+            },
+        }},
+    }
+    monkeypatch.setattr(rd, "_load_manifest", lambda: manifest)
+    monkeypatch.setattr(rd, "_load_judgments", lambda path: judgments)
+    monkeypatch.setattr(rd, "_load_evaluation_summary", lambda path: summary)
+
+    report = rd.build_report()
+
+    assert "## 3. Canonical Evaluation Metrics" in report
+    assert "a 0.800 (1/2)" in report
+    assert "b 0.700 (2/2)" in report
+    assert "a 125 ms (2/2)" in report
+    assert "3/4 successful" in report
+    assert "1 error, 0 timeouts" in report

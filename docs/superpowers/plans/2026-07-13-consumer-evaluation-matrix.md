@@ -99,11 +99,11 @@
 - Dataset runs produce four documented artifacts: compatibility matrix JSON, compatibility judgment JSON, canonical evidence JSONL, and deterministic evaluation summary JSON.
 - Measured dataset rows gain optional `evidence_snapshot` and `evaluation_snapshot`; old rows with only matrix/judgment snapshots remain valid.
 
-- [ ] **Step 1: Write failing ladder tests** asserting deterministic run/dataset ids, canonical filenames, resume propagation, summary generation after judges, and atomic snapshot publication only after validation.
-- [ ] **Step 2: Integrate canonical paths into the ladder** and copy validated artifacts into `docs/results` alongside existing snapshots.
-- [ ] **Step 3: Write failing report tests** for separate judge, Ragas, operational, coverage, failure, and unevaluable columns with legacy fallback.
-- [ ] **Step 4: Update report generation** to prefer canonical summary data and retain the current judge-only behavior for historical datasets lacking new summaries.
-- [ ] **Step 5: Run `uv run pytest tests/test_dataset_ladder_runner.py tests/test_dataset_report.py -q`** and verify GREEN.
+- [x] **Step 1: Write failing ladder tests** asserting deterministic run/dataset ids, canonical filenames, resume propagation, summary generation after judges, and atomic snapshot publication only after validation.
+- [x] **Step 2: Integrate canonical paths into the ladder** and copy validated artifacts into `docs/results` alongside existing snapshots.
+- [x] **Step 3: Write failing report tests** for separate judge, Ragas, operational, coverage, failure, and unevaluable columns with legacy fallback.
+- [x] **Step 4: Update report generation** to prefer canonical summary data and retain the current judge-only behavior for historical datasets lacking new summaries.
+- [x] **Step 5: Run `uv run pytest tests/test_dataset_ladder_runner.py tests/test_dataset_report.py -q`** and verify GREEN.
 
 ### Task 5: Canonical Documentation and Migration Guidance
 

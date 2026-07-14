@@ -647,6 +647,25 @@ def run_evaluation(
     existing_rows = store.rows()
     existing = {row["row_id"]: row for row in existing_rows}
     tasks = [(question, approach) for question in questions for approach in approaches]
+    for question, approach in tasks:
+        row_id = stable_row_id(run_id, dataset.id, question.id, approach.model)
+        row = existing.get(row_id)
+        if row is None:
+            continue
+        reproducibility = row.get("reproducibility", {})
+        changed = (
+            row.get("question", {}).get("query") != question.query
+            or row.get("approach", {}).get("base_model") != approach.base_model
+            or row.get("approach", {}).get("flavor") != approach.flavor
+            or reproducibility.get("seed") != manifest.run.seed
+            or reproducibility.get("config_hashes", {}) != config_hashes
+            or reproducibility.get("ingestion", {}) != ingestion
+        )
+        if changed:
+            raise ValueError(
+                f"resume row {row_id} does not match the current configuration; "
+                "use a new MATRIX_RUN_ID or remove the stale canonical file"
+            )
     missing = [
         (question, approach)
         for question, approach in tasks
