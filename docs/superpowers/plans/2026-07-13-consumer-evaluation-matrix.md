@@ -138,7 +138,7 @@
 - [x] **Step 3: Start the scoped RAG stack without hardware assumptions**; Atlas commit `087a5a5d` converged through the consumer manifest, and the showcase-owned fallback correctly handled Atlas's transient detached-start status.
 - [x] **Step 4: Run a live two-approach/two-dataset smoke**, interrupt after at least one canonical row, resume, and verify no duplicate row ids. Graph-native produced 16 successful rows; the baseline keyword smoke produced two after splitting LightRAG EXTRACT from KEYWORD/QUERY.
 - [ ] **Step 5: Run the six canonical approaches across eligible measured ladder datasets**, evaluate eligible rows, run the optional judges, validate all artifacts, regenerate reports, and tear the stack down.
-- [ ] **Step 6: Re-run all static verification after generated report changes**, inspect the final diff, commit focused changes, push, open a PR into `develop`, and update issue #24 with evidence.
+- [x] **Step 6: Re-run all static verification after generated report changes**, inspect the final diff, commit focused changes, push, open PR #41 into `develop`, and update issue #24 with evidence.
 
 Live Ragas scoring remains blocked upstream: Atlas #596 tracks its Ragas 0.4.3
 metric import mismatch, and Atlas #597 tracks metric-aware context validation.
