@@ -56,14 +56,14 @@
 - Produces: `run_evaluation(run_spec, invoke, evaluator, store) -> list[dict]`, where callables are injectable for deterministic tests.
 - `compare/run_matrix.py` remains the host CLI and compatibility JSON writer.
 
-- [ ] **Step 1: Write failing 2x2 runner tests** asserting four stable row ids, one row per cell, explicit error/timeout rows, and successful cells surviving another cell's failure.
-- [ ] **Step 2: Write failing resume tests** asserting a pre-existing completed row is not invoked again and duplicate row identities are rejected rather than silently appended.
-- [ ] **Step 3: Implement stable row identity, JSONL loading/appending, retries, timeout classification, and sequential/concurrent task execution** with default concurrency `1`.
-- [ ] **Step 4: Write failing evaluator tests** for eligible metrics, missing contexts, missing references, evaluator failure, model metadata, and metric-class separation.
-- [ ] **Step 5: Implement the HTTP client** against configurable Atlas `POST /api/rag/evaluate`, splitting reference-required metrics and preserving `ok`, `partial`, `not_evaluable`, `error`, and `disabled` states.
-- [ ] **Step 6: Refactor `run_matrix.py`** to validate before calls, append canonical rows immediately, skip completed ids on resume, and still emit the current matrix JSON view.
-- [ ] **Step 7: Add CLI/env inputs** for manifest, dataset id, run id, canonical JSONL, summary path, evaluator URL, aliases/flavors, and compatibility output while retaining safe `--help` behavior.
-- [ ] **Step 8: Run `uv run pytest tests/test_evaluation_runner.py tests/test_run_matrix.py tests/test_compare_harness.py -q`** and verify GREEN.
+- [x] **Step 1: Write failing 2x2 runner tests** asserting four stable row ids, one row per cell, explicit error/timeout rows, and successful cells surviving another cell's failure.
+- [x] **Step 2: Write failing resume tests** asserting a pre-existing completed row is not invoked again and duplicate row identities are rejected rather than silently appended.
+- [x] **Step 3: Implement stable row identity, JSONL loading/appending, retries, timeout classification, and sequential/concurrent task execution** with default concurrency `1`.
+- [x] **Step 4: Write failing evaluator tests** for eligible metrics, missing contexts, missing references, evaluator failure, model metadata, and metric-class separation.
+- [x] **Step 5: Implement the HTTP client** against configurable Atlas `POST /api/rag/evaluate`, splitting reference-required metrics and preserving `ok`, `partial`, `not_evaluable`, `error`, and `disabled` states.
+- [x] **Step 6: Refactor `run_matrix.py`** to validate before calls, append canonical rows immediately, skip completed ids on resume, and still emit the current matrix JSON view.
+- [x] **Step 7: Add CLI/env inputs** for manifest, dataset id, run id, canonical JSONL, summary path, evaluator URL, aliases/flavors, and compatibility output while retaining safe `--help` behavior.
+- [x] **Step 8: Run `uv run pytest tests/test_evaluation_runner.py tests/test_run_matrix.py tests/test_compare_harness.py -q`** and verify GREEN.
 
 ### Task 3: Deterministic Summaries and Optional Judge Join
 
