@@ -124,6 +124,32 @@ def test_ladder_runner_rejects_judgments_without_valid_verdicts() -> None:
 
     with pytest.raises(RuntimeError, match="no queries"):
         module.validate_judgments({"queries": []}, dataset_id="example")
+    module.validate_judgments(
+        {"status": "disabled", "judges": [], "queries": []}, dataset_id="example"
+    )
+
+
+def test_ladder_validates_canonical_rows_and_summary() -> None:
+    module = _load_ladder_module()
+    rows = [
+        {"row_id": "a", "dataset": {"id": "example"}, "status": "ok"},
+        {"row_id": "b", "dataset": {"id": "example"}, "status": "error"},
+    ]
+    module.validate_canonical_rows(rows, dataset_id="example", expected_cells=2)
+    with pytest.raises(RuntimeError, match="duplicate row ids"):
+        module.validate_canonical_rows(rows + [rows[0]], dataset_id="example", expected_cells=3)
+    with pytest.raises(RuntimeError, match="expected 3.*found 2"):
+        module.validate_canonical_rows(rows, dataset_id="example", expected_cells=3)
+
+    summary = {
+        "schema_version": 1,
+        "datasets": {"example": {"coverage": {
+            "total_rows": 2, "ok": 1, "errors": 1, "timeouts": 0,
+        }}},
+    }
+    module.validate_evaluation_summary(summary, dataset_id="example", expected_cells=2)
+    with pytest.raises(RuntimeError, match="missing dataset"):
+        module.validate_evaluation_summary(summary, dataset_id="other", expected_cells=2)
 
 
 def test_wait_for_lightrag_drains_only_when_nothing_pending(monkeypatch) -> None:
@@ -236,6 +262,9 @@ def test_run_matrix_and_judge_ignores_exported_selection_env(monkeypatch, tmp_pa
     monkeypatch.setattr(module, "RESULTS", tmp_path / "results")
     monkeypatch.setattr(module, "DOC_RESULTS", tmp_path / "doc-results")
     module.RESULTS.mkdir(parents=True)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (corpus / "doc.md").write_text("alpha", encoding="utf-8")
 
     seen_envs: list[dict] = []
     def fake_run(cmd, env=None, **kw):
@@ -243,28 +272,97 @@ def test_run_matrix_and_judge_ignores_exported_selection_env(monkeypatch, tmp_pa
         seen_envs.append(env)
         if "MATRIX_RESULTS_FILE" in env:
             (module.RESULTS / env["MATRIX_RESULTS_FILE"]).write_text(json.dumps(
-                {"cells": [{"query_id": "q1", "model": "vanilla-rag", "ok": True}]}),
+                {"models": ["vanilla-rag"], "queries": [{"id": "q1"}],
+                 "cells": [{"query_id": "q1", "model": "vanilla-rag", "ok": True}]}),
                 encoding="utf-8")
-        else:
+            (module.RESULTS / env["MATRIX_CANONICAL_FILE"]).write_text(json.dumps({
+                "row_id": env["MATRIX_RUN_ID"] + "-q1",
+                "dataset": {"id": env["MATRIX_DATASET_ID"]},
+                "status": "ok",
+            }) + "\n", encoding="utf-8")
+            (module.RESULTS / env["MATRIX_SUMMARY_FILE"]).write_text(json.dumps({
+                "schema_version": 1,
+                "datasets": {env["MATRIX_DATASET_ID"]: {"coverage": {
+                    "total_rows": 1, "ok": 1, "errors": 0, "timeouts": 0,
+                }}},
+            }), encoding="utf-8")
+        elif "JUDGE_RESULTS_FILE" in env:
             (module.RESULTS / env["JUDGE_RESULTS_FILE"]).write_text(json.dumps(
-                {"queries": [{"query_id": "q1", "mean_by_approach": {"vanilla-rag": 4.0}}]}),
+                {"dataset_id": env.get("MATRIX_DATASET_ID", "ds"),
+                 "queries": [{"query_id": "q1", "mean_by_approach": {"vanilla-rag": 4.0}}]}),
                 encoding="utf-8")
     monkeypatch.setattr(module, "run", fake_run)
 
-    module.run_matrix_and_judge({"id": "ds", "queries_file": "q.json"}, "2026-07-04",
+    module.run_matrix_and_judge({"id": "ds", "queries_file": "q.json",
+                                 "corpus_path": str(corpus)}, "2026-07-04",
                                 approaches="", flavors="")
     matrix_env = seen_envs[0]
     assert matrix_env["MATRIX_QUERIES_FILE"] == "q.json"
+    assert matrix_env["MATRIX_DATASET_ID"] == "ds"
+    assert matrix_env["MATRIX_RUN_ID"] == "live-2026-07-04-ds"
+    assert matrix_env["MATRIX_CANONICAL_FILE"].endswith("-evidence.jsonl")
+    assert matrix_env["MATRIX_SUMMARY_FILE"].endswith("-evaluation.json")
     assert "MATRIX_MODELS" not in matrix_env
     assert "MATRIX_FLAVORS" not in matrix_env
 
     # The validated flags must still reach the subprocess (the scrub above must
     # not eat them).
-    module.run_matrix_and_judge({"id": "ds2", "queries_file": "q.json"}, "2026-07-04",
+    module.run_matrix_and_judge({"id": "ds2", "queries_file": "q.json",
+                                 "corpus_path": str(corpus)}, "2026-07-04",
                                 approaches="vanilla-rag", flavors="graph-rag-wide")
-    matrix_env = seen_envs[2]
+    matrix_env = seen_envs[3]
     assert matrix_env["MATRIX_MODELS"] == "vanilla-rag"
     assert matrix_env["MATRIX_FLAVORS"] == "graph-rag-wide"
+
+
+def test_cold_ingestion_discards_stale_working_evidence_before_matrix(
+        monkeypatch, tmp_path) -> None:
+    module = _load_ladder_module()
+    monkeypatch.setattr(module, "RESULTS", tmp_path / "results")
+    monkeypatch.setattr(module, "DOC_RESULTS", tmp_path / "doc-results")
+    module.RESULTS.mkdir(parents=True)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (corpus / "doc.md").write_text("alpha", encoding="utf-8")
+    dataset = {"id": "ds", "queries_file": "q.json", "corpus_path": str(corpus)}
+    date_stamp = "2026-07-04"
+    stale = module.RESULTS / f"live-{date_stamp}-ds-evidence.jsonl"
+    stale.write_text('{"row_id":"stale"}\n', encoding="utf-8")
+
+    seen_matrix_env: dict[str, str] = {}
+
+    def fake_run(cmd, env=None, **kw):
+        env = dict(env or {})
+        if "MATRIX_RESULTS_FILE" in env:
+            assert not stale.exists()
+            seen_matrix_env.update(env)
+            (module.RESULTS / env["MATRIX_RESULTS_FILE"]).write_text(json.dumps(
+                {"models": ["vanilla-rag"], "queries": [{"id": "q1"}],
+                 "cells": [{"query_id": "q1", "model": "vanilla-rag", "ok": True}]}),
+                encoding="utf-8",
+            )
+            (module.RESULTS / env["MATRIX_CANONICAL_FILE"]).write_text(json.dumps({
+                "row_id": "new", "dataset": {"id": "ds"}, "status": "ok",
+            }) + "\n", encoding="utf-8")
+            (module.RESULTS / env["MATRIX_SUMMARY_FILE"]).write_text(json.dumps({
+                "schema_version": 1,
+                "datasets": {"ds": {"coverage": {"total_rows": 1}}},
+            }), encoding="utf-8")
+        elif "JUDGE_RESULTS_FILE" in env:
+            (module.RESULTS / env["JUDGE_RESULTS_FILE"]).write_text(json.dumps({
+                "dataset_id": "ds",
+                "queries": [{"query_id": "q1", "mean_by_approach": {
+                    "vanilla-rag": 4.0,
+                }}],
+            }), encoding="utf-8")
+
+    monkeypatch.setattr(module, "run", fake_run)
+    module.run_matrix_and_judge(
+        dataset, date_stamp, approaches="vanilla-rag", flavors="", fresh_ingestion=True,
+    )
+
+    assert seen_matrix_env["MATRIX_INGESTION_REVISION"].startswith("sha256:")
+    assert seen_matrix_env["MATRIX_INGESTION_JOB_ID"] == "ladder:2026-07-04:ds"
 
 
 def test_selection_validation_resolves_relative_manifest_against_repo_root(

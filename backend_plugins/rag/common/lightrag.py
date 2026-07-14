@@ -111,6 +111,14 @@ async def upload_text(title: str, text: str) -> None:
             if resp.status_code != 409:
                 resp.raise_for_status()
                 return
+            try:
+                detail = str(resp.json().get("detail") or "")
+            except (TypeError, ValueError):
+                detail = ""
+            if ("Document storage already contains" in detail
+                    and "(Status: processed)" in detail):
+                _log.info("LightRAG already processed %s; keeping the existing graph", title)
+                return
             if attempt >= retries:
                 resp.raise_for_status()
             _log.info(

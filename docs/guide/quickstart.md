@@ -18,7 +18,8 @@ Atlas's requirements apply:
   use the local manifest/env pattern below with
   `LLM_PROVIDER_SOURCE=ollama-localhost` to select an existing host Ollama.
 - Disk / RAM / headroom for the `gen-ai-rag` stack plus your chosen local models. The
-  default local run activates `mistral-small3.2:24b` for LightRAG's graph roles — see
+  default local run activates `mistral-small3.2:24b` for LightRAG extraction and
+  uses `qwen3.6:latest` for graph keyword/query roles — see
   [Hardware Sizing](../hardware.md) for minimum and recommended profiles.
 
 ## 2. Bring It Up

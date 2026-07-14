@@ -11,7 +11,10 @@ as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse
 > `vanilla-rag-wide` led baseline, `hybrid-rag-high-recall` led graph-native, and
 > `contextual-rag-high-recall` led cyber. `graph-rag-fast` won several individual
 > baseline/graph-native questions; `graph-rag-wide` ranked last and is a bad current
-> tuning. Full analysis, per-query winners, methodology, raw snapshots, and findings:
+> tuning. These are historical blinded judge-panel scores; the 2026-07-03 run
+> predates canonical Atlas/Ragas evidence, which the renewed harness reports
+> separately with coverage and latency. Full analysis, per-query winners,
+> methodology, raw snapshots, and findings:
 > **[`docs/evaluation-methodology.md`](docs/evaluation-methodology.md)**,
 > **[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md)**, and
 > **[`docs/comparison.md`](docs/comparison.md)**.
@@ -27,7 +30,10 @@ all fourteen aliases selectable in Open WebUI without admin-API registration.
 Flavors such as `graph-rag-wide` route to the same base approach with reproducible
 parameter overrides. Open a multi-model chat, select
 the approaches or flavors you want, and one prompt fans out with a uniform answer,
-retrieved-context, and metrics surface.
+retrieved-context, and metrics surface. The evaluation harness persists each cell
+to append-safe JSONL, sends eligible evidence to Atlas's generic Ragas endpoint,
+and keeps deterministic operational metrics separate from the optional blinded
+judge panel.
 
 The six approaches embed via the same LiteLLM model and read the same corpus, so
 the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/roles.yaml`).
@@ -71,7 +77,8 @@ requirements apply:
   described below and set `LLM_PROVIDER_SOURCE=ollama-localhost` in its env file.
 - Disk/RAM/headroom for the `gen-ai-rag` stack plus whichever local models you
   choose. The default local run asks Atlas to activate `mistral-small3.2:24b`
-  for LightRAG's role-specific graph calls. See the
+  for LightRAG extraction and uses Atlas's default `qwen3.6:latest` for graph
+  keyword and query calls. See the
   [hardware sizing guide](docs/hardware.md) for minimum and recommended profiles.
 
 ```bash
@@ -168,7 +175,7 @@ rag-showcase/
 ├── scripts/                 # start-all / stop-all / Atlas preflight / run-dataset-ladder
 ├── n8n/                     # Adaptive-RAG workflow recipe
 ├── demo/                    # contrasting query matrices (queries.yaml + per-dataset)
-├── compare/                 # host comparison harness (run_matrix, judge, report_datasets, flavors/datasets)
+├── compare/                 # consumer evaluation manifest, resumable matrix, Ragas summaries, judges, reports
 ├── tests/                   # end-to-end integration harness (skips without the stack)
 └── docs/                    # architecture, approaches, evaluation, comparison, results, specs & plans
 ```
@@ -207,8 +214,8 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | `BACKEND_PLUGINS_DIR` | `/app/plugins` | plugin seam (Atlas) | overlay |
 | `ATLAS_CONSUMER_MANIFEST` | `atlas.consumer.yml` | Atlas bootstrapper | host env; absolute path to the parent-owned consumer manifest |
 | `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | `config/atlas.env.user` |
-| `LIGHTRAG_KEYWORD_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG KEYWORD role | `config/atlas.env.user` |
-| `LIGHTRAG_QUERY_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG QUERY role | `config/atlas.env.user` |
+| `LIGHTRAG_KEYWORD_LLM_MODEL` | `qwen3.6:latest` | LightRAG KEYWORD role | `config/atlas.env.user`; Atlas applies model-scoped `think:false` |
+| `LIGHTRAG_QUERY_LLM_MODEL` | `qwen3.6:latest` | LightRAG QUERY role | `config/atlas.env.user`; Atlas applies model-scoped `think:false` |
 | `LIGHTRAG_EMBEDDING_MODEL` | `nomic-embed-text` | LightRAG embedding model | `config/atlas.env.user` |
 | `LIGHTRAG_EXTRACT_MAX_ASYNC_LLM` | `1` | LightRAG EXTRACT concurrency | `config/atlas.env.user` |
 | `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | `900` | LightRAG EXTRACT timeout seconds | `config/atlas.env.user` |
@@ -239,17 +246,17 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Approach flow diagram (interactive)](docs/diagrams/approach-flows.md) | Living | Rendered parallel-lane diagram of the six approach flow phases (HTML/SVG in an inline iframe) |
 | [Approach internals](docs/approaches.md) | Living | Step-by-step flow, dependencies, tuning variables, tradeoffs, and measured performance for every approach |
 | [Approach flavor tuning](docs/approach-flavor-tuning.md) | Living | Open WebUI model aliases, benchmark flavor selection, and query-time versus index-time tuning knobs |
-| [Evaluation methodology](docs/evaluation-methodology.md) | Living | Dataset ladder protocol, model roles, approach invocation flow, judge panel design, and result artifacts |
+| [Evaluation methodology](docs/evaluation-methodology.md) | Living | Atlas/showcase ownership, evidence schema, resumable ladder, Ragas states, operational metrics, judge panel, and four-artifact contract |
 | [Hardware sizing](docs/hardware.md) | Living | Minimum and recommended hardware profiles for live stack, local models, and graph-heavy runs |
 | [Atlas-reuse assessment](docs/atlas-reuse-assessment.md) | Living | What reused cleanly, friction found, recommendations for Atlas |
 | [Dependency contract ledger](docs/dependency-contracts.md) | Living | Each consumed external dependency (LiteLLM, Weaviate, LightRAG, TEI, n8n, Atlas) and the exact pinned version its contract was verified against |
 | [Atlas LightRAG role-model spec](docs/atlas-lightrag-role-model-spec.md) | Implemented upstream | Historical Atlas-side spec for first-class LightRAG EXTRACT/KEYWORD/QUERY model wiring |
 | [Corpus](corpus/README.md) | Living | How to populate the corpus |
 | [Dataset adapters](corpus/adapters/README.md) | Living | The dataset fetch/adapter CLIs (GDELT, OpenAlex, STaRK, MITRE cyber) behind the candidate real-world graph rungs |
-| [Dataset complexity report](docs/dataset-complexity-report.md) | Living | Approach rankings by input dataset complexity, plus candidate real-world graph datasets |
+| [Dataset complexity report](docs/dataset-complexity-report.md) | Living | Judge and canonical metric rankings by dataset complexity, with coverage and legacy fallback |
 | [n8n workflow](n8n/README.md) | Living | Checked-in Adaptive-RAG workflow, Atlas seeding lifecycle, and workflow tuning knobs |
 | [Live comparison](docs/comparison.md) | Living | Side-by-side results of all six approaches + live-validation findings (`think:false`, LightRAG role/query tuning, graph-native corpus behavior) |
-| [Result snapshots](docs/results/README.md) | Living | Index of the committed live-run matrix/judgment JSON snapshots — which set is current vs historical |
+| [Result snapshots](docs/results/README.md) | Living | Canonical evidence/evaluation and compatibility matrix/judgment artifact contract, plus current historical snapshots |
 
 ## 8. Development & Testing
 

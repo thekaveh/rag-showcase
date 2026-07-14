@@ -119,6 +119,25 @@ async def test_lightrag_upload_text_retries_409_backpressure(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_lightrag_upload_text_accepts_processed_document_conflict(monkeypatch):
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    monkeypatch.setenv("LIGHTRAG_UPLOAD_RETRIES", "2")
+    monkeypatch.setenv("LIGHTRAG_UPLOAD_RETRY_DELAY", "0")
+    with respx.mock:
+        upload = respx.post("http://lightrag:9621/documents/text").mock(
+            return_value=httpx.Response(
+                409,
+                json={
+                    "detail": "Document storage already contains 'My Doc' "
+                    "(Status: processed). Delete the existing record before re-inserting."
+                },
+            )
+        )
+        await lightrag.upload_text("My Doc", "some content")
+        assert upload.call_count == 1
+
+
+@pytest.mark.asyncio
 async def test_lightrag_query_guards_short_input(monkeypatch):
     # a <3-char query must not reach LightRAG (which 422s on min_length=3): no
     # HTTP call is attempted and a clear message is returned instead of a 500.

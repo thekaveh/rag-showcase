@@ -23,7 +23,7 @@ For approach-by-approach internals and tuning surfaces, see
 | `gdelt_events` | 6 | candidate | Event, actor, location, theme, source, tone, and timeline graph over real news events. | [`demo/gdelt_events_queries.yaml`](../demo/gdelt_events_queries.yaml) | https://www.gdeltproject.org/ |
 | `cyber_threat_intel` | 7 | measured | Intrusion groups, campaigns, malware, tools, ATT&CK techniques, mitigations, and explicit uses/mitigates relationships. | [`demo/cyber_threat_intel_queries.yaml`](../demo/cyber_threat_intel_queries.yaml) | https://attack.mitre.org/ |
 
-## 2. Ranking Drift by Input Dataset
+## 2. Judge-Panel Ranking Drift by Input Dataset
 
 | Dataset | Complexity | Status | Winner | Ranking |
 |---|---:|---|---|---|
@@ -35,7 +35,24 @@ For approach-by-approach internals and tuning surfaces, see
 | `gdelt_events` | 6 | candidate | pending live run | pending live run |
 | `cyber_threat_intel` | 7 | measured | contextual-rag-high-recall | contextual-rag-high-recall 3.58 > contextual-rag 3.17 > n8n-adaptive-rag 3.08 > n8n-adaptive-rag-default 3.08 > vanilla-rag 3.08 > hybrid-rag-fast 2.92 > hybrid-rag-high-recall 2.92 > vanilla-rag-wide 2.83 > hybrid-rag 2.50 > graph-rag-fast 2.42 > agentic-rag-deeper 2.08 > agentic-rag 2.00 > graph-rag 1.92 > graph-rag-wide 1.00 |
 
-## 3. Per-Query Winners
+## 3. Canonical Evaluation Metrics
+
+These columns come from the append-safe evidence rows. Ragas values are
+evaluator-model scores, latency and failures are operational measurements,
+and coverage is shown beside every ranking so unevaluable or failed cells
+cannot disappear from the comparison.
+
+| Dataset | Faithfulness ranking | Answer relevancy ranking | Latency ranking | Row coverage | Failures |
+|---|---|---|---|---|---|
+| `baseline_curated` | legacy snapshot; rerun required | legacy snapshot; rerun required | legacy snapshot; rerun required | not available | not available |
+| `graph_native` | legacy snapshot; rerun required | legacy snapshot; rerun required | legacy snapshot; rerun required | not available | not available |
+| `stark_prime` | legacy snapshot; rerun required | legacy snapshot; rerun required | legacy snapshot; rerun required | not available | not available |
+| `stark_mag` | legacy snapshot; rerun required | legacy snapshot; rerun required | legacy snapshot; rerun required | not available | not available |
+| `openalex_scholarly` | legacy snapshot; rerun required | legacy snapshot; rerun required | legacy snapshot; rerun required | not available | not available |
+| `gdelt_events` | legacy snapshot; rerun required | legacy snapshot; rerun required | legacy snapshot; rerun required | not available | not available |
+| `cyber_threat_intel` | legacy snapshot; rerun required | legacy snapshot; rerun required | legacy snapshot; rerun required | not available | not available |
+
+## 4. Per-Query Winners
 
 The **Winner** column is the judge panel's `observed_winner`: the approach with the
 highest mean score, breaking ties by best-answer votes. The **Top 3 mean scores**
@@ -65,7 +82,7 @@ mean the vote-decided winner can fall outside the listed top three.
 | `cyber_threat_intel` | `cyber_campaign_timeline_context` | contextual-rag | contextual-rag 3.00 > n8n-adaptive-rag 2.50 > n8n-adaptive-rag-default 2.50 |
 | `cyber_threat_intel` | `cyber_protocol_and_web_mitigation_path` | hybrid-rag | hybrid-rag 5.00 > n8n-adaptive-rag 4.00 > n8n-adaptive-rag-default 4.00 |
 
-## 4. Interpretation
+## 5. Interpretation
 
 The current measured ladder has 3 rungs. On `baseline_curated`, `vanilla-rag-wide` leads; on `graph_native`, `hybrid-rag-high-recall` leads; on `cyber_threat_intel`, `contextual-rag-high-recall` leads. `graph-rag` is measured end to end across the live rungs but does not lead any of them.
 
@@ -83,7 +100,7 @@ campaign, intrusion-group, and mitigation relationships. Scores for
 candidate rungs should be added only after live
 matrix and judge runs produce committed snapshots.
 
-## 5. Candidate Dataset Sources
+## 6. Candidate Dataset Sources
 
 - STaRK: semi-structured textual + relational retrieval benchmark with Amazon, MAG, and Prime domains.
 - OpenAlex: CC0 scholarly graph of works, authors, institutions, concepts, venues, and citations.

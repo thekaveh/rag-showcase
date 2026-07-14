@@ -10,6 +10,7 @@ regenerate docs/dataset-complexity-report.md.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -237,6 +238,8 @@ def validate_judgments(judgments: dict[str, Any], *, dataset_id: str) -> None:
     judgments whose per-query mean_by_approach is empty — previously committed as
     "measured" with no scores. Symmetric counterpart to validate_matrix_cells.
     """
+    if judgments.get("status") == "disabled":
+        return
     queries = judgments.get("queries", [])
     if not queries:
         raise RuntimeError(f"Judgments for {dataset_id} contain no queries")
@@ -249,12 +252,90 @@ def validate_judgments(judgments: dict[str, Any], *, dataset_id: str) -> None:
         )
 
 
+def validate_canonical_rows(
+    rows: list[dict[str, Any]], *, dataset_id: str, expected_cells: int
+) -> None:
+    if len(rows) != expected_cells:
+        raise RuntimeError(
+            f"Canonical rows for {dataset_id}: expected {expected_cells}, found {len(rows)}"
+        )
+    row_ids = [row.get("row_id") for row in rows]
+    if len(set(row_ids)) != len(row_ids):
+        raise RuntimeError(f"Canonical rows for {dataset_id} contain duplicate row ids")
+    wrong_dataset = [
+        row_id
+        for row_id, row in zip(row_ids, rows)
+        if row.get("dataset", {}).get("id") != dataset_id
+    ]
+    if wrong_dataset:
+        raise RuntimeError(
+            f"Canonical rows for {dataset_id} contain rows from another dataset: "
+            f"{wrong_dataset[:5]}"
+        )
+
+
+def validate_evaluation_summary(
+    summary: dict[str, Any], *, dataset_id: str, expected_cells: int
+) -> None:
+    if summary.get("schema_version") != 1:
+        raise RuntimeError(f"Evaluation summary for {dataset_id} has unsupported schema version")
+    dataset = summary.get("datasets", {}).get(dataset_id)
+    if not isinstance(dataset, dict):
+        raise RuntimeError(f"Evaluation summary is missing dataset {dataset_id}")
+    actual = dataset.get("coverage", {}).get("total_rows")
+    if actual != expected_cells:
+        raise RuntimeError(
+            f"Evaluation summary for {dataset_id}: expected {expected_cells} rows, found {actual}"
+        )
+
+
+def _load_jsonl(path: Path) -> list[dict[str, Any]]:
+    rows = []
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"{path}:{line_number}: invalid JSONL: {exc}") from exc
+    return rows
+
+
+def corpus_revision(corpus_path: str) -> str:
+    root = ROOT / Path(corpus_path)
+    digest = hashlib.sha256()
+    for path in sorted(item for item in root.rglob("*") if item.is_file()):
+        digest.update(path.relative_to(root).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        with path.open("rb") as handle:
+            for block in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(block)
+    return f"sha256:{digest.hexdigest()}"
+
+
 def run_matrix_and_judge(
-    dataset: dict[str, Any], date_stamp: str, approaches: str, flavors: str
-) -> tuple[Path, Path]:
+    dataset: dict[str, Any],
+    date_stamp: str,
+    approaches: str,
+    flavors: str,
+    *,
+    fresh_ingestion: bool = False,
+) -> tuple[Path, Path, Path, Path]:
     dataset_id = dataset["id"]
+    run_id = f"live-{date_stamp}-{dataset_id}"
     matrix_name = f"live-{date_stamp}-{dataset_id}-matrix.json"
     judgments_name = f"live-{date_stamp}-{dataset_id}-judgments.json"
+    evidence_name = f"live-{date_stamp}-{dataset_id}-evidence.jsonl"
+    evaluation_name = f"live-{date_stamp}-{dataset_id}-evaluation.json"
+    working_paths = [
+        RESULTS / matrix_name,
+        RESULTS / judgments_name,
+        RESULTS / evidence_name,
+        RESULTS / evaluation_name,
+    ]
+    if fresh_ingestion:
+        for path in working_paths:
+            path.unlink(missing_ok=True)
     env = os.environ.copy()
     # Exported MATRIX_MODELS/MATRIX_FLAVORS (e.g. left over from the documented
     # manual run_matrix.py workflow) must not govern the run: they'd bypass
@@ -265,36 +346,81 @@ def run_matrix_and_judge(
     env.pop("MATRIX_FLAVORS", None)
     env["MATRIX_QUERIES_FILE"] = dataset["queries_file"]
     env["MATRIX_RESULTS_FILE"] = matrix_name
+    env["MATRIX_CANONICAL_FILE"] = evidence_name
+    env["MATRIX_SUMMARY_FILE"] = evaluation_name
+    env["MATRIX_DATASET_ID"] = dataset_id
+    env["MATRIX_RUN_ID"] = run_id
+    env["MATRIX_INGESTION_PROFILE"] = dataset_id
+    env["MATRIX_INGESTION_REVISION"] = corpus_revision(dataset["corpus_path"])
+    env["MATRIX_INGESTION_JOB_ID"] = f"ladder:{date_stamp}:{dataset_id}"
+    env["MATRIX_INGESTION_MODE"] = "dataset-ladder"
     if approaches:
         env["MATRIX_MODELS"] = approaches
     if flavors:
         env["MATRIX_FLAVORS"] = flavors
     run(["uv", "run", "python", "compare/run_matrix.py"], env=env)
     matrix_src = RESULTS / matrix_name
-    validate_matrix_cells(json.loads(matrix_src.read_text(encoding="utf-8")), dataset_id=dataset_id)
+    matrix_payload = json.loads(matrix_src.read_text(encoding="utf-8"))
+    validate_matrix_cells(matrix_payload, dataset_id=dataset_id)
+    expected_cells = len(matrix_payload.get("cells", []))
+    evidence_src = RESULTS / evidence_name
+    evaluation_src = RESULTS / evaluation_name
+    validate_canonical_rows(
+        _load_jsonl(evidence_src), dataset_id=dataset_id, expected_cells=expected_cells
+    )
+    validate_evaluation_summary(
+        json.loads(evaluation_src.read_text(encoding="utf-8")),
+        dataset_id=dataset_id,
+        expected_cells=expected_cells,
+    )
 
     env = os.environ.copy()
     env["JUDGE_MATRIX_FILE"] = matrix_name
     env["JUDGE_RESULTS_FILE"] = judgments_name
+    if manifest_path := os.environ.get("MATRIX_MANIFEST_FILE"):
+        env["JUDGE_MANIFEST_FILE"] = manifest_path
     run(["uv", "run", "python", "compare/judge.py"], env=env)
     judgments_src = RESULTS / judgments_name
     validate_judgments(json.loads(judgments_src.read_text(encoding="utf-8")),
                        dataset_id=dataset_id)
+    run([
+        "uv", "run", "python", "compare/summarize.py",
+        "--rows", str(evidence_src),
+        "--judgments", str(judgments_src),
+        "--output", str(evaluation_src),
+    ])
+    validate_evaluation_summary(
+        json.loads(evaluation_src.read_text(encoding="utf-8")),
+        dataset_id=dataset_id,
+        expected_cells=expected_cells,
+    )
 
     DOC_RESULTS.mkdir(parents=True, exist_ok=True)
     matrix_dst = DOC_RESULTS / matrix_name
     judgments_dst = DOC_RESULTS / judgments_name
+    evidence_dst = DOC_RESULTS / evidence_name
+    evaluation_dst = DOC_RESULTS / evaluation_name
     shutil.copy2(matrix_src, matrix_dst)
     shutil.copy2(judgments_src, judgments_dst)
-    return matrix_dst, judgments_dst
+    shutil.copy2(evidence_src, evidence_dst)
+    shutil.copy2(evaluation_src, evaluation_dst)
+    return matrix_dst, judgments_dst, evidence_dst, evaluation_dst
 
 
-def update_dataset_snapshots(dataset_id: str, matrix_path: Path, judgments_path: Path) -> None:
+def update_dataset_snapshots(
+    dataset_id: str,
+    matrix_path: Path,
+    judgments_path: Path,
+    evidence_path: Path,
+    evaluation_path: Path,
+) -> None:
     manifest = load_manifest()
     for dataset in manifest["datasets"]:
         if dataset["id"] == dataset_id:
             dataset["matrix_snapshot"] = str(matrix_path.relative_to(ROOT))
             dataset["judgment_snapshot"] = str(judgments_path.relative_to(ROOT))
+            dataset["evidence_snapshot"] = str(evidence_path.relative_to(ROOT))
+            dataset["evaluation_snapshot"] = str(evaluation_path.relative_to(ROOT))
             dataset["status"] = "measured"
             break
     else:
@@ -382,9 +508,16 @@ def main() -> None:
         start_service_only()
         ingest_dataset(dataset)
         wait_for_lightrag(dataset["id"])
-        matrix, judgments = run_matrix_and_judge(
-            dataset, args.date_stamp, args.approaches, args.flavors)
-        update_dataset_snapshots(dataset["id"], matrix, judgments)
+        matrix, judgments, evidence, evaluation = run_matrix_and_judge(
+            dataset,
+            args.date_stamp,
+            args.approaches,
+            args.flavors,
+            fresh_ingestion=not args.no_cold_reset,
+        )
+        update_dataset_snapshots(
+            dataset["id"], matrix, judgments, evidence, evaluation
+        )
         regenerate_report()
 
 
