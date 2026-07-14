@@ -34,6 +34,7 @@ from compare.evaluation import (  # noqa: E402
     load_manifest,
     run_evaluation,
 )
+from compare.evaluation_summary import write_summary  # noqa: E402
 
 RESULTS = ROOT / "compare" / "results"
 # The six base approaches ("models" because that is the OpenAI-API field name at the
@@ -67,6 +68,15 @@ def canonical_file() -> Path:
         path = Path(configured)
         return path if path.is_absolute() else RESULTS / path
     return results_file().with_suffix(".jsonl")
+
+
+def summary_file() -> Path:
+    configured = os.environ.get("MATRIX_SUMMARY_FILE")
+    if configured:
+        path = Path(configured)
+        return path if path.is_absolute() else RESULTS / path
+    result = results_file()
+    return result.with_name(f"{result.stem}-summary.json")
 
 
 def evaluation_manifest_file() -> Path:
@@ -212,6 +222,7 @@ def main() -> None:
     dataset = _dataset_for(manifest, query_path)
     run_id = os.environ.get("MATRIX_RUN_ID") or results_file().stem
     canonical = canonical_file()
+    summary = summary_file()
     RESULTS.mkdir(parents=True, exist_ok=True)
     out: dict = {"base": base, "models": [p.alias for p in profiles],
                  "model_profiles": [
@@ -227,6 +238,7 @@ def main() -> None:
                  "run_id": run_id,
                  "dataset_id": dataset.id,
                  "canonical_rows_file": str(canonical),
+                 "evaluation_summary_file": str(summary),
                  "queries": [{k: q.get(k) for k in ("id", "query", "expect_winner", "rationale")}
                              for q in queries],
                  "cells": []}
@@ -296,9 +308,13 @@ def main() -> None:
             flush=True,
         )
     output = results_file()
+    write_summary(canonical, summary)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"\nwrote {output} ({len(out['cells'])} cells); canonical rows: {canonical}")
+    print(
+        f"\nwrote {output} ({len(out['cells'])} cells); "
+        f"canonical rows: {canonical}; summary: {summary}"
+    )
 
 
 if __name__ == "__main__":
@@ -310,7 +326,7 @@ if __name__ == "__main__":
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="Configured via env vars: MATRIX_MANIFEST_FILE, MATRIX_DATASET_ID, "
                "MATRIX_RUN_ID, MATRIX_QUERIES_FILE, MATRIX_RESULTS_FILE, "
-               "MATRIX_CANONICAL_FILE, MATRIX_MODELS, MATRIX_FLAVORS, "
+               "MATRIX_CANONICAL_FILE, MATRIX_SUMMARY_FILE, MATRIX_MODELS, MATRIX_FLAVORS, "
                "MATRIX_FLAVORS_FILE, MATRIX_EVALUATOR_URL.",
     ).parse_args()
     main()

@@ -17,15 +17,21 @@ import hashlib
 import json
 import os
 import re
+import sys
 from pathlib import Path
 
 import httpx
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from compare.evaluation import load_manifest  # noqa: E402
+
 RESULTS = ROOT / "compare" / "results"
 OLLAMA = "http://localhost:11434/v1/chat/completions"
 JUDGES = ["qwen3.6:latest", "gemma4:31b"]
 MAXLEN = 1200  # cap answer length fed to judges
+DEFAULT_MANIFEST = ROOT / "compare" / "evaluation.yaml"
 
 
 def matrix_file() -> Path:
@@ -34,6 +40,16 @@ def matrix_file() -> Path:
 
 def judgments_file() -> Path:
     return RESULTS / os.environ.get("JUDGE_RESULTS_FILE", "judgments.json")
+
+
+def judge_models() -> list[str]:
+    if configured := os.environ.get("JUDGE_MODELS"):
+        return list(dict.fromkeys(model.strip() for model in configured.split(",") if model.strip()))
+    path = Path(os.environ.get("JUDGE_MANIFEST_FILE", str(DEFAULT_MANIFEST)))
+    if not path.is_absolute():
+        path = ROOT / path
+    panel = load_manifest(path).metrics.judge_panel
+    return list(panel.models) if panel.enabled else []
 
 
 def stable_order(items: list[str], seed: str) -> list[str]:
@@ -113,6 +129,19 @@ def build_prompt(query: str, rationale: str, labeled: list[tuple[str, str]]) -> 
 
 def main() -> None:
     matrix = json.loads(matrix_file().read_text(encoding="utf-8"))
+    panel = judge_models()
+    if not panel:
+        out = {
+            "status": "disabled",
+            "dataset_id": matrix.get("dataset_id"),
+            "judges": [],
+            "queries": [],
+        }
+        output = judgments_file()
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"wrote {output} (judge panel disabled)")
+        return
     by_q: dict[str, dict[str, dict]] = {}
     for c in matrix["cells"]:
         by_q.setdefault(c["query_id"], {})[c["model"]] = c
@@ -135,7 +164,7 @@ def main() -> None:
     # Batch by judge model: each big model loads once, then scores every query in the matrix.
     raw: dict[tuple[str, str], dict] = {}
     with httpx.Client(timeout=httpx.Timeout(200.0, connect=10.0)) as client:
-        for jm in JUDGES:
+        for jm in panel:
             for q in matrix["queries"]:
                 qid = q["id"]
                 verdict, err = ask_judge(client, jm, meta[qid]["prompt"])
@@ -146,13 +175,18 @@ def main() -> None:
                 print(f"  [{jm}] {qid}: best={raw[(qid, jm)]['best']}", flush=True)
 
     # Aggregate per query: mean score per approach across judges + best-vote tally.
-    out: dict = {"judges": JUDGES, "queries": []}
+    out: dict = {
+        "status": "ok",
+        "dataset_id": matrix.get("dataset_id"),
+        "judges": panel,
+        "queries": [],
+    }
     for q in matrix["queries"]:
         qid = q["id"]
-        per_judge = {jm: raw.get((qid, jm), {"error": "no valid verdict"}) for jm in JUDGES}
+        per_judge = {jm: raw.get((qid, jm), {"error": "no valid verdict"}) for jm in panel}
         agg: dict[str, list[float]] = {}
         votes: dict[str, int] = {}
-        for jm in JUDGES:
+        for jm in panel:
             v = raw.get((qid, jm))
             if not v:
                 continue
@@ -170,6 +204,7 @@ def main() -> None:
         print(f"  [{qid}] winner={winner} mean={mean}", flush=True)
 
     output = judgments_file()
+    output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\nwrote {output}")
 
@@ -181,7 +216,7 @@ if __name__ == "__main__":
     # informative (it used to start a real judging run) and rejects stray arguments.
     argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="Configured via env vars: JUDGE_MATRIX_FILE, JUDGE_RESULTS_FILE "
-               "(paths relative to compare/results/).",
+        epilog="Configured via env vars: JUDGE_MATRIX_FILE, JUDGE_RESULTS_FILE, "
+               "JUDGE_MANIFEST_FILE, JUDGE_MODELS (paths relative to compare/results/).",
     ).parse_args()
     main()

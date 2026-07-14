@@ -79,12 +79,12 @@
 - Produces: `write_summary(rows_path, output_path, judgments_path=None)` with byte-stable sorted JSON.
 - Judge models default from `compare/evaluation.yaml`; `JUDGE_MODELS` remains an explicit operator override.
 
-- [ ] **Step 1: Write failing summary tests** for per-dataset and overall Ragas means, latency/error coverage, failed and unevaluable denominators, explicit ties, and longitudinal per-approach progression.
-- [ ] **Step 2: Implement pure deterministic aggregation and tie grouping** without timestamps or row-order dependence in the summary function.
-- [ ] **Step 3: Write failing judge-join tests** proving judge scores live in a separate metric section and judge failure does not change Ragas or operational aggregates.
-- [ ] **Step 4: Implement optional judgment joining and the summary CLI**; malformed or absent judge artifacts produce explicit disabled/error metadata rather than deleting other metrics.
-- [ ] **Step 5: Make judge model selection manifest-driven** while preserving stable anonymization, batching, `think:false`, and existing output compatibility.
-- [ ] **Step 6: Run `uv run pytest tests/test_evaluation_summary.py tests/test_judge.py -q`** and verify GREEN.
+- [x] **Step 1: Write failing summary tests** for per-dataset and overall Ragas means, latency/error coverage, failed and unevaluable denominators, explicit ties, and longitudinal per-approach progression.
+- [x] **Step 2: Implement pure deterministic aggregation and tie grouping** without timestamps or row-order dependence in the summary function.
+- [x] **Step 3: Write failing judge-join tests** proving judge scores live in a separate metric section and judge failure does not change Ragas or operational aggregates.
+- [x] **Step 4: Implement optional judgment joining and the summary CLI**; malformed or absent judge artifacts produce explicit disabled/error metadata rather than deleting other metrics.
+- [x] **Step 5: Make judge model selection manifest-driven** while preserving stable anonymization, batching, `think:false`, and existing output compatibility.
+- [x] **Step 6: Run `uv run pytest tests/test_evaluation_summary.py tests/test_judge.py -q`** and verify GREEN.
 
 ### Task 4: Dataset-Ladder and Historical Compatibility
 

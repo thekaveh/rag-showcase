@@ -61,7 +61,9 @@ def test_main_records_failed_cell_and_completes(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("MATRIX_QUERIES_FILE", str(queries))
     monkeypatch.setenv("MATRIX_RESULTS_FILE", str(results))
     canonical = tmp_path / "matrix.jsonl"
+    summary = tmp_path / "summary.json"
     monkeypatch.setenv("MATRIX_CANONICAL_FILE", str(canonical))
+    monkeypatch.setenv("MATRIX_SUMMARY_FILE", str(summary))
     monkeypatch.setenv("MATRIX_RUN_ID", "test-failure-run")
     monkeypatch.setenv("MATRIX_MODELS", "vanilla-rag,hybrid-rag")
 
@@ -89,6 +91,9 @@ def test_main_records_failed_cell_and_completes(tmp_path, monkeypatch) -> None:
     successful = next(row for row in rows if row["status"] == "ok")
     assert successful["metrics"]["ragas"]["status"] == "not_evaluable"
     assert out["canonical_rows_file"] == str(canonical)
+    assert out["evaluation_summary_file"] == str(summary)
+    summary_payload = json.loads(summary.read_text(encoding="utf-8"))
+    assert summary_payload["datasets"]["queries"]["coverage"]["total_rows"] == 2
 
 
 def test_parse_content_nested_wrapper_payload_uses_outer_footer() -> None:

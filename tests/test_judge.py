@@ -43,6 +43,7 @@ def test_normalize_verdict_tolerates_case_and_strings_rejects_bools() -> None:
 
 def _matrix(tmp_path):
     matrix = {
+        "dataset_id": "dataset-a",
         "queries": [{"id": "q1", "query": "Q?", "expect_winner": "hybrid-rag",
                      "rationale": "r"}],
         "cells": [
@@ -84,6 +85,7 @@ def test_main_aggregates_normalized_verdicts(tmp_path, monkeypatch) -> None:
     assert q["votes"] == {"hybrid-rag": 2}
     assert q["observed_winner"] == "hybrid-rag"
     assert out["judges"] == judge.JUDGES
+    assert out["dataset_id"] == "dataset-a"
 
 
 @respx.mock
@@ -124,3 +126,64 @@ def test_main_survives_total_judge_outage_with_empty_verdicts(tmp_path, monkeypa
     assert q["mean_by_approach"] == {}
     assert q["observed_winner"] is None
     assert all("error" in verdict for verdict in q["per_judge"].values())
+
+
+def test_judge_models_use_manifest_defaults_and_explicit_override(tmp_path, monkeypatch) -> None:
+    (tmp_path / "datasets.yaml").write_text(
+        """
+datasets:
+  - id: ds
+    label: ds
+    complexity_level: 1
+    status: measured
+    corpus_path: corpus
+    queries_file: queries.yaml
+""",
+        encoding="utf-8",
+    )
+    manifest = tmp_path / "evaluation.yaml"
+    manifest.write_text(
+        """
+version: 1
+datasets_file: datasets.yaml
+approaches:
+  - model: vanilla-rag
+    evidence: answer_with_contexts
+metrics:
+  ragas: []
+  judge_panel:
+    enabled: true
+    models: [manifest-judge]
+run:
+  retries: 0
+  timeout_s: 10
+  evaluator_timeout_s: 10
+  concurrency: 1
+  seed: test
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("JUDGE_MANIFEST_FILE", str(manifest))
+    monkeypatch.delenv("JUDGE_MODELS", raising=False)
+    assert judge.judge_models() == ["manifest-judge"]
+
+    monkeypatch.setenv("JUDGE_MODELS", "operator-a, operator-b")
+    assert judge.judge_models() == ["operator-a", "operator-b"]
+
+
+def test_main_writes_disabled_artifact_without_calls(tmp_path, monkeypatch) -> None:
+    matrix_path = _matrix(tmp_path)
+    out_path = tmp_path / "judgments.json"
+    monkeypatch.setenv("JUDGE_MATRIX_FILE", str(matrix_path))
+    monkeypatch.setenv("JUDGE_RESULTS_FILE", str(out_path))
+    monkeypatch.setattr(judge, "judge_models", lambda: [])
+
+    judge.main()
+
+    out = json.loads(out_path.read_text(encoding="utf-8"))
+    assert out == {
+        "status": "disabled",
+        "dataset_id": "dataset-a",
+        "judges": [],
+        "queries": [],
+    }
