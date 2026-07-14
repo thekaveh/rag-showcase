@@ -33,13 +33,13 @@
 - Produces: `load_manifest(path: Path) -> EvaluationManifest`, `load_dataset(manifest, dataset_id) -> DatasetSpec`, `evidence_for_base(manifest, base) -> str`, and `completion_evidence(payload: dict) -> dict`.
 - Produces: an optional OpenAI-compatible top-level `rag_showcase` extension containing schema version, ordered source snippets, and server metrics; rendered-content parsing remains the transport fallback.
 
-- [ ] **Step 1: Write manifest validation tests** for schema version `1`, unique datasets/approaches, known Ragas metrics, positive timeout/concurrency bounds, and required judge models when enabled.
-- [ ] **Step 2: Run `uv run pytest tests/test_evaluation_manifest.py -q`** and verify failures are caused by the absent module and manifest.
-- [ ] **Step 3: Implement Pydantic manifest models and path resolution** with `compare/datasets.yaml` as the referenced dataset catalog and canonical aliases from `compare/flavors.py`.
-- [ ] **Step 4: Write backend response-contract tests** asserting structured source snippets/metrics are additive and JSON/SSE OpenAI compatibility remains intact.
-- [ ] **Step 5: Run the backend tests and verify RED**, then add the `rag_showcase` extension at the shared `build_response` choke point.
-- [ ] **Step 6: Add structured-first, rendered-content-fallback evidence parsing** and verify nested n8n details, multiline snippets, usage, response id, and missing-evidence behavior.
-- [ ] **Step 7: Run `uv run pytest tests/test_evaluation_manifest.py backend_plugins/rag/tests/test_openai_io.py tests/test_compare_harness.py -q`** and verify GREEN.
+- [x] **Step 1: Write manifest validation tests** for schema version `1`, unique datasets/approaches, known Ragas metrics, positive timeout/concurrency bounds, and required judge models when enabled.
+- [x] **Step 2: Run `uv run pytest tests/test_evaluation_manifest.py -q`** and verify failures are caused by the absent module and manifest.
+- [x] **Step 3: Implement Pydantic manifest models and path resolution** with `compare/datasets.yaml` as the referenced dataset catalog and canonical aliases from `compare/flavors.py`.
+- [x] **Step 4: Write backend response-contract tests** asserting structured source snippets/metrics are additive and JSON/SSE OpenAI compatibility remains intact.
+- [x] **Step 5: Run the backend tests and verify RED**, then add the `rag_showcase` extension at the shared `build_response` choke point.
+- [x] **Step 6: Add structured-first, rendered-content-fallback evidence parsing** and verify nested n8n details, multiline snippets, usage, response id, and missing-evidence behavior.
+- [x] **Step 7: Run `uv run pytest tests/test_evaluation_manifest.py backend_plugins/rag/tests/test_openai_io.py tests/test_compare_harness.py -q`** and verify GREEN.
 
 ### Task 2: Append-Safe Runner and Atlas Evaluator Client
 

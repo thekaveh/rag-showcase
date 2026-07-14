@@ -20,6 +20,11 @@ def test_build_response_shapes_openai_and_embeds_sources():
     # checks the None case shows nothing). Drop/invert the score block and per-source
     # relevance silently disappears from this comparison surface, with tests green.
     assert "score 0.900" in content
+    assert resp["rag_showcase"] == {
+        "schema_version": 1,
+        "sources": [{"title": "Doc A", "snippet": "alpha", "score": 0.9}],
+        "metrics": {"seconds": 1.2, "chunks": 1, "llm_calls": 1, "cloud_calls": 0},
+    }
 
 
 def test_build_response_handles_empty_sources():
@@ -108,3 +113,4 @@ async def test_build_stream_response_emits_single_chunk_sse():
     content = first["choices"][0]["delta"]["content"]
     assert "hello" in content and "T" in content  # full rendered body in one chunk
     assert isinstance(first["created"], int)
+    assert first["rag_showcase"]["sources"][0]["snippet"] == "snip"
