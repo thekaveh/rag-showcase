@@ -53,12 +53,17 @@ class JudgePanelSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool = True
+    endpoint: str | None = None
+    temperature: float = Field(default=0, ge=0, le=2)
+    thinking: bool | None = None
     models: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def require_enabled_models(self) -> "JudgePanelSpec":
         if self.enabled and not self.models:
             raise ValueError("judge panel models must not be empty when enabled")
+        if self.enabled and not self.endpoint:
+            raise ValueError("judge panel endpoint must not be empty when enabled")
         if len(self.models) != len(set(self.models)):
             raise ValueError("judge panel models must be unique")
         return self

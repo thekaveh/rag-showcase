@@ -39,7 +39,8 @@ All approaches use the same ingested corpus and the same response wrapper:
 3. Base chunks are embedded and stored in Weaviate collection `RagBase`.
 4. Context-prefixed chunks are generated, embedded, and stored in `RagContextual`.
 5. Full source text is uploaded to LightRAG so it can build its own graph index.
-6. Each approach returns a normalized answer, source block, and metrics footer.
+6. Each approach returns a normalized answer, source block, metrics footer, and
+   additive structured `rag_showcase` evidence extension when contexts exist.
 
 ### 1.1 Shared Model Roles
 
@@ -66,11 +67,27 @@ request defaults.
 The full evaluation protocol, including judge models and result aggregation, is
 documented in [`evaluation-methodology.md`](evaluation-methodology.md).
 
+### 1.2 Shared Evaluation Contract
+
+The evaluation manifest declares `answer_with_contexts` for vanilla, hybrid,
+contextual, agentic, and adaptive RAG. Their retrieved snippets can be sent to
+Atlas for context-grounding metrics. It declares `answer_only` for graph-rag
+because the current LightRAG response exposes an answer and graph marker, but not
+the exact text contexts selected internally.
+
+All six approaches can still be compared on successful-answer rate, latency, and
+the optional blinded judge panel. Graph-rag's missing context is recorded as
+`not_evaluable` for context-dependent Ragas metrics, never as a zero and never as
+invented evidence. See
+[`evaluation-methodology.md`](evaluation-methodology.md#5-approach-and-evidence-capabilities).
+
 ## 2. Current Measured Results
 
 The current committed live run measured three dataset-ladder rungs. The table
-below shows the six canonical approaches only; named flavors are ranked separately
-in [`dataset-complexity-report.md`](dataset-complexity-report.md).
+below contains historical 1-5 judge-panel means from 2026-07-03, not Ragas scores.
+That run predates canonical evidence/evaluation artifacts. The table shows the six
+canonical approaches only; named flavors are ranked separately in
+[`dataset-complexity-report.md`](dataset-complexity-report.md).
 
 | Approach | Baseline curated | Graph-native | Cyber threat intel | Direction |
 |---|---:|---:|---:|---|
@@ -117,8 +134,8 @@ followed by one answer-generation call.
 
 - Query embedding: `embed` role, default `nomic-embed-text`.
 - Answer generation: `light_gen` role, default `qwen3.6:latest`.
-- Judge evaluation: outside the approach, `compare/judge.py` scores stored
-  answers with `qwen3.6:latest` and `gemma4:31b`.
+- External evaluation: Atlas scores eligible stored contexts through the Ragas
+  endpoint; the manifest-configured judge panel scores stored answers separately.
 
 ### 3.5 Tuning Surface
 
@@ -172,8 +189,8 @@ It does not query LightRAG or use extracted graph entities/relations.
 - Reranking: Atlas TEI reranker service, default endpoint
   `http://tei-reranker:80`.
 - Answer generation: `light_gen` role, default `qwen3.6:latest`.
-- Judge evaluation: outside the approach, `compare/judge.py` scores stored
-  answers with `qwen3.6:latest` and `gemma4:31b`.
+- External evaluation: Atlas scores eligible stored contexts through the Ragas
+  endpoint; the manifest-configured judge panel scores stored answers separately.
 
 ### 4.5 Tuning Surface
 
@@ -240,8 +257,8 @@ Query-time:
 - Reranking: Atlas TEI reranker service, default endpoint
   `http://tei-reranker:80`.
 - Answer generation: `light_gen` role, default `qwen3.6:latest`.
-- Judge evaluation: outside the approach, `compare/judge.py` scores stored
-  answers with `qwen3.6:latest` and `gemma4:31b`.
+- External evaluation: Atlas scores eligible stored contexts through the Ragas
+  endpoint; the manifest-configured judge panel scores stored answers separately.
 
 ### 5.5 Tuning Surface
 
@@ -307,8 +324,9 @@ Query-time:
 - Graph answer generation: Atlas LightRAG QUERY role, setup default
   `mistral-small3.2:24b`.
 - LightRAG embeddings: setup default `nomic-embed-text`.
-- Judge evaluation: outside the approach, `compare/judge.py` scores stored
-  answers with `qwen3.6:latest` and `gemma4:31b`.
+- External evaluation: operational and judge metrics remain available. The current
+  LightRAG response lacks retrievable contexts, so context-dependent Ragas metrics
+  are recorded as `not_evaluable`.
 
 These LightRAG role models are configured through Atlas `LIGHTRAG_*` inputs, not
 through this plugin's `roles.yaml` `extraction` entry. The shipped default uses a
@@ -386,8 +404,8 @@ vector search or graph search, instead of following a fixed retrieval path.
 - Vector tool embedding: `embed` role, default `nomic-embed-text`.
 - Graph tool: LightRAG EXTRACT/KEYWORD/QUERY roles, setup default
   `mistral-small3.2:24b`.
-- Judge evaluation: outside the approach, `compare/judge.py` scores stored
-  answers with `qwen3.6:latest` and `gemma4:31b`.
+- External evaluation: Atlas scores eligible tool evidence through the Ragas
+  endpoint; the manifest-configured judge panel scores stored answers separately.
 
 ### 7.5 Tuning Surface
 
@@ -437,8 +455,8 @@ or complex, sends it to another approach, then normalizes the response.
 - Downstream answer model: inherited from the selected route. In the current
   workflow, `simple` routes to `vanilla-rag` and `complex` routes to
   `agentic-rag`.
-- Judge evaluation: outside the approach, `compare/judge.py` scores stored
-  answers with `qwen3.6:latest` and `gemma4:31b`.
+- External evaluation: Atlas scores normalized downstream contexts when available;
+  the manifest-configured judge panel scores stored answers separately.
 
 ### 8.5 Tuning Surface
 

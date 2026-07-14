@@ -1,232 +1,294 @@
 # 5.1 Evaluation Methodology
 
-This document explains how the committed RAG comparison run was organized, which
-models were used, how every approach was invoked, and how answer quality was
-judged. It is the protocol companion to the generated score report in
-[`dataset-complexity-report.md`](dataset-complexity-report.md).
+This document defines the reproducible evaluation contract for rag-showcase. It
+explains ownership, invocation, evidence capture, Atlas-backed Ragas evaluation,
+the independent judge panel, resume behavior, and reporting. The generated
+dataset view is [`dataset-complexity-report.md`](dataset-complexity-report.md).
 
-## 1. Evaluation Goal
+## 1. Evaluation Goal and Boundary
 
-The comparison asks a narrow question:
+The comparison asks:
 
-> Given the same input corpus, the same query set, and the same OpenAI-compatible
-> invocation surface, how do the six rag-showcase approaches and their named
-> flavors behave as the input data becomes more relational and graph-shaped?
+> Given the same corpus, query set, deployed gateway, and declared model roles,
+> how do the six approaches and their named flavors change as the data becomes
+> more relational and graph-shaped?
 
-The run is not a universal benchmark of RAG systems. It is a live, reproducible
-showcase test of this repo's six deployed approaches on top of Atlas.
+This is a live showcase comparison, not a universal RAG benchmark. The experiment
+is consumer-owned:
 
-## 2. Evaluated Artifacts
+| Owner | Responsibility |
+|---|---|
+| Atlas | Start and health-check the generic services; expose LiteLLM model aliases and `POST /api/rag/evaluate`; run configured evaluator and embedding models. |
+| rag-showcase | Select datasets, approaches, flavors, metrics, and judges; invoke aliases; normalize evidence; resume runs; aggregate results; publish reports. |
 
-The 2026-07-03 committed run measured three dataset-ladder rungs.
+The runner communicates with Atlas only over public HTTP contracts. It does not
+import Atlas implementation modules or mutate the `infra/` submodule.
 
-| Dataset | Status | Corpus | Queries | Result snapshots |
-|---|---|---|---|---|
-| `baseline_curated` | measured | `corpus/subset` | `demo/queries.yaml` | `docs/results/live-2026-07-03-baseline_curated-*.json` |
-| `graph_native` | measured | `corpus/graph_native` | `demo/graph_native_queries.yaml` | `docs/results/live-2026-07-03-graph_native-*.json` |
-| `cyber_threat_intel` | measured | `corpus/cyber_threat_intel` | `demo/cyber_threat_intel_queries.yaml` | `docs/results/live-2026-07-03-cyber_threat_intel-*.json` |
+## 2. Versioned Experiment Manifest
 
-Candidate future rungs are tracked in `compare/datasets.yaml` and surfaced in the
-dataset report, but they are not ranked until matrix and judgment snapshots exist.
+[`compare/evaluation.yaml`](../compare/evaluation.yaml) is the evaluation source
+of truth. Schema version `1` declares:
 
-## 3. Stack and Invocation Surface
+- the dataset catalog in [`compare/datasets.yaml`](../compare/datasets.yaml);
+- the six canonical aliases and each approach's evidence capability;
+- requested Ragas metrics;
+- whether the judge panel is enabled, its OpenAI-compatible endpoint, models,
+  temperature, and optional thinking setting;
+- retry count, per-cell timeout, evaluator timeout, concurrency, and seed.
 
-All approaches run inside the Atlas `gen-ai-rag` stack vendored at `infra/`.
-Rag-showcase contributes a mounted FastAPI plugin under `backend_plugins/rag/`.
-Each approach exposes an OpenAI-compatible route:
+Unknown fields and invalid values fail validation before any paid or long-running
+call begins. `MATRIX_MODELS` and `MATRIX_FLAVORS` can narrow or expand a run, but
+the default remains the six canonical approaches. Secrets are never stored in
+the manifest; evaluator and judge credentials are environment inputs.
+
+The checked-in judge configuration currently selects a local OpenAI-compatible
+endpoint and two local models. That is an experiment default, not a hardware
+requirement. `JUDGE_ENDPOINT`, `JUDGE_API_KEY`, `JUDGE_MODELS`, and
+`JUDGE_THINK=true|false|omit` can target another compatible provider.
+
+## 3. Deployment and Invocation Flow
+
+All six approaches run under Atlas's `gen-ai-rag` track. Rag-showcase contributes
+the mounted FastAPI plugin in [`backend_plugins/rag/`](../backend_plugins/rag/)
+and declares routes and aliases in [`atlas.consumer.yml`](../atlas.consumer.yml).
 
 ```text
-/rag/<approach>/v1/chat/completions
+query + alias
+    -> Atlas LiteLLM POST /v1/chat/completions
+    -> rag-showcase /rag/<approach>/v1/chat/completions
+    -> approach-specific retrieval / graph / workflow path
+    -> OpenAI-compatible answer + rag_showcase evidence extension
+    -> canonical JSONL row
+    -> Atlas POST /api/rag/evaluate (eligible Ragas metrics)
+    -> deterministic summary + optional blinded judge join
 ```
 
-`atlas.consumer.yml` declares those routes and their flavor aliases. Atlas stamps
-consumer ownership, validates the routes against the plugin manifest, and merges
-the rows into LiteLLM's configuration before startup. Open WebUI and the automated
-harness both discover those same aliases through `/v1/models` and call LiteLLM's
-`/v1/chat/completions` endpoint, so interactive and measured runs exercise the same
-deployment path.
-
-The adaptive workflow follows the same ownership model: its source JSON is checked
-in here and declared in `atlas.consumer.yml`; Atlas namespaces and seeds it as
-`atlas-consumer-adaptive-rag`. The matrix therefore invokes the same production
-webhook that startup probes, rather than a separately imported test workflow.
-
-The six canonical aliases are:
-
-- `vanilla-rag`
-- `hybrid-rag`
-- `contextual-rag`
-- `graph-rag`
-- `agentic-rag`
-- `n8n-adaptive-rag`
-
-The current flavor run also measured:
-
-- `vanilla-rag-wide`
-- `hybrid-rag-high-recall`
-- `hybrid-rag-fast`
-- `contextual-rag-high-recall`
-- `graph-rag-fast`
-- `graph-rag-wide`
-- `agentic-rag-deeper`
-- `n8n-adaptive-rag-default`
+Open WebUI and the matrix runner invoke the same LiteLLM aliases. The runner does
+not call private approach functions directly, so measurements include gateway,
+plugin, retrieval, generation, and response-normalization behavior.
 
 ## 4. Model Roles
 
-The repo separates approach aliases from underlying model roles. A user selects a
-RAG approach such as `contextual-rag`; the approach then calls the configured
-embedding, generation, graph, workflow, or judge models internally.
+The selected Open WebUI model is an approach alias, not necessarily the LLM used
+inside that approach.
 
-| Role | Default model in this repo | Used by | Why this model/role exists |
+| Role | Current setup default | Used by | Purpose |
 |---|---|---|---|
-| `embed` | `nomic-embed-text` | `vanilla-rag`, `hybrid-rag`, `contextual-rag`, vector tool inside `agentic-rag` | Small, local embedding model used consistently across Weaviate-backed approaches so their vector retrieval is comparable. |
-| `light_gen` | `qwen3.6:latest` | `vanilla-rag`, `hybrid-rag`, `contextual-rag` | Shared answer-generation role for chunk-based approaches, keeping answer synthesis constant while retrieval strategy changes. |
-| `contextual_blurb` | `qwen3.6:latest` | `contextual-rag` ingest | Generates short chunk context blurbs once during ingest; same local model family as generation for reproducibility. |
-| `agentic` | `qwen3.6:latest` | `agentic-rag` | Tool-using ReAct controller; needs instruction following and tool-call reliability more than raw retrieval speed. |
-| LightRAG EXTRACT | `mistral-small3.2:24b` by setup default | `graph-rag`, graph tool inside `agentic-rag` | Non-reasoning, instruction-tuned model for high-volume entity and relationship extraction. Reasoning models were too slow for this call-heavy phase. |
-| LightRAG KEYWORD | `mistral-small3.2:24b` by setup default | `graph-rag`, graph tool inside `agentic-rag` | Keeps graph keyword/query decomposition on the same non-reasoning local model as extraction. |
-| LightRAG QUERY | `mistral-small3.2:24b` by setup default | `graph-rag`, graph tool inside `agentic-rag` | Produces final LightRAG answers while avoiding chain-of-thought overhead during graph queries. |
-| n8n classifier | `qwen3.6:latest` in workflow JSON | `n8n-adaptive-rag` | Classifies a query as `simple` or `complex` before routing to another approach. |
-| Judges | `qwen3.6:latest` and `gemma4:31b` | `compare/judge.py` | Two local judge families reduce single-model scoring bias without sending answers to a cloud service. |
+| `embed` | `nomic-embed-text` | Weaviate-backed approaches and agent vector tool | Keep dense retrieval embeddings comparable. |
+| `light_gen` | `qwen3.6:latest` | vanilla, hybrid, contextual | Shared answer synthesis while retrieval changes. |
+| `contextual_blurb` | `qwen3.6:latest` | contextual ingest | Generate context prefixes once at ingest. |
+| `agentic` | `qwen3.6:latest` | agentic | ReAct control and tool selection. |
+| LightRAG EXTRACT | `mistral-small3.2:24b` | graph ingest | High-volume entity and relationship extraction. |
+| LightRAG KEYWORD | `mistral-small3.2:24b` | graph query | Keyword and query decomposition. |
+| LightRAG QUERY | `mistral-small3.2:24b` | graph query | Final graph/vector answer synthesis. |
+| n8n classifier | `qwen3.6:latest` | adaptive workflow | Route a request to a downstream approach. |
+| Judge panel | `qwen3.6:latest`, `gemma4:31b` | stored-answer evaluation only | Two-family subjective quality signal. |
 
-The recorded 2026-07-03 run used the then-current local `models.yaml`
-compatibility layer to apply `think: false` only to listed Qwen models. The
-current baseline has removed that layer: Atlas's model catalog now applies
-`request_defaults: {think: false}` to its `qwen3.6:latest` entry, and the
-rag-showcase plugin no longer adds model request parameters. Both designs keep
-the behavior model-scoped; current replacement models receive the adapter,
-capabilities, and request defaults declared by Atlas.
+Model names are current configuration, not runner assumptions. Atlas resolves
+providers, adapters, capabilities, and model-scoped request defaults. In
+particular, Atlas's catalog currently applies `think:false` to its Qwen entry;
+rag-showcase no longer injects that property globally.
 
-## 5. Approach Processes
+## 5. Approach and Evidence Capabilities
 
-Each approach receives the same user query but performs a different retrieval or
-routing process.
+Every approach returns an answer, but not every service exposes the retrieved
+contexts needed by context-grounding metrics.
 
-| Approach | Retrieval or routing process | Internal LLM/model calls | Evidence surfaced |
-|---|---|---|---|
-| `vanilla-rag` | Embed query -> dense vector search over `RagBase` -> stuff top chunks into one prompt. | One `embed` call and one `light_gen` call. | Retrieved plain chunks from Weaviate. |
-| `hybrid-rag` | Embed query -> Weaviate BM25+dense hybrid search over `RagBase` -> TEI rerank -> stuff top chunks. | One `embed` call, one TEI rerank call, one `light_gen` call. | Reranked plain chunks with scores. |
-| `contextual-rag` | Ingest-time context blurbs create `RagContextual`; query-time uses hybrid search + TEI rerank over context-prefixed chunks. | Ingest-time `contextual_blurb` calls per chunk; query-time `embed`, TEI rerank, and `light_gen`. | Reranked contextual chunks. |
-| `graph-rag` | Upload full documents to LightRAG; LightRAG extracts entities/relationships and answers through its graph/vector query path. | LightRAG EXTRACT/KEYWORD/QUERY model calls managed by the LightRAG service. | LightRAG knowledge-graph source marker and answer. |
-| `agentic-rag` | Bounded ReAct loop decides between vector search and LightRAG graph query tools. | Up to the configured agent step limit of `agentic` model calls, plus tool calls to vector search or LightRAG. | Tool trace. |
-| `n8n-adaptive-rag` | n8n classifies query as simple/complex, routes to another approach, and normalizes the response. | One n8n classifier call, then the model calls of the selected downstream route. | Selected route and normalized downstream answer. |
+| Approach | Core process | Declared evidence capability |
+|---|---|---|
+| `vanilla-rag` | Dense vector search over `RagBase`, then one generation call. | `answer_with_contexts` |
+| `hybrid-rag` | BM25 + dense retrieval, TEI rerank, then generation. | `answer_with_contexts` |
+| `contextual-rag` | Hybrid search and rerank over context-prefixed chunks. | `answer_with_contexts` |
+| `graph-rag` | LightRAG graph/vector query over an ingest-time knowledge graph. | `answer_only` |
+| `agentic-rag` | Bounded ReAct loop over vector and LightRAG tools. | `answer_with_contexts` |
+| `n8n-adaptive-rag` | n8n classification, downstream route, normalized response. | `answer_with_contexts` |
 
-The important contrast is that `hybrid-rag` is not graph RAG. It is hybrid
-chunk retrieval: BM25 keyword search plus dense vector search. Only `graph-rag`
-and the graph tool inside `agentic-rag` query LightRAG's extracted graph.
+The plugin adds a top-level `rag_showcase` extension to JSON and SSE responses:
 
-## 6. Dataset-Ladder Procedure
-
-The measured ladder was run dataset by dataset so each corpus got a clean ingest
-and its own result snapshots.
-
-For each dataset, `scripts/run-dataset-ladder.py` performs this sequence:
-
-1. Cold-reset the Atlas stack unless `--no-cold-reset` is set.
-2. Start rag-showcase with default ingest skipped.
-3. Ingest the selected dataset into Weaviate and LightRAG.
-4. Wait for LightRAG graph extraction to drain.
-5. Run `compare/run_matrix.py` against the dataset's query file.
-6. Validate that every matrix cell returned successfully.
-7. Run `compare/judge.py` over the stored matrix.
-8. Copy matrix and judgment files into `docs/results/`.
-9. Update `compare/datasets.yaml` with snapshot paths.
-10. Regenerate `docs/dataset-complexity-report.md`.
-
-The flavor ladder command shape is:
-
-```bash
-uv run python scripts/run-dataset-ladder.py \
-  --date-stamp 2026-07-03 \
-  --dataset baseline_curated \
-  --dataset graph_native \
-  --dataset cyber_threat_intel \
-  --include-candidates \
-  --flavors default,vanilla-rag,hybrid-rag,contextual-rag,graph-rag,agentic-rag,n8n-adaptive-rag
+```json
+{
+  "rag_showcase": {
+    "schema_version": 1,
+    "sources": [{"title": "...", "snippet": "...", "score": 0.82}],
+    "metrics": {"seconds": 1.2, "chunks": 5, "llm_calls": 1, "cloud_calls": 0}
+  }
+}
 ```
 
-`MATRIX_MODELS` selects an exact comma-separated set of model aliases.
-`MATRIX_FLAVORS` expands named profiles from `compare/flavors.yaml`. The dataset
-runner treats those modes as mutually exclusive to keep result metadata clear.
+The existing rendered source block and metrics footer remain the compatibility
+fallback. Structured evidence wins when both forms are present.
 
-## 7. Matrix Collection
+LightRAG currently returns an answer and a knowledge-graph source marker, not the
+actual text contexts selected during graph/vector synthesis. The runner therefore
+does not invent contexts from that marker. Graph answers still receive operational
+and judge evaluation, while context-dependent Ragas metrics are explicitly
+`not_evaluable`. This is an evidence limitation, not an answer failure or a zero.
 
-`compare/run_matrix.py` is the answer collector.
+## 6. Dataset Ladder
 
-For every query and every selected approach/flavor, it:
+The dataset ladder measures one corpus at a time so ingestion provenance and
+result files stay dataset-specific. The 2026-07-03 committed run contains:
 
-1. Posts the query to LiteLLM `/v1/chat/completions`.
-2. Uses the selected alias as the OpenAI `model`.
-3. Lets LiteLLM route the request to the mounted Atlas backend endpoint.
-4. Parses the common answer/source/metrics response wrapper.
-5. Records latency, success/error state, base approach, flavor metadata, answer
-   text, source text, and metrics.
+| Dataset | Corpus | Queries | Current snapshot generation |
+|---|---|---|---|
+| `baseline_curated` | `corpus/subset` | `demo/queries.yaml` | Legacy matrix + judgments |
+| `graph_native` | `corpus/graph_native` | `demo/graph_native_queries.yaml` | Legacy matrix + judgments |
+| `cyber_threat_intel` | `corpus/cyber_threat_intel` | `demo/cyber_threat_intel_queries.yaml` | Legacy matrix + judgments |
 
-The resulting matrix JSON is a factual record of what each deployed approach
-actually returned before scoring.
+For each selected dataset, [`scripts/run-dataset-ladder.py`](../scripts/run-dataset-ladder.py):
 
-## 8. Judgment Panel
+1. Optionally cold-resets the stack.
+2. Starts Atlas with default ingest skipped.
+3. Ingests exactly the selected corpus into Weaviate and LightRAG.
+4. Waits until LightRAG extraction drains without failed documents.
+5. Runs every selected query/alias cell through LiteLLM.
+6. Appends each completed canonical row immediately.
+7. Evaluates eligible rows through Atlas.
+8. Produces the compatibility matrix and first deterministic summary.
+9. Runs the optional judge panel over stored answers.
+10. Rebuilds the summary with the judge join.
+11. Validates all artifacts before publishing them to `docs/results/`.
+12. Updates the dataset catalog and regenerates the dataset report.
 
-`compare/judge.py` scores matrix answers with two local judge models:
+## 7. Canonical Row Contract and Resume Safety
 
-- `qwen3.6:latest`
-- `gemma4:31b`
+The canonical artifact is newline-delimited JSON. Each row represents one
+`run x dataset x question x alias` cell and records:
 
-Both are called through host Ollama's OpenAI-compatible `/v1/chat/completions`
-endpoint. Requests use `temperature: 0` and `think: false`.
+- schema, runner, run, and stable row identifiers;
+- dataset, question, base approach, flavor, and evidence capability;
+- answer, ordered sources/contexts, transport, token usage, and server metrics;
+- operational latency and attempt count;
+- Ragas status, scores, non-evaluable reasons, and evaluator model metadata;
+- pending/disabled judge status;
+- seed, configuration hashes, and ingestion provenance;
+- durable timeout/error information when the cell fails.
 
-The judges were chosen for pragmatic reasons:
+Rows are append-only, flushed, and `fsync`-ed after each cell. Resume skips an
+existing stable row rather than invoking it again. A duplicate row id, malformed
+JSONL line, changed query, changed flavor, changed seed, changed config hash, or
+changed ingestion metadata aborts resume. The operator must use a new run id or
+remove the stale working artifact; incompatible evidence is never merged silently.
 
-- They run locally, so evaluation answers and corpus snippets do not leave the
-  machine.
-- They represent different model families, reducing dependence on one judge's
-  preferences.
-- Qwen gives a strong instruction-following local judge, while Gemma provides a
-  second, independent scoring signal.
-- The pair is fast enough for repeated ladder runs on a local stack.
+## 8. Atlas-Backed Ragas Evaluation
 
-For every query, the judge harness:
+[`compare/run_matrix.py`](../compare/run_matrix.py) sends eligible records to
+Atlas `POST /api/rag/evaluate`. The checked-in manifest currently requests:
 
-1. Groups all approach answers for that query.
-2. Applies a deterministic hash-based shuffle so answer letters are stable but
-   not tied to approach order.
-3. Hides approach names from the judge prompt.
-4. Caps answer text at 1200 characters to keep judge prompts bounded.
-5. Supplies the query-specific rationale from the query YAML.
-6. Asks each judge to score every answer from 1 to 5 and choose the best answer.
-7. Parses strict JSON from the judge response.
-8. Aggregates mean score by approach and best-answer vote count.
-9. Chooses the observed winner by mean score, with votes as the tiebreaker.
+- `faithfulness`: whether answer claims are supported by retrieved contexts;
+- `answer_relevancy`: whether the answer addresses the question.
 
-The judge scores are directional, not ground truth. They are useful for comparing
-many local runs consistently, but they should be read together with the raw matrix
-answers and source traces.
+The client also understands `context_precision` and `context_recall`, which
+require a ground-truth/reference value. Metric state is explicit:
 
-## 9. Report Structure
-
-The documentation is intentionally split by purpose:
-
-| Document | Purpose |
+| State | Meaning |
 |---|---|
-| [`README.md`](../README.md) | Entry point, architecture images, quick start, and top-level result summary. |
-| [`approaches.md`](approaches.md) | Detailed internals, dependencies, model roles, tuning surface, and observed behavior for each approach. |
-| [`approach-flavor-tuning.md`](approach-flavor-tuning.md) | How named Open WebUI and benchmark aliases map to query-time parameter changes. |
-| [`comparison.md`](comparison.md) | Narrative report for the current live run and its operational findings. |
-| [`dataset-complexity-report.md`](dataset-complexity-report.md) | Generated ranking table by dataset complexity plus per-query winners. |
-| [`results/`](results/) | Committed raw matrix and judgment snapshots for the documented run. |
+| `ok` | All requested metrics were eligible and returned. |
+| `partial` | Some metrics returned; others lacked required reference data. |
+| `not_evaluable` | Required contexts or ground truth were absent. |
+| `error` | Atlas evaluation failed after configured retries. |
+| `disabled` | No Ragas metrics or endpoint were selected. |
+| `not_run` | The approach cell itself failed before evaluation. |
 
-## 10. Current Reading
+Evaluator and embedding model names returned by Atlas are stored with scores.
+Ragas failures never erase a successful answer, and missing evidence never becomes
+a numeric zero.
 
-The measured results show ranking drift as the input becomes more relational:
+## 9. Independent Judge Panel
 
-- On `baseline_curated`, wider dense retrieval was enough to lead the aggregate.
-- On `graph_native`, high-recall hybrid retrieval won the aggregate even though
-  `graph-rag-fast` won a relationship-heavy individual question (`entity_bridge`).
-- On `cyber_threat_intel`, contextual high-recall retrieval won the aggregate,
-  suggesting the current LightRAG query settings still under-synthesize some
-  graph-shaped cyber paths.
+[`compare/judge.py`](../compare/judge.py) operates only on the compatibility
+matrix after approach execution. The current manifest selects
+`qwen3.6:latest` and `gemma4:31b` at temperature `0`, with thinking disabled for
+that local endpoint. The panel is configurable or can be disabled entirely.
 
-The graph result should not be read as a failure of graph RAG as a concept. It
-shows that the current LightRAG endpoint is operational but still sensitive to
-query mode, fanout, reranking compatibility, source-text inclusion, and model-role
-choices.
+For each query, the harness:
+
+1. deterministically shuffles answers with a stable hash;
+2. replaces approach names with letters;
+3. caps each answer at 1200 characters;
+4. supplies the query-specific rationale;
+5. requests a 1-5 score for every answer and one best-answer vote;
+6. parses strict JSON and normalizes letter case and numeric strings;
+7. computes per-approach means and uses votes only as a mean-score tiebreaker.
+
+Judges are a subjective, directional signal. They are kept separate from Ragas
+and operational metrics so an unavailable or biased panel cannot change grounding
+scores or erase latency/error evidence.
+
+## 10. Metric Taxonomy and Coverage-Aware Ranking
+
+[`compare/evaluation_summary.py`](../compare/evaluation_summary.py) creates
+deterministic per-dataset and overall summaries. Rankings never combine unlike
+metrics into one opaque score:
+
+- operational: success/error counts and latency;
+- Ragas: one ranking per metric;
+- judge panel: one separate subjective ranking;
+- coverage: evaluated rows/queries versus eligible totals;
+- failures and `not_evaluable` counts: visible beside every aggregate.
+
+Ties are emitted as tie groups rather than resolved by input order. Longitudinal
+sections show each approach across dataset complexity levels. A high mean with low
+coverage must not be read as equivalent to a high mean over every eligible row.
+
+## 11. Result Artifacts
+
+Each renewed dataset run produces four files:
+
+| Suffix | Role |
+|---|---|
+| `-evidence.jsonl` | Canonical append-safe per-cell evidence and metric rows. |
+| `-evaluation.json` | Deterministic coverage-aware aggregate, including judge join when available. |
+| `-matrix.json` | Compatibility answer/cell view for readers and judge input. |
+| `-judgments.json` | Optional panel verdicts, scores, reasons, and winners. |
+
+Working artifacts live under gitignored `compare/results/`. The ladder publishes
+all four to [`docs/results/`](results/) only after validation. Historical rows
+with only matrix/judgment snapshots remain valid and readable.
+
+The current 2026-07-03 published snapshots predate the canonical contract. Their
+documented rankings are judge-panel rankings; they do not contain Ragas scores.
+The generated report labels those datasets `legacy snapshot; rerun required`
+instead of fabricating new metrics from old output.
+
+## 12. Reproduction and Overrides
+
+Start the stack, then run the default matrix and panel:
+
+```bash
+./scripts/start-all.sh
+uv run python compare/run_matrix.py
+uv run python compare/judge.py
+```
+
+Run an exact subset with explicit durable paths:
+
+```bash
+MATRIX_DATASET_ID=graph_native \
+MATRIX_QUERIES_FILE=demo/graph_native_queries.yaml \
+MATRIX_MODELS=vanilla-rag,graph-rag \
+MATRIX_RUN_ID=smoke-graph-native \
+MATRIX_CANONICAL_FILE=smoke-graph-native-evidence.jsonl \
+MATRIX_SUMMARY_FILE=smoke-graph-native-evaluation.json \
+MATRIX_RESULTS_FILE=smoke-graph-native-matrix.json \
+uv run python compare/run_matrix.py
+```
+
+The same command resumes safely when repeated with unchanged configuration.
+Relevant inputs include `MATRIX_MANIFEST_FILE`, `MATRIX_FLAVORS`,
+`MATRIX_EVALUATOR_URL`, `MATRIX_EVALUATOR_API_KEY`, `JUDGE_MANIFEST_FILE`,
+`JUDGE_MODELS`, `JUDGE_ENDPOINT`, `JUDGE_API_KEY`, and `JUDGE_THINK`.
+
+## 13. Reading the Current Results
+
+The historical ladder shows ranking drift: wider vanilla retrieval led the
+baseline corpus, high-recall hybrid retrieval led the graph-native dossiers, and
+high-recall contextual retrieval led the cyber corpus. Default graph-rag was
+operational but did not win an aggregate; graph flavor behavior varied sharply.
+
+Those conclusions remain useful as a directional historical record, but the next
+live ladder is the first run that can support direct faithfulness, answer-relevancy,
+coverage, failure, and latency comparisons from canonical evidence. See
+[`comparison.md`](comparison.md) for narrative findings and
+[`approaches.md`](approaches.md) for each approach's internal steps and tuning
+surface.

@@ -18,10 +18,12 @@ with host Ollama; that is run metadata, not a repo requirement. See
 - **Queries:** baseline prompts in [`demo/queries.yaml`](../demo/queries.yaml),
   graph-native prompts in [`demo/graph_native_queries.yaml`](../demo/graph_native_queries.yaml),
   and cyber prompts in [`demo/cyber_threat_intel_queries.yaml`](../demo/cyber_threat_intel_queries.yaml).
-- **Harness:** [`compare/run_matrix.py`](../compare/run_matrix.py) and
-  [`compare/judge.py`](../compare/judge.py). Raw working outputs are written under
-  `compare/results/` and are intentionally gitignored; the committed snapshots for
-  this run are:
+- **Harness:** [`compare/run_matrix.py`](../compare/run_matrix.py),
+  [`compare/summarize.py`](../compare/summarize.py), and
+  [`compare/judge.py`](../compare/judge.py). Renewed runs write canonical evidence
+  JSONL, deterministic evaluation JSON, and compatibility matrix/judgment JSON.
+  Raw working outputs live under gitignored `compare/results/`; the 2026-07-03
+  run predates the canonical pair and committed only:
   [`baseline matrix`](results/live-2026-07-03-baseline_curated-matrix.json) /
   [`baseline judgments`](results/live-2026-07-03-baseline_curated-judgments.json),
   [`graph-native matrix`](results/live-2026-07-03-graph_native-matrix.json) /
@@ -81,12 +83,21 @@ The graph-native comparison uses the same harness with alternate input/output fi
 
 ```bash
 MATRIX_QUERIES_FILE=demo/graph_native_queries.yaml \
+MATRIX_DATASET_ID=graph_native \
+MATRIX_RUN_ID=manual-graph-native \
 MATRIX_RESULTS_FILE=graph_native_matrix.json \
+MATRIX_CANONICAL_FILE=graph_native_evidence.jsonl \
+MATRIX_SUMMARY_FILE=graph_native_evaluation.json \
 uv run python compare/run_matrix.py
 
 JUDGE_MATRIX_FILE=graph_native_matrix.json \
 JUDGE_RESULTS_FILE=graph_native_judgments.json \
 uv run python compare/judge.py
+
+uv run python compare/summarize.py \
+  --rows compare/results/graph_native_evidence.jsonl \
+  --output compare/results/graph_native_evaluation.json \
+  --judgments compare/results/graph_native_judgments.json
 ```
 
 For the dataset-by-dataset view, use the dataset manifest and report generator:
@@ -169,6 +180,9 @@ Ollama, or another configured provider.
 The 2026-07-03 ladder ran three datasets, 20 queries, and 14 aliases, producing
 280 matrix cells and judge scores for every dataset. All three dataset runs
 completed and wrote committed snapshots under [`docs/results/`](results/).
+These are historical judge-panel rankings. They contain no canonical evidence
+JSONL or Atlas/Ragas scores; the renewed report marks those metrics as awaiting a
+rerun rather than deriving them retroactively.
 
 | Dataset | Matrix cells | Winner | Current reading |
 |---|---:|---|---|
@@ -182,17 +196,20 @@ is the canonical scored summary for the current run.
 
 ## 7. Judgment Panel
 
-The scoring pass used `compare/judge.py`, which evaluates stored matrix answers
-after all approaches have already run. The judges were local Ollama models:
-`qwen3.6:latest` and `gemma4:31b`, both called with `temperature=0` and
-`think:false`.
+The historical scoring pass used `compare/judge.py`, which evaluates stored
+matrix answers after all approaches have already run. Its manifest selected local
+Ollama models `qwen3.6:latest` and `gemma4:31b`, both called with `temperature=0`
+and `think:false`.
 
 The panel was chosen to keep evaluation local and repeatable while avoiding a
 single-model judge. For each query, the harness anonymizes and deterministically
 shuffles the approach answers, gives the judges the query-specific scoring
 rationale from the query YAML, asks for 1-5 scores plus a best-answer letter, and
 then aggregates mean score by approach with best-answer votes as the tiebreaker.
-The judgment files in `docs/results/` keep the per-judge scores and reasons.
+The judgment files in `docs/results/` keep the per-judge scores and reasons. The
+current harness reads judge models, endpoint, temperature, and optional thinking
+from `compare/evaluation.yaml`; environment overrides can use another
+OpenAI-compatible provider without changing the runner.
 
 ## 8. Graph-RAG and Flavor Findings
 
@@ -226,8 +243,10 @@ wiring are likely more important than adding still more graph-shaped documents.
   with source links and explicit relationship bullets, designed to make graph structure
   available. This is a better graph test than the baseline subset, but it is still not
   a large natural enterprise corpus.
-- **Local judges:** scores are directional, not authoritative. Answers are shuffled
-  and anonymized, but both judges are local models.
+- **Current local judges:** historical scores are directional, not authoritative.
+  Answers are shuffled and anonymized, but the 2026-07-03 panel used two local
+  models. The renewed harness keeps that panel separate from Ragas and operational
+  metrics.
 - **Cache effects:** n8n and graph-rag include cache hits in some cells.
 - **Agentic cap:** `MAX_STEPS=4` materially limits `agentic-rag`.
 - **Graph-wide caveat:** `graph-rag-wide` is measured but currently a poor tuning;

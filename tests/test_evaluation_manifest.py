@@ -42,6 +42,9 @@ metrics:
   ragas: [faithfulness, answer_relevancy]
   judge_panel:
     enabled: true
+    endpoint: http://localhost:11434/v1/chat/completions
+    temperature: 0
+    thinking: false
     models: [judge-a]
 run:
   retries: 1
@@ -63,6 +66,8 @@ def test_manifest_resolves_dataset_catalog_and_evidence_capability(tmp_path: Pat
     dataset = load_dataset(manifest, "ds-a")
 
     assert manifest.version == 1
+    assert manifest.metrics.judge_panel.endpoint == "http://localhost:11434/v1/chat/completions"
+    assert manifest.metrics.judge_panel.thinking is False
     assert manifest.datasets_file == tmp_path / "datasets.yaml"
     assert dataset.id == "ds-a"
     assert dataset.questions_file == tmp_path / "questions" / "a.yaml"
@@ -79,6 +84,7 @@ def test_manifest_resolves_dataset_catalog_and_evidence_capability(tmp_path: Pat
         ("concurrency: 0", "concurrency"),
         ("ragas: [not-a-metric]", "not-a-metric"),
         ("models: []", "models"),
+        ("endpoint: ''", "endpoint"),
     ],
 )
 def test_manifest_rejects_invalid_contract(
@@ -94,8 +100,10 @@ def test_manifest_rejects_invalid_contract(
         text = text.replace("concurrency: 1", replacement)
     elif replacement.startswith("ragas:"):
         text = text.replace("ragas: [faithfulness, answer_relevancy]", replacement)
-    else:
+    elif replacement.startswith("models:"):
         text = text.replace("models: [judge-a]", replacement)
+    else:
+        text = text.replace("endpoint: http://localhost:11434/v1/chat/completions", replacement)
     path.write_text(text, encoding="utf-8")
 
     with pytest.raises(ValueError, match=message):

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Judge panel: score each approach's answer per query using a panel of LOCAL
-models on the host Ollama (qwen3.6:latest + gemma4:31b) via the OpenAI-compatible
-/v1 endpoint. Answers are shown shuffled and anonymized (one letter per answer —
+"""Judge panel: score each approach's answer per query through a configurable
+OpenAI-compatible endpoint. Answers are shown shuffled and anonymized (one letter per answer —
 A, B, C, …) so judges cannot bias by approach order or name.
 
 Batched by judge model — all of a dataset's queries for one judge before switching —
@@ -52,6 +51,31 @@ def judge_models() -> list[str]:
     return list(panel.models) if panel.enabled else []
 
 
+def judge_runtime() -> tuple[str, float, bool | None, dict[str, str]]:
+    path = Path(os.environ.get("JUDGE_MANIFEST_FILE", str(DEFAULT_MANIFEST)))
+    if not path.is_absolute():
+        path = ROOT / path
+    panel = load_manifest(path).metrics.judge_panel
+    endpoint = os.environ.get("JUDGE_ENDPOINT") or panel.endpoint
+    if not endpoint:
+        raise ValueError("judge endpoint is required when the judge panel is enabled")
+
+    thinking = panel.thinking
+    if configured := os.environ.get("JUDGE_THINK"):
+        normalized = configured.strip().lower()
+        if normalized == "omit":
+            thinking = None
+        elif normalized in {"true", "false"}:
+            thinking = normalized == "true"
+        else:
+            raise ValueError("JUDGE_THINK must be true, false, or omit")
+
+    headers: dict[str, str] = {}
+    if api_key := os.environ.get("JUDGE_API_KEY"):
+        headers["Authorization"] = f"Bearer {api_key}"
+    return endpoint, panel.temperature, thinking, headers
+
+
 def stable_order(items: list[str], seed: str) -> list[str]:
     """Deterministic shuffle: order by hash(seed+item). Reproducible across runs."""
     return sorted(items, key=lambda x: hashlib.sha1((seed + x).encode()).hexdigest())
@@ -68,7 +92,16 @@ def extract_json(text: str) -> dict | None:
     return None
 
 
-def ask_judge(client: httpx.Client, model: str, prompt: str) -> tuple[dict | None, str]:
+def ask_judge(
+    client: httpx.Client,
+    model: str,
+    prompt: str,
+    *,
+    endpoint: str,
+    temperature: float,
+    thinking: bool | None,
+    headers: dict[str, str],
+) -> tuple[dict | None, str]:
     """One judge call with one retry. Returns (verdict, failure_detail).
 
     The detail matters operationally: connection-refused (host Ollama not running),
@@ -78,8 +111,14 @@ def ask_judge(client: httpx.Client, model: str, prompt: str) -> tuple[dict | Non
     last = ""
     for _ in range(2):  # one retry
         try:
-            r = client.post(OLLAMA, json={"model": model, "temperature": 0, "think": False,
-                                          "messages": [{"role": "user", "content": prompt}]})
+            payload = {
+                "model": model,
+                "temperature": temperature,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            if thinking is not None:
+                payload["think"] = thinking
+            r = client.post(endpoint, headers=headers, json=payload)
             r.raise_for_status()
             content = r.json()["choices"][0]["message"].get("content") or ""
             parsed = extract_json(content)
@@ -142,6 +181,7 @@ def main() -> None:
         output.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"wrote {output} (judge panel disabled)")
         return
+    endpoint, temperature, thinking, headers = judge_runtime()
     by_q: dict[str, dict[str, dict]] = {}
     for c in matrix["cells"]:
         by_q.setdefault(c["query_id"], {})[c["model"]] = c
@@ -167,7 +207,15 @@ def main() -> None:
         for jm in panel:
             for q in matrix["queries"]:
                 qid = q["id"]
-                verdict, err = ask_judge(client, jm, meta[qid]["prompt"])
+                verdict, err = ask_judge(
+                    client,
+                    jm,
+                    meta[qid]["prompt"],
+                    endpoint=endpoint,
+                    temperature=temperature,
+                    thinking=thinking,
+                    headers=headers,
+                )
                 if not verdict:
                     print(f"  [{jm}] {qid}: no valid verdict ({err})", flush=True)
                     continue
@@ -217,6 +265,7 @@ if __name__ == "__main__":
     argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="Configured via env vars: JUDGE_MATRIX_FILE, JUDGE_RESULTS_FILE, "
-               "JUDGE_MANIFEST_FILE, JUDGE_MODELS (paths relative to compare/results/).",
+               "JUDGE_MANIFEST_FILE, JUDGE_MODELS, JUDGE_ENDPOINT, JUDGE_API_KEY, "
+               "JUDGE_THINK (true, false, or omit).",
     ).parse_args()
     main()

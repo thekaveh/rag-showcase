@@ -118,10 +118,10 @@
 **Interfaces:**
 - Documents the Atlas/showcase ownership boundary, exact invocation flow, manifest schema, evidence capability, result taxonomy, resume semantics, output layout, historical compatibility, and limitations.
 
-- [ ] **Step 1: Update methodology** with numbered sections for consumer ownership, request/evidence flow, Atlas evaluation, judge separation, deterministic summaries, and coverage-aware ranking.
-- [ ] **Step 2: Update result documentation** with canonical/compatibility artifact naming and explain why graph answers without retrievable contexts can be answered but remain unevaluable for faithfulness.
-- [ ] **Step 3: Update README/comparison links and summaries** without claiming unrun live scores.
-- [ ] **Step 4: Run `make docs-check`** and fix broken links, manifest drift, or generated-surface differences.
+- [x] **Step 1: Update methodology** with numbered sections for consumer ownership, request/evidence flow, Atlas evaluation, judge separation, deterministic summaries, and coverage-aware ranking.
+- [x] **Step 2: Update result documentation** with canonical/compatibility artifact naming and explain why graph answers without retrievable contexts can be answered but remain unevaluable for faithfulness.
+- [x] **Step 3: Update README/comparison links and summaries** without claiming unrun live scores.
+- [x] **Step 4: Run `make docs-check`** and fix broken links, manifest drift, or generated-surface differences.
 
 ### Task 6: Full and Live Verification
 

@@ -153,6 +153,7 @@ metrics:
   ragas: []
   judge_panel:
     enabled: true
+    endpoint: http://localhost:11434/v1/chat/completions
     models: [manifest-judge]
 run:
   retries: 0
@@ -187,3 +188,45 @@ def test_main_writes_disabled_artifact_without_calls(tmp_path, monkeypatch) -> N
         "judges": [],
         "queries": [],
     }
+
+
+@respx.mock
+def test_main_supports_provider_neutral_endpoint_auth_and_thinking_omission(
+    tmp_path, monkeypatch
+) -> None:
+    matrix_path = _matrix(tmp_path)
+    out_path = tmp_path / "judgments.json"
+    endpoint = "https://judge.example.test/v1/chat/completions"
+    monkeypatch.setenv("JUDGE_MATRIX_FILE", str(matrix_path))
+    monkeypatch.setenv("JUDGE_RESULTS_FILE", str(out_path))
+    monkeypatch.setenv("JUDGE_MODELS", "portable-judge")
+    monkeypatch.setenv("JUDGE_ENDPOINT", endpoint)
+    monkeypatch.setenv("JUDGE_API_KEY", "secret-token")
+    monkeypatch.setenv("JUDGE_THINK", "omit")
+
+    seen: list[httpx.Request] = []
+
+    def reply(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": '{"scores":{"A":4,"B":3},"best":"A"}'
+                        }
+                    }
+                ]
+            },
+        )
+
+    respx.post(endpoint).mock(side_effect=reply)
+
+    judge.main()
+
+    assert len(seen) == 1
+    assert seen[0].headers["Authorization"] == "Bearer secret-token"
+    payload = json.loads(seen[0].content)
+    assert payload["model"] == "portable-judge"
+    assert "think" not in payload

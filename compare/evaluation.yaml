@@ -22,6 +22,9 @@ metrics:
     - answer_relevancy
   judge_panel:
     enabled: true
+    endpoint: http://localhost:11434/v1/chat/completions
+    temperature: 0
+    thinking: false
     models:
       - qwen3.6:latest
       - gemma4:31b
