@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Atlas state after the Compose exited-zero wait race (Atlas #508)."""
+"""Wait for Atlas after Compose's successful one-shot wait race."""
 
 from __future__ import annotations
 
@@ -20,7 +20,6 @@ LONG_LIVED_SERVICES = {
     "lightrag",
     "litellm",
     "local-deep-researcher",
-    "minio",
     "n8n",
     "n8n-worker",
     "neo4j-graph-db",
@@ -41,32 +40,32 @@ LONG_LIVED_SERVICES = {
 ONE_SHOT_SERVICES = {
     "lightrag-init",
     "litellm-init",
-    "minio-init",
     "n8n-init",
+    "n8n-seed",
     "open-webui-init",
     "supabase-db-init",
     "weaviate-init",
 }
 
-EXITED_ZERO_LINE = re.compile(r"\bcontainer\s+\S+\s+exited\s+\(0\)")
+EXITED_ZERO_LINE = re.compile(r"\bcontainer\s+\S+\s+exited\s+\(0\)", re.IGNORECASE)
 FAILED_START_SUMMARY = "[ERROR] Failed to start some services"
 
 
 def env_value(name: str) -> str:
     value = ""
-    for raw_line in (ROOT / "infra" / ".env").read_text(encoding="utf-8").splitlines():
+    env_file = ROOT / "infra" / ".env"
+    for raw_line in env_file.read_text(encoding="utf-8").splitlines():
         if raw_line.startswith(f"{name}="):
             value = raw_line.split("=", 1)[1].strip()
     return value
 
 
 def is_exited_zero_race(output: str) -> bool:
-    """Recognize only Atlas #508's Compose exited-zero false failure."""
+    """Recognize only the Atlas/Compose exited-zero false failure."""
     return bool(EXITED_ZERO_LINE.search(output)) and FAILED_START_SUMMARY in output
 
 
 def required_services(llm_source: str) -> tuple[set[str], set[str]]:
-    """Return the expected services for this wrapper's fixed RAG topology."""
     long_lived = set(LONG_LIVED_SERVICES)
     one_shots = set(ONE_SHOT_SERVICES)
     if llm_source.startswith("ollama-container-"):
@@ -150,9 +149,7 @@ def evaluate(
     return pending, failures
 
 
-def wait_for_runtime(
-    project: str, llm_source: str, timeout: float = 300.0
-) -> bool:
+def wait_for_runtime(project: str, llm_source: str, timeout: float = 300.0) -> bool:
     deadline = time.monotonic() + timeout
     last_pending: list[str] = []
     while time.monotonic() < deadline:
@@ -183,15 +180,13 @@ def main() -> None:
     output = args.atlas_log.read_text(encoding="utf-8", errors="replace")
     if not is_exited_zero_race(output):
         raise SystemExit(
-            "Atlas failed without the #508 exited-zero signature; refusing fallback."
+            "Atlas failed without the exited-zero signature; refusing fallback."
         )
-    if not args.project:
-        raise SystemExit("PROJECT_NAME is missing from infra/.env")
-    if not args.llm_source:
-        raise SystemExit("LLM_PROVIDER_SOURCE is missing from infra/.env")
+    if not args.project or not args.llm_source:
+        raise SystemExit("PROJECT_NAME or LLM_PROVIDER_SOURCE is missing from infra/.env")
     if not wait_for_runtime(args.project, args.llm_source, args.timeout):
         raise SystemExit(1)
-    print("Atlas runtime converged: long-lived services are ready and one-shots exited 0.")
+    print("Atlas runtime converged after the successful one-shot wait race.")
 
 
 if __name__ == "__main__":

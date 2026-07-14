@@ -2,12 +2,6 @@
 # Relative paths resolve against the project dir = infra/ (the dir of the
 # first -f file, docker-compose.yml), so ../backend_plugins == repo root.
 services:
-  # Atlas #504: Compose builds missing local images even when a service has
-  # deploy.replicas=0. Asset Baker is outside this track and disabled, but its
-  # upstream Blender download currently fails (#505), so remove that disabled
-  # service until Atlas launches the resolved enabled-service set.
-  asset-baker: !reset null
-
   lightrag:
     environment:
       # Used only when a LightRAG role is bound directly to Ollama. The default
@@ -23,6 +17,9 @@ services:
       BACKEND_PLUGINS_DIR: /app/plugins
       RAG_ROLES_FILE: ${RAG_ROLES_FILE:-/app/plugins/rag/roles.yaml}
       RAG_FLAVORS_FILE: ${RAG_FLAVORS_FILE:-/app/plugins/rag/flavors.yaml}
+      RAG_INGESTION_PROFILE: ${RAG_INGESTION_PROFILE:-showcase_default}
+      RAG_BASE_COLLECTION: ${RAG_BASE_COLLECTION:-RagBase_showcase_default}
+      RAG_CONTEXTUAL_COLLECTION: ${RAG_CONTEXTUAL_COLLECTION:-RagContextual_showcase_default}
       RAG_WEAVIATE_GRPC_PORT: ${RAG_WEAVIATE_GRPC_PORT:-50051}
       TEI_RERANKER_ENDPOINT: ${TEI_RERANKER_ENDPOINT:-http://tei-reranker:80}
       TEI_RERANKER_MAX_BATCH: ${TEI_RERANKER_MAX_BATCH:-32}
@@ -31,8 +28,6 @@ services:
       LIGHTRAG_QUERY_TOP_K: ${LIGHTRAG_QUERY_TOP_K:-10}
       LIGHTRAG_QUERY_CHUNK_TOP_K: ${LIGHTRAG_QUERY_CHUNK_TOP_K:-5}
       LIGHTRAG_QUERY_MAX_TOTAL_TOKENS: ${LIGHTRAG_QUERY_MAX_TOTAL_TOKENS:-12000}
-      LIGHTRAG_UPLOAD_RETRIES: ${LIGHTRAG_UPLOAD_RETRIES:-60}
-      LIGHTRAG_UPLOAD_RETRY_DELAY: ${LIGHTRAG_UPLOAD_RETRY_DELAY:-5.0}
     volumes:
       - ../backend_plugins:/app/plugins:ro
       - ../ingest:/app/ingest:ro

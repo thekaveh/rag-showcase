@@ -97,14 +97,14 @@ rag-showcase no longer injects that property globally.
 Every approach returns an answer, but not every service exposes the retrieved
 contexts needed by context-grounding metrics.
 
-| Approach | Core process | Declared evidence capability |
-|---|---|---|
-| `vanilla-rag` | Dense vector search over `RagBase`, then one generation call. | `answer_with_contexts` |
-| `hybrid-rag` | BM25 + dense retrieval, TEI rerank, then generation. | `answer_with_contexts` |
-| `contextual-rag` | Hybrid search and rerank over context-prefixed chunks. | `answer_with_contexts` |
-| `graph-rag` | LightRAG graph/vector query over an ingest-time knowledge graph. | `answer_only` |
-| `agentic-rag` | Bounded ReAct loop over vector and LightRAG tools. | `answer_with_contexts` |
-| `n8n-adaptive-rag` | n8n classification, downstream route, normalized response. | `answer_with_contexts` |
+| Approach | Retrieval or routing process | Internal LLM/model calls | Declared evidence capability |
+|---|---|---|---|
+| `vanilla-rag` | Embed query -> dense search over `RagBase_<profile>` -> stuff top chunks into one prompt. | One `embed` call and one `light_gen` call. | `answer_with_contexts` |
+| `hybrid-rag` | Embed query -> Weaviate BM25+dense hybrid search over `RagBase_<profile>` -> TEI rerank -> stuff top chunks. | One `embed` call, one TEI rerank call, one `light_gen` call. | `answer_with_contexts` |
+| `contextual-rag` | A showcase post-step derives `RagContextual_<profile>` from Atlas chunks; query-time uses hybrid search + TEI rerank. | Ingest-time `contextual_blurb` calls per chunk; query-time `embed`, TEI rerank, and `light_gen`. | `answer_with_contexts` |
+| `graph-rag` | Atlas uploads full documents; LightRAG extracts entities/relationships once and answers through its graph/vector query path. | LightRAG EXTRACT/KEYWORD/QUERY model calls managed by the LightRAG service. | `answer_only` |
+| `agentic-rag` | Bounded ReAct loop decides between vector search and LightRAG graph query tools. | Up to the configured agent step limit of `agentic` calls, plus tool calls. | `answer_with_contexts` |
+| `n8n-adaptive-rag` | n8n classifies the query, routes to another approach, and normalizes the response. | One classifier call, then the selected route's model calls. | `answer_with_contexts` |
 
 The plugin adds a top-level `rag_showcase` extension to JSON and SSE responses:
 
@@ -142,24 +142,31 @@ result files stay dataset-specific. The 2026-07-03 committed run contains:
 
 For each selected dataset, [`scripts/run-dataset-ladder.py`](../scripts/run-dataset-ladder.py):
 
-1. Optionally cold-resets the stack.
-2. Starts Atlas with default ingest skipped.
-3. Ingests exactly the selected corpus into Weaviate and LightRAG.
-4. Waits until LightRAG extraction drains without failed documents.
-5. Runs every selected query/alias cell through LiteLLM.
-6. Appends each completed canonical row immediately.
-7. Evaluates eligible rows through Atlas.
-8. Produces the compatibility matrix and first deterministic summary.
-9. Runs the optional judge panel over stored answers.
-10. Rebuilds the summary with the judge join.
-11. Validates all artifacts before publishing them to `docs/results/`.
-12. Updates the dataset catalog and regenerates the dataset report.
+1. Validate the dataset's declared `ingestion_profile` and corpus directory.
+2. Cold-reset the Atlas stack unless `--no-cold-reset` is set.
+3. Start rag-showcase with the profile-scoped base/contextual collection names and
+   default ingest skipped.
+4. Submit the declared profile to `POST /api/rag/ingestions` and poll its durable
+   record until Atlas completes discover, parse, chunk, embed, vector write,
+   LightRAG upload, drain, and finalize.
+5. Build `RagContextual_<profile>` from the completed Atlas plain chunks. This is
+   the only approach-specific ingestion transform retained locally.
+6. Run every selected query/alias cell through LiteLLM, appending each completed
+   canonical row immediately with the Atlas job id, profile, revision, and digest.
+7. Evaluate eligible rows through Atlas and produce the compatibility matrix plus
+   first deterministic summary.
+8. Validate that every selected matrix cell returned successfully.
+9. Run the optional judge panel over stored answers; it carries the same ingestion
+   provenance forward.
+10. Rebuild the deterministic summary with the judge join.
+11. Validate all four artifacts before publishing them to `docs/results/`.
+12. Update `compare/datasets.yaml` and regenerate the dataset report.
 
 A cold-reset run deletes only that dataset/date's gitignored working artifacts
-before evaluation and records a SHA-256 revision of the ingested corpus. This
-prevents partial rows from an earlier graph instance from being merged into a new
-ingestion. To resume an interrupted run without rebuilding the graph, rerun one
-dataset with `--no-cold-reset`; the existing provenance must still match.
+before evaluation. Atlas's durable ingestion id, profile revision, and content
+digest distinguish the graph/index state from earlier runs. To resume an interrupted
+run without rebuilding the graph, rerun one dataset with `--no-cold-reset`; the
+existing canonical rows must match that same ingestion provenance.
 
 ## 7. Canonical Row Contract and Resume Safety
 
@@ -304,6 +311,12 @@ uv run python compare/run_matrix.py
 uv run python compare/judge.py
 ```
 
+`MATRIX_MODELS` selects an exact comma-separated set of model aliases.
+`MATRIX_FLAVORS` expands named profiles from `compare/flavors.yaml`. The dataset
+runner treats those modes as mutually exclusive to keep result metadata clear.
+New snapshots also contain an `ingestion` object. Historical snapshots created
+before this migration remain valid but do not retroactively gain Atlas job ids.
+
 Run an exact subset with explicit durable paths:
 
 ```bash
@@ -344,7 +357,13 @@ Atlas's thinking-disabled Qwen model for KEYWORD and QUERY. With that split, the
 previously blocked graph keyword query completed successfully.
 
 These runs validate orchestration, evidence durability, resume, graph invocation,
-and reporting. They do not add quality scores to the published historical ladder:
+and reporting. A later 2026-07-14 integration pass pinned Atlas `3c33250b` and
+completed generic `graph_native` ingestion job
+`7127dcc3-7a45-40ad-ae28-5b547cf0bc8b`: 10 files/chunks/vectors/uploads, a drained
+LightRAG queue, 10 contextual chunks, and all eight six-alias smoke checks. That
+pass validates the ingestion transport and serving path, not comparative quality.
+
+These smoke runs do not add quality scores to the published historical ladder:
 Atlas evaluator defects [#596](https://github.com/thekaveh/atlas/issues/596) and
 [#597](https://github.com/thekaveh/atlas/issues/597) prevented valid Ragas scores,
 so partial smoke artifacts remain under gitignored `compare/results/`. A complete

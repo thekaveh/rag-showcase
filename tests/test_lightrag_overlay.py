@@ -29,7 +29,7 @@ def _load_overlay() -> dict:
     )
 
 
-def test_overlay_removes_disabled_asset_baker_from_resolved_compose() -> None:
+def test_atlas_resolves_asset_baker_but_does_not_need_a_consumer_override() -> None:
     if shutil.which("docker") is None:
         pytest.skip("Docker Compose CLI is not installed")
 
@@ -63,14 +63,14 @@ def test_overlay_removes_disabled_asset_baker_from_resolved_compose() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "asset-baker" not in result.stdout.splitlines()
+    assert "asset-baker" in result.stdout.splitlines()
 
 
 def test_lightrag_overlay_only_adds_optional_lightrag_ollama_context_caps() -> None:
     overlay = _load_overlay()
     env = overlay["services"]["lightrag"]["environment"]
 
-    assert overlay["services"]["asset-baker"] is None
+    assert "asset-baker" not in overlay["services"]
     assert "lightrag-init" not in overlay["services"]
     assert env == {
         "OLLAMA_LLM_NUM_CTX": "${LIGHTRAG_OLLAMA_LLM_NUM_CTX:-8192}",
@@ -116,8 +116,6 @@ def test_resolved_backend_receives_plugin_operator_overrides() -> None:
         {
             "RAG_WEAVIATE_GRPC_PORT": "51051",
             "TEI_RERANKER_MAX_BATCH": "7",
-            "LIGHTRAG_UPLOAD_RETRIES": "9",
-            "LIGHTRAG_UPLOAD_RETRY_DELAY": "0.25",
         }
     )
     result = subprocess.run(
@@ -145,5 +143,5 @@ def test_resolved_backend_receives_plugin_operator_overrides() -> None:
     backend_env = yaml.safe_load(result.stdout)["services"]["backend"]["environment"]
     assert backend_env["RAG_WEAVIATE_GRPC_PORT"] == "51051"
     assert backend_env["TEI_RERANKER_MAX_BATCH"] == "7"
-    assert backend_env["LIGHTRAG_UPLOAD_RETRIES"] == "9"
-    assert backend_env["LIGHTRAG_UPLOAD_RETRY_DELAY"] == "0.25"
+    assert "LIGHTRAG_UPLOAD_RETRIES" not in backend_env
+    assert "LIGHTRAG_UPLOAD_RETRY_DELAY" not in backend_env

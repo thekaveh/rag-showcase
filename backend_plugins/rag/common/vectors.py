@@ -17,8 +17,8 @@ _TIMEOUT = httpx.Timeout(60.0, connect=10.0)
 
 # Single source of truth for the two collection names, shared by the approaches
 # and the ingest tool (renaming a collection was previously a six-site edit).
-BASE_COLLECTION = "RagBase"
-CONTEXTUAL_COLLECTION = "RagContextual"
+BASE_COLLECTION = os.environ.get("RAG_BASE_COLLECTION", "RagBase")
+CONTEXTUAL_COLLECTION = os.environ.get("RAG_CONTEXTUAL_COLLECTION", "RagContextual")
 
 
 @dataclass
@@ -26,6 +26,13 @@ class Hit:
     title: str
     text: str
     score: float | None = None
+
+
+@dataclass(frozen=True)
+class IngestedChunk:
+    source: str
+    text: str
+    index: int
 
 
 def _weaviate() -> Any:
@@ -115,9 +122,29 @@ def _hits_from_objects(objs: Any) -> list[Hit]:
         score = None
         if o.metadata is not None and o.metadata.score is not None:
             score = float(o.metadata.score)
-        out.append(Hit(title=str(o.properties.get("title", "")),
-                       text=str(o.properties.get("text", "")), score=score))
+        title = o.properties.get("title") or o.properties.get("source") or ""
+        text = o.properties.get("text") or o.properties.get("content") or ""
+        out.append(Hit(title=str(title), text=str(text), score=score))
     return out
+
+
+def read_ingested_chunks(collection: str) -> list[IngestedChunk]:
+    """Read Atlas ingestion objects for contextual-RAG's local enrichment step."""
+    client = _weaviate()
+    try:
+        coll = client.collections.get(collection)
+        chunks = []
+        for obj in coll.iterator():
+            properties = obj.properties or {}
+            source = str(properties.get("source") or properties.get("title") or "")
+            text = str(properties.get("content") or properties.get("text") or "")
+            raw_index = properties.get("chunkIndex", 0)
+            index = raw_index if isinstance(raw_index, int) else 0
+            if source and text:
+                chunks.append(IngestedChunk(source=source, text=text, index=index))
+        return sorted(chunks, key=lambda chunk: (chunk.source, chunk.index))
+    finally:
+        client.close()
 
 
 def search_dense(collection: str, query_vec: list[float], k: int) -> list[Hit]:

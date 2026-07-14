@@ -92,6 +92,21 @@ def flavors_file() -> Path:
     return Path(os.environ.get("MATRIX_FLAVORS_FILE", str(flavor_config.DEFAULT_MANIFEST)))
 
 
+def ingestion_metadata() -> dict[str, str]:
+    job_id = os.environ.get("MATRIX_INGESTION_JOB_ID") or os.environ.get(
+        "MATRIX_INGESTION_ID", ""
+    )
+    fields = {
+        "id": os.environ.get("MATRIX_INGESTION_ID", "") or job_id,
+        "job_id": job_id,
+        "profile": os.environ.get("MATRIX_INGESTION_PROFILE", ""),
+        "revision": os.environ.get("MATRIX_INGESTION_REVISION", ""),
+        "content_digest": os.environ.get("MATRIX_INGESTION_CONTENT_DIGEST", ""),
+        "mode": os.environ.get("MATRIX_INGESTION_MODE", "showcase-managed"),
+    }
+    return {key: value for key, value in fields.items() if value}
+
+
 def selected_profiles() -> list[flavor_config.FlavorProfile]:
     if models := _csv_env("MATRIX_MODELS"):
         return [flavor_config.profile_for_model(model, manifest=flavors_file()) for model in models]
@@ -253,6 +268,9 @@ def main() -> None:
                  "queries": [{k: q.get(k) for k in ("id", "query", "expect_winner", "rationale")}
                              for q in queries],
                  "cells": []}
+    ingestion = ingestion_metadata()
+    if ingestion:
+        out["ingestion"] = ingestion
     print(f"matrix: {len(queries)} queries x {len(profiles)} approaches/flavors @ {base}")
     backend_port = envval("BACKEND_PORT")
     evaluator_endpoint = os.environ.get("MATRIX_EVALUATOR_URL")
@@ -302,12 +320,7 @@ def main() -> None:
                 evaluator=evaluator,
                 store=JsonlStore(canonical),
                 config_hashes=_config_hashes(query_path),
-                ingestion={
-                    "profile": os.environ.get("MATRIX_INGESTION_PROFILE"),
-                    "revision": os.environ.get("MATRIX_INGESTION_REVISION"),
-                    "job_id": os.environ.get("MATRIX_INGESTION_JOB_ID"),
-                    "mode": os.environ.get("MATRIX_INGESTION_MODE", "showcase-managed"),
-                },
+                ingestion=ingestion,
             )
         finally:
             if evaluator is not None:
@@ -342,6 +355,7 @@ if __name__ == "__main__":
         epilog="Configured via env vars: MATRIX_MANIFEST_FILE, MATRIX_DATASET_ID, "
                "MATRIX_RUN_ID, MATRIX_QUERIES_FILE, MATRIX_RESULTS_FILE, "
                "MATRIX_CANONICAL_FILE, MATRIX_SUMMARY_FILE, MATRIX_MODELS, MATRIX_FLAVORS, "
-               "MATRIX_FLAVORS_FILE, MATRIX_EVALUATOR_URL.",
+               "MATRIX_FLAVORS_FILE, MATRIX_EVALUATOR_URL, and MATRIX_INGESTION_* "
+               "provenance fields.",
     ).parse_args()
     main()

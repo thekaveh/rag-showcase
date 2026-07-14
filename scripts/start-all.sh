@@ -7,6 +7,17 @@ ATLAS_CONSUMER_MANIFEST="${ATLAS_CONSUMER_MANIFEST:-$ROOT/atlas.consumer.yml}"
 ATLAS_CONSUMER_MANIFEST="$(python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$ATLAS_CONSUMER_MANIFEST")"
 export ATLAS_CONSUMER_MANIFEST
 
+RAG_INGESTION_PROFILE="${RAG_INGESTION_PROFILE:-showcase_default}"
+case "$RAG_INGESTION_PROFILE" in
+  ""|*[!a-z0-9._-]*|[._-]*)
+    echo "Invalid RAG_INGESTION_PROFILE: $RAG_INGESTION_PROFILE" >&2
+    exit 1
+    ;;
+esac
+RAG_BASE_COLLECTION="${RAG_BASE_COLLECTION:-RagBase_${RAG_INGESTION_PROFILE}}"
+RAG_CONTEXTUAL_COLLECTION="${RAG_CONTEXTUAL_COLLECTION:-RagContextual_${RAG_INGESTION_PROFILE}}"
+export RAG_INGESTION_PROFILE RAG_BASE_COLLECTION RAG_CONTEXTUAL_COLLECTION
+
 # Older releases linked this overlay into Atlas's ignored services/_user slot.
 # Remove only that exact generated symlink so an upgraded checkout cannot load
 # the same Compose fragment both there and through atlas.consumer.yml.
@@ -32,11 +43,10 @@ fi
 envval() { grep -E "^$1=" infra/.env | tail -1 | cut -d= -f2- || true; }
 
 echo "==> Running Atlas consumer-manifest preflight…"
-# Atlas subcommands do not apply consumer env overrides themselves. The
-# preflight materializes a temporary active env from the manifest before each
-# validation command; detached startup remains authoritative after source flags.
 [ -f infra/.env ] || cp infra/.env.example infra/.env
-uv run --project "$ROOT/infra/bootstrapper" python scripts/atlas_preflight.py
+( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" env backfill )
+( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" compose validate )
+( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" doctor --format json )
 
 echo "==> Starting Atlas (gen-ai-rag track)…"
 # doc-processor disabled: Atlas ships only GPU-container or localhost Docling, so
@@ -44,23 +54,20 @@ echo "==> Starting Atlas (gen-ai-rag track)…"
 # the .md/.txt corpus works with no GPU. For structure-aware chunking, switch to
 # --doc-processor-source docling-localhost (run Docling on the host) or
 # docling-container-gpu (needs an NVIDIA GPU).
-# Atlas #503: the current dependency checker treats disabled Trino as enabled
-# unless MinIO is available. Keep MinIO on until Atlas derives enablement from
-# service manifests; remove this explicit source when that fix is pinned.
 ATLAS_START_LOG="$(mktemp "${TMPDIR:-/tmp}/rag-showcase-atlas-start.XXXXXX")"
 set +e
 ( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
     --no-tui --detach --track gen-ai-rag \
     --lightrag-source container \
-    --tei-reranker-source container-cpu --doc-processor-source disabled \
-    --minio-source container ) 2>&1 | tee "$ATLAS_START_LOG"
+    --tei-reranker-source container-cpu --doc-processor-source disabled ) \
+    2>&1 | tee "$ATLAS_START_LOG"
 ATLAS_START_STATUS=${PIPESTATUS[0]}
 set -e
 if [ "$ATLAS_START_STATUS" -ne 0 ]; then
-  # Atlas #508: Compose can return nonzero when an expected one-shot exits 0,
-  # before Atlas reaches its own detached status classifier. Accept only the
-  # exact log signature and converged state; unrelated failures still abort.
-  echo "==> Atlas detached start returned nonzero; checking the exited-zero fallback…"
+  # Atlas #508 recognizes only an already-converged snapshot. Compose can
+  # report an exited-zero one-shot while healthy services are still starting,
+  # so wait only for that exact signature and reject every genuine failure.
+  echo "==> Atlas returned during a successful one-shot race; checking convergence…"
   python3 scripts/verify_atlas_runtime.py --atlas-log "$ATLAS_START_LOG" || {
     rm -f "$ATLAS_START_LOG"
     echo "Atlas detached startup failed and the runtime did not converge." >&2
@@ -193,9 +200,13 @@ sys.exit(0 if response.json().get("answer") else 1)
 PY
 
 if [ "${RAG_SHOWCASE_SKIP_DEFAULT_INGEST:-0}" != "1" ]; then
-  echo "==> Ingesting corpus inside the backend container…"
-  docker exec -e PYTHONPATH=/app/plugins "${PROJECT_NAME}-backend" \
-    python /app/ingest/ingest.py /app/corpus/raw
+  echo "==> Running Atlas RAG ingestion profile ${RAG_INGESTION_PROFILE}…"
+  uv run python -m ingest.atlas_job \
+    --profile "$RAG_INGESTION_PROFILE" \
+    --base-url "http://127.0.0.1:$(envval BACKEND_PORT)"
+  echo "==> Building the showcase contextual index from Atlas-ingested chunks…"
+  docker exec -e PYTHONPATH=/app/plugins:/app "${PROJECT_NAME}-backend" \
+    python -m ingest.contextual
 fi
 
 OWUI="$(envval OPEN_WEB_UI_PORT)"

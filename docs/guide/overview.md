@@ -46,8 +46,10 @@ without code changes. See [Flavor Tuning](../approach-flavor-tuning.md).
 
 ## 3. Fair-Comparison Guarantees
 
-- **One corpus, ingested once** into both a plain vector collection (`RagBase`) and a
-  context-prefixed collection (`RagContextual`), plus a LightRAG knowledge graph.
+- **One declared ingestion profile per dataset** — Atlas writes the namespaced plain
+  collection (`RagBase_<profile>`) and LightRAG graph once; the showcase derives the
+  matching context-prefixed collection (`RagContextual_<profile>`) from those exact
+  chunks.
 - **Shared models** — the chunk-based approaches generate through the same LiteLLM
   model and every approach embeds with the same embedding model (`graph-rag`'s
   generator is LightRAG's QUERY role model by design); LLM roles are **local-first**

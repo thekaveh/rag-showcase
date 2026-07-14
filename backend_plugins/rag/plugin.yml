@@ -56,14 +56,6 @@ env:
     type: int
     default: "12000"
     description: Default LightRAG query context token budget.
-  - name: LIGHTRAG_UPLOAD_RETRIES
-    type: int
-    default: "60"
-    description: Retries for LightRAG document-ingestion backpressure.
-  - name: LIGHTRAG_UPLOAD_RETRY_DELAY
-    type: string
-    default: "5.0"
-    description: Delay in seconds between LightRAG backpressure retries.
   - name: N8N_ADAPTIVE_WEBHOOK_URL
     default: http://n8n:5678/webhook/adaptive-rag
     description: Adaptive-RAG production webhook invoked by the n8n approach.

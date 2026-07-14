@@ -20,7 +20,7 @@
 - id: context_starved
   query: "What does the safety relay do when the coil overheats, and how do I clear it?"
   expect_winner: contextual-rag
-  rationale: "Contextual blurbs help when a chunk is split from the context that disambiguates it. Under the default naive chunking the keyword doc is a single chunk, so this visibly wins only with Docling structure-aware chunking (or a longer doc that separates the relay from its error code)."
+  rationale: "Contextual blurbs help when a chunk is split from the context that disambiguates it. Under the default Atlas recursive profile the keyword doc is a single chunk, so this visibly wins only with structure-aware parsing/chunking (or a longer doc that separates the relay from its error code)."
 - id: mixed_batch
   query: "List the widget error codes, then explain how they relate to each other across the docs."
   expect_winner: n8n-adaptive-rag

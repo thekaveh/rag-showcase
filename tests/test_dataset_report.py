@@ -19,6 +19,8 @@ def test_dataset_report_ranks_measured_inputs_by_dataset() -> None:
 
     out = result.stdout
     assert "## 1. Dataset Complexity Ladder" in out
+    assert "| Dataset | Complexity | Status | Atlas ingestion profile | Graph nature |" in out
+    assert "`baseline_curated` | 1 | measured | `baseline_curated`" in out
     assert "## 2. Judge-Panel Ranking Drift by Input Dataset" in out
     assert "| Dataset | Complexity | Status | Winner | Ranking |" in out
     assert "baseline_curated" in out

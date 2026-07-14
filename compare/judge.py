@@ -176,6 +176,8 @@ def main() -> None:
             "judges": [],
             "queries": [],
         }
+        if matrix.get("ingestion"):
+            out["ingestion"] = matrix["ingestion"]
         output = judgments_file()
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -229,6 +231,8 @@ def main() -> None:
         "judges": panel,
         "queries": [],
     }
+    if matrix.get("ingestion"):
+        out["ingestion"] = matrix["ingestion"]
     for q in matrix["queries"]:
         qid = q["id"]
         per_judge = {jm: raw.get((qid, jm), {"error": "no valid verdict"}) for jm in panel}

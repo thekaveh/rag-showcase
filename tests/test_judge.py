@@ -44,6 +44,12 @@ def test_normalize_verdict_tolerates_case_and_strings_rejects_bools() -> None:
 def _matrix(tmp_path):
     matrix = {
         "dataset_id": "dataset-a",
+        "ingestion": {
+            "id": "ing-1",
+            "profile": "baseline_curated",
+            "revision": "rev-1",
+            "content_digest": "digest-1",
+        },
         "queries": [{"id": "q1", "query": "Q?", "expect_winner": "hybrid-rag",
                      "rationale": "r"}],
         "cells": [
@@ -86,6 +92,12 @@ def test_main_aggregates_normalized_verdicts(tmp_path, monkeypatch) -> None:
     assert q["observed_winner"] == "hybrid-rag"
     assert out["judges"] == judge.JUDGES
     assert out["dataset_id"] == "dataset-a"
+    assert out["ingestion"] == {
+        "id": "ing-1",
+        "profile": "baseline_curated",
+        "revision": "rev-1",
+        "content_digest": "digest-1",
+    }
 
 
 @respx.mock
@@ -187,6 +199,12 @@ def test_main_writes_disabled_artifact_without_calls(tmp_path, monkeypatch) -> N
         "dataset_id": "dataset-a",
         "judges": [],
         "queries": [],
+        "ingestion": {
+            "id": "ing-1",
+            "profile": "baseline_curated",
+            "revision": "rev-1",
+            "content_digest": "digest-1",
+        },
     }
 
 

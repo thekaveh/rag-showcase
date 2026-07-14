@@ -4,6 +4,7 @@ datasets:
     complexity_level: 1
     status: measured
     corpus_path: corpus/subset
+    ingestion_profile: baseline_curated
     queries_file: demo/queries.yaml
     matrix_snapshot: docs/results/live-2026-07-03-baseline_curated-matrix.json
     judgment_snapshot: docs/results/live-2026-07-03-baseline_curated-judgments.json
@@ -15,6 +16,7 @@ datasets:
     complexity_level: 2
     status: measured
     corpus_path: corpus/graph_native
+    ingestion_profile: graph_native
     queries_file: demo/graph_native_queries.yaml
     matrix_snapshot: docs/results/live-2026-07-03-graph_native-matrix.json
     judgment_snapshot: docs/results/live-2026-07-03-graph_native-judgments.json
@@ -26,6 +28,7 @@ datasets:
     complexity_level: 3
     status: candidate
     corpus_path: corpus/generated/stark_prime
+    ingestion_profile: stark_prime
     queries_file: demo/stark_prime_queries.yaml
     adapter: corpus/adapters/stark_export.py --dataset prime
     graph_nature: Biomedical entity retrieval over diseases, drugs, genes, pathways, proteins, phenotypes, and textual descriptions.
@@ -36,6 +39,7 @@ datasets:
     complexity_level: 4
     status: candidate
     corpus_path: corpus/generated/stark_mag
+    ingestion_profile: stark_mag
     queries_file: demo/stark_mag_queries.yaml
     adapter: corpus/adapters/stark_export.py --dataset mag
     graph_nature: Paper, author, venue, field, citation, and affiliation retrieval where query constraints mix text with graph relations.
@@ -46,6 +50,7 @@ datasets:
     complexity_level: 5
     status: candidate
     corpus_path: corpus/generated/openalex_scholarly
+    ingestion_profile: openalex_scholarly
     queries_file: demo/openalex_scholarly_queries.yaml
     adapter: corpus/adapters/openalex_scholarly.py
     graph_nature: Real scholarly graph with works, authors, institutions, concepts, citations, venues, and abstracts.
@@ -56,6 +61,7 @@ datasets:
     complexity_level: 6
     status: candidate
     corpus_path: corpus/generated/gdelt_events
+    ingestion_profile: gdelt_events
     queries_file: demo/gdelt_events_queries.yaml
     adapter: corpus/adapters/gdelt_events.py
     graph_nature: Event, actor, location, theme, source, tone, and timeline graph over real news events.
@@ -66,6 +72,7 @@ datasets:
     complexity_level: 7
     status: measured
     corpus_path: corpus/cyber_threat_intel
+    ingestion_profile: cyber_threat_intel
     queries_file: demo/cyber_threat_intel_queries.yaml
     adapter: corpus/adapters/cyber_threat_intel.py
     graph_nature: Intrusion groups, campaigns, malware, tools, ATT&CK techniques, mitigations, and explicit uses/mitigates relationships.
