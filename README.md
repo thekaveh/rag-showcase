@@ -1,6 +1,6 @@
 # RAG Showcase
 
-Six canonical RAG approaches compared side-by-side in Open WebUI's multi-model chat,
+Seven RAG approaches compared side-by-side in Open WebUI's multi-model chat,
 all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
 submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
 as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
@@ -24,10 +24,9 @@ as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse
 
 Each approach is an OpenAI-compatible `/rag/<name>/v1/chat/completions` endpoint in a
 self-contained plugin package (`backend_plugins/rag/`) that is bind-mounted into
-Atlas's FastAPI backend through a generic "plugin seam". The six canonical approaches,
-eight canonical flavors, and experimental `lazy-graph-rag` family (base plus three
-flavors) are declared in `atlas.consumer.yml`; Atlas validates their ownership and
-routes, compiles them into LiteLLM's startup configuration, and makes all eighteen
+Atlas's FastAPI backend through a generic "plugin seam". The seven base approaches
+and twelve query-time flavors are declared in `atlas.consumer.yml`; Atlas validates
+their ownership and routes, compiles them into LiteLLM's startup configuration, and makes all nineteen
 aliases selectable in Open WebUI without admin-API registration.
 Flavors such as `graph-rag-wide` route to the same base approach with reproducible
 parameter overrides. Open a multi-model chat, select
@@ -37,7 +36,7 @@ to append-safe JSONL, sends eligible evidence to Atlas's generic Ragas endpoint,
 and keeps deterministic operational metrics separate from the optional blinded
 judge panel.
 
-The six approaches embed via the same LiteLLM model and read the same corpus, so
+The seven base approaches use the same embedding model and read the same corpus, so
 the comparison is fair; LLM roles are **local-first** (see `backend_plugins/rag/roles.yaml`).
 The lazy graph family remains excluded from default comparisons, but now has a
 committed three-dataset quality and latency evaluation; see the
@@ -49,20 +48,20 @@ committed three-dataset quality and latency evaluation; see the
 
 ![RAG Showcase detailed architecture](docs/diagrams/img/architecture-detailed.png)
 
-*Atlas stack, LiteLLM gateway, mounted backend plugin seam, six RAG endpoints,
+*Atlas stack, LiteLLM gateway, mounted backend plugin seam, seven RAG endpoints,
 retrieval stores, workflow services, and Atlas-managed model routing. Source:
 [`docs/diagrams/architecture-detailed.html`](docs/diagrams/architecture-detailed.html). Full explanation:
 [`docs/architecture.md`](docs/architecture.md).*
 
-The six RAG approaches are mounted FastAPI routes inside the Atlas backend container;
+The seven RAG approaches are mounted FastAPI routes inside the Atlas backend container;
 Atlas declares each route as a LiteLLM model alias, and Open WebUI or the comparison harness
 invoke them through LiteLLM's OpenAI-compatible `/v1/chat/completions` surface.
 
-### 2.2 Six approach flow phases
+### 2.2 Seven approach flow phases
 
-![RAG Showcase six approach flow phases](docs/diagrams/img/approach-flows.png)
+![RAG Showcase seven approach flow phases](docs/diagrams/img/approach-flows.png)
 
-*Parallel lane view of all six approaches from shared corpus preparation through
+*Parallel lane view of all seven approaches from shared corpus preparation through
 retrieval, augmentation, generation, output shaping, and observed tradeoffs. Source:
 [`docs/diagrams/approach-flows.html`](docs/diagrams/approach-flows.html). Full explanation:
 [`docs/architecture.md`](docs/architecture.md); approach-by-approach internals:
@@ -77,9 +76,9 @@ requirements apply:
   temporary disabled-service compatibility overlay uses Compose's `!reset` tag.
 - The vendored **`infra/` submodule initialized**: `git submodule update --init --recursive`.
 - Host tools **`uv`** and **`python3`** (Atlas's bootstrapper and the host-side corpus fetch use them).
-- An Atlas-supported LLM backend. The default local path uses Atlas's Ollama
-  provider. To use an existing host Ollama, create the local manifest/env pair
-  described below and set `LLM_PROVIDER_SOURCE=ollama-localhost` in its env file.
+- An Atlas-supported LLM backend. Provider selection remains Atlas-owned. Set
+  `RAG_SHOWCASE_LLM_PROVIDER_SOURCE=ollama-localhost` for a run that should use
+  an existing host Ollama; otherwise the wrapper preserves Atlas's active source.
 - Disk/RAM/headroom for the `gen-ai-rag` stack plus whichever local models you
   choose. The default local run asks Atlas to activate `mistral-small3.2:24b`
   for LightRAG extraction and uses Atlas's default `qwen3.6:latest` for graph
@@ -121,18 +120,21 @@ the same strict state; missing, unhealthy, or nonzero-exit services still fail.
 If you use local models, the first run may
 download several GB, so it takes a while. Then open the printed URL, start a multi-model chat, and select:
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
-`n8n-adaptive-rag`. Stop everything with `./scripts/stop-all.sh`.
+`n8n-adaptive-rag`, `lazy-graph-rag`. Stop everything with `./scripts/stop-all.sh`.
 
 The explicitly selected experimental aliases are `lazy-graph-rag`,
 `lazy-graph-rag-fast`, `lazy-graph-rag-balanced`, and `lazy-graph-rag-wide`.
-They build an LLM-free concept graph from `RagBase` chunks and are not included
-in the default six-way matrix.
+They build an LLM-free concept graph from `RagBase` chunks. The base and its
+flavors join the measured ladder with `--include-flavor-tier`; the ad hoc default
+matrix remains the canonical six for backward compatibility.
 
 The detached startup is the authoritative effective-config check: Atlas applies
 the wrapper's fixed LightRAG container, TEI CPU, and Docling-disabled source flags,
 revalidates the resolved stack, and only then starts the enabled Compose services.
-An alternate `ATLAS_CONSUMER_MANIFEST` can change provider, model, branding, and
-other consumer values, but those three source choices remain wrapper contracts.
+LLM and ComfyUI sources remain Atlas-owned unless a run supplies
+`RAG_SHOWCASE_LLM_PROVIDER_SOURCE` or `RAG_SHOWCASE_COMFYUI_SOURCE`. An alternate
+`ATLAS_CONSUMER_MANIFEST` can change models, branding, and other consumer values;
+the three stable service choices above remain wrapper contracts.
 
 The `n8n-adaptive-rag` workflow is checked in at
 [`n8n/adaptive-rag.workflow.json`](n8n/adaptive-rag.workflow.json) and declared in
@@ -147,7 +149,7 @@ on the host before running; without it, ingestion uses only the bundled keyword 
 the thematic / multi-hop demo queries have little to work with — see
 [`corpus/README.md`](corpus/README.md).
 
-## 4. The Six Approaches
+## 4. The Seven Approaches
 
 | Model | Approach | Designed to win on |
 |-------|----------|--------------------|
@@ -157,6 +159,7 @@ the thematic / multi-hop demo queries have little to work with — see
 | [`graph-rag`](docs/approaches.md#6-graph-rag) | Atlas LightRAG over extracted entities, relationships, and vector context | graph-shaped relationship questions |
 | [`agentic-rag`](docs/approaches.md#7-agentic-rag) | ReAct loop over vector + graph tools | multi-hop / comparative questions |
 | [`n8n-adaptive-rag`](docs/approaches.md#8-n8n-adaptive-rag) | low-code Adaptive-RAG workflow (routes by complexity) | mixed simple+complex batches |
+| [`lazy-graph-rag`](docs/approaches.md#9-experimental-lazy-graph-rag) | deterministic concept graph + budgeted query-time expansion | graph-shaped data under a lower indexing budget |
 
 The last column is the design intent behind each demo query family, not a measured
 result — several intended contrasts did not materialize in the committed runs (the
@@ -166,7 +169,7 @@ measured per-query winners live in
 For exact internal steps, dependencies, tuning variables, and current measured
 performance for each approach, see [`docs/approaches.md`](docs/approaches.md).
 
-### 4.1 Experimental candidate
+### 4.1 Experimental status
 
 [`lazy-graph-rag`](docs/lazy-graph-rag.md) combines vector seeds with deterministic,
 budgeted concept-graph expansion. It is a separate experimental approach, not a
@@ -179,12 +182,12 @@ co-occurrence semantics are evaluated on additional corpora.
 
 ```
 rag-showcase/
-├── atlas.consumer.yml       # Atlas integration plus 18 aliases, workflows, and ingestion profiles
+├── atlas.consumer.yml       # Atlas integration plus 19 aliases, workflows, and ingestion profiles
 ├── infra/                   # Atlas — vendored Git submodule (DO NOT edit here)
 ├── backend_plugins/rag/     # the plugin package mounted into Atlas's backend
 │   ├── plugin.yml           # Atlas route, health, auth, env, and dependency contract
 │   ├── common/              # shared routing, vector, LightRAG, flavor, and lazy-graph primitives
-│   ├── approaches/          # six canonical routes plus experimental lazy graph
+│   ├── approaches/          # seven routes, including experimental lazy graph
 │   ├── tests/               # unit tests (mocked I/O)
 │   ├── roles.yaml           # role→model map (local-first)
 │   └── flavors.yaml         # Open WebUI/benchmark aliases with tuning overrides
@@ -219,7 +222,8 @@ below expands that operator contract with adjacent Atlas and startup settings.
 |----------|---------|---------|--------|
 | `LITELLM_BASE_URL` | `http://litellm:4000` | plugin LiteLLM client | Atlas backend env |
 | `LITELLM_API_KEY` | — | plugin LiteLLM client, n8n workflow node | Atlas backend env |
-| `LITELLM_MASTER_KEY` | — | Atlas declarative alias secret reference; legacy-row reconciliation | Atlas `.env`; injected into LiteLLM by the consumer-model overlay and mapped to `LITELLM_API_KEY` in the backend |
+| `BACKEND_INTERNAL_API_TOKEN` | — | Bearer used by LiteLLM aliases when invoking trusted backend plugin routes | Atlas `.env`; injected into LiteLLM by the consumer-model overlay |
+| `LITELLM_MASTER_KEY` | — | External LiteLLM gateway authentication and legacy-row reconciliation | Atlas `.env`; mapped to `LITELLM_API_KEY` in the backend |
 | `WEAVIATE_URL` | `http://weaviate:8080` | vectors | Atlas backend env |
 | `RAG_WEAVIATE_GRPC_PORT` | `50051` | vectors (in-network gRPC port; distinct from Atlas's host-published `WEAVIATE_GRPC_PORT`) | plugin manifest + overlay |
 | `TEI_RERANKER_ENDPOINT` | `http://tei-reranker:80` | vectors (rerank) | overlay |
@@ -260,7 +264,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Approach flavors plan](docs/superpowers/plans/2026-07-02-approach-flavors.md) | Historical | Follow-on plan that added the tunable flavor alias system |
 | [Atlas LightRAG alignment plan](docs/superpowers/plans/2026-07-02-atlas-lightrag-alignment.md) + [design](docs/superpowers/specs/2026-07-02-atlas-lightrag-alignment-design.md) | Historical | Follow-on plan/design that wired LightRAG role models through Atlas inputs |
 | [Cyber threat dataset plan](docs/superpowers/plans/2026-07-03-cyber-threat-dataset.md) | Historical | Follow-on plan that added the bounded MITRE ATT&CK cyber-threat corpus rung |
-| [Overview](docs/guide/overview.md) | Living | Concepts — how the six approaches run under identical conditions, flavor aliases, and the fair-comparison guarantees |
+| [Overview](docs/guide/overview.md) | Living | Concepts — how the seven approaches run under identical conditions, flavor aliases, and the fair-comparison guarantees |
 | [Quick Start](docs/guide/quickstart.md) | Living | One-command bring-up, prerequisites, and driving the multi-model comparison in Open WebUI |
 | [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and six-approach parallel flow diagrams |
 | [System diagram (interactive)](docs/diagrams/architecture.md) | Living | Rendered full-system architecture diagram (HTML/SVG in an inline iframe) |
@@ -276,7 +280,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Dataset adapters](corpus/adapters/README.md) | Living | The dataset fetch/adapter CLIs (GDELT, OpenAlex, STaRK, MITRE cyber) behind the candidate real-world graph rungs |
 | [Dataset complexity report](docs/dataset-complexity-report.md) | Living | Judge and canonical metric rankings by dataset complexity, with coverage and legacy fallback |
 | [n8n workflow](n8n/README.md) | Living | Checked-in Adaptive-RAG workflow, Atlas seeding lifecycle, and workflow tuning knobs |
-| [Live comparison](docs/comparison.md) | Living | Side-by-side results of all six approaches + live-validation findings (`think:false`, LightRAG role/query tuning, graph-native corpus behavior) |
+| [Live comparison](docs/comparison.md) | Living | Side-by-side results of all seven approaches + live-validation findings (`think:false`, LightRAG role/query tuning, graph-native corpus behavior) |
 | [Result snapshots](docs/results/README.md) | Living | Canonical evidence/evaluation and compatibility matrix/judgment artifact contract, plus active and historical snapshots |
 
 ## 8. Development & Testing
@@ -325,7 +329,8 @@ LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
   `./scripts/start-all.sh`. Automatic source-drift rebuilding is tracked in
   [Atlas #506](https://github.com/thekaveh/atlas/issues/506).
 - **Local generation is too slow.** Use an Atlas LLM provider source appropriate for
-  your machine. For example, `LLM_PROVIDER_SOURCE=ollama-localhost` routes LiteLLM
+  your machine. For example, `RAG_SHOWCASE_LLM_PROVIDER_SOURCE=ollama-localhost`
+  routes LiteLLM
   to an existing host Ollama, while `ollama-container-gpu` targets an NVIDIA-capable
   container runtime. LightRAG role models are now configured through Atlas's
   `LIGHTRAG_EXTRACT_LLM_MODEL`, `LIGHTRAG_KEYWORD_LLM_MODEL`, and

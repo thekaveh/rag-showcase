@@ -251,6 +251,8 @@ def completion_evidence(payload: dict[str, Any]) -> dict[str, Any]:
     extension = payload.get("rag_showcase")
     transport = "rendered"
     if isinstance(extension, dict) and extension.get("schema_version") == 1:
+        if isinstance(extension.get("answer"), str):
+            normalized["answer"] = extension["answer"]
         raw_sources = extension.get("sources")
         if isinstance(raw_sources, list):
             sources = []
@@ -271,7 +273,7 @@ def completion_evidence(payload: dict[str, Any]) -> dict[str, Any]:
         approach_metadata = {
             key: value
             for key, value in extension.items()
-            if key not in {"schema_version", "sources", "metrics"}
+            if key not in {"schema_version", "answer", "sources", "metrics"}
         }
         if approach_metadata:
             normalized["approach_metadata"] = approach_metadata

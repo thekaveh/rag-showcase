@@ -1,6 +1,6 @@
 # 3.2 RAG Approach Flavor Tuning
 
-This guide explains how rag-showcase runs named tuning variants of the six RAG
+This guide explains how rag-showcase runs named tuning variants of its seven RAG
 approaches without changing the canonical defaults.
 
 ## 1. Concept
@@ -16,8 +16,8 @@ The six stable approaches remain:
 
 A **flavor** is a named model alias that points at a supported base route with
 specific parameter overrides. For example, `graph-rag-wide` is still the
-`graph-rag` backend route, but the request model tells the plugin to use wider
-LightRAG query fanout.
+`graph-rag` backend route, but the request model selects Atlas's wider LightRAG
+query profile.
 
 This gives users a clean Open WebUI interface and gives the benchmark harness a
 reproducible experiment surface.
@@ -41,19 +41,23 @@ That request is routed by LiteLLM to:
 http://backend:8000/rag/graph-rag/v1/chat/completions
 ```
 
-The backend reads the incoming request model (`graph-rag-wide`), resolves it from
-`backend_plugins/rag/flavors.yaml`, and applies the configured query parameters.
+The backend reads the incoming request model (`graph-rag-wide`), resolves its
+base route from `backend_plugins/rag/flavors.yaml`, and passes that alias as the
+LightRAG query profile. Atlas validates and materializes the profile registry;
+the showcase no longer duplicates LightRAG mode/fanout values in its flavor file.
 
 Users should not need to pass hidden JSON or prompt prefixes for normal tuning.
 Named aliases are easier to discover, reproduce, compare, and document.
 
 ## 3. Configuration Files
 
-Three declarations intentionally mirror each other and are drift-tested:
+The declarations are split by ownership and drift-tested:
 
-- `backend_plugins/rag/flavors.yaml` controls runtime behavior inside the backend.
+- `backend_plugins/rag/flavors.yaml` maps aliases to showcase base routes and owns
+  showcase-native parameters.
 - `compare/flavors.yaml` controls host-side comparison expansion and metadata.
-- `atlas.consumer.yml` declares each base/flavor alias and its backend route to Atlas.
+- `atlas.consumer.yml` declares every LiteLLM alias and owns
+  `lightrag_query_profiles` for graph mode, fanout, token budget, and reranking.
 
 The compose overlay sets:
 
@@ -77,6 +81,7 @@ MATRIX_FLAVORS_FILE=path/to/flavors.yaml
 | `contextual-rag-high-recall` | `contextual-rag` | `retrieve_k=40`, `top_n=8` | No |
 | `graph-rag-fast` | `graph-rag` | LightRAG `mode=local`, lower fanout | No |
 | `graph-rag-wide` | `graph-rag` | LightRAG `top_k=30`, `chunk_top_k=12`, `max_total_tokens=24000` | No |
+| `graph-rag-rerank` | `graph-rag` | canonical hybrid fanout plus Atlas LightRAG-to-TEI reranking | No |
 | `agentic-rag-deeper` | `agentic-rag` | `max_steps=8`, vector tool top-k `8` | No |
 | `n8n-adaptive-rag-default` | `n8n-adaptive-rag` | explicit alias for current workflow | No |
 | `lazy-graph-rag-fast` | `lazy-graph-rag` | budgets `8/4/4` for relevance/seed/context | No source re-ingest; lazy index may rebuild |
@@ -121,8 +126,13 @@ profile expansion.
 
 ## 6. Query-Time Versus Index-Time Knobs
 
-The canonical shipped flavors are query-time only. They do not require rebuilding
-Weaviate collections or the LightRAG graph. Lazy graph flavors do not re-ingest
+The canonical shipped flavors are query-time only. Graph aliases select an Atlas
+LightRAG profile with precedence `request overrides > profile > service default`;
+they share one ingested graph and do not create profile-specific Neo4j schemas.
+The rerank profile requires Atlas's `LIGHTRAG_RERANK_ADAPTER_ENABLED=true`, which
+translates LightRAG's rerank request to the shared TEI service contract. None of
+these profiles requires rebuilding Weaviate collections or the LightRAG graph.
+Lazy graph flavors do not re-ingest
 the source corpus, but a changed concept-density setting can rebuild their derived
 cache from current Weaviate chunks. Each density uses an independent cache
 namespace, so alternating fast, balanced, and wide flavors does not evict another

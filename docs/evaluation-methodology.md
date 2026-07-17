@@ -111,8 +111,8 @@ contexts needed by context-grounding metrics.
 | `hybrid-rag` | Embed query -> Weaviate BM25+dense hybrid search over `RagBase_<profile>` -> TEI rerank -> stuff top chunks. | One `embed` call, one TEI rerank call, one `light_gen` call. | `answer_with_contexts` |
 | `contextual-rag` | A showcase post-step derives `RagContextual_<profile>` from Atlas chunks; query-time uses hybrid search + TEI rerank. | Ingest-time `contextual_blurb` calls per chunk; query-time `embed`, TEI rerank, and `light_gen`. | `answer_with_contexts` |
 | `graph-rag` | Atlas uploads full documents; LightRAG extracts entities/relationships once and answers through its graph/vector query path. | LightRAG EXTRACT/KEYWORD/QUERY model calls managed by the LightRAG service. | `answer_only` |
-| `agentic-rag` | Bounded ReAct loop decides between vector search and LightRAG graph query tools. | Up to the configured agent step limit of `agentic` calls, plus tool calls. | `answer_with_contexts` |
-| `n8n-adaptive-rag` | n8n classifies the query, routes to another approach, and normalizes the response. | One classifier call, then the selected route's model calls. | `answer_with_contexts` |
+| `agentic-rag` | Bounded ReAct loop decides between vector search and LightRAG graph query tools; its trajectory is request-local and is not learned between queries. | Up to the configured agent step limit of `agentic` calls, plus tool calls. | `answer_with_contexts` |
+| `n8n-adaptive-rag` | n8n classifies the query, routes to another approach, and preserves the delegated response evidence. | One classifier call, then the selected route's model calls. | `answer_with_contexts` |
 | `lazy-graph-rag` (experimental) | Hybrid vector seeds -> deterministic concept/co-occurrence expansion under a relevance budget -> shared generation. | One `embed` and one `light_gen` call; zero index-time LLM calls. | `answer_with_contexts` plus `lazy_graph` index/cache/traversal metadata |
 
 The plugin adds a top-level `rag_showcase` extension to JSON and SSE responses:
@@ -121,6 +121,7 @@ The plugin adds a top-level `rag_showcase` extension to JSON and SSE responses:
 {
   "rag_showcase": {
     "schema_version": 1,
+    "answer": "unrendered answer text",
     "sources": [{"title": "...", "snippet": "...", "score": 0.82}],
     "metrics": {"seconds": 1.2, "chunks": 5, "llm_calls": 1, "cloud_calls": 0}
   }
@@ -130,8 +131,11 @@ The plugin adds a top-level `rag_showcase` extension to JSON and SSE responses:
 The existing rendered source block and metrics footer remain the compatibility
 fallback. Structured evidence wins when both forms are present.
 
-Approach-specific fields are additive. Lazy graph responses retain the common
-`schema_version`, `sources`, and `metrics` fields and add `lazy_graph`; the canonical
+Approach-specific fields are additive. n8n retains delegated `answer`, `sources`,
+and metrics, counts the classifier as one additional LLM call, and adds
+`adaptive: {route, approach}` rather than mislabeling a route as grounding
+context. Lazy graph responses retain the common `schema_version`, `answer`,
+`sources`, and `metrics` fields and add `lazy_graph`; the canonical
 row stores that object as `evidence.approach_metadata`, and the compatibility matrix
 projects it as `approach_metadata`.
 
@@ -234,21 +238,18 @@ successful HTTP response containing a missing, null, or invalid score produces a
 explicit per-metric error. Evaluator timeouts remain separate from other evaluator
 errors in aggregate JSON and CSV coverage.
 
-The live validation on 2026-07-13 found an Atlas dependency-contract defect at
-`POST /api/rag/evaluate`: Atlas imports `ResponseRelevancy`, while its pinned
-`ragas==0.4.3` exports `AnswerRelevancy`. Because the import occurs with the other
-metric classes, every evaluator call currently returns an error, including a
-faithfulness-only request. The generic infrastructure fix is tracked in
-[Atlas #596](https://github.com/thekaveh/atlas/issues/596). Rag-showcase records
-that failure as Ragas state `error` and preserves answers, contexts, operational
-metrics, and judge eligibility; it does not patch or duplicate Atlas's evaluator.
-
-Atlas's current request schema also requires a non-empty `contexts` array before
-metric-specific validation. Consequently, an answer-only graph row reaches the
-evaluator with only `answer_relevancy` selected but currently receives a schema
-error. [Atlas #597](https://github.com/thekaveh/atlas/issues/597) tracks making
-input requirements metric-aware. The showcase records this as an evaluator error;
-it does not mislabel answer relevancy as context-dependent or fabricate a context.
+The 2026-07-13 live validation exposed three Atlas evaluator-contract defects:
+the pinned Ragas class name had changed, answer relevancy was incorrectly rejected
+without contexts, and modern collection metrics were invoked through a retired
+synchronous scoring method. Atlas
+[#596](https://github.com/thekaveh/atlas/issues/596),
+[#597](https://github.com/thekaveh/atlas/issues/597), and
+[#659](https://github.com/thekaveh/atlas/issues/659) resolved those defects. At
+the current `2229fee9` pin, Atlas invokes modern collection metrics through their
+async batch API, keeps the client on one event loop, and closes it before loop
+teardown. The renewed run therefore records numeric faithfulness and answer
+relevancy wherever each metric is eligible; answer-only LightRAG rows remain
+explicitly ineligible for faithfulness rather than receiving a fabricated zero.
 
 ## 9. Independent Judgment Panel
 
@@ -370,13 +371,13 @@ Atlas's thinking-disabled Qwen model for KEYWORD and QUERY. With that split, the
 previously blocked graph keyword query completed successfully.
 
 These runs validate orchestration, evidence durability, resume, graph invocation,
-and reporting. A later 2026-07-14 integration pass pinned Atlas `3c33250b` and
+and reporting. A later 2026-07-14 integration pass pinned Atlas `f52d078e` and
 completed generic `graph_native` ingestion job
 `7127dcc3-7a45-40ad-ae28-5b547cf0bc8b`: 10 files/chunks/vectors/uploads, a drained
 LightRAG queue, 10 contextual chunks, and all eight six-alias smoke checks. That
 pass validates the ingestion transport and serving path, not comparative quality.
 
-The subsequent full ladder used pinned Atlas `3c33250b`, completed fresh ingestion
+The subsequent full ladder used pinned Atlas `f52d078e`, completed fresh ingestion
 and LightRAG drain for all three datasets, and published 140/140 successful cells
 across the six canonical approaches plus experimental lazy graph. Both judges
 completed every query. Atlas evaluator defects

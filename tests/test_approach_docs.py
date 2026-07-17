@@ -11,6 +11,7 @@ APPROACHES = [
     "graph-rag",
     "agentic-rag",
     "n8n-adaptive-rag",
+    "lazy-graph-rag",
 ]
 
 

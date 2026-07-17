@@ -3,9 +3,9 @@
 
 For each measured dataset in compare/datasets.yaml, this script can cold-reset the
 Atlas stack, start rag-showcase without the default demo ingest, ingest exactly
-that dataset, wait for LightRAG indexing to drain, run the six-way matrix, run the
-local judge panel, snapshot results under docs/results, update the manifest, and
-regenerate docs/dataset-complexity-report.md.
+that dataset, wait for LightRAG indexing to drain, run the selected base matrix and
+optional non-base flavor tier, run the local judge panel, snapshot results under
+docs/results, update the manifest, and regenerate the dataset report.
 """
 from __future__ import annotations
 
@@ -62,7 +62,8 @@ def parse_args() -> argparse.Namespace:
         "--approaches",
         default="",
         help="Comma-separated approach or flavor alias list (sets MATRIX_MODELS). "
-             "Defaults to all six approaches.",
+             "Defaults to the canonical six approaches; --include-flavor-tier "
+             "adds the experimental lazy-graph family.",
     )
     parser.add_argument(
         "--flavors",
@@ -74,6 +75,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Allow --dataset to select candidate datasets with committed/generated corpus paths.",
     )
+    parser.add_argument(
+        "--include-flavor-tier",
+        action="store_true",
+        help="Run all seven base approaches, then every non-base flavor alias against "
+             "the same ingestion using separate result artifacts.",
+    )
     return parser.parse_args()
 
 
@@ -82,14 +89,22 @@ def run(cmd: list[str], *, env: dict[str, str] | None = None) -> None:
     subprocess.run(cmd, cwd=ROOT, env=env, check=True)
 
 
-def capture_json(cmd: list[str]) -> dict[str, Any]:
+def capture_json(
+    cmd: list[str], *, env: dict[str, str] | None = None
+) -> dict[str, Any]:
     result = subprocess.run(
         cmd,
         cwd=ROOT,
+        env=env,
         text=True,
         capture_output=True,
-        check=True,
+        check=False,
     )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "no child output"
+        raise RuntimeError(
+            f"command failed with exit {result.returncode}: {' '.join(cmd)}\n{detail}"
+        )
     return json.loads(result.stdout)
 
 
@@ -112,8 +127,12 @@ def project_name() -> str:
 
 
 def cold_reset() -> None:
-    print("$ ./stop.sh --cold", flush=True)
-    subprocess.run(["./stop.sh", "--cold"], cwd=ROOT / "infra", check=True)
+    print("$ ./scripts/stop-all.sh --cold", flush=True)
+    subprocess.run(
+        ["./scripts/stop-all.sh", "--cold"],
+        cwd=ROOT,
+        check=True,
+    )
 
 
 def start_service_only(dataset: dict[str, Any]) -> None:
@@ -133,6 +152,11 @@ def ingest_dataset(dataset: dict[str, Any]) -> dict[str, Any]:
     backend_port = envval("BACKEND_PORT")
     if not backend_port:
         raise RuntimeError("BACKEND_PORT not found in infra/.env")
+    backend_token = envval("BACKEND_INTERNAL_API_TOKEN")
+    if not backend_token:
+        raise RuntimeError("BACKEND_INTERNAL_API_TOKEN not found in infra/.env")
+    job_env = os.environ.copy()
+    job_env["BACKEND_INTERNAL_API_TOKEN"] = backend_token
     record = capture_json(
         [
             "uv",
@@ -144,7 +168,8 @@ def ingest_dataset(dataset: dict[str, Any]) -> dict[str, Any]:
             dataset["ingestion_profile"],
             "--base-url",
             f"http://127.0.0.1:{backend_port}",
-        ]
+        ],
+        env=job_env,
     )
     run(
         [
@@ -156,6 +181,19 @@ def ingest_dataset(dataset: dict[str, Any]) -> dict[str, Any]:
             "python",
             "-m",
             "ingest.contextual",
+        ]
+    )
+    n8n_port = envval("N8N_PORT")
+    if not n8n_port:
+        raise RuntimeError("N8N_PORT not found in infra/.env")
+    run(
+        [
+            "uv",
+            "run",
+            "python",
+            "scripts/verify_adaptive_webhook.py",
+            "--url",
+            f"http://127.0.0.1:{n8n_port}/webhook/adaptive-rag",
         ]
     )
     return record
@@ -253,13 +291,19 @@ def run_matrix_and_judge(
     flavors: str,
     *,
     fresh_ingestion: bool = False,
+    artifact_tier: str = "",
 ) -> tuple[Path, Path, Path, Path]:
     dataset_id = dataset["id"]
-    run_id = f"live-{date_stamp}-{dataset_id}"
-    matrix_name = f"live-{date_stamp}-{dataset_id}-matrix.json"
-    judgments_name = f"live-{date_stamp}-{dataset_id}-judgments.json"
-    evidence_name = f"live-{date_stamp}-{dataset_id}-evidence.jsonl"
-    evaluation_name = f"live-{date_stamp}-{dataset_id}-evaluation.json"
+    if artifact_tier and artifact_tier != "flavors":
+        raise ValueError(f"unsupported artifact tier: {artifact_tier}")
+    stem = f"live-{date_stamp}-{dataset_id}"
+    if artifact_tier:
+        stem += f"-{artifact_tier}"
+    run_id = stem
+    matrix_name = f"{stem}-matrix.json"
+    judgments_name = f"{stem}-judgments.json"
+    evidence_name = f"{stem}-evidence.jsonl"
+    evaluation_name = f"{stem}-evaluation.json"
     working_paths = [
         RESULTS / matrix_name,
         RESULTS / judgments_name,
@@ -298,6 +342,11 @@ def run_matrix_and_judge(
     env["MATRIX_INGESTION_REVISION"] = str(ingestion["revision"])
     env["MATRIX_INGESTION_CONTENT_DIGEST"] = str(ingestion["content_digest"])
     env["MATRIX_INGESTION_MODE"] = "atlas-job"
+    backend_token = envval("BACKEND_INTERNAL_API_TOKEN")
+    if not backend_token:
+        raise RuntimeError("BACKEND_INTERNAL_API_TOKEN not found in infra/.env")
+    env["MATRIX_EVALUATOR_API_KEY_HEADER"] = "Authorization"
+    env["MATRIX_EVALUATOR_API_KEY"] = f"Bearer {backend_token}"
     if approaches:
         env["MATRIX_MODELS"] = approaches
     if flavors:
@@ -357,6 +406,8 @@ def update_dataset_snapshots(
     judgments_path: Path,
     evidence_path: Path,
     evaluation_path: Path,
+    *,
+    flavor_paths: tuple[Path, Path, Path, Path] | None = None,
 ) -> None:
     manifest = load_manifest()
     for dataset in manifest["datasets"]:
@@ -365,6 +416,12 @@ def update_dataset_snapshots(
             dataset["judgment_snapshot"] = str(judgments_path.relative_to(ROOT))
             dataset["evidence_snapshot"] = str(evidence_path.relative_to(ROOT))
             dataset["evaluation_snapshot"] = str(evaluation_path.relative_to(ROOT))
+            if flavor_paths:
+                flavor_matrix, flavor_judgments, flavor_evidence, flavor_evaluation = flavor_paths
+                dataset["flavor_matrix_snapshot"] = str(flavor_matrix.relative_to(ROOT))
+                dataset["flavor_judgment_snapshot"] = str(flavor_judgments.relative_to(ROOT))
+                dataset["flavor_evidence_snapshot"] = str(flavor_evidence.relative_to(ROOT))
+                dataset["flavor_evaluation_snapshot"] = str(flavor_evaluation.relative_to(ROOT))
             dataset["status"] = "measured"
             break
     else:
@@ -422,11 +479,28 @@ def validate_selections(approaches: str, flavors_csv: str) -> None:
             f"invalid --approaches/--flavors selection: {exc.args[0]}") from exc
 
 
+def flavor_tier_models() -> list[str]:
+    """Return every declared tuning alias, excluding all base-family routes."""
+    manifest = flavors_file()
+    if not manifest.is_absolute():
+        manifest = ROOT / manifest
+    profiles = flavor_config.load_flavors(manifest)
+    bases = set(flavor_config.SUPPORTED_APPROACHES)
+    return [profile.alias for profile in profiles.values() if profile.alias not in bases]
+
+
 def main() -> None:
     args = parse_args()
     if args.approaches and args.flavors:
         raise SystemExit("--approaches and --flavors are mutually exclusive")
+    if args.include_flavor_tier and (args.approaches or args.flavors):
+        raise SystemExit(
+            "--include-flavor-tier cannot be combined with --approaches or --flavors"
+        )
     validate_selections(args.approaches, args.flavors)
+    tier_models = flavor_tier_models() if args.include_flavor_tier else []
+    if tier_models:
+        validate_selections(",".join(tier_models), "")
     datasets = selected_datasets(args.dataset, include_candidates=args.include_candidates)
     # Validate every selected corpus BEFORE the first cold reset: cold_reset() wipes
     # stack volumes, and discovering a missing generated corpus only after a full
@@ -451,16 +525,31 @@ def main() -> None:
             cold_reset()
         start_service_only(dataset)
         ingestion = ingest_dataset(dataset)
+        base_approaches = args.approaches
+        if args.include_flavor_tier:
+            base_approaches = ",".join(flavor_config.SUPPORTED_APPROACHES)
         matrix, judgments, evidence, evaluation = run_matrix_and_judge(
             dataset,
             ingestion,
             args.date_stamp,
-            args.approaches,
+            base_approaches,
             args.flavors,
             fresh_ingestion=not args.no_cold_reset,
         )
+        flavor_paths = None
+        if tier_models:
+            flavor_paths = run_matrix_and_judge(
+                dataset,
+                ingestion,
+                args.date_stamp,
+                ",".join(tier_models),
+                "",
+                fresh_ingestion=not args.no_cold_reset,
+                artifact_tier="flavors",
+            )
         update_dataset_snapshots(
-            dataset["id"], matrix, judgments, evidence, evaluation
+            dataset["id"], matrix, judgments, evidence, evaluation,
+            flavor_paths=flavor_paths,
         )
         regenerate_report()
 

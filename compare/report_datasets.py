@@ -111,6 +111,16 @@ def build_report() -> str:
     measured_scores = {d_id: _mean_scores(j) for d_id, j in measured_judgments.items()}
     measured_rows = {d_id: (_winner(s), _ranking_text(s))
                      for d_id, s in measured_scores.items()}
+    flavor_judgments = {
+        dataset["id"]: _load_judgments(ROOT / dataset["flavor_judgment_snapshot"])
+        for dataset in datasets
+        if dataset["status"] == "measured" and dataset.get("flavor_judgment_snapshot")
+    }
+    flavor_scores = {d_id: _mean_scores(j) for d_id, j in flavor_judgments.items()}
+    flavor_rows = {
+        d_id: (_winner(scores), _ranking_text(scores))
+        for d_id, scores in flavor_scores.items()
+    }
     measured_evaluations = {
         dataset["id"]: _load_evaluation_summary(ROOT / dataset["evaluation_snapshot"])
         for dataset in datasets
@@ -163,7 +173,43 @@ def build_report() -> str:
 
     lines.extend([
         "",
-        "## 3. Canonical Evaluation Metrics",
+        "## 3. Flavor-Tier Tuning Results",
+        "",
+        "Flavor aliases are ranked separately from base families. They reuse the",
+        "same dataset ingestion and graph state, so this tier measures query-time",
+        "parameter choices without allowing several variants of one architecture to",
+        "occupy the base-family leaderboard.",
+        "",
+        "| Dataset | Status | Flavor winner | Flavor ranking |",
+        "|---|---|---|---|",
+    ])
+    for dataset in datasets:
+        winner, ranking = flavor_rows.get(
+            dataset["id"], ("pending fresh flavor run", "pending fresh flavor run")
+        )
+        lines.append(
+            f"| `{dataset['id']}` | {dataset['status']} | {winner} | {ranking} |"
+        )
+
+    lines.extend([
+        "",
+        "### 3.1 Flavor Per-Query Winners",
+        "",
+        "| Dataset | Query | Winner | Top 3 mean scores |",
+        "|---|---|---|---|",
+    ])
+    if not flavor_judgments:
+        lines.append("| - | - | pending fresh flavor run | - |")
+    for dataset in datasets:
+        judgments = flavor_judgments.get(dataset["id"])
+        if not judgments:
+            continue
+        for query_id, winner, top3 in _query_rows(judgments):
+            lines.append(f"| `{dataset['id']}` | `{query_id}` | {winner} | {top3} |")
+
+    lines.extend([
+        "",
+        "## 4. Canonical Evaluation Metrics",
         "",
         "These columns come from the append-safe evidence rows. Ragas values are",
         "evaluator-model scores, latency and failures are operational measurements,",
@@ -216,12 +262,12 @@ def build_report() -> str:
         measured_summaries.append(
             f"{prefix} `{dataset['id']}`, `{measured_rows[dataset['id']][0]}` leads"
         )
-    winner_counts: dict[str, int] = {}
-    for judgments in measured_judgments.values():
+    flavor_winner_counts: dict[str, int] = {}
+    for judgments in flavor_judgments.values():
         for query in judgments["queries"]:
             observed = query.get("observed_winner")
             if observed:
-                winner_counts[observed] = winner_counts.get(observed, 0) + 1
+                flavor_winner_counts[observed] = flavor_winner_counts.get(observed, 0) + 1
     graph_status = ""
     if measured_scores:
         graph_leads = sorted(d_id for d_id, s in measured_scores.items()
@@ -238,9 +284,20 @@ def build_report() -> str:
         # else: graph-rag absent from at least one snapshot (e.g. an --approaches run
         # that excluded it) — say nothing rather than claim a measurement that didn't
         # happen on every rung.
+    base_note = ""
+    base_rankings = [_ranking(scores) for scores in measured_scores.values() if scores]
+    if base_rankings and len(base_rankings) == len(measured_scores):
+        base_last = {ranking[-1][0] for ranking in base_rankings}
+        if len(base_last) == 1:
+            worst = next(iter(base_last))
+            base_note = (
+                f"Across the current snapshots, `{worst}` ranked last on every "
+                "measured dataset."
+            )
+
     flavor_note = ""
-    rankings = [_ranking(s) for s in measured_scores.values() if s]
-    if rankings and len(rankings) == len(measured_scores):
+    rankings = [_ranking(s) for s in flavor_scores.values() if s]
+    if rankings and len(rankings) == len(flavor_scores):
         last_aliases = {ranking[-1][0] for ranking in rankings}
         if len(last_aliases) == 1:
             worst = next(iter(last_aliases))
@@ -258,7 +315,7 @@ def build_report() -> str:
                     " Its committed answers are frequently truncated one-token or "
                     "heading-only output — the wide retrieval envelope overflows the "
                     "current LightRAG query setup.")
-                fast_wins = winner_counts.get("graph-rag-fast", 0)
+                fast_wins = flavor_winner_counts.get("graph-rag-fast", 0)
                 if fast_wins:
                     flavor_note += (
                         f" `graph-rag-fast` was the stronger graph flavor, winning "
@@ -268,7 +325,7 @@ def build_report() -> str:
 
     lines.extend([
         "",
-        "## 4. Per-Query Winners",
+        "## 5. Base-Family Per-Query Winners",
         "",
         "The **Winner** column is the judge panel's `observed_winner`: the approach with the",
         "highest mean score, breaking ties by best-answer votes. The **Top 3 mean scores**",
@@ -294,7 +351,7 @@ def build_report() -> str:
     )
     lines.extend([
         "",
-        "## 5. Interpretation",
+        "## 6. Interpretation",
         "",
         rung_sentence,
         "",
@@ -304,6 +361,8 @@ def build_report() -> str:
     ])
     if flavor_note:
         lines.extend(["", flavor_note])
+    if base_note:
+        lines.extend(["", base_note])
     lines.extend([
         "",
         "The candidate rungs are intentionally heavier: STaRK-Prime and STaRK-MAG",
@@ -314,7 +373,7 @@ def build_report() -> str:
         "candidate rungs should be added only after live",
         "matrix and judge runs produce committed snapshots.",
         "",
-        "## 6. Candidate Dataset Sources",
+        "## 7. Candidate Dataset Sources",
         "",
         "- STaRK: semi-structured textual + relational retrieval benchmark with Amazon, MAG, and Prime domains.",
         "- OpenAlex: CC0 scholarly graph of works, authors, institutions, concepts, venues, and citations.",

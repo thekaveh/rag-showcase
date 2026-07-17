@@ -42,7 +42,8 @@ The lifecycle table will include a dedicated **Employed in showcase?** column:
 
 - **Yes** for the six canonical deployed approaches.
 - **Experimental** for deployed but opt-in `lazy-graph-rag`.
-- **No - TBD** for researched, unimplemented Graphify RAG and LLM Wiki RAG.
+- **No - candidate** for researched, unimplemented Graphify RAG and LLM Wiki RAG;
+  adoption remains undecided.
 
 This column is independent from the maturity/status column. For example,
 `lazy-graph-rag` is employed but experimental, while Graphify RAG is a researched
@@ -80,9 +81,10 @@ The final empirical comparison covers the current implemented showcase only:
 
 - Seven base approach routes over the 20 queries in the three measured dataset
   rungs: 140 fresh answer cells.
-- Eleven declared flavor aliases over the same queries as a separate tuning
-  tier: 220 fresh answer cells.
-- 360 fresh answer cells overall.
+- Twelve declared flavor aliases over the same queries as a separate tuning
+  tier: 240 fresh answer cells. The twelfth flavor is the rerank-enabled graph
+  profile unblocked by Atlas's LightRAG-to-TEI adapter.
+- 380 fresh answer cells overall.
 
 Base-family rankings and flavor rankings remain separate. A flavor cannot occupy
 multiple places in the base-family leaderboard, and experimental lazy graph is
@@ -169,7 +171,7 @@ wording or hand-maintained copies of the lifecycle tables.
 - No candidate receives a score, rank, or implied test result.
 - The n8n evidence capability matches the evidence it actually returns.
 - The latest compatible Atlas evaluator fixes are pinned and validated.
-- All 140 base and 220 flavor cells have explicit success or error records.
+- All 140 base and 240 flavor cells have explicit success or error records.
 - Ragas and judge coverage are reported independently and honestly.
 - Fresh per-dataset, progression, and flavor reports are generated from canonical
   artifacts.

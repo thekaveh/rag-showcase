@@ -87,6 +87,12 @@ def test_manifest_env_sets_atlas_lightrag_inputs_not_native_runtime_envs() -> No
     assert "LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b" in env_file
     assert "LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.6:latest" in env_file
     assert "LIGHTRAG_QUERY_LLM_MODEL=qwen3.6:latest" in env_file
+    assert "LIGHTRAG_KEYWORD_LLM_BINDING=openai" in env_file
+    assert "LIGHTRAG_QUERY_LLM_BINDING=openai" in env_file
+    assert (
+        "LIGHTRAG_KEYWORD_LLM_BINDING_HOST=http://litellm:4000/v1" in env_file
+    )
+    assert "LIGHTRAG_QUERY_LLM_BINDING_HOST=http://litellm:4000/v1" in env_file
     assert "model_sidecars:" in manifest
     assert "mistral-small3.2:24b" in manifest
 
@@ -131,6 +137,7 @@ def test_resolved_backend_receives_plugin_operator_overrides() -> None:
     command_env.update(
         {
             "RAG_WEAVIATE_GRPC_PORT": "51051",
+            "RAG_WEAVIATE_INIT_TIMEOUT_S": "45",
             "TEI_RERANKER_MAX_BATCH": "7",
         }
     )
@@ -158,6 +165,7 @@ def test_resolved_backend_receives_plugin_operator_overrides() -> None:
 
     backend_env = yaml.safe_load(result.stdout)["services"]["backend"]["environment"]
     assert backend_env["RAG_WEAVIATE_GRPC_PORT"] == "51051"
+    assert backend_env["RAG_WEAVIATE_INIT_TIMEOUT_S"] == "45"
     assert backend_env["TEI_RERANKER_MAX_BATCH"] == "7"
     assert "LIGHTRAG_UPLOAD_RETRIES" not in backend_env
     assert "LIGHTRAG_UPLOAD_RETRY_DELAY" not in backend_env

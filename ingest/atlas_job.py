@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 from collections.abc import Callable
 from typing import Any
@@ -36,6 +37,7 @@ def run_ingestion(
     profile: str,
     *,
     base_url: str,
+    api_token: str,
     corpus_path: str | None = None,
     timeout_seconds: float = 7200,
     poll_seconds: float = 5,
@@ -43,6 +45,9 @@ def run_ingestion(
     sleep: Callable[[float], None] = time.sleep,
 ) -> dict[str, Any]:
     """Submit a profile and return Atlas's terminal phase record."""
+    if not api_token.strip():
+        raise ValueError("api_token is required for Atlas backend ingestion jobs")
+    headers = {"Authorization": f"Bearer {api_token.strip()}"}
     owned_client = client is None
     http = client or httpx.Client(timeout=httpx.Timeout(120.0, connect=10.0))
     try:
@@ -50,6 +55,7 @@ def run_ingestion(
             f"{base_url.rstrip('/')}/api/rag/ingestions",
             params={"async_job": "true"},
             json={"profile": profile, "corpus_path": corpus_path},
+            headers=headers,
             # Atlas runs synchronously in-request when its Celery tier is disabled.
             # Keep the submission alive for the same budget as the job itself.
             timeout=timeout_seconds + 60,
@@ -60,7 +66,8 @@ def run_ingestion(
         deadline = time.monotonic() + timeout_seconds
         while True:
             status_response = http.get(
-                f"{base_url.rstrip('/')}/api/rag/ingestions/{ingestion_id}"
+                f"{base_url.rstrip('/')}/api/rag/ingestions/{ingestion_id}",
+                headers=headers,
             )
             status_response.raise_for_status()
             record = status_response.json()
@@ -88,9 +95,13 @@ def main() -> None:
     parser.add_argument("--timeout-seconds", type=float, default=7200)
     parser.add_argument("--poll-seconds", type=float, default=5)
     args = parser.parse_args()
+    api_token = os.environ.get("BACKEND_INTERNAL_API_TOKEN", "").strip()
+    if not api_token:
+        parser.error("BACKEND_INTERNAL_API_TOKEN must be set")
     record = run_ingestion(
         args.profile,
         base_url=args.base_url,
+        api_token=api_token,
         corpus_path=args.corpus_path,
         timeout_seconds=args.timeout_seconds,
         poll_seconds=args.poll_seconds,

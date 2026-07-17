@@ -1,7 +1,7 @@
 # 4.1 Architecture and Flow Diagrams
 
 This page documents the two generated landscape diagrams used by the README:
-the project architecture map and the parallel flow map for all six RAG approaches.
+the project architecture map and the parallel flow map for all seven RAG approaches.
 Both diagrams are checked in as high-resolution PNGs and as standalone HTML/SVG
 source files.
 
@@ -31,8 +31,8 @@ the shared `/rag` route root, `/rag/health`, inherited Kong auth, typed env, and
 upstream dependencies. `atlas.consumer.yml` declares all base and flavor model
 aliases; Atlas validates and compiles them into LiteLLM's startup configuration.
 
-The six approach endpoints are deployed inside the Atlas backend container, not as
-six separate containers. Open WebUI and `compare/run_matrix.py` invoke them through
+The seven approach endpoints are deployed inside the Atlas backend container, not as
+seven separate containers. Open WebUI and `compare/run_matrix.py` invoke them through
 LiteLLM's `/v1/chat/completions` surface after LiteLLM maps the selected model name
 to the corresponding backend route.
 
@@ -45,6 +45,9 @@ the graph tool inside `agentic-rag` delegate to LightRAG and Neo4j. `n8n-adaptiv
 bridges into the n8n workflow and reports the selected route. The workflow source
 lives in this repository, while `atlas.consumer.yml` delegates its namespacing,
 idempotent import, and webhook probe to Atlas.
+`lazy-graph-rag` reads the same profile-scoped base chunks and keeps its
+fingerprint-keyed concept graph in a dedicated persistent cache volume; it does
+not use Neo4j or create a new graph per query once the cache is warm.
 
 ### 1.4 Model strategy
 
@@ -56,9 +59,9 @@ separate EXTRACT/KEYWORD/QUERY model inputs through Atlas. The same repo can
 therefore run against container Ollama, host Ollama, GPU-backed Ollama, or another
 Atlas-supported provider without changing the compose overlay.
 
-## 2. Six Approach Flow Phases
+## 2. Seven Approach Flow Phases
 
-![RAG Showcase six approach flow phases](diagrams/img/approach-flows.png)
+![RAG Showcase seven approach flow phases](diagrams/img/approach-flows.png)
 
 Source: [`diagrams/approach-flows.html`](diagrams/approach-flows.html).
 PNG: [`diagrams/img/approach-flows.png`](diagrams/img/approach-flows.png).
@@ -94,7 +97,14 @@ route metadata to the OpenAI-compatible wrapper. Atlas seeds the checked-in work
 as `atlas-consumer-adaptive-rag`; the showcase wrapper only retains the temporary
 no-API-key activation compatibility step tracked by Atlas #514.
 
-All six lanes are invoked the same way from the outside: the caller chooses a model
+### 2.5 Lazy graph lane
+
+`lazy-graph-rag` takes dense seed chunks, derives lexical concepts, expands a
+deterministic co-occurrence graph within depth/node/token budgets, and generates
+one answer from the selected chunks. The graph is built on the first query for a
+new corpus fingerprint and then reused; query observations are not written back.
+
+All seven lanes are invoked the same way from the outside: the caller chooses a model
 alias in LiteLLM, and LiteLLM forwards to the mounted FastAPI route in the Atlas
 backend container.
 
@@ -134,7 +144,8 @@ sequenceDiagram
 `vanilla-rag` skips the rerank leg; `contextual-rag` is identical but queries the
 selected `RagContextual_<profile>` collection; `graph-rag` and `agentic-rag` delegate the middle to
 LightRAG / a ReAct tool loop; `n8n-adaptive-rag` inserts the n8n workflow between
-the endpoint and a routed approach.
+the endpoint and a routed approach; `lazy-graph-rag` adds deterministic concept
+expansion between dense seeding and generation.
 
 ## 4. Deployment Topology (Containers and Mounts)
 
@@ -168,7 +179,8 @@ flowchart LR
         tei["tei-reranker :80"]
         lightrag["lightrag :9621 + neo4j"]
         n8n["n8n :5678 (queue mode)"]
-        ollama["ollama (container provider source)"]
+        lazycache[("lazy graph cache volume")]
+        provider["configured Atlas LLM provider source"]
     end
 
     overlay -. "registered directly by<br/>the consumer manifest" .-> atlas
@@ -180,8 +192,8 @@ flowchart LR
     harness -- "judge calls" --> ollamahost
     owui --> litellm
     litellm --> backend
-    backend --> weaviate & tei & lightrag & n8n
-    litellm --> ollama
+    backend --> weaviate & tei & lightrag & n8n & lazycache
+    litellm --> provider
 ```
 
 ## 5. Regeneration Notes
@@ -192,12 +204,12 @@ Chrome on macOS:
 ```bash
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 "$CHROME" --headless=new --disable-gpu --hide-scrollbars \
-  --window-size=2000,1300 --force-device-scale-factor=2 \
+  --window-size=2000,1050 --force-device-scale-factor=2 \
   --screenshot=docs/diagrams/img/architecture-detailed.png \
   file://"$PWD"/docs/diagrams/architecture-detailed.html
 
 "$CHROME" --headless=new --disable-gpu --hide-scrollbars \
-  --window-size=2000,1300 --force-device-scale-factor=2 \
+  --window-size=2000,1230 --force-device-scale-factor=2 \
   --screenshot=docs/diagrams/img/approach-flows.png \
   file://"$PWD"/docs/diagrams/approach-flows.html
 ```

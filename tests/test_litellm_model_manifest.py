@@ -23,7 +23,9 @@ sys.path.insert(0, str(root / "infra" / "bootstrapper"))
 from core.consumer_manifest import load_consumer_config
 
 config = load_consumer_config(
-    root / "infra", explicit_paths=[str(root / "atlas.consumer.yml")]
+    root / "infra",
+    explicit_paths=[str(root / "atlas.consumer.yml")],
+    lightrag_rerank_adapter_enabled=True,
 )
 print(json.dumps([model.to_row() for model in config.litellm_models]))
 """
@@ -68,7 +70,7 @@ def test_consumer_manifest_declares_every_base_and_flavor_alias() -> None:
         info = row["model_info"]
         assert params["model"] == f"openai/{alias}"
         assert params["api_base"] == f"http://backend:8000/rag/{expected[alias]}/v1"
-        assert params["api_key"] == "os.environ/LITELLM_MASTER_KEY"
+        assert params["api_key"] == "os.environ/BACKEND_INTERNAL_API_TOKEN"
         assert info["atlas_owner"] == "rag-showcase"
         assert info["atlas_managed"] is True
         assert info["base_approach"] == expected[alias]
@@ -94,3 +96,24 @@ def test_aliases_are_declarative_and_startup_only_waits_for_them() -> None:
     for alias, base in _expected_aliases().items():
         if alias != base:
             assert alias not in script
+
+
+def test_consumer_manifest_declares_atlas_lightrag_query_profiles() -> None:
+    manifest = yaml.safe_load((ROOT / "atlas.consumer.yml").read_text(encoding="utf-8"))
+    rows = manifest["lightrag_query_profiles"]["profiles"]
+    by_name = {row["name"]: row for row in rows}
+
+    assert manifest["lightrag_query_profiles"]["version"] == 1
+    assert set(by_name) == {
+        "graph-rag",
+        "graph-rag-fast",
+        "graph-rag-wide",
+        "graph-rag-rerank",
+    }
+    assert by_name["graph-rag"]["mode"] == "hybrid"
+    assert by_name["graph-rag-fast"]["mode"] == "local"
+    assert by_name["graph-rag-wide"]["top_k"] == 30
+    assert by_name["graph-rag-rerank"]["enable_rerank"] is True
+
+    env = (ROOT / "config/atlas.env.user").read_text(encoding="utf-8")
+    assert "LIGHTRAG_RERANK_ADAPTER_ENABLED=true" in env

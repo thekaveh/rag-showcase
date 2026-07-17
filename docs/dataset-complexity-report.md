@@ -37,7 +37,30 @@ For approach-by-approach internals and tuning surfaces, see
 | `gdelt_events` | 6 | candidate | pending live run | pending live run |
 | `cyber_threat_intel` | 7 | measured | lazy-graph-rag | lazy-graph-rag 3.25 > contextual-rag 3.17 > hybrid-rag 3.17 > n8n-adaptive-rag 2.67 > vanilla-rag 2.67 > agentic-rag 1.67 > graph-rag 1.50 |
 
-## 3. Canonical Evaluation Metrics
+## 3. Flavor-Tier Tuning Results
+
+Flavor aliases are ranked separately from base families. They reuse the
+same dataset ingestion and graph state, so this tier measures query-time
+parameter choices without allowing several variants of one architecture to
+occupy the base-family leaderboard.
+
+| Dataset | Status | Flavor winner | Flavor ranking |
+|---|---|---|---|
+| `baseline_curated` | measured | pending fresh flavor run | pending fresh flavor run |
+| `graph_native` | measured | pending fresh flavor run | pending fresh flavor run |
+| `stark_prime` | candidate | pending fresh flavor run | pending fresh flavor run |
+| `stark_mag` | candidate | pending fresh flavor run | pending fresh flavor run |
+| `openalex_scholarly` | candidate | pending fresh flavor run | pending fresh flavor run |
+| `gdelt_events` | candidate | pending fresh flavor run | pending fresh flavor run |
+| `cyber_threat_intel` | measured | pending fresh flavor run | pending fresh flavor run |
+
+### 3.1 Flavor Per-Query Winners
+
+| Dataset | Query | Winner | Top 3 mean scores |
+|---|---|---|---|
+| - | - | pending fresh flavor run | - |
+
+## 4. Canonical Evaluation Metrics
 
 These columns come from the append-safe evidence rows. Ragas values are
 evaluator-model scores, latency and failures are operational measurements,
@@ -54,7 +77,7 @@ cannot disappear from the comparison.
 | `gdelt_events` | not measured | not measured | not measured | not available | not available |
 | `cyber_threat_intel` | not evaluated | not evaluated | n8n-adaptive-rag 1991 ms (6/6) > vanilla-rag 9281 ms (6/6) > lazy-graph-rag 11946 ms (6/6) > contextual-rag 24520 ms (6/6) > hybrid-rag 25661 ms (6/6) > graph-rag 67607 ms (6/6) > agentic-rag 204667 ms (6/6) | 42/42 successful | 0 errors, 0 timeouts |
 
-## 4. Per-Query Winners
+## 5. Base-Family Per-Query Winners
 
 The **Winner** column is the judge panel's `observed_winner`: the approach with the
 highest mean score, breaking ties by best-answer votes. The **Top 3 mean scores**
@@ -84,7 +107,7 @@ mean the vote-decided winner can fall outside the listed top three.
 | `cyber_threat_intel` | `cyber_campaign_timeline_context` | lazy-graph-rag | lazy-graph-rag 3.50 > contextual-rag 2.00 > hybrid-rag 2.00 |
 | `cyber_threat_intel` | `cyber_protocol_and_web_mitigation_path` | hybrid-rag | hybrid-rag 5.00 > contextual-rag 2.50 > lazy-graph-rag 2.50 |
 
-## 5. Interpretation
+## 6. Interpretation
 
 The current measured ladder has 3 rungs. On `baseline_curated`, `n8n-adaptive-rag` leads; on `graph_native`, `contextual-rag` leads; on `cyber_threat_intel`, `lazy-graph-rag` leads. `graph-rag` is measured end to end across the live rungs but does not lead any of them.
 
@@ -100,7 +123,7 @@ campaign, intrusion-group, and mitigation relationships. Scores for
 candidate rungs should be added only after live
 matrix and judge runs produce committed snapshots.
 
-## 6. Candidate Dataset Sources
+## 7. Candidate Dataset Sources
 
 - STaRK: semi-structured textual + relational retrieval benchmark with Amazon, MAG, and Prime domains.
 - OpenAlex: CC0 scholarly graph of works, authors, institutions, concepts, venues, and citations.

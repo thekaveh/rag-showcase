@@ -4,8 +4,8 @@ A living record of how well Atlas served as reusable infra for this project.
 
 ## 1. What Reused Cleanly (Out of the Box)
 
-- **Declarative LiteLLM consumer models:** `atlas.consumer.yml` declares all six
-  base approaches and eight flavor aliases. Atlas validates endpoint ownership,
+- **Declarative LiteLLM consumer models:** `atlas.consumer.yml` declares all seven
+  base approaches and twelve flavor aliases. Atlas validates endpoint ownership,
   compiles model rows before LiteLLM starts, and exposes the same aliases to Open
   WebUI and API clients without database registration calls.
 - **The `gen-ai-rag` track:** Brings up Weaviate + Neo4j + LightRAG + TEI
@@ -43,7 +43,7 @@ overlay).
 > `backend_plugins/` mount). The override mechanism is identical — only the seam's
 > provider moved from the fork to upstream.
 >
-> The RAG package now also ships Atlas's optional `plugin.yml` contract. Its six
+> The RAG package now also ships Atlas's optional `plugin.yml` contract. Its seven
 > approach routes share `/rag`, with `/rag/health`, inherited Kong auth, typed
 > configuration, and dependency metadata validated by consumer doctor before
 > startup and by the backend before import.
@@ -148,8 +148,9 @@ texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
 > default, exposes concrete query fanout defaults, and now ships an authenticated
 > backend adapter (`POST /lightrag/rerank`). Operators can opt in with
 > `LIGHTRAG_RERANK_ADAPTER_ENABLED=true` while keeping the incompatible direct path
-> disabled. Rag-showcase has not enabled the adapter by default; profile adoption
-> and evaluation remain a separate tuning decision.
+> disabled. Rag-showcase enables the adapter through its consumer env and exposes
+> one opt-in `graph-rag-rerank` query profile beside rerank-disabled controls. Atlas
+> #654 now validates that consumer env overlay without a bootstrap `.env` mutation.
 
 ### 2.12 Disabled manifest services can be treated as enabled during dependency checks
 
@@ -244,9 +245,36 @@ manifest validation and therefore needed real ingestion evidence.
 
 > **Resolved upstream.** Atlas #602 creates `/home/appuser` in the backend image,
 > sends `file_source`, and records bounded upstream response bodies on failures.
-> Rag-showcase pins Atlas `3c33250b` and removed its temporary cache environment
+> Rag-showcase pinned Atlas `3c33250b` for that validation and removed its temporary cache environment
 > override. Live job `7127dcc3-7a45-40ad-ae28-5b547cf0bc8b` then completed all
 > discover/parse/chunk/embed/vector-write/upload/drain/finalize phases.
+
+### 2.20 LightRAG drain polling failed on transient status timeouts
+
+> **Resolved upstream.** Atlas #673 retries timeout and transport failures within
+> the profile drain deadline, preserves cancellation and lease heartbeats, and
+> records poll/retry evidence. Rag-showcase again declares
+> `wait_for_extraction: true`; its temporary second drain loop was removed.
+
+### 2.21 Consumer rerank capability validation ignored the consumer env overlay
+
+> **Resolved upstream.** Atlas #654 computes the effective rerank-adapter flag from
+> the merged consumer environment before validating LightRAG query profiles. The
+> showcase no longer copies that flag into `infra/.env` before preflight.
+
+### 2.22 Project stop could terminate host-global managed runtimes
+
+> **Resolved upstream.** Atlas #655 makes project-scoped stop preserve shared host
+> runtimes unless the operator explicitly requests global shutdown. The showcase
+> delegates teardown to `infra/stop.sh --project rag-showcase` instead of assembling
+> a private Compose-down command.
+
+### 2.23 Native LightRAG roles can bypass catalog request defaults
+
+Atlas #658 remains open. A native Ollama KEYWORD or QUERY binding would bypass the
+catalog-scoped `think:false` default. The showcase therefore keeps those two roles
+behind LiteLLM and sends only the non-reasoning EXTRACT role directly to Ollama.
+This is role-scoped and does not apply request parameters globally.
 
 ## 3. Recommendations for Atlas
 
@@ -261,7 +289,7 @@ manifest validation and therefore needed real ingestion evidence.
   compatibility cap that Atlas's install already satisfies. (Originally filed as
   a gap — corrected after checking the vendored image's `requirements.txt`.)
 - **(Resolved) Consumer-owned LiteLLM aliases:** Atlas #411 added declarative
-  `litellm_models` support. The showcase now owns all fourteen route aliases in
+  `litellm_models` support. The showcase now owns all nineteen route aliases in
   `atlas.consumer.yml`; Atlas renders and validates them without admin API calls.
 - **(Resolved) Load parent-owned Compose overlays directly:** Atlas's
   `atlas.consumer.yml` `compose_overlays` block supersedes the proposed
@@ -287,9 +315,10 @@ manifest validation and therefore needed real ingestion evidence.
   the Asset Baker artifact.
 - **Rebuild stale local images after source upgrades** (§2.14): detect build-context
   drift and refresh enabled images without rebuilding unchanged services (Atlas #506).
-- **Complete successful one-shot convergence handling** (§2.15): Atlas #508
-  handles already-converged zero-exit snapshots, but should wait through the
-  observed intermediate `starting` state while preserving genuine failures.
+- **(Resolved upstream with bounded consumer compatibility) Successful one-shot
+  convergence:** Atlas #508 classifies the benign zero-exit signature. The showcase
+  retains a stricter bounded wait for the observed intermediate `starting` state;
+  it does not broaden accepted failures.
 - **Publish active n8n workflows without an API key** (§2.16): honor the effective
   activation policy on fresh volumes, coalesce any required reload, and make required
   webhook readiness deterministic (Atlas #514).
@@ -302,6 +331,14 @@ manifest validation and therefore needed real ingestion evidence.
 - **(Resolved) Make generic ingestion runnable against LightRAG 1.5** (§2.19):
   Atlas #602 supplies a writable backend runtime home, uses `file_source`, and
   retains bounded upstream error evidence.
+- **(Resolved) Retry transient LightRAG drain polls** (§2.20): Atlas #673 owns the
+  bounded retry/deadline/evidence contract; no consumer drain remains.
+- **(Resolved) Honor consumer env during rerank validation** (§2.21): Atlas #654
+  removed the showcase's bootstrap mutation.
+- **(Resolved) Preserve shared managed hosts on project stop** (§2.22): Atlas #655
+  lets the showcase use native project-scoped teardown.
+- **Preserve model request defaults across native LightRAG roles** (§2.23): Atlas
+  #658 remains open; the LiteLLM transport selection is the bounded workaround.
 
 ## 4. Live End-to-End Run — Resolved (2026-07-01)
 
@@ -333,8 +370,8 @@ previously-open items are now assessed:
 
 ### 4.2 Atlas `3c33250b` generic-ingestion validation (2026-07-14)
 
-- `scripts/start-all.sh` converged all 27 enabled services and registered all 14
-  canonical/flavor aliases without a consumer-owned backend cache override.
+- `scripts/start-all.sh` converged all 27 enabled services and registered the
+  then-current 18 aliases without a consumer-owned backend cache override.
 - Atlas job `7127dcc3-7a45-40ad-ae28-5b547cf0bc8b` completed all eight phases for
   `graph_native`: 10 files discovered and parsed, 10 chunks, 10 vectors written,
   10 LightRAG uploads, a 320.5-second graph-extraction drain, and zero errors.

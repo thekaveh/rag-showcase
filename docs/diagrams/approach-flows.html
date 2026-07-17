@@ -32,12 +32,12 @@
     <div class="header">
       <div class="header-row">
         <div class="pulse-dot"></div>
-        <h1>RAG Showcase - Six Approach Flow Phases</h1>
+        <h1>RAG Showcase - Seven Approach Flow Phases</h1>
       </div>
       <p class="subtitle">Parallel lane view of ingestion, retrieval, augmentation, generation, and scoring behavior</p>
     </div>
     <div class="diagram-container">
-      <svg viewBox="0 0 1880 1000" role="img" aria-label="Parallel phase diagram for all six RAG approaches">
+      <svg viewBox="0 0 1880 1120" role="img" aria-label="Parallel phase diagram for all seven RAG approaches">
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
             <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
@@ -52,7 +52,7 @@
             <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
           </pattern>
         </defs>
-        <rect width="1880" height="1000" fill="url(#grid)"/>
+        <rect width="1880" height="1120" fill="url(#grid)"/>
 
         <!-- Global phases -->
         <rect x="36" y="46" width="1808" height="106" rx="12" fill="rgba(30,41,59,0.45)" stroke="#94a3b8" stroke-width="1.2"/>
@@ -91,6 +91,7 @@
           <rect x="36" y="574" width="1808" height="108" rx="10" fill="rgba(76,29,149,0.09)" stroke="#a78bfa" stroke-width="1"/>
           <rect x="36" y="694" width="1808" height="108" rx="10" fill="rgba(6,78,59,0.09)" stroke="#34d399" stroke-width="1"/>
           <rect x="36" y="814" width="1808" height="108" rx="10" fill="rgba(251,146,60,0.08)" stroke="#fb923c" stroke-width="1"/>
+          <rect x="36" y="934" width="1808" height="108" rx="10" fill="rgba(76,29,149,0.09)" stroke="#a78bfa" stroke-width="1"/>
 
           <!-- lane labels -->
           <text x="62" y="242" fill="white" font-size="12" font-weight="700">vanilla-rag</text>
@@ -99,6 +100,7 @@
           <text x="62" y="602" fill="white" font-size="12" font-weight="700">graph-rag</text>
           <text x="62" y="722" fill="white" font-size="12" font-weight="700">agentic-rag</text>
           <text x="62" y="842" fill="white" font-size="12" font-weight="700">n8n-adaptive-rag</text>
+          <text x="62" y="962" fill="white" font-size="12" font-weight="700">lazy-graph-rag</text>
 
           <!-- helper: all lane boxes manually placed -->
           <!-- vanilla -->
@@ -133,7 +135,7 @@
           <rect x="424" y="596" width="176" height="54" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.3"/><text x="512" y="618" fill="white" text-anchor="middle">2.1 LightRAG query</text><text x="512" y="636" fill="#94a3b8" text-anchor="middle">mode=hybrid</text>
           <rect x="688" y="596" width="176" height="54" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.3"/><text x="776" y="618" fill="white" text-anchor="middle">3.1 KG + vector</text><text x="776" y="636" fill="#94a3b8" text-anchor="middle">entities + relations</text>
           <rect x="952" y="596" width="176" height="54" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.3"/><text x="1040" y="618" fill="white" text-anchor="middle">4.1 graph context</text><text x="1040" y="636" fill="#94a3b8" text-anchor="middle">rerank disabled</text>
-          <rect x="1216" y="596" width="176" height="54" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.3"/><text x="1304" y="618" fill="white" text-anchor="middle">5.1 LightRAG LLM</text><text x="1304" y="636" fill="#94a3b8" text-anchor="middle">mistral-small role</text>
+          <rect x="1216" y="596" width="176" height="54" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.3"/><text x="1304" y="618" fill="white" text-anchor="middle">5.1 LightRAG LLM</text><text x="1304" y="636" fill="#94a3b8" text-anchor="middle">QUERY role: qwen3.6</text>
           <rect x="1480" y="596" width="176" height="54" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.3"/><text x="1568" y="618" fill="white" text-anchor="middle">6.1 answer</text><text x="1568" y="636" fill="#94a3b8" text-anchor="middle">KG source marker</text>
           <rect x="1690" y="596" width="120" height="54" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.3"/><text x="1750" y="618" fill="white" text-anchor="middle">profile-sensitive</text><text x="1750" y="636" fill="#94a3b8" text-anchor="middle">fast when tuned</text>
 
@@ -154,6 +156,15 @@
           <rect x="1216" y="836" width="176" height="54" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.3"/><text x="1304" y="858" fill="white" text-anchor="middle">5.1 workflow result</text><text x="1304" y="876" fill="#94a3b8" text-anchor="middle">Respond to Webhook</text>
           <rect x="1480" y="836" width="176" height="54" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.3"/><text x="1568" y="858" fill="white" text-anchor="middle">6.1 answer + route</text><text x="1568" y="876" fill="#94a3b8" text-anchor="middle">adaptive source marker</text>
           <rect x="1690" y="836" width="120" height="54" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.3"/><text x="1750" y="858" fill="white" text-anchor="middle">operator</text><text x="1750" y="876" fill="#94a3b8" text-anchor="middle">configurable</text>
+
+          <!-- lazy graph -->
+          <rect x="210" y="956" width="176" height="54" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.3"/><text x="298" y="978" fill="white" text-anchor="middle">1.1 model=lazy-graph-rag</text><text x="298" y="996" fill="#94a3b8" text-anchor="middle">OpenAI chat request</text>
+          <rect x="424" y="956" width="176" height="54" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.3"/><text x="512" y="978" fill="white" text-anchor="middle">2.1 seed + concepts</text><text x="512" y="996" fill="#94a3b8" text-anchor="middle">dense top-k + terms</text>
+          <rect x="688" y="956" width="176" height="54" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.3"/><text x="776" y="978" fill="white" text-anchor="middle">3.1 base + cache</text><text x="776" y="996" fill="#94a3b8" text-anchor="middle">concept co-occurrence graph</text>
+          <rect x="952" y="956" width="176" height="54" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.3"/><text x="1040" y="978" fill="white" text-anchor="middle">4.1 budgeted expansion</text><text x="1040" y="996" fill="#94a3b8" text-anchor="middle">depth + node/token caps</text>
+          <rect x="1216" y="956" width="176" height="54" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.3"/><text x="1304" y="978" fill="white" text-anchor="middle">5.1 one LLM call</text><text x="1304" y="996" fill="#94a3b8" text-anchor="middle">expanded evidence</text>
+          <rect x="1480" y="956" width="176" height="54" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.3"/><text x="1568" y="978" fill="white" text-anchor="middle">6.1 answer + sources</text><text x="1568" y="996" fill="#94a3b8" text-anchor="middle">cache metrics</text>
+          <rect x="1690" y="956" width="120" height="54" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.3"/><text x="1750" y="978" fill="white" text-anchor="middle">experimental</text><text x="1750" y="996" fill="#94a3b8" text-anchor="middle">lazy first build</text>
         </g>
 
         <!-- lane arrows -->
@@ -164,12 +175,13 @@
           <line x1="386" y1="623" x2="424" y2="623" stroke="#a78bfa"/><line x1="600" y1="623" x2="688" y2="623" stroke="#a78bfa"/><line x1="864" y1="623" x2="952" y2="623" stroke="#a78bfa"/><line x1="1128" y1="623" x2="1216" y2="623" stroke="#a78bfa"/><line x1="1392" y1="623" x2="1480" y2="623" stroke="#64748b"/><line x1="1656" y1="623" x2="1690" y2="623" stroke="#64748b"/>
           <line x1="386" y1="743" x2="424" y2="743" stroke="#64748b"/><line x1="600" y1="743" x2="688" y2="743" stroke="#64748b"/><line x1="864" y1="743" x2="952" y2="743" stroke="#64748b"/><line x1="1128" y1="743" x2="1216" y2="743" stroke="#64748b"/><line x1="1392" y1="743" x2="1480" y2="743" stroke="#64748b"/><line x1="1656" y1="743" x2="1690" y2="743" stroke="#64748b"/>
           <line x1="386" y1="863" x2="424" y2="863" stroke="#fb923c"/><line x1="600" y1="863" x2="688" y2="863" stroke="#fb923c"/><line x1="864" y1="863" x2="952" y2="863" stroke="#fb923c"/><line x1="1128" y1="863" x2="1216" y2="863" stroke="#fb923c"/><line x1="1392" y1="863" x2="1480" y2="863" stroke="#64748b"/><line x1="1656" y1="863" x2="1690" y2="863" stroke="#64748b"/>
+          <line x1="386" y1="983" x2="424" y2="983" stroke="#a78bfa"/><line x1="600" y1="983" x2="688" y2="983" stroke="#a78bfa"/><line x1="864" y1="983" x2="952" y2="983" stroke="#a78bfa"/><line x1="1128" y1="983" x2="1216" y2="983" stroke="#a78bfa"/><line x1="1392" y1="983" x2="1480" y2="983" stroke="#64748b"/><line x1="1656" y1="983" x2="1690" y2="983" stroke="#64748b"/>
         </g>
 
         <!-- bottom model lane -->
-        <rect x="36" y="944" width="1808" height="34" rx="8" fill="rgba(120,53,15,0.14)" stroke="#fbbf24" stroke-width="1"/>
-        <text x="60" y="965" fill="#fbbf24" font-size="10" font-weight="700">Shared model layer:</text>
-        <text x="194" y="965" fill="#94a3b8" font-size="10">LiteLLM routes to the configured Atlas provider; generation uses roles.yaml; LightRAG uses Atlas role inputs; embeddings default to nomic-embed-text.</text>
+        <rect x="36" y="1064" width="1808" height="34" rx="8" fill="rgba(120,53,15,0.14)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="60" y="1085" fill="#fbbf24" font-size="10" font-weight="700">Shared model layer:</text>
+        <text x="194" y="1085" fill="#94a3b8" font-size="10">LiteLLM routes to the configured Atlas provider; generation uses roles.yaml; LightRAG uses Atlas role inputs; embeddings default to nomic-embed-text.</text>
       </svg>
     </div>
     <div class="cards">
@@ -185,6 +197,7 @@
         <ul>
           <li>graph-rag delegates query answering to LightRAG hybrid mode.</li>
           <li>agentic-rag loops over vector search and LightRAG tools, then returns a trace and final answer.</li>
+          <li>lazy-graph-rag builds and caches a deterministic concept graph on first use, then expands within query budgets.</li>
         </ul>
       </div>
       <div class="card">

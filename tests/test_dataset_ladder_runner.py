@@ -37,12 +37,23 @@ def test_start_all_supports_service_only_mode() -> None:
     assert "RAG_INGESTION_PROFILE" in script
     assert "*[!a-z0-9._-]*|[._-]*" in script
     assert "ingest.atlas_job" in script
+    assert 'BACKEND_INTERNAL_API_TOKEN="$(envval BACKEND_INTERNAL_API_TOKEN)"' in script
     assert "ingest.contextual" in script
     assert "/app/ingest/ingest.py" not in script
     assert "Reconciling Atlas-declared LiteLLM model aliases" in script
     assert "import:workflow" not in script
     assert "--activeState=fromJson" not in script
     assert "adaptive-rag.workflow.json" not in script
+    assert '--project "$ATLAS_PROJECT_NAME"' in script
+    assert '--base-port "$ATLAS_BASE_PORT"' in script
+    assert "RAG_SHOWCASE_LLM_PROVIDER_SOURCE" in script
+    assert "RAG_SHOWCASE_COMFYUI_SOURCE" in script
+    assert "ATLAS_SOURCE_ARGS" in script
+    assert "--llm-provider-source ollama-localhost" not in script
+    assert "--comfyui-source disabled" not in script
+    assert "select_atlas_base_port.py" in script
+    assert "Atlas #654" not in script
+    assert "sync_bootstrap_env_key" not in script
 
 
 def test_ladder_runner_exposes_measured_dataset_selection() -> None:
@@ -58,7 +69,11 @@ def test_ladder_runner_exposes_measured_dataset_selection() -> None:
     assert "--date-stamp" in result.stdout
     assert "--no-cold-reset" in result.stdout
     assert "--flavors" in result.stdout
+    assert "--include-flavor-tier" in result.stdout
     assert "--include-candidates" in result.stdout
+    normalized = " ".join(result.stdout.split())
+    assert "Defaults to the canonical six approaches" in normalized
+    assert "all seven base approaches" in normalized
 
 
 def test_overlay_passes_lightrag_ollama_context_caps() -> None:
@@ -101,7 +116,12 @@ def test_ladder_uses_atlas_job_then_contextual_post_step(monkeypatch, tmp_path) 
     }
     monkeypatch.setattr(module, "envval", lambda key, default="": "63093")
     monkeypatch.setattr(module, "project_name", lambda: "rag-showcase")
-    monkeypatch.setattr(module, "capture_json", lambda cmd: commands.append(cmd) or record)
+    captured_env: list[dict[str, str]] = []
+    monkeypatch.setattr(
+        module,
+        "capture_json",
+        lambda cmd, env=None: commands.append(cmd) or captured_env.append(env or {}) or record,
+    )
     monkeypatch.setattr(module, "run", lambda cmd, env=None: commands.append(cmd))
 
     actual = module.ingest_dataset(
@@ -117,6 +137,9 @@ def test_ladder_uses_atlas_job_then_contextual_post_step(monkeypatch, tmp_path) 
     assert "--profile" in commands[0]
     assert "baseline_curated" in commands[0]
     assert "http://127.0.0.1:63093" in commands[0]
+    assert captured_env[0]["BACKEND_INTERNAL_API_TOKEN"] == "63093"
+    assert "LIGHTRAG_API_KEY" not in captured_env[0]
+    assert "--lightrag-url" not in commands[0]
     assert commands[1] == [
         "docker",
         "exec",
@@ -127,6 +150,39 @@ def test_ladder_uses_atlas_job_then_contextual_post_step(monkeypatch, tmp_path) 
         "-m",
         "ingest.contextual",
     ]
+    assert commands[2] == [
+        "uv",
+        "run",
+        "python",
+        "scripts/verify_adaptive_webhook.py",
+        "--url",
+        "http://127.0.0.1:63093/webhook/adaptive-rag",
+    ]
+
+
+def test_cold_reset_targets_only_rag_showcase(monkeypatch) -> None:
+    module = _load_ladder_module()
+    seen = []
+    monkeypatch.setattr(module.subprocess, "run", lambda cmd, **kwargs: seen.append((cmd, kwargs)))
+
+    module.cold_reset()
+
+    assert seen[0][0] == ["./scripts/stop-all.sh", "--cold"]
+    assert seen[0][1]["cwd"] == ROOT
+
+
+def test_capture_json_preserves_child_failure_details(monkeypatch) -> None:
+    module = _load_ladder_module()
+    monkeypatch.setattr(
+        module.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], 1, stdout="", stderr="backend returned 401"
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="backend returned 401"):
+        module.capture_json(["failing-command"])
 
 
 def test_ladder_runner_rejects_failed_matrix_cells() -> None:
@@ -254,6 +310,17 @@ def test_selection_validation_uses_the_manifest_run_matrix_will_use(monkeypatch,
         module.validate_selections("hybrid-rag-custom", "")  # not in the default one
 
 
+def test_flavor_tier_selects_every_non_base_alias() -> None:
+    module = _load_ladder_module()
+
+    aliases = module.flavor_tier_models()
+
+    assert len(aliases) == 12
+    assert "graph-rag-rerank" in aliases
+    assert "lazy-graph-rag-wide" in aliases
+    assert not set(aliases) & set(module.flavor_config.SUPPORTED_APPROACHES)
+
+
 def test_run_matrix_and_judge_ignores_exported_selection_env(monkeypatch, tmp_path) -> None:
     # MATRIX_MODELS/MATRIX_FLAVORS exported in the caller's shell (e.g. left over
     # from the documented manual `MATRIX_MODELS=... run_matrix.py` workflow) must
@@ -266,6 +333,13 @@ def test_run_matrix_and_judge_ignores_exported_selection_env(monkeypatch, tmp_pa
     monkeypatch.setenv("MATRIX_FLAVORS", "stale-export")
     monkeypatch.setattr(module, "RESULTS", tmp_path / "results")
     monkeypatch.setattr(module, "DOC_RESULTS", tmp_path / "doc-results")
+    monkeypatch.setattr(
+        module,
+        "envval",
+        lambda key, default="": "backend-token"
+        if key == "BACKEND_INTERNAL_API_TOKEN"
+        else default,
+    )
     module.RESULTS.mkdir(parents=True)
     corpus = tmp_path / "corpus"
     corpus.mkdir()
@@ -314,6 +388,8 @@ def test_run_matrix_and_judge_ignores_exported_selection_env(monkeypatch, tmp_pa
     assert matrix_env["MATRIX_INGESTION_REVISION"] == "rev"
     assert matrix_env["MATRIX_INGESTION_CONTENT_DIGEST"] == "digest"
     assert matrix_env["MATRIX_INGESTION_MODE"] == "atlas-job"
+    assert matrix_env["MATRIX_EVALUATOR_API_KEY_HEADER"] == "Authorization"
+    assert matrix_env["MATRIX_EVALUATOR_API_KEY"] == "Bearer backend-token"
     assert "MATRIX_MODELS" not in matrix_env
     assert "MATRIX_FLAVORS" not in matrix_env
 
@@ -325,6 +401,37 @@ def test_run_matrix_and_judge_ignores_exported_selection_env(monkeypatch, tmp_pa
     matrix_env = seen_envs[3]
     assert matrix_env["MATRIX_MODELS"] == "vanilla-rag"
     assert matrix_env["MATRIX_FLAVORS"] == "graph-rag-wide"
+
+    module.run_matrix_and_judge(
+        {"id": "ds3", "queries_file": "q.json", "corpus_path": str(corpus)},
+        ingestion,
+        "2026-07-04",
+        approaches="graph-rag-rerank",
+        flavors="",
+        artifact_tier="flavors",
+    )
+    matrix_env = seen_envs[6]
+    assert matrix_env["MATRIX_RUN_ID"] == "live-2026-07-04-ds3-flavors"
+    assert matrix_env["MATRIX_RESULTS_FILE"] == "live-2026-07-04-ds3-flavors-matrix.json"
+    assert matrix_env["MATRIX_CANONICAL_FILE"] == "live-2026-07-04-ds3-flavors-evidence.jsonl"
+
+
+def test_snapshot_manifest_keeps_base_and_flavor_tiers_separate(monkeypatch, tmp_path) -> None:
+    module = _load_ladder_module()
+    manifest = {"datasets": [{"id": "ds", "status": "measured"}]}
+    written = []
+    monkeypatch.setattr(module, "ROOT", tmp_path)
+    monkeypatch.setattr(module, "load_manifest", lambda: manifest)
+    monkeypatch.setattr(module, "write_manifest", lambda value: written.append(value))
+    base = [tmp_path / f"base-{kind}" for kind in ("matrix", "judgments", "evidence", "evaluation")]
+    flavor = [tmp_path / f"flavor-{kind}" for kind in ("matrix", "judgments", "evidence", "evaluation")]
+
+    module.update_dataset_snapshots("ds", *base, flavor_paths=tuple(flavor))
+
+    row = written[0]["datasets"][0]
+    assert row["matrix_snapshot"] == "base-matrix"
+    assert row["flavor_matrix_snapshot"] == "flavor-matrix"
+    assert row["flavor_evaluation_snapshot"] == "flavor-evaluation"
 
 
 def test_cold_ingestion_discards_stale_working_evidence_before_matrix(

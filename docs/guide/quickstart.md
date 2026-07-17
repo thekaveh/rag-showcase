@@ -14,9 +14,9 @@ Atlas's requirements apply:
   git submodule update --init --recursive
   ```
 - Host tools **`uv`** and **`python3`** (Atlas's bootstrapper and the host-side corpus fetch use them).
-- An Atlas-supported LLM backend. The default local path uses Atlas's Ollama provider;
-  use the local manifest/env pattern below with
-  `LLM_PROVIDER_SOURCE=ollama-localhost` to select an existing host Ollama.
+- An Atlas-supported LLM backend. The wrapper leaves provider selection to Atlas;
+  set `RAG_SHOWCASE_LLM_PROVIDER_SOURCE=ollama-localhost` for one run when an
+  existing host Ollama should be used.
 - Disk / RAM / headroom for the `gen-ai-rag` stack plus your chosen local models. The
   default local run activates `mistral-small3.2:24b` for LightRAG extraction and
   uses `qwen3.6:latest` for graph keyword/query roles — see
@@ -33,7 +33,7 @@ This single script:
 1. Selects `atlas.consumer.yml` and runs Atlas's native headless env backfill,
    manifest-aware Compose validation, and consumer doctor. The manifest declares
    project/brand metadata, the env
-   file, external Compose overlay, backend plugin root, fourteen LiteLLM aliases,
+   file, external Compose overlay, backend plugin root, nineteen LiteLLM aliases,
    Ollama sidecar, adaptive workflow, and RAG ingestion profiles without tracked
    Atlas modifications or a `_user` symlink.
 2. Starts the Atlas `gen-ai-rag` stack with `--no-tui --detach`; Atlas applies
@@ -66,7 +66,7 @@ This single script:
 
 Then open the printed URL, start a **multi-model chat**, and select:
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
-`n8n-adaptive-rag`. One prompt fans out to all of them.
+`n8n-adaptive-rag`, `lazy-graph-rag`. One prompt fans out to all of them.
 
 Stop everything with:
 
@@ -85,10 +85,23 @@ ATLAS_CONSUMER_MANIFEST="$PWD/atlas.consumer.local.yml" ./scripts/start-all.sh
 ```
 
 Atlas's detached startup revalidates after applying the wrapper's source flags.
-Those flags deliberately fix LightRAG to a container, TEI to its CPU container,
-Docling to disabled, and MinIO to a temporary compatibility container. Alternate
-consumer manifests customize provider, model, branding, and other consumer values; use
-Atlas directly with different source flags for a different service topology.
+The stable service contracts deliberately fix LightRAG to a container, TEI to its
+CPU container, and Docling to disabled. LLM and ComfyUI sources are not assumed:
+the wrapper uses Atlas's active configuration unless
+`RAG_SHOWCASE_LLM_PROVIDER_SOURCE` or `RAG_SHOWCASE_COMFYUI_SOURCE` is supplied.
+Alternate consumer manifests customize model roles, branding, and other values.
+
+For example, a host-runtime launch is explicit and leaves unrelated host services
+under their existing owners:
+
+```bash
+RAG_SHOWCASE_LLM_PROVIDER_SOURCE=ollama-localhost \
+RAG_SHOWCASE_COMFYUI_SOURCE=managed-localhost-mps \
+./scripts/start-all.sh
+```
+
+ComfyUI is not required by the `gen-ai-rag` track, so omit its override unless an
+enabled Atlas service actually needs it.
 
 ## 3. Corpus Note
 

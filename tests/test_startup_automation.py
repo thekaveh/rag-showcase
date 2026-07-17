@@ -32,6 +32,19 @@ def test_start_uses_atlas_consumer_manifest_and_native_headless_preflight() -> N
     assert "--no-tui --detach" in script
 
 
+def test_start_bridges_litellm_secret_to_cross_provider_lightrag_roles() -> None:
+    script = _script("start-all.sh")
+
+    assert (
+        "sync_runtime_secret_alias LITELLM_MASTER_KEY "
+        "LIGHTRAG_KEYWORD_LLM_BINDING_API_KEY" in script
+    )
+    assert (
+        "sync_runtime_secret_alias LITELLM_MASTER_KEY "
+        "LIGHTRAG_QUERY_LLM_BINDING_API_KEY" in script
+    )
+
+
 def test_start_does_not_background_or_kill_atlas() -> None:
     script = _script("start-all.sh")
 
@@ -39,6 +52,18 @@ def test_start_does_not_background_or_kill_atlas() -> None:
     assert "cleanup_atlas_start" not in script
     assert "pkill" not in script
     assert "\ntrap " not in script
+
+
+def test_stop_is_project_scoped_and_preserves_shared_managed_hosts() -> None:
+    script = _script("stop-all.sh")
+
+    assert "docker compose" not in script
+    assert 'PROJECT_NAME="${RAG_SHOWCASE_PROJECT_NAME:-rag-showcase}"' in script
+    assert 'ATLAS_CONSUMER_MANIFEST=' in script
+    assert './stop.sh --project "$PROJECT_NAME"' in script
+    assert 'stop_args+=(--cold)' in script
+    assert "--stop-managed-hosts" not in script
+    assert "Atlas #655" not in script
 
 
 def test_start_uses_strict_fallback_for_atlas_one_shot_race() -> None:
@@ -53,6 +78,14 @@ def test_start_uses_strict_fallback_for_atlas_one_shot_race() -> None:
     assert "verify_atlas_runtime.py || true" not in script
     assert script.count("n8n did not recover after workflow activation reload") == 1
     assert "Verifying the Atlas-seeded adaptive-rag production webhook" in script
+
+
+def test_start_requires_structured_adaptive_rag_webhook_evidence() -> None:
+    script = _script("start-all.sh")
+
+    assert "verify_adaptive_webhook.py" in script
+    assert script.index("ingest.atlas_job") < script.index("verify_adaptive_webhook.py")
+    assert "Deferring adaptive-rag semantic verification until dataset ingestion" in script
 
 
 def test_start_does_not_create_a_user_overlay_symlink() -> None:
@@ -71,9 +104,15 @@ def test_consumer_manifest_declares_the_atlas_integration() -> None:
     from core.consumer_manifest import load_consumer_config
 
     manifest = ROOT / "atlas.consumer.yml"
-    config = load_consumer_config(ROOT / "infra", explicit_paths=[str(manifest)])
+    config = load_consumer_config(
+        ROOT / "infra",
+        explicit_paths=[str(manifest)],
+    )
 
     assert config.env_overrides["PROJECT_NAME"] == "rag-showcase"
+    assert config.env_overrides["BRAND_TAGLINE"] == (
+        "Seven RAG approaches, side by side"
+    )
     assert config.env_overrides["BRAND_NAME"] == "RAG-SHOWCASE"
     assert config.env_overrides["BRAND_LOGO_FILE"] == str(
         (ROOT / "brand" / "rag-showcase.logo").resolve()
@@ -85,6 +124,21 @@ def test_consumer_manifest_declares_the_atlas_integration() -> None:
     assert config.env_overrides["OLLAMA_CUSTOM_MODELS"] == "mistral-small3.2:24b"
     assert config.compose_overlays == [ROOT / "compose" / "rag-overlay.yml"]
     assert list(config.consumers[0].backend_plugins) == [ROOT / "backend_plugins"]
+
+
+def test_start_ready_message_lists_every_base_approach() -> None:
+    ready_message = _script("start-all.sh").split("==> Ready.", 1)[1]
+
+    for approach in (
+        "vanilla-rag",
+        "hybrid-rag",
+        "contextual-rag",
+        "graph-rag",
+        "agentic-rag",
+        "n8n-adaptive-rag",
+        "lazy-graph-rag",
+    ):
+        assert approach in ready_message
 
 
 def _runtime_snapshot(module, llm_source="ollama-container-cpu"):
