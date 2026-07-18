@@ -47,6 +47,22 @@ def test_every_approach_section_embeds_its_data_flow_diagram() -> None:
         assert f"[Open the full-resolution interactive diagram]({base}.html)" in doc
 
 
+def test_approach_diagram_labels_match_implementation_contracts() -> None:
+    required_labels = {
+        "contextual-rag": ["Weaviate · RagBase", "Showcase post-step", "RagContextual"],
+        "graph-rag": ["Graph/vector lookup", "query profile selects optional TEI"],
+        "agentic-rag": ["vector_top_k", "graph_mode", "MAX_STEPS=4"],
+        "n8n-adaptive-rag": ["simple | complex", "vanilla-rag", "agentic-rag"],
+        "lazy-graph-rag": ["NO LIGHTRAG", "NO NEO4J", "Graph cache volume"],
+    }
+
+    for approach, labels in required_labels.items():
+        path = ROOT / "docs" / "diagrams" / "approaches" / approach / "data-flow.html"
+        html = path.read_text(encoding="utf-8")
+        for label in labels:
+            assert label in html
+
+
 def test_main_docs_link_to_approach_internals() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     architecture = (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")

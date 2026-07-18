@@ -1,7 +1,7 @@
 # Per-Approach Service-Aware Data-Flow Diagrams Design
 
-**Date:** 2026-07-17  
-**Status:** Approved design, implementation pending  
+**Date:** 2026-07-17
+**Status:** Implemented
 **Audience:** rag-showcase maintainers, evaluators, and readers comparing RAG architectures
 
 ## 1. Objective

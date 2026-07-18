@@ -31,19 +31,20 @@
       <rect width="1800" height="860" fill="url(#grid)"/><rect class="boundary" x="190" y="42" width="1565" height="575" rx="10"/>
       <text class="lane" x="210" y="69">ATLAS COMPOSE STACK · RAG TRACK</text><text class="lane" x="210" y="101" fill="#fb923c">CONTEXTUAL INGESTION · ENRICH ONCE PER CHUNK</text><text class="lane" x="210" y="321" fill="#22d3ee">QUERY PATH · REUSE ENRICHED INDEX</text>
 
-      <path class="prep" d="M405 185H455"/><path class="prep" d="M645 185H695"/><path class="prep" d="M885 185H935"/><path class="prep" d="M1125 185H1175"/><path class="prep" d="M1365 185H1415"/>
+      <path class="prep" d="M375 185H415"/><path class="prep" d="M585 185H625"/><path class="prep" d="M795 185H835"/><path class="prep" d="M1005 185H1045"/><path class="prep" d="M1215 185H1255"/><path class="prep" d="M1425 185H1465"/>
       <path class="flow" d="M175 435H215"/><path class="flow" d="M390 435H430"/><path class="flow" d="M605 435H645"/><path class="flow" d="M820 435H860"/><path class="flow" d="M1050 435H1090"/><path class="flow" d="M1280 435H1320"/><path class="flow" d="M1510 435H1550"/>
 
       <g><circle class="step" cx="195" cy="435" r="11"/><text class="step-text" x="195" y="435">1</text><text class="label" x="195" y="413">request</text></g><g><circle class="step" cx="410" cy="435" r="11"/><text class="step-text" x="410" y="435">2</text><text class="label" x="410" y="413">dispatch</text></g>
       <g><circle class="step" cx="625" cy="435" r="11"/><text class="step-text" x="625" y="435">3</text><text class="label" x="625" y="413">embed</text></g><g><circle class="step" cx="840" cy="435" r="11"/><text class="step-text" x="840" y="435">4</text><text class="label" x="840" y="413">vector</text></g>
       <g><circle class="step" cx="1070" cy="435" r="11"/><text class="step-text" x="1070" y="435">5</text><text class="label" x="1070" y="413">candidates</text></g><g><circle class="step" cx="1300" cy="435" r="11"/><text class="step-text" x="1300" y="435">6</text><text class="label" x="1300" y="413">top context</text></g><g><circle class="step" cx="1530" cy="435" r="11"/><text class="step-text" x="1530" y="435">7</text><text class="label" x="1530" y="413">answer</text></g>
 
-      <rect class="node external" x="215" y="145" width="190" height="80"/><text class="title" x="310" y="176">Corpus documents</text><text class="sub" x="310" y="198">document + chunk</text>
-      <rect class="node backend" x="455" y="145" width="190" height="80"/><text class="title" x="550" y="176">Atlas ingestion</text><text class="sub" x="550" y="198">parse · chunk · metadata</text>
-      <rect class="node model" x="695" y="145" width="190" height="80"/><text class="title" x="790" y="176">contextual_blurb</text><text class="sub" x="790" y="198">document + chunk → context</text>
-      <rect class="node transform" x="935" y="145" width="190" height="80"/><text class="title" x="1030" y="176">Enriched chunk</text><text class="sub" x="1030" y="198">blurb prefix + chunk text</text>
-      <rect class="node model" x="1175" y="145" width="190" height="80"/><text class="title" x="1270" y="176">Embedding model</text><text class="sub" x="1270" y="198">nomic-embed-text</text>
-      <rect class="node data" x="1415" y="145" width="190" height="80"/><text class="title" x="1510" y="176">RagContextual</text><text class="sub" x="1510" y="198">enriched text + vectors</text>
+      <rect class="node external" x="205" y="145" width="170" height="80"/><text class="title" x="290" y="176">Corpus documents</text><text class="sub" x="290" y="198">source files</text>
+      <rect class="node backend" x="415" y="145" width="170" height="80"/><text class="title" x="500" y="176">Atlas ingestion</text><text class="sub" x="500" y="198">parse · chunk · metadata</text>
+      <rect class="node data" x="625" y="145" width="170" height="80"/><text class="title" x="710" y="176">Weaviate · RagBase</text><text class="sub" x="710" y="198">completed plain chunks</text>
+      <rect class="node backend" x="835" y="145" width="170" height="80"/><text class="title" x="920" y="176">Showcase post-step</text><text class="sub" x="920" y="198">read chunks + source docs</text>
+      <rect class="node model" x="1045" y="145" width="170" height="80"/><text class="title" x="1130" y="176">contextual_blurb</text><text class="sub" x="1130" y="198">document window + chunk</text>
+      <rect class="node transform" x="1255" y="145" width="170" height="80"/><text class="title" x="1340" y="176">Enrich + embed</text><text class="sub" x="1340" y="198">prefix + chunk → nomic</text>
+      <rect class="node data" x="1465" y="145" width="170" height="80"/><text class="title" x="1550" y="176">RagContextual</text><text class="sub" x="1550" y="198">enriched text + vectors</text>
 
       <rect class="node external" x="20" y="395" width="155" height="80"/><text class="title" x="97" y="425">Caller</text><text class="sub" x="97" y="447">Open WebUI / API</text>
       <rect class="node backend" x="215" y="395" width="175" height="80"/><text class="title" x="302" y="425">LiteLLM</text><text class="sub" x="302" y="447">model: contextual-rag</text>
@@ -56,7 +57,7 @@
 
       <rect class="ledger" x="45" y="650" width="1710" height="170" rx="8"/><text class="ledger-title" x="70" y="680">MESSAGE CONTRACT AND EXECUTION PHASES</text>
       <line x1="470" y1="695" x2="470" y2="800" stroke="#334155"/><line x1="900" y1="695" x2="900" y2="800" stroke="#334155"/><line x1="1330" y1="695" x2="1330" y2="800" stroke="#334155"/>
-      <text class="ledger-head" x="70" y="710">0A · ENRICH</text><text class="ledger-copy" x="70" y="730">full document + current chunk → contextual_blurb</text><text class="ledger-copy" x="70" y="748">Generated context is persisted with the chunk.</text><text class="ledger-copy" x="70" y="766">Cost is paid during ingestion, not per query.</text>
+      <text class="ledger-head" x="70" y="710">0A · ENRICH</text><text class="ledger-copy" x="70" y="730">RagBase chunk + source window → contextual_blurb</text><text class="ledger-copy" x="70" y="748">Showcase post-step owns the derived collection.</text><text class="ledger-copy" x="70" y="766">Cost is paid after Atlas ingestion, not per query.</text>
       <text class="ledger-head" x="500" y="710">0B · INDEX</text><text class="ledger-copy" x="500" y="730">context prefix + chunk → embedding</text><text class="ledger-copy" x="500" y="748">RagContextual is distinct from RagBase.</text><text class="ledger-copy" x="500" y="766">Re-ingestion is required after prompt/model changes.</text>
       <text class="ledger-head" x="930" y="710">1–6 · RETRIEVE + RERANK</text><text class="ledger-copy" x="930" y="730">question vector → contextual hybrid candidates</text><text class="ledger-copy" x="930" y="748">Optional TEI reranking bounds top_n context.</text><text class="ledger-copy" x="930" y="766">Retrieved text includes the generated prefix.</text>
       <text class="ledger-head" x="1360" y="710">7 · GENERATE + RETURN</text><text class="ledger-copy" x="1360" y="730">light_gen consumes enriched evidence.</text><text class="ledger-copy" x="1360" y="748">Response preserves source and dataset metadata.</text><text class="ledger-copy" x="1360" y="766">No graph is created or traversed.</text>

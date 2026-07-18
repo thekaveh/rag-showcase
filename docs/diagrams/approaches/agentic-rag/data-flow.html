@@ -33,9 +33,9 @@
       <rect class="tool-boundary" x="430" y="300" width="1280" height="280" rx="10"/><text class="lane" x="450" y="327" fill="#fdba74">TOOL EXECUTION · SELECTED AT QUERY TIME</text>
 
       <path class="flow" d="M180 200H220"/><path class="flow" d="M400 200H440"/><path class="flow" d="M630 200H680"/>
-      <path class="tool" d="M760 240V350H870"/><path class="tool" d="M730 240V500H870"/>
-      <path class="tool" d="M1050 390H1110"/><path class="tool" d="M1290 390H1350"/><path class="tool" d="M1050 520H1110"/><path class="tool" d="M1290 520H1350"/>
-      <path class="observe" d="M1440 430V480"/><path class="observe" d="M1530 520H1610V605H830V240"/>
+      <path class="tool" d="M900 185H950V390H1020"/><path class="tool" d="M900 215H930V520H1020"/>
+      <path class="tool" d="M1200 390H1250"/><path class="tool" d="M1430 390H1480"/><path class="tool" d="M1200 520H1250"/><path class="tool" d="M1430 520H1480"/>
+      <path class="observe" d="M1570 430V480"/><path class="observe" d="M1660 520H1700V605H830V240"/>
       <path class="final" d="M790 160V120H1560V160"/>
 
       <g><circle class="step" cx="200" cy="200" r="11"/><text class="step-text" x="200" y="200">1</text><text class="label" x="200" y="178">request</text></g><g><circle class="step" cx="420" cy="200" r="11"/><text class="step-text" x="420" y="200">2</text><text class="label" x="420" y="178">dispatch</text></g><g><circle class="step" cx="655" cy="200" r="11"/><text class="step-text" x="655" y="200">3</text><text class="label" x="655" y="178">tools + prompt</text></g>
@@ -47,12 +47,12 @@
       <rect class="node model" x="680" y="160" width="220" height="80"/><text class="title" x="790" y="190">ReAct controller LLM</text><text class="sub" x="790" y="212">choose tool or finish</text>
       <rect class="node external" x="1560" y="160" width="175" height="80"/><text class="title" x="1647" y="190">OpenAI response</text><text class="sub" x="1647" y="212">answer · sources · trace</text>
 
-      <rect class="node workflow" x="870" y="350" width="180" height="80"/><text class="title" x="960" y="380">search_vectors</text><text class="sub" x="960" y="402">query · retrieve_k</text>
-      <rect class="node model" x="1110" y="350" width="180" height="80"/><text class="title" x="1200" y="380">Embedding model</text><text class="sub" x="1200" y="402">nomic-embed-text</text>
-      <rect class="node data" x="1350" y="350" width="180" height="80"/><text class="title" x="1440" y="380">Weaviate</text><text class="sub" x="1440" y="402">hybrid vector search</text>
-      <rect class="node workflow" x="870" y="480" width="180" height="80"/><text class="title" x="960" y="510">query_graph</text><text class="sub" x="960" y="532">question · graph profile</text>
-      <rect class="node backend" x="1110" y="480" width="180" height="80"/><text class="title" x="1200" y="510">LightRAG</text><text class="sub" x="1200" y="532">graph/vector retrieval</text>
-      <rect class="node data" x="1350" y="480" width="180" height="80"/><text class="title" x="1440" y="510">Tool observations</text><text class="sub" x="1440" y="532">results or failure text</text>
+      <rect class="node workflow" x="1020" y="350" width="180" height="80"/><text class="title" x="1110" y="380">search_vectors</text><text class="sub" x="1110" y="402">query · vector_top_k</text>
+      <rect class="node model" x="1250" y="350" width="180" height="80"/><text class="title" x="1340" y="380">Embedding model</text><text class="sub" x="1340" y="402">nomic-embed-text</text>
+      <rect class="node data" x="1480" y="350" width="180" height="80"/><text class="title" x="1570" y="380">Weaviate</text><text class="sub" x="1570" y="402">hybrid vector search</text>
+      <rect class="node workflow" x="1020" y="480" width="180" height="80"/><text class="title" x="1110" y="510">query_graph</text><text class="sub" x="1110" y="532">question · graph_mode</text>
+      <rect class="node backend" x="1250" y="480" width="180" height="80"/><text class="title" x="1340" y="510">LightRAG</text><text class="sub" x="1340" y="532">graph/vector retrieval</text>
+      <rect class="node data" x="1480" y="480" width="180" height="80"/><text class="title" x="1570" y="510">Tool observations</text><text class="sub" x="1570" y="532">results or failure text</text>
 
       <rect class="ledger" x="45" y="650" width="1710" height="170" rx="8"/><text class="ledger-title" x="70" y="680">MESSAGE CONTRACT, STATE, AND FAILURE SEMANTICS</text>
       <line x1="470" y1="695" x2="470" y2="800" stroke="#334155"/><line x1="900" y1="695" x2="900" y2="800" stroke="#334155"/><line x1="1330" y1="695" x2="1330" y2="800" stroke="#334155"/>

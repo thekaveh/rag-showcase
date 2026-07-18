@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 import pytest
+from PIL import Image
 
 from scripts.docs.build_docs import render_mkdocs_yml, render_site, render_wiki
 from scripts.docs.check_docs import check_local_links
@@ -80,6 +81,8 @@ def test_generated_surfaces_publish_nested_approach_diagrams(tmp_path) -> None:
         canonical = DOCS / "diagrams" / "approaches" / approach
         assert (canonical / "data-flow.html").is_file()
         assert (canonical / "data-flow.png").is_file()
+        with Image.open(canonical / "data-flow.png") as rendered:
+            assert rendered.size == (3600, 2000)
 
         site_target = site_dir / "assets" / "diagrams" / "approaches" / approach
         wiki_target = wiki_dir / "diagrams" / "approaches" / approach
