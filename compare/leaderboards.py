@@ -269,8 +269,13 @@ def _judge_details(
         elif means:
             raise ValueError(f"judgment query {index} has means without valid judge scores")
         winner = query.get("observed_winner")
-        if winner:
+        if winner is not None:
             query_id = str(query.get("query_id") or index)
+            if not isinstance(winner, str) or not winner:
+                raise ValueError(
+                    f"judgment dataset {dataset_id!r} query {query_id!r} "
+                    "observed_winner must be a nonempty string"
+                )
             if winner not in means:
                 raise ValueError(
                     f"judgment dataset {dataset_id!r} query {query_id!r} "
