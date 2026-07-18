@@ -30,10 +30,10 @@ Atlas's requirements apply:
 
 This single script:
 
-1. Serializes launch-time selection, chooses a completely free 110-port block below
-   the OS dynamic/private range, and rechecks it immediately before Atlas binds.
-   The project name is `rag-showcase`. Set `RAG_SHOWCASE_BASE_PORT` to require a
-   specific block; startup rejects it if any port is occupied.
+1. Starts Atlas with `--base-port auto`, so Atlas selects a completely free 110-port
+   block below the OS dynamic/private range and persists it to `infra/.env`.
+   The project name is `rag-showcase`. Set `RAG_SHOWCASE_BASE_PORT` to pin a
+   specific block; Atlas rejects it if any port is occupied.
 2. Selects `atlas.consumer.yml` and runs Atlas's native headless env backfill,
    manifest-aware Compose validation, and consumer doctor. The manifest declares
    project/brand metadata, the env
