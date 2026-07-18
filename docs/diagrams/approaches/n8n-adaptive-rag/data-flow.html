@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>n8n-adaptive-rag service and data flow</title>
+  <style>
+    * { box-sizing: border-box; } html, body { width: 1800px; height: 1000px; margin: 0; overflow: hidden; }
+    body { background: #020617; color: #f8fafc; font-family: "JetBrains Mono", Menlo, monospace; padding: 22px 30px 14px; }
+    header { height: 72px; display: flex; align-items: center; gap: 16px; } .dot { width: 12px; height: 12px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 18px #22d3ee; }
+    h1 { font-size: 28px; margin: 0; letter-spacing: 0; } header p { color: #94a3b8; font-size: 14px; margin: 7px 0 0; }
+    main { height: 850px; border: 1px solid #1e293b; border-radius: 8px; background: #07101f; } svg { display: block; width: 100%; height: 100%; }
+    footer { height: 38px; color: #64748b; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+    .boundary { fill: #120d0a; stroke: #fb923c; stroke-width: 1.5; stroke-dasharray: 8 6; } .lane { fill: #94a3b8; font-size: 13px; font-weight: 700; }
+    .node { stroke-width: 2; rx: 6; } .external { fill: #111827; stroke: #94a3b8; } .backend { fill: #063b32; stroke: #34d399; } .model { fill: #422006; stroke: #fbbf24; } .workflow { fill: #431407; stroke: #fb923c; }
+    .title { fill: #f8fafc; font-size: 12px; font-weight: 700; text-anchor: middle; } .sub { fill: #cbd5e1; font-size: 9px; text-anchor: middle; }
+    .flow { fill: none; stroke: #22d3ee; stroke-width: 2.2; marker-end: url(#arrow); } .branch { fill: none; stroke: #fb923c; stroke-width: 2; marker-end: url(#arrow-orange); } .return { fill: none; stroke: #34d399; stroke-width: 2; marker-end: url(#arrow-green); }
+    .step { fill: #020617; stroke: #22d3ee; stroke-width: 1.5; } .step-text { fill: #67e8f9; font-size: 10px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; } .label { fill: #cbd5e1; font-size: 8px; text-anchor: middle; }
+    .ledger { fill: #0f172a; stroke: #334155; stroke-width: 1.5; } .ledger-title { fill: #f8fafc; font-size: 13px; font-weight: 700; } .ledger-head { fill: #67e8f9; font-size: 10px; font-weight: 700; } .ledger-copy { fill: #94a3b8; font-size: 9px; }
+  </style>
+</head>
+<body>
+  <header><span class="dot"></span><div><h1>n8n-adaptive-rag · service and data flow</h1><p>Workflow classifier routes each request to an existing vanilla or agentic endpoint and preserves its evidence</p></div></header>
+  <main>
+    <svg viewBox="0 0 1800 860" role="img" aria-labelledby="title desc">
+      <title id="title">n8n-adaptive-rag service and data flow</title><desc id="desc">A plugin adapter invokes an n8n webhook that classifies a query, routes it to vanilla or agentic RAG, and shapes the downstream response.</desc>
+      <defs>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#1e293b" stroke-width="0.6"/></pattern>
+        <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#22d3ee"/></marker><marker id="arrow-orange" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#fb923c"/></marker><marker id="arrow-green" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#34d399"/></marker>
+      </defs>
+      <rect width="1800" height="860" fill="url(#grid)"/><rect class="boundary" x="650" y="55" width="1100" height="545" rx="10"/>
+      <text class="lane" x="670" y="83" fill="#fdba74">N8N WORKFLOW · SEEDED AND RUN INSIDE THE ATLAS COMPOSE PROJECT</text><text class="lane" x="670" y="115">CLASSIFY → ROUTE → INVOKE → SHAPE</text>
+
+      <path class="flow" d="M175 280H215"/><path class="flow" d="M395 280H435"/><path class="flow" d="M615 280H685"/><path class="flow" d="M855 280H915"/><path class="flow" d="M1095 280H1155"/>
+      <path class="branch" d="M1315 260H1345V200H1375"/><path class="branch" d="M1315 300H1345V440H1375"/>
+      <path class="branch" d="M1545 200H1570V295H1595"/><path class="branch" d="M1545 440H1570V335H1595"/>
+      <path class="return" d="M1675 380V585H95V320"/>
+
+      <g><circle class="step" cx="195" cy="280" r="11"/><text class="step-text" x="195" y="280">1</text><text class="label" x="195" y="258">request</text></g><g><circle class="step" cx="415" cy="280" r="11"/><text class="step-text" x="415" y="280">2</text><text class="label" x="415" y="258">dispatch</text></g><g><circle class="step" cx="650" cy="280" r="11"/><text class="step-text" x="650" y="280">3</text><text class="label" x="650" y="258">POST {query}</text></g>
+      <g><circle class="step" cx="885" cy="280" r="11"/><text class="step-text" x="885" y="280">4</text><text class="label" x="885" y="258">classify</text></g><g><circle class="step" cx="1125" cy="280" r="11"/><text class="step-text" x="1125" y="280">5</text><text class="label" x="1125" y="258">simple | complex</text></g>
+      <text class="label" x="1460" y="173" fill="#fdba74">6A · simple</text><text class="label" x="1460" y="468" fill="#fdba74">6B · complex</text><text class="label" x="885" y="604" fill="#34d399">8 · normalized answer + downstream sources/trace + adaptive route metadata</text>
+
+      <rect class="node external" x="20" y="240" width="155" height="80"/><text class="title" x="97" y="270">Caller</text><text class="sub" x="97" y="292">Open WebUI / API</text>
+      <rect class="node backend" x="215" y="240" width="180" height="80"/><text class="title" x="305" y="270">LiteLLM</text><text class="sub" x="305" y="292">model: n8n-adaptive-rag</text>
+      <rect class="node backend" x="435" y="240" width="180" height="80"/><text class="title" x="525" y="270">Adaptive adapter</text><text class="sub" x="525" y="292">timeout · normalize · metrics</text>
+      <rect class="node workflow" x="685" y="240" width="170" height="80"/><text class="title" x="770" y="270">Webhook</text><text class="sub" x="770" y="292">input: {query}</text>
+      <rect class="node model" x="915" y="240" width="180" height="80"/><text class="title" x="1005" y="270">HTTP Classify</text><text class="sub" x="1005" y="292">LiteLLM → simple | complex</text>
+      <rect class="node workflow" x="1155" y="240" width="160" height="80"/><text class="title" x="1235" y="270">Code Route</text><text class="sub" x="1235" y="292">select target alias</text>
+      <rect class="node backend" x="1375" y="160" width="170" height="80"/><text class="title" x="1460" y="190">vanilla-rag</text><text class="sub" x="1460" y="212">dense retrieval endpoint</text>
+      <rect class="node backend" x="1375" y="400" width="170" height="80"/><text class="title" x="1460" y="430">agentic-rag</text><text class="sub" x="1460" y="452">tool-selection endpoint</text>
+      <rect class="node workflow" x="1595" y="255" width="160" height="125"/><text class="title" x="1675" y="290">Shape response</text><text class="sub" x="1675" y="314">preserve answer</text><text class="sub" x="1675" y="332">sources · trace</text><text class="sub" x="1675" y="350">route metadata</text>
+
+      <rect class="ledger" x="45" y="650" width="1710" height="170" rx="8"/><text class="ledger-title" x="70" y="680">MESSAGE CONTRACT, ROUTING, AND STATE</text>
+      <line x1="470" y1="695" x2="470" y2="800" stroke="#334155"/><line x1="900" y1="695" x2="900" y2="800" stroke="#334155"/><line x1="1330" y1="695" x2="1330" y2="800" stroke="#334155"/>
+      <text class="ledger-head" x="70" y="710">1–3 · ENTER WORKFLOW</text><text class="ledger-copy" x="70" y="730">OpenAI chat request → adapter → webhook {query}</text><text class="ledger-copy" x="70" y="748">n8n is an orchestrator, not a retriever.</text><text class="ledger-copy" x="70" y="766">Workflow is seeded before readiness.</text>
+      <text class="ledger-head" x="500" y="710">4–5 · CLASSIFY + ROUTE</text><text class="ledger-copy" x="500" y="730">classifier model returns simple or complex</text><text class="ledger-copy" x="500" y="748">Code node maps the label to a model alias.</text><text class="ledger-copy" x="500" y="766">Selection happens independently per request.</text>
+      <text class="ledger-head" x="930" y="710">6 · EXECUTE DOWNSTREAM</text><text class="ledger-copy" x="930" y="730">simple → vanilla-rag</text><text class="ledger-copy" x="930" y="748">complex → agentic-rag</text><text class="ledger-copy" x="930" y="766">Their own retrieval and model calls remain intact.</text>
+      <text class="ledger-head" x="1360" y="710">7–8 · SHAPE + RETURN</text><text class="ledger-copy" x="1360" y="730">Workflow preserves downstream evidence fields.</text><text class="ledger-copy" x="1360" y="748">Adapter adds routing and timing metadata.</text><text class="ledger-copy" x="1360" y="766">No knowledge is persisted by n8n.</text>
+    </svg>
+  </main>
+  <footer>Deployment: n8n workflow and RAG endpoints run in the Atlas Compose project · Invocation: n8n-adaptive-rag LiteLLM alias → webhook</footer>
+</body>
+</html>

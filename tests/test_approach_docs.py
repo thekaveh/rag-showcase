@@ -38,6 +38,15 @@ def test_approach_internals_doc_covers_every_approach_and_tuning_surface() -> No
         assert knob in doc
 
 
+def test_every_approach_section_embeds_its_data_flow_diagram() -> None:
+    doc = (ROOT / "docs" / "approaches.md").read_text(encoding="utf-8")
+
+    for approach in APPROACHES:
+        base = f"diagrams/approaches/{approach}/data-flow"
+        assert f"![{approach} service and data flow]({base}.png)" in doc
+        assert f"[Open the full-resolution interactive diagram]({base}.html)" in doc
+
+
 def test_main_docs_link_to_approach_internals() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     architecture = (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")

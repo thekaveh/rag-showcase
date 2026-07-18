@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>graph-rag service and data flow</title>
+  <style>
+    * { box-sizing: border-box; } html, body { width: 1800px; height: 1000px; margin: 0; overflow: hidden; }
+    body { background: #020617; color: #f8fafc; font-family: "JetBrains Mono", Menlo, monospace; padding: 22px 30px 14px; }
+    header { height: 72px; display: flex; align-items: center; gap: 16px; } .dot { width: 12px; height: 12px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 18px #22d3ee; }
+    h1 { font-size: 28px; margin: 0; letter-spacing: 0; } header p { color: #94a3b8; font-size: 14px; margin: 7px 0 0; }
+    main { height: 850px; border: 1px solid #1e293b; border-radius: 8px; background: #07101f; } svg { display: block; width: 100%; height: 100%; }
+    footer { height: 38px; color: #64748b; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+    .boundary { fill: #0b1220; stroke: #334155; stroke-width: 1.5; stroke-dasharray: 8 6; } .store-boundary { fill: #190b36; stroke: #a78bfa; stroke-width: 1.5; stroke-dasharray: 6 4; }
+    .lane { fill: #94a3b8; font-size: 13px; font-weight: 700; } .node { stroke-width: 2; rx: 6; } .external { fill: #111827; stroke: #94a3b8; } .backend { fill: #063b32; stroke: #34d399; } .model { fill: #422006; stroke: #fbbf24; } .data { fill: #2e1065; stroke: #a78bfa; }
+    .title { fill: #f8fafc; font-size: 12px; font-weight: 700; text-anchor: middle; } .sub { fill: #cbd5e1; font-size: 9px; text-anchor: middle; }
+    .flow { fill: none; stroke: #22d3ee; stroke-width: 2.2; marker-end: url(#arrow); } .prep { fill: none; stroke: #a78bfa; stroke-width: 2; marker-end: url(#arrow-purple); } .return { fill: none; stroke: #34d399; stroke-width: 2; marker-end: url(#arrow-green); }
+    .bypass { fill: none; stroke: #fbbf24; stroke-width: 1.7; stroke-dasharray: 6 5; marker-end: url(#arrow-amber); }
+    .step { fill: #020617; stroke: #22d3ee; stroke-width: 1.5; } .step-text { fill: #67e8f9; font-size: 10px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; } .label { fill: #cbd5e1; font-size: 8px; text-anchor: middle; }
+    .ledger { fill: #0f172a; stroke: #334155; stroke-width: 1.5; } .ledger-title { fill: #f8fafc; font-size: 13px; font-weight: 700; } .ledger-head { fill: #67e8f9; font-size: 10px; font-weight: 700; } .ledger-copy { fill: #94a3b8; font-size: 9px; }
+  </style>
+</head>
+<body>
+  <header><span class="dot"></span><div><h1>graph-rag · LightRAG service and data flow</h1><p>Persistent entity/relationship extraction with profile-driven graph, vector, and chunk retrieval</p></div></header>
+  <main>
+    <svg viewBox="0 0 1800 860" role="img" aria-labelledby="title desc">
+      <title id="title">graph-rag LightRAG service and data flow</title><desc id="desc">Documents are extracted into persistent LightRAG graph and vector stores, then queried through keyword and answer model roles.</desc>
+      <defs>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#1e293b" stroke-width="0.6"/></pattern>
+        <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#22d3ee"/></marker><marker id="arrow-purple" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#a78bfa"/></marker>
+        <marker id="arrow-green" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#34d399"/></marker><marker id="arrow-amber" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#fbbf24"/></marker>
+      </defs>
+      <rect width="1800" height="860" fill="url(#grid)"/><rect class="boundary" x="185" y="42" width="1570" height="575" rx="10"/>
+      <text class="lane" x="205" y="69">ATLAS COMPOSE STACK · LIGHTRAG SERVICE + RAG PLUGIN</text><text class="lane" x="205" y="101" fill="#a78bfa">INDEXING · PERSISTENT KNOWLEDGE CONSTRUCTION</text><text class="lane" x="205" y="342" fill="#22d3ee">QUERY · PROFILE-SELECTED MODE AND BUDGETS</text>
+
+      <path class="prep" d="M425 190H495"/><path class="prep" d="M715 190H785"/><path class="prep" d="M1005 190H1080"/>
+      <path class="flow" d="M170 445H210"/><path class="flow" d="M385 445H425"/><path class="flow" d="M605 445H645"/><path class="flow" d="M845 445H885"/><path class="flow" d="M1065 445H1105"/><path class="flow" d="M1325 445H1365"/><path class="flow" d="M1515 445H1555"/>
+      <path class="bypass" d="M1220 490V545H1635V490"/><path class="return" d="M1645 490V585H95V490"/>
+
+      <g><circle class="step" cx="190" cy="445" r="11"/><text class="step-text" x="190" y="445">1</text><text class="label" x="190" y="423">request</text></g><g><circle class="step" cx="405" cy="445" r="11"/><text class="step-text" x="405" y="445">2</text><text class="label" x="405" y="423">profile alias</text></g>
+      <g><circle class="step" cx="625" cy="445" r="11"/><text class="step-text" x="625" y="445">3</text><text class="label" x="625" y="423">profile params</text></g><g><circle class="step" cx="865" cy="445" r="11"/><text class="step-text" x="865" y="445">4</text><text class="label" x="865" y="423">/query</text></g>
+      <g><circle class="step" cx="1085" cy="445" r="11"/><text class="step-text" x="1085" y="445">5</text><text class="label" x="1085" y="423">keywords</text></g><g><circle class="step" cx="1345" cy="445" r="11"/><text class="step-text" x="1345" y="445">6</text><text class="label" x="1345" y="423">contexts</text></g><g><circle class="step" cx="1535" cy="445" r="11"/><text class="step-text" x="1535" y="445">7</text><text class="label" x="1535" y="423">ranked</text></g>
+      <text class="label" x="1425" y="566" fill="#fbbf24">optional TEI adapter bypass</text><text class="label" x="865" y="604" fill="#34d399">8 · answer-only OpenAI response returns through plugin and LiteLLM</text>
+
+      <rect class="node external" x="235" y="150" width="190" height="80"/><text class="title" x="330" y="180">Full documents</text><text class="sub" x="330" y="202">Atlas ingestion job</text>
+      <rect class="node backend" x="495" y="150" width="220" height="80"/><text class="title" x="605" y="180">LightRAG /documents</text><text class="sub" x="605" y="202">chunk + extraction orchestration</text>
+      <rect class="node model" x="785" y="150" width="220" height="80"/><text class="title" x="895" y="180">EXTRACT model role</text><text class="sub" x="895" y="202">entities · relations · summaries</text>
+
+      <rect class="store-boundary" x="1080" y="105" width="245" height="410" rx="10"/><text class="lane" x="1100" y="130" fill="#c4b5fd">LIGHTRAG PERSISTENT STORES</text>
+      <rect class="node data" x="1105" y="155" width="195" height="75"/><text class="title" x="1202" y="184">Neo4j</text><text class="sub" x="1202" y="205">entity/relation graph</text>
+      <rect class="node data" x="1105" y="250" width="195" height="75"/><text class="title" x="1202" y="279">Vector storage</text><text class="sub" x="1202" y="300">entities · relations · chunks</text>
+      <rect class="node data" x="1105" y="345" width="195" height="75"/><text class="title" x="1202" y="374">KV / doc status</text><text class="sub" x="1202" y="395">text units · pipeline state</text>
+
+      <rect class="node external" x="20" y="405" width="150" height="80"/><text class="title" x="95" y="435">Caller</text><text class="sub" x="95" y="457">Open WebUI / API</text>
+      <rect class="node backend" x="210" y="405" width="175" height="80"/><text class="title" x="297" y="435">LiteLLM</text><text class="sub" x="297" y="457">graph-rag profile alias</text>
+      <rect class="node backend" x="425" y="405" width="180" height="80"/><text class="title" x="515" y="435">Graph plugin</text><text class="sub" x="515" y="457">select profile · normalize</text>
+      <rect class="node backend" x="645" y="405" width="200" height="80"/><text class="title" x="745" y="435">LightRAG /query</text><text class="sub" x="745" y="457">local · global · hybrid · mix</text>
+      <rect class="node model" x="885" y="405" width="180" height="80"/><text class="title" x="975" y="435">KEYWORD role</text><text class="sub" x="975" y="457">query decomposition</text>
+      <rect class="node model" x="1365" y="405" width="150" height="80"/><text class="title" x="1440" y="435">TEI adapter</text><text class="sub" x="1440" y="457">optional rerank</text>
+      <rect class="node model" x="1555" y="405" width="180" height="80"/><text class="title" x="1645" y="435">QUERY model role</text><text class="sub" x="1645" y="457">evidence → answer</text>
+
+      <rect class="ledger" x="45" y="650" width="1710" height="170" rx="8"/><text class="ledger-title" x="70" y="680">MESSAGE CONTRACT, STATE, AND TUNING</text>
+      <line x1="470" y1="695" x2="470" y2="800" stroke="#334155"/><line x1="900" y1="695" x2="900" y2="800" stroke="#334155"/><line x1="1330" y1="695" x2="1330" y2="800" stroke="#334155"/>
+      <text class="ledger-head" x="70" y="710">0 · EXTRACT + PERSIST</text><text class="ledger-copy" x="70" y="730">full docs → chunks → entities/relationships</text><text class="ledger-copy" x="70" y="748">Graph is created during ingestion and reused.</text><text class="ledger-copy" x="70" y="766">Rebuild when extraction inputs/config change.</text>
+      <text class="ledger-head" x="500" y="710">1–4 · PROFILE DISPATCH</text><text class="ledger-copy" x="500" y="730">LiteLLM alias identifies a query profile.</text><text class="ledger-copy" x="500" y="748">Mode, top-k, chunk-k, and token budgets vary.</text><text class="ledger-copy" x="500" y="766">The profiles share one ingested workspace.</text>
+      <text class="ledger-head" x="930" y="710">5–7 · RETRIEVE + RERANK</text><text class="ledger-copy" x="930" y="730">LightRAG selects graph/vector evidence internally.</text><text class="ledger-copy" x="930" y="748">No showcase-controlled fixed k-hop traversal.</text><text class="ledger-copy" x="930" y="766">TEI is optional and profile-independent.</text>
+      <text class="ledger-head" x="1360" y="710">8 · GENERATE + RETURN</text><text class="ledger-copy" x="1360" y="730">QUERY role synthesizes the final answer.</text><text class="ledger-copy" x="1360" y="748">Exact retrieved contexts are not exposed.</text><text class="ledger-copy" x="1360" y="766">Plugin returns answer and service metrics.</text>
+    </svg>
+  </main>
+  <footer>Deployment: LightRAG, Neo4j, vector/KV stores, LiteLLM, and the plugin run in the Atlas Compose project · Invocation: graph-rag profile alias</footer>
+</body>
+</html>

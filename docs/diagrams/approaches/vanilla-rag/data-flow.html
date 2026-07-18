@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>vanilla-rag service and data flow</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 1800px; height: 1000px; margin: 0; overflow: hidden; }
+    body { background: #020617; color: #f8fafc; font-family: "JetBrains Mono", Menlo, monospace; padding: 22px 30px 14px; }
+    header { height: 72px; display: flex; align-items: center; gap: 16px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 18px #22d3ee; }
+    h1 { font-size: 28px; margin: 0; letter-spacing: 0; }
+    header p { color: #94a3b8; font-size: 14px; margin: 7px 0 0; }
+    main { height: 850px; border: 1px solid #1e293b; border-radius: 8px; background: #07101f; }
+    svg { display: block; width: 100%; height: 100%; }
+    footer { height: 38px; color: #64748b; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+    .boundary { fill: #0b1220; stroke: #334155; stroke-width: 1.5; stroke-dasharray: 8 6; }
+    .lane { fill: #94a3b8; font-size: 13px; font-weight: 700; }
+    .node { stroke-width: 2; rx: 6; }
+    .external { fill: #111827; stroke: #94a3b8; }
+    .backend { fill: #063b32; stroke: #34d399; }
+    .model { fill: #422006; stroke: #fbbf24; }
+    .data { fill: #2e1065; stroke: #a78bfa; }
+    .title { fill: #f8fafc; font-size: 14px; font-weight: 700; text-anchor: middle; }
+    .sub { fill: #cbd5e1; font-size: 10px; text-anchor: middle; }
+    .flow { fill: none; stroke: #22d3ee; stroke-width: 2.2; marker-end: url(#arrow); }
+    .prep { fill: none; stroke: #a78bfa; stroke-width: 2; marker-end: url(#arrow-purple); }
+    .step { fill: #020617; stroke: #22d3ee; stroke-width: 1.5; }
+    .step-text { fill: #67e8f9; font-size: 10px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; }
+    .label { fill: #cbd5e1; font-size: 10px; text-anchor: middle; }
+    .ledger { fill: #0f172a; stroke: #334155; stroke-width: 1.5; }
+    .ledger-title { fill: #f8fafc; font-size: 13px; font-weight: 700; }
+    .ledger-head { fill: #67e8f9; font-size: 10px; font-weight: 700; }
+    .ledger-copy { fill: #94a3b8; font-size: 9px; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="dot"></span>
+    <div><h1>vanilla-rag · service and data flow</h1><p>Dense vector retrieval with one bounded context window and one generation call</p></div>
+  </header>
+  <main>
+    <svg viewBox="0 0 1800 860" role="img" aria-labelledby="title desc">
+      <title id="title">vanilla-rag service and data flow</title>
+      <desc id="desc">Corpus ingestion into Weaviate and a query flow through LiteLLM, the RAG plugin, embedding, dense retrieval, and generation.</desc>
+      <defs>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#1e293b" stroke-width="0.6"/></pattern>
+        <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#22d3ee"/></marker>
+        <marker id="arrow-purple" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#a78bfa"/></marker>
+      </defs>
+      <rect width="1800" height="860" fill="url(#grid)"/>
+      <rect class="boundary" x="230" y="50" width="1525" height="555" rx="10"/>
+      <text class="lane" x="250" y="76">ATLAS COMPOSE STACK · RAG TRACK</text>
+      <text class="lane" x="250" y="109" fill="#a78bfa">CORPUS PREPARATION · ONCE PER INGESTION</text>
+      <text class="lane" x="250" y="322" fill="#22d3ee">QUERY PATH · ONCE PER REQUEST</text>
+
+      <!-- Arrows render before opaque nodes so crossings cannot cut through labels. -->
+      <path class="prep" d="M470 190H560"/><path class="prep" d="M760 190H850"/><path class="prep" d="M1050 190H1140"/>
+      <path class="flow" d="M190 430H260"/><path class="flow" d="M440 430H520"/><path class="flow" d="M720 430H800"/>
+      <path class="flow" d="M980 430H1060"/><path class="flow" d="M1260 430H1340"/><path class="flow" d="M1520 430H1590"/>
+
+      <g><circle class="step" cx="225" cy="430" r="12"/><text class="step-text" x="225" y="430">1</text><text class="label" x="225" y="408">chat request</text></g>
+      <g><circle class="step" cx="480" cy="430" r="12"/><text class="step-text" x="480" y="430">2</text><text class="label" x="480" y="408">alias dispatch</text></g>
+      <g><circle class="step" cx="760" cy="430" r="12"/><text class="step-text" x="760" y="430">3</text><text class="label" x="760" y="408">question</text></g>
+      <g><circle class="step" cx="1020" cy="430" r="12"/><text class="step-text" x="1020" y="430">4</text><text class="label" x="1020" y="408">nearVector · k=5</text></g>
+      <g><circle class="step" cx="1300" cy="430" r="12"/><text class="step-text" x="1300" y="430">5</text><text class="label" x="1300" y="408">ranked chunks</text></g>
+      <g><circle class="step" cx="1555" cy="430" r="12"/><text class="step-text" x="1555" y="430">6</text><text class="label" x="1555" y="408">answer + evidence</text></g>
+
+      <rect class="node external" x="270" y="150" width="200" height="80"/><text class="title" x="370" y="180">Corpus documents</text><text class="sub" x="370" y="202">selected dataset/profile</text>
+      <rect class="node backend" x="560" y="150" width="200" height="80"/><text class="title" x="660" y="180">Atlas ingestion</text><text class="sub" x="660" y="202">parse · chunk · metadata</text>
+      <rect class="node model" x="850" y="150" width="200" height="80"/><text class="title" x="950" y="180">Embedding model</text><text class="sub" x="950" y="202">nomic-embed-text</text>
+      <rect class="node data" x="1140" y="150" width="200" height="80"/><text class="title" x="1240" y="180">Weaviate · RagBase</text><text class="sub" x="1240" y="202">chunk text + vectors</text>
+
+      <rect class="node external" x="30" y="390" width="160" height="80"/><text class="title" x="110" y="420">Caller</text><text class="sub" x="110" y="442">Open WebUI / API</text>
+      <rect class="node backend" x="260" y="390" width="180" height="80"/><text class="title" x="350" y="420">LiteLLM</text><text class="sub" x="350" y="442">model: vanilla-rag</text>
+      <rect class="node backend" x="520" y="390" width="200" height="80"/><text class="title" x="620" y="420">Vanilla plugin</text><text class="sub" x="620" y="442">retrieve · prompt · normalize</text>
+      <rect class="node model" x="800" y="390" width="180" height="80"/><text class="title" x="890" y="420">Query embedding</text><text class="sub" x="890" y="442">nomic-embed-text</text>
+      <rect class="node data" x="1060" y="390" width="200" height="80"/><text class="title" x="1160" y="420">Weaviate · RagBase</text><text class="sub" x="1160" y="442">dense cosine search</text>
+      <rect class="node model" x="1340" y="390" width="180" height="80"/><text class="title" x="1430" y="420">light_gen</text><text class="sub" x="1430" y="442">LiteLLM → configured LLM</text>
+      <rect class="node external" x="1590" y="390" width="160" height="80"/><text class="title" x="1670" y="420">OpenAI response</text><text class="sub" x="1670" y="442">answer · sources · metrics</text>
+
+      <rect class="ledger" x="45" y="650" width="1710" height="170" rx="8"/>
+      <text class="ledger-title" x="70" y="680">MESSAGE CONTRACT AND EXECUTION PHASES</text>
+      <line x1="470" y1="695" x2="470" y2="800" stroke="#334155"/><line x1="900" y1="695" x2="900" y2="800" stroke="#334155"/><line x1="1330" y1="695" x2="1330" y2="800" stroke="#334155"/>
+      <text class="ledger-head" x="70" y="710">0 · INDEX</text><text class="ledger-copy" x="70" y="730">chunks → embedding vectors → RagBase</text><text class="ledger-copy" x="70" y="748">No query-time graph or enrichment.</text><text class="ledger-copy" x="70" y="766">Index is reused across requests.</text>
+      <text class="ledger-head" x="500" y="710">1–3 · DISPATCH + EMBED</text><text class="ledger-copy" x="500" y="730">POST /v1/chat/completions · model=vanilla-rag</text><text class="ledger-copy" x="500" y="748">Plugin embeds only the incoming question.</text><text class="ledger-copy" x="500" y="766">Default model properties remain alias-scoped.</text>
+      <text class="ledger-head" x="930" y="710">4–5 · RETRIEVE</text><text class="ledger-copy" x="930" y="730">nearVector(question_vector, limit=5)</text><text class="ledger-copy" x="930" y="748">Top chunks retain source and dataset metadata.</text><text class="ledger-copy" x="930" y="766">No BM25 fusion and no reranker.</text>
+      <text class="ledger-head" x="1360" y="710">6 · GENERATE + RETURN</text><text class="ledger-copy" x="1360" y="730">question + bounded retrieved context → light_gen</text><text class="ledger-copy" x="1360" y="748">Plugin emits OpenAI-compatible answer payload.</text><text class="ledger-copy" x="1360" y="766">Evidence and latency metrics are preserved.</text>
+    </svg>
+  </main>
+  <footer>Deployment: Atlas Compose project selected by the rag-showcase consumer manifest · Invocation: LiteLLM model alias → backend plugin endpoint</footer>
+</body>
+</html>

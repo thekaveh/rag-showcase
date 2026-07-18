@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>contextual-rag service and data flow</title>
+  <style>
+    * { box-sizing: border-box; } html, body { width: 1800px; height: 1000px; margin: 0; overflow: hidden; }
+    body { background: #020617; color: #f8fafc; font-family: "JetBrains Mono", Menlo, monospace; padding: 22px 30px 14px; }
+    header { height: 72px; display: flex; align-items: center; gap: 16px; } .dot { width: 12px; height: 12px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 18px #22d3ee; }
+    h1 { font-size: 28px; margin: 0; letter-spacing: 0; } header p { color: #94a3b8; font-size: 14px; margin: 7px 0 0; }
+    main { height: 850px; border: 1px solid #1e293b; border-radius: 8px; background: #07101f; } svg { display: block; width: 100%; height: 100%; }
+    footer { height: 38px; color: #64748b; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+    .boundary { fill: #0b1220; stroke: #334155; stroke-width: 1.5; stroke-dasharray: 8 6; } .lane { fill: #94a3b8; font-size: 13px; font-weight: 700; }
+    .node { stroke-width: 2; rx: 6; } .external { fill: #111827; stroke: #94a3b8; } .backend { fill: #063b32; stroke: #34d399; } .model { fill: #422006; stroke: #fbbf24; } .data { fill: #2e1065; stroke: #a78bfa; } .transform { fill: #431407; stroke: #fb923c; }
+    .title { fill: #f8fafc; font-size: 12px; font-weight: 700; text-anchor: middle; } .sub { fill: #cbd5e1; font-size: 9px; text-anchor: middle; }
+    .flow { fill: none; stroke: #22d3ee; stroke-width: 2.2; marker-end: url(#arrow); } .prep { fill: none; stroke: #fb923c; stroke-width: 2; marker-end: url(#arrow-orange); }
+    .step { fill: #020617; stroke: #22d3ee; stroke-width: 1.5; } .step-text { fill: #67e8f9; font-size: 10px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; } .label { fill: #cbd5e1; font-size: 8px; text-anchor: middle; }
+    .ledger { fill: #0f172a; stroke: #334155; stroke-width: 1.5; } .ledger-title { fill: #f8fafc; font-size: 13px; font-weight: 700; } .ledger-head { fill: #67e8f9; font-size: 10px; font-weight: 700; } .ledger-copy { fill: #94a3b8; font-size: 9px; }
+  </style>
+</head>
+<body>
+  <header><span class="dot"></span><div><h1>contextual-rag · service and data flow</h1><p>Ingestion-time chunk enrichment followed by hybrid retrieval, optional reranking, and generation</p></div></header>
+  <main>
+    <svg viewBox="0 0 1800 860" role="img" aria-labelledby="title desc">
+      <title id="title">contextual-rag service and data flow</title><desc id="desc">Each chunk is enriched with a model-generated document context before embedding, then queried through the contextual collection.</desc>
+      <defs>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#1e293b" stroke-width="0.6"/></pattern>
+        <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#22d3ee"/></marker>
+        <marker id="arrow-orange" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#fb923c"/></marker>
+      </defs>
+      <rect width="1800" height="860" fill="url(#grid)"/><rect class="boundary" x="190" y="42" width="1565" height="575" rx="10"/>
+      <text class="lane" x="210" y="69">ATLAS COMPOSE STACK · RAG TRACK</text><text class="lane" x="210" y="101" fill="#fb923c">CONTEXTUAL INGESTION · ENRICH ONCE PER CHUNK</text><text class="lane" x="210" y="321" fill="#22d3ee">QUERY PATH · REUSE ENRICHED INDEX</text>
+
+      <path class="prep" d="M405 185H455"/><path class="prep" d="M645 185H695"/><path class="prep" d="M885 185H935"/><path class="prep" d="M1125 185H1175"/><path class="prep" d="M1365 185H1415"/>
+      <path class="flow" d="M175 435H215"/><path class="flow" d="M390 435H430"/><path class="flow" d="M605 435H645"/><path class="flow" d="M820 435H860"/><path class="flow" d="M1050 435H1090"/><path class="flow" d="M1280 435H1320"/><path class="flow" d="M1510 435H1550"/>
+
+      <g><circle class="step" cx="195" cy="435" r="11"/><text class="step-text" x="195" y="435">1</text><text class="label" x="195" y="413">request</text></g><g><circle class="step" cx="410" cy="435" r="11"/><text class="step-text" x="410" y="435">2</text><text class="label" x="410" y="413">dispatch</text></g>
+      <g><circle class="step" cx="625" cy="435" r="11"/><text class="step-text" x="625" y="435">3</text><text class="label" x="625" y="413">embed</text></g><g><circle class="step" cx="840" cy="435" r="11"/><text class="step-text" x="840" y="435">4</text><text class="label" x="840" y="413">vector</text></g>
+      <g><circle class="step" cx="1070" cy="435" r="11"/><text class="step-text" x="1070" y="435">5</text><text class="label" x="1070" y="413">candidates</text></g><g><circle class="step" cx="1300" cy="435" r="11"/><text class="step-text" x="1300" y="435">6</text><text class="label" x="1300" y="413">top context</text></g><g><circle class="step" cx="1530" cy="435" r="11"/><text class="step-text" x="1530" y="435">7</text><text class="label" x="1530" y="413">answer</text></g>
+
+      <rect class="node external" x="215" y="145" width="190" height="80"/><text class="title" x="310" y="176">Corpus documents</text><text class="sub" x="310" y="198">document + chunk</text>
+      <rect class="node backend" x="455" y="145" width="190" height="80"/><text class="title" x="550" y="176">Atlas ingestion</text><text class="sub" x="550" y="198">parse · chunk · metadata</text>
+      <rect class="node model" x="695" y="145" width="190" height="80"/><text class="title" x="790" y="176">contextual_blurb</text><text class="sub" x="790" y="198">document + chunk → context</text>
+      <rect class="node transform" x="935" y="145" width="190" height="80"/><text class="title" x="1030" y="176">Enriched chunk</text><text class="sub" x="1030" y="198">blurb prefix + chunk text</text>
+      <rect class="node model" x="1175" y="145" width="190" height="80"/><text class="title" x="1270" y="176">Embedding model</text><text class="sub" x="1270" y="198">nomic-embed-text</text>
+      <rect class="node data" x="1415" y="145" width="190" height="80"/><text class="title" x="1510" y="176">RagContextual</text><text class="sub" x="1510" y="198">enriched text + vectors</text>
+
+      <rect class="node external" x="20" y="395" width="155" height="80"/><text class="title" x="97" y="425">Caller</text><text class="sub" x="97" y="447">Open WebUI / API</text>
+      <rect class="node backend" x="215" y="395" width="175" height="80"/><text class="title" x="302" y="425">LiteLLM</text><text class="sub" x="302" y="447">model: contextual-rag</text>
+      <rect class="node backend" x="430" y="395" width="175" height="80"/><text class="title" x="517" y="425">Contextual plugin</text><text class="sub" x="517" y="447">retrieve · prompt · metrics</text>
+      <rect class="node model" x="645" y="395" width="175" height="80"/><text class="title" x="732" y="425">Query embedding</text><text class="sub" x="732" y="447">nomic-embed-text</text>
+      <rect class="node data" x="860" y="395" width="190" height="80"/><text class="title" x="955" y="425">RagContextual</text><text class="sub" x="955" y="447">hybrid search</text>
+      <rect class="node model" x="1090" y="395" width="190" height="80"/><text class="title" x="1185" y="425">TEI reranker</text><text class="sub" x="1185" y="447">optional cross-encoder</text>
+      <rect class="node model" x="1320" y="395" width="190" height="80"/><text class="title" x="1415" y="425">light_gen</text><text class="sub" x="1415" y="447">enriched evidence + question</text>
+      <rect class="node external" x="1550" y="395" width="175" height="80"/><text class="title" x="1637" y="425">OpenAI response</text><text class="sub" x="1637" y="447">answer · sources · metrics</text>
+
+      <rect class="ledger" x="45" y="650" width="1710" height="170" rx="8"/><text class="ledger-title" x="70" y="680">MESSAGE CONTRACT AND EXECUTION PHASES</text>
+      <line x1="470" y1="695" x2="470" y2="800" stroke="#334155"/><line x1="900" y1="695" x2="900" y2="800" stroke="#334155"/><line x1="1330" y1="695" x2="1330" y2="800" stroke="#334155"/>
+      <text class="ledger-head" x="70" y="710">0A · ENRICH</text><text class="ledger-copy" x="70" y="730">full document + current chunk → contextual_blurb</text><text class="ledger-copy" x="70" y="748">Generated context is persisted with the chunk.</text><text class="ledger-copy" x="70" y="766">Cost is paid during ingestion, not per query.</text>
+      <text class="ledger-head" x="500" y="710">0B · INDEX</text><text class="ledger-copy" x="500" y="730">context prefix + chunk → embedding</text><text class="ledger-copy" x="500" y="748">RagContextual is distinct from RagBase.</text><text class="ledger-copy" x="500" y="766">Re-ingestion is required after prompt/model changes.</text>
+      <text class="ledger-head" x="930" y="710">1–6 · RETRIEVE + RERANK</text><text class="ledger-copy" x="930" y="730">question vector → contextual hybrid candidates</text><text class="ledger-copy" x="930" y="748">Optional TEI reranking bounds top_n context.</text><text class="ledger-copy" x="930" y="766">Retrieved text includes the generated prefix.</text>
+      <text class="ledger-head" x="1360" y="710">7 · GENERATE + RETURN</text><text class="ledger-copy" x="1360" y="730">light_gen consumes enriched evidence.</text><text class="ledger-copy" x="1360" y="748">Response preserves source and dataset metadata.</text><text class="ledger-copy" x="1360" y="766">No graph is created or traversed.</text>
+    </svg>
+  </main>
+  <footer>Deployment: Atlas Compose project selected by the rag-showcase consumer manifest · Invocation: LiteLLM model alias → backend plugin endpoint</footer>
+</body>
+</html>

@@ -1,9 +1,8 @@
 # 4.1 Architecture and Flow Diagrams
 
-This page documents the two generated landscape diagrams used by the README:
-the project architecture map and the parallel flow map for all seven RAG approaches.
-Both diagrams are checked in as high-resolution PNGs and as standalone HTML/SVG
-source files.
+This page indexes the project architecture map, the parallel flow map, and seven
+per-approach service/data-flow diagrams. Every diagram is checked in as a
+high-resolution PNG and a standalone HTML/SVG source.
 
 For exact per-approach steps, dependencies, tuning variables, and measured
 performance, see [`approaches.md`](approaches.md). This page focuses on where the
@@ -115,7 +114,23 @@ All seven lanes are invoked the same way from the outside: the caller chooses a 
 alias in LiteLLM, and LiteLLM forwards to the mounted FastAPI route in the Atlas
 backend container.
 
-## 3. One Query, End to End (Sequence)
+## 3. Per-Approach Service and Data Flows
+
+The drill-down diagrams separate ingestion-time work, persisted state, request-time
+messages, optional branches, and returned evidence. Their deployment footers identify
+the Atlas-hosted services and the LiteLLM alias or webhook used for invocation.
+
+| Approach | Primary distinction | PNG | Interactive HTML |
+|---|---|---|---|
+| `vanilla-rag` | Dense top-k control path | [PNG](diagrams/approaches/vanilla-rag/data-flow.png) | [Open](diagrams/approaches/vanilla-rag/data-flow.html) |
+| `hybrid-rag` | BM25+dense fusion and optional TEI rerank | [PNG](diagrams/approaches/hybrid-rag/data-flow.png) | [Open](diagrams/approaches/hybrid-rag/data-flow.html) |
+| `contextual-rag` | Ingestion-time chunk contextualization | [PNG](diagrams/approaches/contextual-rag/data-flow.png) | [Open](diagrams/approaches/contextual-rag/data-flow.html) |
+| `graph-rag` | Persistent LightRAG graph/vector workspace | [PNG](diagrams/approaches/graph-rag/data-flow.png) | [Open](diagrams/approaches/graph-rag/data-flow.html) |
+| `agentic-rag` | Request-local ReAct tool loop | [PNG](diagrams/approaches/agentic-rag/data-flow.png) | [Open](diagrams/approaches/agentic-rag/data-flow.html) |
+| `n8n-adaptive-rag` | Workflow classification and endpoint routing | [PNG](diagrams/approaches/n8n-adaptive-rag/data-flow.png) | [Open](diagrams/approaches/n8n-adaptive-rag/data-flow.html) |
+| `lazy-graph-rag` | LLM-free cached concept graph and budgeted expansion | [PNG](diagrams/approaches/lazy-graph-rag/data-flow.png) | [Open](diagrams/approaches/lazy-graph-rag/data-flow.html) |
+
+## 4. One Query, End to End (Sequence)
 
 The two diagrams above show structure and per-approach phases; this sequence shows
 temporal order and call counts for a single `hybrid-rag` request — the pattern the
@@ -154,7 +169,7 @@ LightRAG / a ReAct tool loop; `n8n-adaptive-rag` inserts the n8n workflow betwee
 the endpoint and a routed approach; `lazy-graph-rag` adds deterministic concept
 expansion between dense seeding and generation.
 
-## 4. Deployment Topology (Containers and Mounts)
+## 5. Deployment Topology (Containers and Mounts)
 
 The project's central mechanism — vendored Atlas plus a non-invasive overlay —
 shown as the compose-level view. Everything in the `Atlas stack` subgraph is
@@ -203,7 +218,7 @@ flowchart LR
     litellm --> provider
 ```
 
-## 5. Regeneration Notes
+## 6. Regeneration Notes
 
 The diagrams are standalone HTML files with inline SVG. To regenerate the PNGs from
 Chrome on macOS:
@@ -219,4 +234,12 @@ CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
   --window-size=2000,1230 --force-device-scale-factor=2 \
   --screenshot=docs/diagrams/img/approach-flows.png \
   file://"$PWD"/docs/diagrams/approach-flows.html
+
+for approach in vanilla-rag hybrid-rag contextual-rag graph-rag agentic-rag \
+  n8n-adaptive-rag lazy-graph-rag; do
+  "$CHROME" --headless=new --disable-gpu --hide-scrollbars \
+    --window-size=1800,1000 --force-device-scale-factor=2 \
+    --screenshot="docs/diagrams/approaches/$approach/data-flow.png" \
+    "file://$PWD/docs/diagrams/approaches/$approach/data-flow.html"
+done
 ```

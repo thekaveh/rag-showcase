@@ -10,6 +10,17 @@ from scripts.docs.links import is_forbidden
 from scripts.docs.manifest import DOCS, first_h1, iter_pages, load_manifest
 
 
+APPROACHES = [
+    "vanilla-rag",
+    "hybrid-rag",
+    "contextual-rag",
+    "graph-rag",
+    "agentic-rag",
+    "n8n-adaptive-rag",
+    "lazy-graph-rag",
+]
+
+
 def test_manifest_h1s_match_numbered_titles() -> None:
     manifest = load_manifest()
     for page in iter_pages(manifest):
@@ -54,6 +65,30 @@ def test_generated_surfaces_publish_all_result_artifacts_and_have_valid_local_li
         }
         assert expected <= published
         check_local_links(root)
+
+
+def test_generated_surfaces_publish_nested_approach_diagrams(tmp_path) -> None:
+    manifest = load_manifest()
+    pages = iter_pages(manifest)
+    site_dir = tmp_path / "site"
+    wiki_dir = tmp_path / "wiki"
+
+    render_site(manifest, pages, site_dir)
+    render_wiki(manifest, pages, wiki_dir)
+
+    for approach in APPROACHES:
+        canonical = DOCS / "diagrams" / "approaches" / approach
+        assert (canonical / "data-flow.html").is_file()
+        assert (canonical / "data-flow.png").is_file()
+
+        site_target = site_dir / "assets" / "diagrams" / "approaches" / approach
+        wiki_target = wiki_dir / "diagrams" / "approaches" / approach
+        for target in (site_target, wiki_target):
+            assert (target / "data-flow.html").is_file()
+            assert (target / "data-flow.png").is_file()
+
+    check_local_links(site_dir)
+    check_local_links(wiki_dir)
 
 
 def test_local_link_checker_rejects_missing_target(tmp_path) -> None:
