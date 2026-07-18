@@ -1432,7 +1432,7 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="3">3</td>
 <td data-sort-value="5">5</td>
 <td data-sort-value="3">3</td>
-<td data-sort-value="0.845995">0.846</td>
+<td data-sort-value="0.845994">0.846</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
 <td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>

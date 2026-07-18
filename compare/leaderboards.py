@@ -13,13 +13,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _mean(values: list[float]) -> float | None:
-    return round(sum(values) / len(values), 6) if values else None
+    return round(math.fsum(values) / len(values), 6) if values else None
 
 
 def _weighted_mean(points: list[tuple[float | None, int]]) -> float | None:
     usable = [(value, weight) for value, weight in points if value is not None and weight > 0]
     total = sum(weight for _, weight in usable)
-    return round(sum(value * weight for value, weight in usable) / total, 6) if total else None
+    return (
+        round(math.fsum(value * weight for value, weight in usable) / total, 6)
+        if total
+        else None
+    )
 
 
 def _finite(value: Any, label: str) -> float:
@@ -89,7 +93,7 @@ def mean_pairwise_disagreement(scores: list[list[float]]) -> float | None:
         for left in range(len(query_scores)):
             for right in range(left + 1, len(query_scores)):
                 differences.append(abs(query_scores[left] - query_scores[right]))
-    return round(sum(differences) / len(differences), 6) if differences else None
+    return round(math.fsum(differences) / len(differences), 6) if differences else None
 
 
 def _load_json(root: Path, path: str, *, description: str) -> dict[str, Any]:
@@ -313,7 +317,7 @@ def _judge_details(
             if set(means) != approaches:
                 raise ValueError(f"judgment query {index} is missing valid mean scores")
             for approach, scores in scores_by_approach.items():
-                expected = round(sum(scores) / len(scores), 2)
+                expected = round(math.fsum(scores) / len(scores), 2)
                 if _finite(means[approach], f"judgment query {index} mean") != expected:
                     raise ValueError(f"judgment query {index} mean_by_approach disagrees with panel")
                 mean_scores[approach].append(float(means[approach]))

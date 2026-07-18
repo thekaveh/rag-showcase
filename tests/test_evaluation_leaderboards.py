@@ -10,6 +10,8 @@ import yaml
 
 from compare import report_leaderboards
 from compare.leaderboards import (
+    _mean,
+    _weighted_mean,
     build_leaderboards,
     competition_ranks,
     mean_pairwise_disagreement,
@@ -708,6 +710,13 @@ def test_competition_ranks_preserve_ties() -> None:
 def test_mean_pairwise_disagreement() -> None:
     assert mean_pairwise_disagreement([[1.0, 3.0], [2.0, 5.0]]) == 2.5
     assert mean_pairwise_disagreement([[4.0]]) is None
+
+
+def test_means_use_stable_floating_point_summation() -> None:
+    cancellation = [1e16, 1.0, -1e16]
+
+    assert _mean(cancellation) == 0.333333
+    assert _weighted_mean([(value, 1) for value in cancellation]) == 0.333333
 
 
 def test_leaderboard_report_contains_all_result_views() -> None:
