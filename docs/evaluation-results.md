@@ -2,8 +2,9 @@
 
 This generated report is the complete static comparison of the committed evaluation
 and judgment snapshots. It complements the [evaluation methodology](evaluation-methodology.md),
-the [narrative comparison](comparison.md), the [dataset complexity ladder]
-(dataset-complexity-report.md), and the [raw result snapshots](results/README.md).
+the [narrative comparison](comparison.md), the
+[dataset complexity ladder](dataset-complexity-report.md), and the
+[raw result snapshots](results/README.md).
 
 ## 1. Reading the Results
 

@@ -53,7 +53,8 @@
       option.textContent = labelText;
       select.append(option);
     };
-    addOption(`All ${name}s`, "");
+    const plural = name === "approach" ? "approaches" : `${name}s`;
+    addOption(`All ${plural}`, "");
     values.forEach((value) => addOption(value, value));
     select.addEventListener("change", onChange);
 

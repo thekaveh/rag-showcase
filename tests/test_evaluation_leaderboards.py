@@ -697,3 +697,10 @@ def test_cli_writes_absolute_output_outside_repo(
 
     assert output.read_text(encoding="utf-8") == "report\n"
     assert capsys.readouterr().out == f"wrote {output}\n"
+
+
+def test_report_keeps_dataset_ladder_as_a_valid_markdown_link() -> None:
+    report = report_leaderboards.build_report()
+
+    assert "[dataset complexity ladder](dataset-complexity-report.md)" in report
+    assert "[dataset complexity ladder]\n(dataset-complexity-report.md)" not in report

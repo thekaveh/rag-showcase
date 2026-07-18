@@ -209,6 +209,8 @@ test("DOM filters combine and reset restores the original sortable table", () =>
   const approachSelect = approachLabel.children[0];
   const scoreButton = headers[2].children[0];
 
+  assert.equal(approachSelect.children[0].textContent, "All approaches");
+
   scoreButton.trigger("click");
   assert.deepEqual(body.rows.map((row) => row.id), [
     "generator-4",

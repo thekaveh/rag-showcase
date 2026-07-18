@@ -135,3 +135,9 @@ def test_sortable_table_script_is_site_only_and_registered(tmp_path: Path) -> No
     config = tmp_path / "mkdocs.yml"
     render_mkdocs_yml(manifest, config)
     assert "javascripts/sortable-tables.js" in config.read_text(encoding="utf-8")
+
+
+def test_sortable_table_css_does_not_overlay_horizontally_scrolled_headers() -> None:
+    css = (DOCS / "stylesheets" / "extra.css").read_text(encoding="utf-8")
+
+    assert ".results-table th:first-child" not in css
