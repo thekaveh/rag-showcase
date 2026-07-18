@@ -2,8 +2,13 @@
 
 This document defines the reproducible evaluation contract for rag-showcase. It
 explains ownership, invocation, evidence capture, Atlas-backed Ragas evaluation,
-the independent judge panel, resume behavior, and reporting. The generated
-dataset view is [`dataset-complexity-report.md`](dataset-complexity-report.md).
+the independent judge panel, resume behavior, and reporting. Its role is the
+protocol, not the ranking presentation: the generated
+[`evaluation-results.md`](evaluation-results.md) page is the canonical complete
+leaderboard for every approach and metric. The generated
+[`dataset-complexity-report.md`](dataset-complexity-report.md) is the dataset
+ladder and per-query view; [`results/README.md`](results/README.md) is the
+committed-artifact ledger.
 
 ## 1. Evaluation Goal and Boundary
 
@@ -429,7 +434,8 @@ and latency.
 The canonical rows support direct coverage, failure, latency, answer, context,
 Ragas, and judge comparisons. Faithfulness remains intentionally unavailable for
 LightRAG answer-only rows; this is an evidence limitation, not an evaluator or
-answer failure. See
-[`comparison.md`](comparison.md) for narrative findings and
-[`approaches.md`](approaches.md) for each approach's internal steps and tuning
-surface.
+answer failure. Read the complete generated tables in
+[`evaluation-results.md`](evaluation-results.md), the interpretation in
+[`comparison.md`](comparison.md), the dataset/per-query ladder in
+[`dataset-complexity-report.md`](dataset-complexity-report.md), and the source
+artifact ledger in [`results/README.md`](results/README.md).

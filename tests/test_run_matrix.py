@@ -10,6 +10,23 @@ import respx
 import compare.run_matrix as run_matrix
 
 
+def _stub_runtime_provenance(monkeypatch) -> None:
+    monkeypatch.setattr(
+        run_matrix,
+        "_runtime_provenance",
+        lambda manifest=None: {
+            "project": "rag-showcase",
+            "runtime_files": {
+                "model_inventory": {"sha256": "models", "entries": ["vanilla-rag"]},
+                "lightrag_query_profiles": {
+                    "sha256": "profiles",
+                    "entries": ["graph-rag"],
+                },
+            },
+        },
+    )
+
+
 def test_git_state_records_commit_tree_and_deterministic_patch_digest() -> None:
     state = run_matrix._git_state(run_matrix.ROOT)
 
@@ -39,6 +56,15 @@ def test_runtime_provenance_binds_repo_atlas_provider_and_generated_registries(
         lambda path: {
             "commit": "repo-sha" if path == run_matrix.ROOT else "atlas-sha",
             "dirty": True,
+        },
+    )
+    monkeypatch.setattr(
+        run_matrix,
+        "_runtime_file",
+        lambda path, kind: {
+            "path": str(path),
+            "sha256": f"{kind}-digest",
+            "entries": ["vanilla-rag"] if kind == "models" else ["graph-rag-rerank"],
         },
     )
 
@@ -140,6 +166,7 @@ def test_main_records_failed_cell_and_completes(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("MATRIX_INGESTION_REVISION", "rev-1")
     monkeypatch.setenv("MATRIX_INGESTION_CONTENT_DIGEST", "digest-1")
     monkeypatch.setenv("JUDGE_MODELS", "judge-a,judge-b")
+    _stub_runtime_provenance(monkeypatch)
 
     def responder(request):
         body = json.loads(request.content)
@@ -250,6 +277,7 @@ def test_main_routes_structured_evidence_to_atlas_evaluator(tmp_path, monkeypatc
     monkeypatch.setenv("MATRIX_RUN_ID", "atlas-eval-run")
     monkeypatch.setenv("MATRIX_MODELS", "vanilla-rag")
     monkeypatch.setenv("JUDGE_MODELS", "judge-a,judge-b")
+    _stub_runtime_provenance(monkeypatch)
 
     respx.post("http://localhost:9/v1/chat/completions").mock(return_value=httpx.Response(
         200,
@@ -306,6 +334,7 @@ def test_main_resume_does_not_repeat_completed_gateway_call(tmp_path, monkeypatc
     monkeypatch.setenv("MATRIX_RUN_ID", "resume-run")
     monkeypatch.setenv("MATRIX_MODELS", "vanilla-rag")
     monkeypatch.setenv("JUDGE_MODELS", "judge-a,judge-b")
+    _stub_runtime_provenance(monkeypatch)
     route = respx.post("http://localhost:9/v1/chat/completions").mock(
         return_value=httpx.Response(200, json={
             "id": "completion-1",

@@ -1,6 +1,11 @@
-# 5.3 Dataset Complexity Report
+# 5.4 Dataset Complexity Report
 
-This report tracks approach rankings by input dataset, ordered from the
+This generated report is the dataset-ladder and per-query view, not the
+canonical all-metric ranking presentation. The complete static base and
+flavor tables for every approach and metric are in
+[`evaluation-results.md`](evaluation-results.md).
+
+It tracks approach rankings by input dataset, ordered from the
 simplest curated corpus to increasingly graph-heavy real-world candidates.
 It deliberately reports by dataset rather than by vector/graph collection,
 because the comparison question is how each RAG approach behaves as the
@@ -10,6 +15,8 @@ are stored with newly generated matrix and judgment snapshots.
 
 For the run protocol, model roles, approach invocation details, and
 judge-panel design, see [`evaluation-methodology.md`](evaluation-methodology.md).
+Committed evidence and provenance are listed in
+[`results/README.md`](results/README.md).
 For approach-by-approach internals and tuning surfaces, see
 [`approaches.md`](approaches.md).
 
