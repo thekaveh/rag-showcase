@@ -35,13 +35,13 @@ measurements, and keep-experimental decision are documented in
 
 ## 1. Headline
 
-The renewed ladder completed all 380 answer cells on all three measured datasets
-without response errors or timeouts: 140 base-family cells and 240 flavor cells.
-Base winners changed with the corpus: `vanilla-rag` scored 4.17 on baseline,
-experimental `lazy-graph-rag` scored 4.31 on graph-native, and `contextual-rag`
-scored 3.17 on cyber. The flavor winners were `lazy-graph-rag-wide` at 4.58,
-`hybrid-rag-high-recall` at 4.19, and `hybrid-rag-fast` at 3.67. Default
-LightRAG remained operational and averaged 12.61, 12.47, and 21.20 seconds.
+The renewed ladder completed its requested base-family and flavor cells across
+all three measured datasets without response errors or timeouts. Rankings shifted
+with the corpus, and the flavor tier changed the leading configuration on each
+measured rung. The generated
+[base leaderboard](evaluation-results.md#2-overall-base-approach-leaderboard)
+and [flavor leaderboard](evaluation-results.md#4-overall-flavor-alias-leaderboard)
+own the exact ranks, scores, coverage, failures, and latency values.
 
 The current run depends on these integration fixes and operating choices:
 
@@ -157,8 +157,8 @@ Ollama, or another configured provider.
 
 1. **`think:false` is mandatory for the Qwen reasoning model.** With thinking enabled,
    extraction and generation calls spend time on hidden reasoning. With `think:false`,
-   the same local model is roughly 30x faster for this workload. The setting is
-   is scoped per model, so it does not leak to unrelated models. The current
+   the same local model avoids unnecessary reasoning overhead for this workload.
+   The setting is scoped per model, so it does not leak to unrelated models. The current
    baseline delegates the same model-scoped default to Atlas's model catalog.
 2. **Atlas now has a first-class host-Ollama source.** The original run needed an
    ad hoc LiteLLM alias to reach host Ollama. The updated Atlas submodule exposes
@@ -220,25 +220,24 @@ The renewed run shows that the graph path is technically healthy: LightRAG index
 the baseline, graph-native, and cyber corpora, drained extraction, and answered
 through the same LiteLLM/Open WebUI route as the other approaches.
 
-The quality story is more nuanced. Default `graph-rag` won three baseline
-questions and ranked fifth, fifth, then seventh by aggregate, with mean latency
-of 12.61, 12.47, and 21.20 seconds. Atlas-managed profiles materially changed
-both quality and latency, but no one graph profile dominated every dataset.
+The quality story is more nuanced. Default `graph-rag` remained operational
+across the ladder, but its aggregate position varied by dataset. Atlas-managed
+profiles materially changed both quality and latency, but no one graph profile
+dominated every dataset. See the generated
+[base leaderboard](evaluation-results.md#3-base-approaches-by-dataset)
+for the exact per-dataset comparisons.
 
 The rerank-enabled profile is technically healthy but remains opt-in. Against
-`graph-rag-fast`, reranking produced the same baseline judge mean at 2.38x
-latency, gained 0.38 judge points on graph-native with lower Ragas answer
-relevancy, and gained 0.50 judge points on cyber while nearly doubling latency
-and again lowering answer relevancy. Against `graph-rag-wide`, it lost judge mean
-on graph-native, won on cyber, and was slower on all three rungs. The detailed
+the other graph profiles, reranking changed quality and answer-relevancy tradeoffs
+without a consistent benefit across datasets, while adding latency. The detailed
 tradeoff table is in
 [`approach-flavor-tuning.md`](approach-flavor-tuning.md#81-lightrag-rerank-tradeoff).
 
 The cyber corpus is the clearest warning against assuming that a graph-shaped
 input automatically favors the LLM-extracted graph endpoint. The ATT&CK docs are
 highly relational, but the judges favored contextual retrieval overall. Lazy
-graph won graph-native data, made zero index-time LLM calls, and was faster than
-LightRAG. It remains experimental because co-occurrence
+graph led the graph-native rung and makes no index-time LLM calls. It remains
+experimental because co-occurrence
 edges are untyped and its concept extractor is deliberately lightweight. See
 [`lazy-graph-rag.md`](lazy-graph-rag.md) for the measured keep decision.
 
