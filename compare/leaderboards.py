@@ -269,9 +269,26 @@ def _judge_details(
         elif means:
             raise ValueError(f"judgment query {index} has means without valid judge scores")
         winner = query.get("observed_winner")
-        if winner is not None:
-            if winner not in approaches or not means:
-                raise ValueError(f"judgment query {index} names an unknown observed winner")
+        if winner:
+            query_id = str(query.get("query_id") or index)
+            if winner not in means:
+                raise ValueError(
+                    f"judgment dataset {dataset_id!r} query {query_id!r} "
+                    f"observed_winner {winner!r} is absent from mean_by_approach"
+                )
+            winner_score = _finite(
+                means[winner],
+                f"judgment dataset {dataset_id!r} query {query_id!r} winner score",
+            )
+            highest_score = max(
+                _finite(score, f"judgment query {index} mean")
+                for score in means.values()
+            )
+            if winner_score != highest_score:
+                raise ValueError(
+                    f"judgment dataset {dataset_id!r} query {query_id!r} "
+                    f"observed_winner {winner!r} is not in the top-score tie group"
+                )
             winners[winner] += 1
     by_model = {
         approach: {model: _mean(scores) for model, scores in model_scores[approach].items()}

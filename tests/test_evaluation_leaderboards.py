@@ -377,6 +377,17 @@ def test_validation_rejects_incompatible_measured_snapshots(tmp_path: Path) -> N
         build_leaderboards(datasets, root=tmp_path)
 
 
+def test_validation_rejects_lower_scoring_observed_winner(tmp_path: Path) -> None:
+    datasets = _write_two_dataset_fixture(tmp_path)
+    path = tmp_path / datasets[0]["judgment_snapshot"]
+    artifact = json.loads(path.read_text(encoding="utf-8"))
+    artifact["queries"][0]["observed_winner"] = "approach-a"
+    _write_json(path, artifact)
+
+    with pytest.raises(ValueError, match="easy.*q1.*approach-a"):
+        build_leaderboards(datasets, root=tmp_path)
+
+
 def test_missing_flavor_snapshots_for_measured_dataset_fail(tmp_path: Path) -> None:
     datasets = _write_two_dataset_fixture(tmp_path)
     datasets[0].pop("flavor_evaluation_snapshot")
