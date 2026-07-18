@@ -113,6 +113,27 @@ def test_backend_overlay_sets_graph_query_safety_defaults() -> None:
     assert env["LIGHTRAG_QUERY_MAX_TOTAL_TOKENS"] == "${LIGHTRAG_QUERY_MAX_TOTAL_TOKENS:-12000}"
 
 
+def test_backend_overlay_pins_corpus_root_to_the_mount_target() -> None:
+    # The overlay must declare RAG_INGESTION_CORPUS_ROOT explicitly rather than
+    # inheriting Atlas's default, so an upstream default change cannot silently
+    # point ingestion away from the read-only corpus mount (#54).
+    overlay = _load_overlay()
+    backend = overlay["services"]["backend"]
+    env = backend["environment"]
+
+    # Explicitly set (not a ${VAR:-...} indirection that could diverge from the
+    # hardcoded mount target).
+    assert env["RAG_INGESTION_CORPUS_ROOT"] == "/app/corpus"
+
+    # ...and it matches the container target of the ../corpus read-only mount.
+    corpus_mounts = [
+        v for v in backend["volumes"] if v.split(":")[0].endswith("/corpus")
+    ]
+    assert len(corpus_mounts) == 1, corpus_mounts
+    _source, target, *_mode = corpus_mounts[0].split(":")
+    assert target == env["RAG_INGESTION_CORPUS_ROOT"]
+
+
 def test_lazy_graph_cache_is_initialized_for_the_non_root_backend() -> None:
     overlay = _load_overlay()
     initializer = overlay["services"]["lazy-graph-cache-init"]
