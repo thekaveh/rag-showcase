@@ -56,12 +56,15 @@ sections:
         title: Evaluation Methodology
         source: evaluation-methodology.md
       - number: "5.2"
-        title: RAG Approaches — Live Comparison
-        source: comparison.md
+        title: Evaluation Results and Leaderboards
+        source: evaluation-results.md
       - number: "5.3"
+        title: Live Comparison
+        source: comparison.md
+      - number: "5.4"
         title: Dataset Complexity Report
         source: dataset-complexity-report.md
-      - number: "5.4"
+      - number: "5.5"
         title: Live Run Result Snapshots
         source: results/README.md
   - title: Data and Components
@@ -95,3 +98,9 @@ sections:
       - number: "7.6"
         title: Cyber Threat Dataset Implementation Plan
         source: superpowers/plans/2026-07-03-cyber-threat-dataset.md
+      - number: "7.7"
+        title: Sortable Evaluation Leaderboards Design
+        source: superpowers/specs/2026-07-17-sortable-evaluation-leaderboards-design.md
+      - number: "7.8"
+        title: Sortable Evaluation Leaderboards Implementation Plan
+        source: superpowers/plans/2026-07-17-sortable-evaluation-leaderboards.md

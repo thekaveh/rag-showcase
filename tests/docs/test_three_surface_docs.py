@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import pytest
 from PIL import Image
@@ -112,3 +113,42 @@ def test_generated_mkdocs_config_has_no_source_repo_links(tmp_path) -> None:
     assert "repo_name:" not in text
     assert "edit_uri:" not in text
     assert "docs_dir: generated/site" in text
+
+
+def test_sortable_table_script_is_site_only_and_registered(tmp_path: Path) -> None:
+    manifest = load_manifest()
+    pages = iter_pages(manifest)
+    site_dir = tmp_path / "site"
+    wiki_dir = tmp_path / "wiki"
+    render_site(manifest, pages, site_dir)
+    render_wiki(manifest, pages, wiki_dir)
+
+    assert (site_dir / "javascripts" / "sortable-tables.js").is_file()
+    assert not (wiki_dir / "javascripts" / "sortable-tables.js").exists()
+
+    leaderboard = next(page for page in pages if page.source.as_posix() == "evaluation-results.md")
+    for path in (site_dir / leaderboard.source, wiki_dir / leaderboard.wiki_name):
+        text = path.read_text(encoding="utf-8")
+        assert '<table class="results-table" id="base-overall">' in text
+        assert '<table class="results-table" id="flavor-overall">' in text
+
+    config = tmp_path / "mkdocs.yml"
+    render_mkdocs_yml(manifest, config)
+    assert "javascripts/sortable-tables.js" in config.read_text(encoding="utf-8")
+
+
+def test_sortable_table_css_does_not_overlay_horizontally_scrolled_headers() -> None:
+    css = (DOCS / "stylesheets" / "extra.css").read_text(encoding="utf-8")
+
+    assert ".results-table th:first-child" not in css
+
+
+def test_docs_workflow_runs_leaderboard_python_and_browser_contract_tests() -> None:
+    workflow = (DOCS.parent / ".github" / "workflows" / "docs.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert workflow.count('"compare/**"') == 2
+    assert workflow.count('"tests/**"') == 2
+    assert "uv run pytest tests backend_plugins/rag/tests -q" in workflow
+    assert "node --test tests/docs/test_sortable_tables.cjs" in workflow

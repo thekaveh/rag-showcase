@@ -625,6 +625,13 @@ def test_cold_ingestion_discards_stale_working_evidence_before_matrix(
     monkeypatch.setenv("JUDGE_MODELS", ",".join(DEFAULT_JUDGES))
     monkeypatch.setattr(module, "RESULTS", tmp_path / "results")
     monkeypatch.setattr(module, "DOC_RESULTS", tmp_path / "doc-results")
+    monkeypatch.setattr(
+        module,
+        "envval",
+        lambda key, default="": "backend-token"
+        if key == "BACKEND_INTERNAL_API_TOKEN"
+        else default,
+    )
     module.RESULTS.mkdir(parents=True)
     corpus = tmp_path / "corpus"
     corpus.mkdir()

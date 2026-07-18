@@ -56,6 +56,7 @@ def render_site(manifest: dict[str, Any], pages: list[Page], site_dir: Path = SI
     for page in pages:
         _write(site_dir / page.source, _page_text(page, "site", mapping))
     _copy_tree_files(DOCS / "stylesheets", site_dir / "stylesheets")
+    _copy_tree_files(DOCS / "javascripts", site_dir / "javascripts", "*.js")
     _copy_tree_files(DOCS / "results", site_dir / "results", "*.json")
     _copy_tree_files(DOCS / "results", site_dir / "results", "*.jsonl")
     _copy_tree_files(
@@ -158,6 +159,7 @@ def render_mkdocs_yml(manifest: dict[str, Any], path: Path = MKDOCS) -> None:
             }},
         ],
         "extra_css": ["stylesheets/extra.css"],
+        "extra_javascript": ["javascripts/sortable-tables.js"],
         "nav": _nav(manifest),
     }
     text = yaml.safe_dump(data, sort_keys=False, allow_unicode=True, width=1000)

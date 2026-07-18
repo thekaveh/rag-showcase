@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 APPROACHES = [
@@ -67,6 +69,13 @@ def test_main_docs_link_to_approach_internals() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     architecture = (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
     comparison = (ROOT / "docs" / "comparison.md").read_text(encoding="utf-8")
+    index = (ROOT / "docs" / "index.md").read_text(encoding="utf-8")
+    manifest = yaml.safe_load((ROOT / "docs" / "manifest.yaml").read_text(encoding="utf-8"))
+    manifest_sources = {
+        page["source"]
+        for section in manifest["sections"]
+        for page in section["pages"]
+    }
 
     assert "docs/approaches.md" in readme
     assert "approaches.md" in architecture
@@ -74,6 +83,31 @@ def test_main_docs_link_to_approach_internals() -> None:
     assert "docs/evaluation-methodology.md" in readme
     assert "evaluation-methodology.md" in comparison
     assert "backend_plugins/rag/plugin.yml" in readme
+    assert "evaluation-results.md" in manifest_sources
+    assert "[Full sortable leaderboards](evaluation-results.md)" in index
+    assert "docs/evaluation-results.md" in readme
+    assert "[complete leaderboards](evaluation-results.md)" in comparison
+
+
+def test_comparison_defers_aggregate_metrics_to_canonical_leaderboards() -> None:
+    comparison = (ROOT / "docs" / "comparison.md").read_text(encoding="utf-8")
+
+    assert "evaluation-results.md" in comparison
+    for aggregate_literal in [
+        "4.17",
+        "4.31",
+        "3.17",
+        "12.61",
+        "12.47",
+        "21.20",
+        "4.58",
+        "4.19",
+        "3.67",
+    ]:
+        assert aggregate_literal not in comparison, (
+            "comparison interpretation must defer aggregate result metrics to "
+            "the canonical evaluation-results.md leaderboards"
+        )
 
 
 def test_flavor_tuning_doc_is_linked_and_covers_invocation() -> None:

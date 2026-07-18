@@ -13,12 +13,12 @@ as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse
 > led cyber by the blinded two-model judge panel. The flavor winners were
 > `lazy-graph-rag-wide`, `hybrid-rag-high-recall`, and `hybrid-rag-fast`.
 > Atlas Ragas returned coverage-aware faithfulness and answer-relevancy scores;
-> LightRAG answer-only rows are correctly ineligible for faithfulness. Full
-> analysis, per-query winners,
-> methodology, raw snapshots, and findings:
-> **[`docs/evaluation-methodology.md`](docs/evaluation-methodology.md)**,
-> **[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md)**, and
-> **[`docs/comparison.md`](docs/comparison.md)**.
+> LightRAG answer-only rows are correctly ineligible for faithfulness. These are
+> concise headline winners; the complete
+> **[`docs/evaluation-results.md`](docs/evaluation-results.md)** leaderboards contain
+> every approach and metric. Read the [methodology](docs/evaluation-methodology.md),
+> [dataset ladder](docs/dataset-complexity-report.md), [narrative comparison](docs/comparison.md),
+> and [artifact ledger](docs/results/README.md) for their distinct supporting views.
 
 ## 1. Overview
 
@@ -277,6 +277,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Approach internals](docs/approaches.md) | Living | Step-by-step flow, dependencies, tuning variables, tradeoffs, and measured performance for every approach |
 | [Approach flavor tuning](docs/approach-flavor-tuning.md) | Living | Open WebUI model aliases, benchmark flavor selection, and query-time versus index-time tuning knobs |
 | [Evaluation methodology](docs/evaluation-methodology.md) | Living | Atlas/showcase ownership, evidence schema, resumable ladder, Ragas states, operational metrics, judge panel, and four-artifact contract |
+| [Evaluation results and leaderboards](docs/evaluation-results.md) | Generated | Complete static base and flavor rankings for every approach and metric |
 | [Hardware sizing](docs/hardware.md) | Living | Minimum and recommended hardware profiles for live stack, local models, and graph-heavy runs |
 | [Atlas-reuse assessment](docs/atlas-reuse-assessment.md) | Living | What reused cleanly, friction found, recommendations for Atlas |
 | [Dependency contract ledger](docs/dependency-contracts.md) | Living | Each consumed external dependency (LiteLLM, Weaviate, LightRAG, TEI, n8n, Atlas) and the exact pinned version its contract was verified against |
@@ -284,9 +285,9 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Corpus](corpus/README.md) | Living | How to populate the corpus |
 | [Dataset adapters](corpus/adapters/README.md) | Living | The dataset fetch/adapter CLIs (GDELT, OpenAlex, STaRK, MITRE cyber) behind the candidate real-world graph rungs |
 | [Dataset complexity report](docs/dataset-complexity-report.md) | Living | Judge and canonical metric rankings by dataset complexity, with coverage and legacy fallback |
+| [Live run result snapshots](docs/results/README.md) | Living | Artifact ledger for committed evidence, summaries, matrices, and panel judgments |
 | [n8n workflow](n8n/README.md) | Living | Checked-in Adaptive-RAG workflow, Atlas seeding lifecycle, and workflow tuning knobs |
 | [Live comparison](docs/comparison.md) | Living | Side-by-side results of all seven approaches + live-validation findings (`think:false`, LightRAG role/query tuning, graph-native corpus behavior) |
-| [Result snapshots](docs/results/README.md) | Living | Canonical evidence/evaluation and compatibility matrix/judgment artifact contract, plus active and historical snapshots |
 
 ## 8. Development & Testing
 
