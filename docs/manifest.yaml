@@ -56,12 +56,15 @@ sections:
         title: Evaluation Methodology
         source: evaluation-methodology.md
       - number: "5.2"
-        title: RAG Approaches — Live Comparison
-        source: comparison.md
+        title: Evaluation Results and Leaderboards
+        source: evaluation-results.md
       - number: "5.3"
+        title: Live Comparison
+        source: comparison.md
+      - number: "5.4"
         title: Dataset Complexity Report
         source: dataset-complexity-report.md
-      - number: "5.4"
+      - number: "5.5"
         title: Live Run Result Snapshots
         source: results/README.md
   - title: Data and Components

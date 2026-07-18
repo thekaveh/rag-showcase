@@ -1,4 +1,4 @@
-# 5.2 RAG Approaches — Live Comparison
+# 5.3 Live Comparison
 
 A side-by-side comparison of the RAG approaches in this repo, run against a live
 `gen-ai-rag` Atlas stack. The recorded 2026-07-17 run used a local workstation
@@ -181,33 +181,20 @@ Ollama, or another configured provider.
    synthesis prompts; it does well on single-hop tool use and often stops early on
    multi-step tasks.
 
-## 6. Current Seven-Approach Results
+## 6. Reading the Current Results
 
-The 2026-07-17 ladder ran three datasets, 20 queries, and seven base approaches,
-producing 140 successful base cells plus complete scores from both judges. It
-then ran the same queries through all twelve non-base flavors for another 240
-successful cells. Each dataset/tier has all four canonical artifacts under
-[`docs/results/`](results/).
+The three measured datasets do not support a single best architecture. The
+baseline favors direct dense retrieval, the relation-dense dossiers reward the
+experimental lazy-graph path, and the cyber corpus favors context-prefixed
+retrieval. The flavor tier reinforces that query-time tuning is dataset-specific,
+rather than evidence that one base family is universally superior.
 
-| Dataset | Cells | Winner | Judge mean | Mean latency | Current reading |
-|---|---:|---|---:|---:|---|
-| `baseline_curated` | 42 | `vanilla-rag` | 4.17 | 3.83 s | Direct dense retrieval remained the strongest base control. |
-| `graph_native` | 56 | `lazy-graph-rag` | 4.31 | 4.94 s | Deterministic expansion won the relation-dense aggregate. |
-| `cyber_threat_intel` | 42 | `contextual-rag` | 3.17 | 24.20 s | Context-prefixed chunks led; five approaches tied closely at 3.00. |
-
-All approaches had zero response errors and zero timeouts. Atlas Ragas returned
-numeric answer relevancy for every cell and coverage-aware faithfulness for rows
-with exact contexts. LightRAG answer-only rows remain intentionally ineligible
-for faithfulness; they are not assigned zero. The generated
-[`dataset-complexity-report.md`](dataset-complexity-report.md) is the canonical
-aggregate and per-query view. Flavor rankings remain separate from the base-family
-leaderboard.
-
-| Dataset | Flavor winner | Judge mean | Mean latency |
-|---|---|---:|---:|
-| `baseline_curated` | `lazy-graph-rag-wide` | 4.58 | 6.31 s |
-| `graph_native` | `hybrid-rag-high-recall` | 4.19 | 10.23 s |
-| `cyber_threat_intel` | `hybrid-rag-fast` | 3.67 | 6.98 s |
+The [complete leaderboards](evaluation-results.md) contain the generated base and
+flavor tables for every approach and metric, including coverage, failures,
+latency, Ragas, and judge-panel fields. The generated
+[dataset complexity report](dataset-complexity-report.md) retains the ladder and
+per-query views, while the [artifact ledger](results/README.md) identifies the
+committed evidence behind those tables.
 
 ## 7. Judgment Panel
 

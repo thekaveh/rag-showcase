@@ -126,6 +126,12 @@ def test_sortable_table_script_is_site_only_and_registered(tmp_path: Path) -> No
     assert (site_dir / "javascripts" / "sortable-tables.js").is_file()
     assert not (wiki_dir / "javascripts" / "sortable-tables.js").exists()
 
+    leaderboard = next(page for page in pages if page.source.as_posix() == "evaluation-results.md")
+    for path in (site_dir / leaderboard.source, wiki_dir / leaderboard.wiki_name):
+        text = path.read_text(encoding="utf-8")
+        assert '<table class="results-table" id="base-overall">' in text
+        assert '<table class="results-table" id="flavor-overall">' in text
+
     config = tmp_path / "mkdocs.yml"
     render_mkdocs_yml(manifest, config)
     assert "javascripts/sortable-tables.js" in config.read_text(encoding="utf-8")

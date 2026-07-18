@@ -55,10 +55,12 @@ input:
 | Cyber-threat graph (MITRE ATT&CK) | `contextual-rag` | 3.17 |
 
 The flavor-tier winners were `lazy-graph-rag-wide`,
-`hybrid-rag-high-recall`, and `hybrid-rag-fast`. Full per-query winners, Ragas
-coverage, judge methodology, and raw snapshots are in
-[Evaluation and Results](evaluation-methodology.md) and the
-[Dataset Complexity Report](dataset-complexity-report.md).
+`hybrid-rag-high-recall`, and `hybrid-rag-fast`. These are concise headlines.
+The [Full sortable leaderboards](evaluation-results.md) contain every approach
+and metric; the [methodology](evaluation-methodology.md),
+[dataset complexity report](dataset-complexity-report.md), and
+[live-run artifact ledger](results/README.md) provide the protocol, ladder, and
+source artifacts.
 
 ## 3. Documentation
 
@@ -84,9 +86,10 @@ coverage, judge methodology, and raw snapshots are in
 
     ---
 
-    Judge-panel methodology, the dataset complexity ladder, and the measured rankings.
+    Complete sortable rankings, methodology, the dataset complexity ladder, and
+    committed live-run artifacts.
 
-    [Methodology](evaluation-methodology.md)
+    [Full sortable leaderboards](evaluation-results.md)
 
 -   **Architecture**
 

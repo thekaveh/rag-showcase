@@ -1,7 +1,11 @@
-# 5.4 Live Run Result Snapshots
+# 5.5 Live Run Result Snapshots
 
-This directory contains validated, committed snapshots from live Atlas-backed
-comparison runs. The dataset catalog in
+This directory is the committed-artifact ledger for validated, live Atlas-backed
+comparison runs. It records evidence and provenance; it does not present ranking
+tables. The generated [`evaluation-results.md`](../evaluation-results.md) page is
+the canonical complete leaderboard, and the generated
+[`dataset-complexity-report.md`](../dataset-complexity-report.md) provides the
+dataset ladder and per-query view. The dataset catalog in
 [`compare/datasets.yaml`](../../compare/datasets.yaml) identifies the active files
 for each measured dataset; older dated files remain provenance only.
 
@@ -83,3 +87,6 @@ the active report unless `compare/datasets.yaml` still references them.
   its optional `--csv-output` is a long-form generated view of the same summary.
 - [`evaluation-methodology.md`](../evaluation-methodology.md) defines the full
   ownership, metric, evidence, resume, and ranking contract.
+- [`evaluation-results.md`](../evaluation-results.md) renders complete static
+  base and flavor leaderboards from the active summaries.
+- [`comparison.md`](../comparison.md) interprets those generated rankings.

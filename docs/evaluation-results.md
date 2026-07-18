@@ -1,4 +1,4 @@
-# RAG Showcase Evaluation Results
+# 5.2 Evaluation Results and Leaderboards
 
 This generated report is the complete static comparison of the committed evaluation
 and judgment snapshots. It complements the [evaluation methodology](evaluation-methodology.md),
