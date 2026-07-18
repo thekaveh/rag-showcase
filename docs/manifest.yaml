@@ -95,3 +95,6 @@ sections:
       - number: "7.6"
         title: Cyber Threat Dataset Implementation Plan
         source: superpowers/plans/2026-07-03-cyber-threat-dataset.md
+      - number: "7.7"
+        title: Sortable Evaluation Leaderboards Design
+        source: superpowers/specs/2026-07-17-sortable-evaluation-leaderboards-design.md
