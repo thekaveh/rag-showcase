@@ -84,15 +84,19 @@ def test_aliases_are_declarative_and_startup_only_waits_for_them() -> None:
     script = (ROOT / "scripts" / "start-all.sh").read_text(encoding="utf-8")
     overlay = (ROOT / "compose" / "rag-overlay.yml").read_text(encoding="utf-8")
 
+    # Aliases are declared in atlas.consumer.yml (litellm_models) and compiled by
+    # Atlas into config.yaml before the proxy boots; the consumer performs no
+    # admin-API mutation, reconcile, or restart of LiteLLM (#49).
     assert "register_models.py" not in script
     assert "/model/new" not in script
+    assert "/model/delete" not in script
     assert "../register:/app/register" not in overlay
-    assert "reconcile_litellm_aliases.py" in script
-    assert "infra/volumes/litellm/consumer-models.yaml" in script
-    assert '--changed-file "$ALIAS_CHANGE_FILE"' in script
-    assert 'docker restart "${PROJECT_NAME}-litellm"' in script
+    assert "reconcile_litellm_aliases.py" not in script
+    assert '--changed-file "$ALIAS_CHANGE_FILE"' not in script
+    assert 'docker restart "${PROJECT_NAME}-litellm"' not in script
     assert "required = {" not in script
     assert ".rag-showcase-alias-migration" not in script
+    assert not (ROOT / "scripts" / "reconcile_litellm_aliases.py").exists()
     for alias, base in _expected_aliases().items():
         if alias != base:
             assert alias not in script

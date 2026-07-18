@@ -125,43 +125,11 @@ trap - EXIT INT TERM
 PROJECT_NAME="$(envval PROJECT_NAME)"
 [ -n "$PROJECT_NAME" ] || { echo "PROJECT_NAME not found in infra/.env; aborting."; exit 1; }
 
-# Atlas's generated file is authoritative for both the alias inventory and
-# routes. Reconcile exact legacy DB duplicates on every start, then verify the
-# owned rows and /v1/models discovery. This preserves all unrelated models and
-# also handles a restored database independently of host-side marker state.
-echo "==> Reconciling Atlas-declared LiteLLM model aliases…"
-ALIAS_CHANGE_FILE="$(mktemp "${TMPDIR:-/tmp}/rag-showcase-aliases.XXXXXX")"
-LITELLM_BASE_URL="http://127.0.0.1:$(envval LITELLM_PORT)" \
-LITELLM_MASTER_KEY="$(envval LITELLM_MASTER_KEY)" \
-  uv run python scripts/reconcile_litellm_aliases.py \
-    --models-file infra/volumes/litellm/consumer-models.yaml \
-    --changed-file "$ALIAS_CHANGE_FILE"
-if [ "$(cat "$ALIAS_CHANGE_FILE")" -gt 0 ]; then
-  # LiteLLM runs four workers. /model/delete removes the DB row, but sibling
-  # workers retain their startup cache until the proxy restarts. Reload once so
-  # this upgraded run cannot route to an obsolete pre-/rag deployment.
-  echo "==> Reloading LiteLLM after legacy alias cleanup…"
-  docker restart "${PROJECT_NAME}-litellm" >/dev/null
-  litellm_ready=0
-  for _ in $(seq 1 60); do
-    if docker exec "${PROJECT_NAME}-backend" python -c \
-         "import httpx,sys; sys.exit(0 if httpx.get('http://litellm:4000/health/liveliness',timeout=5).status_code == 200 else 1)" \
-         >/dev/null 2>&1; then litellm_ready=1; break; fi
-    sleep 2
-  done
-  [ "$litellm_ready" = 1 ] || { rm -f "$ALIAS_CHANGE_FILE"; echo "LiteLLM did not recover after alias cleanup."; exit 1; }
-  LITELLM_BASE_URL="http://127.0.0.1:$(envval LITELLM_PORT)" \
-  LITELLM_MASTER_KEY="$(envval LITELLM_MASTER_KEY)" \
-    uv run python scripts/reconcile_litellm_aliases.py \
-      --models-file infra/volumes/litellm/consumer-models.yaml \
-      --changed-file "$ALIAS_CHANGE_FILE"
-  [ "$(cat "$ALIAS_CHANGE_FILE")" -eq 0 ] || {
-    rm -f "$ALIAS_CHANGE_FILE"
-    echo "Legacy LiteLLM aliases remained after proxy reload." >&2
-    exit 1
-  }
-fi
-rm -f "$ALIAS_CHANGE_FILE"
+# Atlas compiles the consumer-declared LiteLLM aliases (`litellm_models` in
+# atlas.consumer.yml) into config.yaml before the proxy starts, so every alias is
+# discoverable in /v1/models at boot without any consumer-side admin-API mutation
+# or `docker restart`. The old per-start reconcile deleted rows from a retired
+# registration script (now gone), which is why it needed to flush worker caches.
 
 # Atlas owns workflow import/update. n8n CE can activate the seeded workflow on
 # the running process only when an operator-issued N8N_API_KEY is configured;
