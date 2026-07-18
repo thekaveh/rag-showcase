@@ -31,9 +31,22 @@ def _finite(value: Any, label: str) -> float:
     return numeric
 
 
+def _bounded(value: Any, label: str, minimum: float, maximum: float) -> float:
+    numeric = _finite(value, label)
+    if not minimum <= numeric <= maximum:
+        raise ValueError(f"{label} must be within [{minimum:g}, {maximum:g}]")
+    return numeric
+
+
 def _counter(value: Any, label: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ValueError(f"{label} must be a non-negative integer")
+    return value
+
+
+def _positive_integer(value: Any, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ValueError(f"{label} must be a positive integer")
     return value
 
 
@@ -90,6 +103,26 @@ def _load_json(root: Path, path: str, *, description: str) -> dict[str, Any]:
     return loaded
 
 
+def _base_approaches(root: Path) -> set[str]:
+    manifest = root / "compare" / "evaluation.yaml"
+    try:
+        data = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        raise ValueError(f"cannot load evaluation manifest {manifest}: {exc}") from exc
+    rows = data.get("approaches") if isinstance(data, dict) else None
+    if not isinstance(rows, list) or not rows:
+        raise ValueError(f"evaluation manifest {manifest} must contain an approaches list")
+    approaches: set[str] = set()
+    for index, row in enumerate(rows):
+        model = row.get("model") if isinstance(row, dict) else None
+        if not isinstance(model, str) or not model:
+            raise ValueError(f"evaluation manifest approach {index} must contain a model")
+        if model in approaches:
+            raise ValueError(f"evaluation manifest contains duplicate approach {model!r}")
+        approaches.add(model)
+    return approaches
+
+
 def _flavor_bases(root: Path) -> dict[str, str]:
     manifest = root / "compare" / "flavors.yaml"
     if not manifest.is_file():
@@ -144,7 +177,9 @@ def _metric(summary: dict[str, Any], name: str) -> dict[str, Any]:
         raise ValueError(f"Ragas {name} evaluated count exceeds total")
     if evaluated + not_evaluable + errors + timeouts != total:
         raise ValueError(f"Ragas counters for {name} do not add up to total")
-    _mean_with_coverage(metric["mean"], evaluated, f"Ragas {name}")
+    mean = _mean_with_coverage(metric["mean"], evaluated, f"Ragas {name}")
+    if mean is not None:
+        _bounded(mean, f"Ragas {name} mean", 0, 1)
     _coverage(metric["coverage"], evaluated, total, f"Ragas {name}")
     return metric
 
@@ -162,7 +197,11 @@ def _validate_operational(summary: dict[str, Any]) -> dict[str, Any]:
     timeouts = _counter(operational["timeouts"], "operational timeouts")
     if successful + errors + timeouts != attempted:
         raise ValueError("operational counters do not add up to attempted")
-    _mean_with_coverage(operational["mean_latency_ms"], successful, "operational latency")
+    mean_latency = _mean_with_coverage(
+        operational["mean_latency_ms"], successful, "operational latency"
+    )
+    if mean_latency is not None and mean_latency < 0:
+        raise ValueError("operational latency mean must be non-negative")
     expected_rate = round((errors + timeouts) / attempted, 6) if attempted else 0.0
     if _finite(operational["error_rate"], "operational error_rate") != expected_rate:
         raise ValueError("operational error_rate does not match response counters")
@@ -234,7 +273,7 @@ def _judge_details(
                 f"judgment query {index} approaches do not match evaluation approaches"
             )
         for approach, value in means.items():
-            _finite(value, f"judgment query {index} score for {approach}")
+            _bounded(value, f"judgment query {index} score for {approach}", 1, 5)
         per_judge = query.get("per_judge")
         if not isinstance(per_judge, dict) or set(per_judge) != set(models):
             raise ValueError(f"judgment query {index} judge coverage does not match the panel")
@@ -253,7 +292,9 @@ def _judge_details(
                     f"judgment query {index} per-judge approaches do not match evaluation approaches"
                 )
             for approach, value in scores.items():
-                numeric = _finite(value, f"judgment query {index} score from {model}")
+                numeric = _bounded(
+                    value, f"judgment query {index} score from {model}", 1, 5
+                )
                 model_scores[approach][model].append(numeric)
                 scores_by_approach[approach].append(numeric)
         if scores_by_approach[next(iter(approaches))] if approaches else False:
@@ -340,6 +381,8 @@ def _validate_judge_summary(
     if total != query_count:
         raise ValueError("judge total count does not match judgment queries")
     mean = _mean_with_coverage(judge["mean"], evaluated, "judge")
+    if mean is not None:
+        _bounded(mean, "judge mean", 1, 5)
     _coverage(judge["coverage"], evaluated, total, "judge")
     if evaluated != len(scores):
         raise ValueError("judge evaluated count does not match judgment scores")
@@ -352,6 +395,7 @@ def _records_for_dataset(
     evaluation: dict[str, Any],
     judgments: dict[str, Any],
     *,
+    configured_approaches: set[str],
     flavor_bases: dict[str, str],
     tier: str,
 ) -> tuple[list[dict[str, Any]], list[str], set[str]]:
@@ -366,10 +410,14 @@ def _records_for_dataset(
     if not approaches:
         raise ValueError(f"evaluation snapshot for {dataset_id!r} has no approaches")
     approach_names = set(approaches)
-    if tier == "base" and approach_names & set(flavor_bases):
-        raise ValueError(f"base snapshot for {dataset_id!r} contains flavor aliases")
-    if tier == "flavors" and not approach_names <= set(flavor_bases):
-        raise ValueError(f"flavor snapshot for {dataset_id!r} contains unknown flavor aliases")
+    if approach_names != configured_approaches:
+        label = "base" if tier == "base" else "flavor"
+        missing = sorted(configured_approaches - approach_names)
+        unexpected = sorted(approach_names - configured_approaches)
+        raise ValueError(
+            f"{label} snapshot for dataset {dataset_id!r} does not match configured "
+            f"{label} approach set; missing={missing}, unexpected={unexpected}"
+        )
     for approach, summary in approaches.items():
         if not isinstance(summary, dict):
             raise ValueError(f"approach {approach!r} has invalid summary")
@@ -389,6 +437,14 @@ def _records_for_dataset(
     ) = _judge_details(judgments, approach_names, dataset_id)
     for approach, summary in approaches.items():
         _validate_judge_summary(summary, scores=mean_scores[approach], query_count=query_count)
+        for name in ("answer_relevancy", "faithfulness"):
+            if _counter(_metric(summary, name)["total"], f"Ragas {name} total") != query_count:
+                raise ValueError(f"Ragas {name} total does not match judgment queries")
+        if (
+            _counter(summary["operational"]["attempted"], "operational attempted")
+            != query_count
+        ):
+            raise ValueError("operational attempted count does not match judgment queries")
     ranks = _rankings(approaches)
     records = []
     for approach in sorted(approaches):
@@ -397,7 +453,9 @@ def _records_for_dataset(
         records.append(
             {
                 "dataset": dataset_id,
-                "complexity": int(dataset["complexity_level"]),
+                "complexity": _positive_integer(
+                    dataset.get("complexity_level"), "dataset complexity_level"
+                ),
                 "approach": approach,
                 "base_family": base_family,
                 "maturity": "experimental" if base_family == "lazy-graph-rag" else "canonical",
@@ -522,12 +580,22 @@ def _overall_records(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _tier(
-    datasets: list[dict[str, Any]], *, root: Path, tier: str, flavor_bases: dict[str, str]
+    datasets: list[dict[str, Any]],
+    *,
+    root: Path,
+    tier: str,
+    configured_approaches: set[str],
+    flavor_bases: dict[str, str],
 ) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     models: set[str] = set()
-    expected_approaches: set[str] | None = None
-    for dataset in sorted(datasets, key=lambda row: (int(row["complexity_level"]), str(row["id"]))):
+    for dataset in sorted(
+        datasets,
+        key=lambda row: (
+            _positive_integer(row.get("complexity_level"), "dataset complexity_level"),
+            str(row["id"]),
+        ),
+    ):
         if dataset.get("status") != "measured":
             continue
         evaluation_path, judgment_path = _snapshot_paths(dataset, tier=tier)
@@ -535,15 +603,10 @@ def _tier(
             dataset,
             _load_json(root, evaluation_path, description="evaluation"),
             _load_json(root, judgment_path, description="judgment"),
+            configured_approaches=configured_approaches,
             flavor_bases=flavor_bases,
             tier=tier,
         )
-        if expected_approaches is None:
-            expected_approaches = approach_names
-        elif approach_names != expected_approaches:
-            raise ValueError(
-                f"{tier} snapshots must use the same approach set; dataset {dataset['id']!r} differs"
-            )
         rows.extend(records)
         models.update(tier_models)
     by_dataset = sorted(
@@ -572,8 +635,26 @@ def build_leaderboards(
         if dataset.get("status") == "measured":
             _snapshot_paths(dataset, tier="base")
             _snapshot_paths(dataset, tier="flavors")
+    base_approaches = _base_approaches(root)
     flavor_bases = _flavor_bases(root)
+    unknown_bases = sorted(set(flavor_bases.values()) - base_approaches)
+    if unknown_bases:
+        raise ValueError(
+            f"flavor base family {unknown_bases[0]!r} is not configured as a base approach"
+        )
     return {
-        "base": _tier(datasets, root=root, tier="base", flavor_bases=flavor_bases),
-        "flavors": _tier(datasets, root=root, tier="flavors", flavor_bases=flavor_bases),
+        "base": _tier(
+            datasets,
+            root=root,
+            tier="base",
+            configured_approaches=base_approaches,
+            flavor_bases=flavor_bases,
+        ),
+        "flavors": _tier(
+            datasets,
+            root=root,
+            tier="flavors",
+            configured_approaches=set(flavor_bases),
+            flavor_bases=flavor_bases,
+        ),
     }

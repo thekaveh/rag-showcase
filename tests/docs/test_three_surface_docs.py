@@ -141,3 +141,14 @@ def test_sortable_table_css_does_not_overlay_horizontally_scrolled_headers() -> 
     css = (DOCS / "stylesheets" / "extra.css").read_text(encoding="utf-8")
 
     assert ".results-table th:first-child" not in css
+
+
+def test_docs_workflow_runs_leaderboard_python_and_browser_contract_tests() -> None:
+    workflow = (DOCS.parent / ".github" / "workflows" / "docs.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert workflow.count('"compare/**"') == 2
+    assert workflow.count('"tests/**"') == 2
+    assert "uv run pytest tests backend_plugins/rag/tests -q" in workflow
+    assert "node --test tests/docs/test_sortable_tables.cjs" in workflow

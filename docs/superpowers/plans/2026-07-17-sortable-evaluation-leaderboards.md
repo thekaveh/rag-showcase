@@ -610,4 +610,3 @@ branches locally/remotely, remove non-primary worktrees, close only superseded
 open PRs after confirming merge state, and verify the `.io` page and Wiki page
 return HTTP 200 with the new leaderboard content. Final state must contain only
 local/remote `main` and `develop` branches and the required primary worktree.
-
