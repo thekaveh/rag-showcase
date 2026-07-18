@@ -114,12 +114,16 @@ def test_start_requires_structured_adaptive_rag_webhook_evidence() -> None:
     assert "Deferring adaptive-rag semantic verification until dataset ingestion" in script
 
 
-def test_start_does_not_create_a_user_overlay_symlink() -> None:
+def test_start_neither_creates_nor_cleans_up_a_user_overlay_symlink() -> None:
+    # The overlay loads through atlas.consumer.yml; the consumer never links it
+    # into Atlas's services/_user slot, and the one-shot migration guard that
+    # removed an old such symlink has been retired (#52).
     script = _script("start-all.sh")
 
     assert "setup-overlay.sh" not in script
     assert "ln -s" not in script
-    assert "LEGACY_OVERLAY" in script
+    assert "LEGACY_OVERLAY" not in script
+    assert "services/_user" not in script
     assert not (ROOT / "scripts" / "setup-overlay.sh").exists()
 
 

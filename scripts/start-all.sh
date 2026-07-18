@@ -65,23 +65,6 @@ RAG_BASE_COLLECTION="${RAG_BASE_COLLECTION:-RagBase_${RAG_INGESTION_PROFILE}}"
 RAG_CONTEXTUAL_COLLECTION="${RAG_CONTEXTUAL_COLLECTION:-RagContextual_${RAG_INGESTION_PROFILE}}"
 export RAG_INGESTION_PROFILE RAG_BASE_COLLECTION RAG_CONTEXTUAL_COLLECTION
 
-# Older releases linked this overlay into Atlas's ignored services/_user slot.
-# Remove only that exact generated symlink so an upgraded checkout cannot load
-# the same Compose fragment both there and through atlas.consumer.yml.
-LEGACY_OVERLAY="$ROOT/infra/services/_user/rag-showcase/compose.yml"
-if [ -L "$LEGACY_OVERLAY" ]; then
-  [ "$(readlink "$LEGACY_OVERLAY")" = "../../../../compose/rag-overlay.yml" ] || {
-    echo "Unexpected legacy overlay symlink at $LEGACY_OVERLAY; remove it manually." >&2
-    exit 1
-  }
-  rm "$LEGACY_OVERLAY"
-  rmdir "$(dirname "$LEGACY_OVERLAY")" 2>/dev/null || true
-  rmdir "$ROOT/infra/services/_user" 2>/dev/null || true
-elif [ -e "$LEGACY_OVERLAY" ]; then
-  echo "Refusing to replace non-symlink legacy overlay: $LEGACY_OVERLAY" >&2
-  exit 1
-fi
-
 # Read a key's value from Atlas's infra/.env. Atlas's .env can carry a key more
 # than once (overlays/appends); dotenv and Compose both take the last assignment,
 # so we do too (tail -1). This also keeps the result a single line even when the
@@ -182,16 +165,8 @@ rm -f "$ALIAS_CHANGE_FILE"
 
 # Atlas owns workflow import/update. n8n CE can activate the seeded workflow on
 # the running process only when an operator-issued N8N_API_KEY is configured;
-# otherwise Atlas persists it and explicitly requires one reload. Also remove
-# the exact unnamespaced id owned by releases before consumer workflow seeding.
+# otherwise Atlas persists it and explicitly requires one reload.
 n8n_reload=0
-if docker exec "${PROJECT_NAME}-n8n" n8n list:workflow 2>/dev/null \
-     | grep -q '^adaptiverag00001|'; then
-  echo "==> Removing the legacy unnamespaced adaptive-rag workflow…"
-  docker exec -i -w /usr/local/lib/node_modules/n8n "${PROJECT_NAME}-n8n" \
-    node - < "$ROOT/scripts/remove_legacy_n8n_workflow.js"
-  n8n_reload=1
-fi
 if [ -z "$(envval N8N_API_KEY)" ]; then
   # Atlas can call n8n's activation API when a UI-issued key exists. Without
   # one, n8n 2.28 imports the normalized JSON as inactive despite active:true;

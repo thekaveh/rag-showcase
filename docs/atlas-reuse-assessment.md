@@ -209,10 +209,7 @@ restart alone does not change the state.
 
 The showcase temporarily publishes only the Atlas-owned
 `atlas-consumer-adaptive-rag` id, reloads n8n, and then requires a successful real
-webhook answer. For upgrades, it deletes only the exact old `adaptiverag00001`
-identity: n8n's unpublish CLI leaves that workflow's unique webhook row behind, so
-the database foreign-key cascade is needed to prevent a legacy route from blocking
-or masking the probe. Atlas #514 tracks moving the activation/reload step upstream;
+webhook answer. Atlas #514 tracks moving the activation/reload step upstream;
 the manifest and workflow source will remain unchanged when that shim is removed.
 
 ### 2.17 Generic ingestion lifecycle
