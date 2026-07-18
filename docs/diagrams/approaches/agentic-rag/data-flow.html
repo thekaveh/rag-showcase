@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>agentic-rag service and data flow</title>
+  <style>
+    * { box-sizing: border-box; } html, body { width: 1800px; height: 1000px; margin: 0; overflow: hidden; }
+    body { background: #020617; color: #f8fafc; font-family: "JetBrains Mono", Menlo, monospace; padding: 22px 30px 14px; }
+    header { height: 72px; display: flex; align-items: center; gap: 16px; } .dot { width: 12px; height: 12px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 18px #22d3ee; }
+    h1 { font-size: 28px; margin: 0; letter-spacing: 0; } header p { color: #94a3b8; font-size: 14px; margin: 7px 0 0; }
+    main { height: 850px; border: 1px solid #1e293b; border-radius: 8px; background: #07101f; } svg { display: block; width: 100%; height: 100%; }
+    footer { height: 38px; color: #64748b; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+    .boundary { fill: #0b1220; stroke: #334155; stroke-width: 1.5; stroke-dasharray: 8 6; } .tool-boundary { fill: #10131d; stroke: #fb923c; stroke-width: 1.5; stroke-dasharray: 6 4; }
+    .lane { fill: #94a3b8; font-size: 13px; font-weight: 700; } .node { stroke-width: 2; rx: 6; } .external { fill: #111827; stroke: #94a3b8; } .backend { fill: #063b32; stroke: #34d399; } .model { fill: #422006; stroke: #fbbf24; } .data { fill: #2e1065; stroke: #a78bfa; } .workflow { fill: #431407; stroke: #fb923c; }
+    .title { fill: #f8fafc; font-size: 12px; font-weight: 700; text-anchor: middle; } .sub { fill: #cbd5e1; font-size: 9px; text-anchor: middle; }
+    .flow { fill: none; stroke: #22d3ee; stroke-width: 2.2; marker-end: url(#arrow); } .tool { fill: none; stroke: #fb923c; stroke-width: 2; marker-end: url(#arrow-orange); } .observe { fill: none; stroke: #a78bfa; stroke-width: 2; marker-end: url(#arrow-purple); } .final { fill: none; stroke: #34d399; stroke-width: 2; marker-end: url(#arrow-green); }
+    .step { fill: #020617; stroke: #22d3ee; stroke-width: 1.5; } .step-text { fill: #67e8f9; font-size: 10px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; } .label { fill: #cbd5e1; font-size: 8px; text-anchor: middle; }
+    .ledger { fill: #0f172a; stroke: #334155; stroke-width: 1.5; } .ledger-title { fill: #f8fafc; font-size: 13px; font-weight: 700; } .ledger-head { fill: #67e8f9; font-size: 10px; font-weight: 700; } .ledger-copy { fill: #94a3b8; font-size: 9px; }
+  </style>
+</head>
+<body>
+  <header><span class="dot"></span><div><h1>agentic-rag · service and data flow</h1><p>Request-local ReAct controller chooses vector or graph tools, observes results, and emits a trace</p></div></header>
+  <main>
+    <svg viewBox="0 0 1800 860" role="img" aria-labelledby="title desc">
+      <title id="title">agentic-rag service and data flow</title><desc id="desc">An agent controller selects vector and graph retrieval tools during each request and keeps observations only in the current message history.</desc>
+      <defs>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#1e293b" stroke-width="0.6"/></pattern>
+        <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#22d3ee"/></marker><marker id="arrow-orange" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#fb923c"/></marker>
+        <marker id="arrow-purple" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#a78bfa"/></marker><marker id="arrow-green" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#34d399"/></marker>
+      </defs>
+      <rect width="1800" height="860" fill="url(#grid)"/><rect class="boundary" x="185" y="42" width="1570" height="575" rx="10"/>
+      <text class="lane" x="205" y="69">ATLAS COMPOSE STACK · RAG PLUGIN + RETRIEVAL SERVICES</text><text class="lane" x="205" y="101" fill="#22d3ee">CONTROL PATH · ONE REQUEST-LOCAL MESSAGE HISTORY</text>
+      <rect class="tool-boundary" x="430" y="300" width="1280" height="280" rx="10"/><text class="lane" x="450" y="327" fill="#fdba74">TOOL EXECUTION · SELECTED AT QUERY TIME</text>
+
+      <path class="flow" d="M180 200H220"/><path class="flow" d="M400 200H440"/><path class="flow" d="M630 200H680"/>
+      <path class="tool" d="M900 185H950V390H1020"/><path class="tool" d="M900 215H930V520H1020"/>
+      <path class="tool" d="M1200 390H1250"/><path class="tool" d="M1430 390H1480"/><path class="tool" d="M1200 520H1250"/><path class="tool" d="M1430 520H1480"/>
+      <path class="observe" d="M1570 430V480"/><path class="observe" d="M1660 520H1700V605H830V240"/>
+      <path class="final" d="M790 160V120H1560V160"/>
+
+      <g><circle class="step" cx="200" cy="200" r="11"/><text class="step-text" x="200" y="200">1</text><text class="label" x="200" y="178">request</text></g><g><circle class="step" cx="420" cy="200" r="11"/><text class="step-text" x="420" y="200">2</text><text class="label" x="420" y="178">dispatch</text></g><g><circle class="step" cx="655" cy="200" r="11"/><text class="step-text" x="655" y="200">3</text><text class="label" x="655" y="178">tools + prompt</text></g>
+      <text class="label" x="900" y="112" fill="#34d399">7 · finish → final answer + trace</text><text class="label" x="1200" y="598" fill="#c4b5fd">6 · tool observations append to current request history; repeat until finish or MAX_STEPS=4</text>
+
+      <rect class="node external" x="20" y="160" width="160" height="80"/><text class="title" x="100" y="190">Caller</text><text class="sub" x="100" y="212">Open WebUI / API</text>
+      <rect class="node backend" x="220" y="160" width="180" height="80"/><text class="title" x="310" y="190">LiteLLM</text><text class="sub" x="310" y="212">model: agentic-rag</text>
+      <rect class="node backend" x="440" y="160" width="190" height="80"/><text class="title" x="535" y="190">Agentic plugin</text><text class="sub" x="535" y="212">schemas · loop · trace</text>
+      <rect class="node model" x="680" y="160" width="220" height="80"/><text class="title" x="790" y="190">ReAct controller LLM</text><text class="sub" x="790" y="212">choose tool or finish</text>
+      <rect class="node external" x="1560" y="160" width="175" height="80"/><text class="title" x="1647" y="190">OpenAI response</text><text class="sub" x="1647" y="212">answer · sources · trace</text>
+
+      <rect class="node workflow" x="1020" y="350" width="180" height="80"/><text class="title" x="1110" y="380">search_vectors</text><text class="sub" x="1110" y="402">query · vector_top_k</text>
+      <rect class="node model" x="1250" y="350" width="180" height="80"/><text class="title" x="1340" y="380">Embedding model</text><text class="sub" x="1340" y="402">nomic-embed-text</text>
+      <rect class="node data" x="1480" y="350" width="180" height="80"/><text class="title" x="1570" y="380">Weaviate</text><text class="sub" x="1570" y="402">hybrid vector search</text>
+      <rect class="node workflow" x="1020" y="480" width="180" height="80"/><text class="title" x="1110" y="510">query_graph</text><text class="sub" x="1110" y="532">question · graph_mode</text>
+      <rect class="node backend" x="1250" y="480" width="180" height="80"/><text class="title" x="1340" y="510">LightRAG</text><text class="sub" x="1340" y="532">graph/vector retrieval</text>
+      <rect class="node data" x="1480" y="480" width="180" height="80"/><text class="title" x="1570" y="510">Tool observations</text><text class="sub" x="1570" y="532">results or failure text</text>
+
+      <rect class="ledger" x="45" y="650" width="1710" height="170" rx="8"/><text class="ledger-title" x="70" y="680">MESSAGE CONTRACT, STATE, AND FAILURE SEMANTICS</text>
+      <line x1="470" y1="695" x2="470" y2="800" stroke="#334155"/><line x1="900" y1="695" x2="900" y2="800" stroke="#334155"/><line x1="1330" y1="695" x2="1330" y2="800" stroke="#334155"/>
+      <text class="ledger-head" x="70" y="710">1–3 · INITIAL DECISION</text><text class="ledger-copy" x="70" y="730">question + tool schemas → controller model</text><text class="ledger-copy" x="70" y="748">Tool selection happens at query time.</text><text class="ledger-copy" x="70" y="766">No cross-request memory is persisted.</text>
+      <text class="ledger-head" x="500" y="710">4 · VECTOR TOOL</text><text class="ledger-copy" x="500" y="730">question → embed → Weaviate hybrid search</text><text class="ledger-copy" x="500" y="748">Returns source-bearing chunk observations.</text><text class="ledger-copy" x="500" y="766">Uses the existing RagBase index.</text>
+      <text class="ledger-head" x="930" y="710">5 · GRAPH TOOL</text><text class="ledger-copy" x="930" y="730">question → LightRAG query service</text><text class="ledger-copy" x="930" y="748">Uses the persistent LightRAG workspace.</text><text class="ledger-copy" x="930" y="766">Tool failures become observations, not crashes.</text>
+      <text class="ledger-head" x="1360" y="710">6–7 · LOOP + RETURN</text><text class="ledger-copy" x="1360" y="730">Observations feed the next controller turn.</text><text class="ledger-copy" x="1360" y="748">Loop stops at finish or MAX_STEPS.</text><text class="ledger-copy" x="1360" y="766">Response includes the request execution trace.</text>
+    </svg>
+  </main>
+  <footer>Deployment: controller plugin, LiteLLM, Weaviate, and LightRAG run in the Atlas Compose project · Invocation: agentic-rag LiteLLM alias</footer>
+</body>
+</html>

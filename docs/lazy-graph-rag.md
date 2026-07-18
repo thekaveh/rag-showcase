@@ -33,6 +33,10 @@ bounded rather than selected by an LLM loop.
 
 ## 2. Components and Data Flow
 
+[Open the full-resolution interactive diagram](diagrams/approaches/lazy-graph-rag/data-flow.html)
+
+![lazy-graph-rag service and data flow](diagrams/approaches/lazy-graph-rag/data-flow.png)
+
 The implementation lives in:
 
 - `backend_plugins/rag/common/lazy_graph.py`: extraction, graph construction,
