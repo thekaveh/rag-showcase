@@ -7,11 +7,15 @@ from typing import Any
 import pytest
 import yaml
 
+from compare import report_leaderboards
 from compare.leaderboards import (
     build_leaderboards,
     competition_ranks,
     mean_pairwise_disagreement,
 )
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _metric(
@@ -530,3 +534,24 @@ def test_competition_ranks_preserve_ties() -> None:
 def test_mean_pairwise_disagreement() -> None:
     assert mean_pairwise_disagreement([[1.0, 3.0], [2.0, 5.0]]) == 2.5
     assert mean_pairwise_disagreement([[4.0]]) is None
+
+
+def test_leaderboard_report_contains_all_result_views() -> None:
+    report = report_leaderboards.build_report()
+
+    assert "## 2. Overall Base-Approach Leaderboard" in report
+    assert 'id="base-overall"' in report
+    assert 'id="base-by-dataset"' in report
+    assert 'id="flavor-overall"' in report
+    assert 'id="flavor-by-dataset"' in report
+    assert "Dataset-macro judge" in report
+    assert "Query-weighted judge" in report
+    assert "Faithfulness coverage" in report
+    assert "Errors" in report
+    assert "Timeouts" in report
+
+
+def test_committed_leaderboard_report_is_fresh() -> None:
+    assert report_leaderboards.build_report() == (
+        ROOT / "docs" / "evaluation-results.md"
+    ).read_text(encoding="utf-8")
