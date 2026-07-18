@@ -112,7 +112,7 @@ def test_start_all_supports_service_only_mode() -> None:
     assert 'BACKEND_INTERNAL_API_TOKEN="$(envval BACKEND_INTERNAL_API_TOKEN)"' in script
     assert "ingest.contextual" in script
     assert "/app/ingest/ingest.py" not in script
-    assert "Reconciling Atlas-declared LiteLLM model aliases" in script
+    assert "Reconciling Atlas-declared LiteLLM model aliases" not in script
     assert "import:workflow" not in script
     assert "--activeState=fromJson" not in script
     assert "adaptive-rag.workflow.json" not in script
