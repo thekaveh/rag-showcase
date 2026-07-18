@@ -66,6 +66,21 @@ def _diagram_asset_target(source: Path, clean_target: str, surface: str, image: 
     return _relative(PurePosixPath(source.as_posix()), f"assets/img/{stem}{ext}")
 
 
+def _nested_diagram_target(
+    link_source: PurePosixPath, clean_target: str, surface: str
+) -> str | None:
+    prefix = "diagrams/approaches/"
+    if not clean_target.startswith(prefix):
+        return None
+    relative = clean_target.removeprefix("diagrams/")
+    destination = (
+        f"diagrams/{relative}"
+        if surface == "wiki"
+        else f"assets/diagrams/{relative}"
+    )
+    return _relative(link_source, destination)
+
+
 def _diagram_html_target(source: Path, clean_target: str, surface: str) -> str | None:
     if not clean_target.endswith(".html"):
         return None
@@ -90,6 +105,11 @@ def rewrite_for_surface(
         clean_target = target.split("#", 1)[0]
         anchor = "#" + target.split("#", 1)[1] if "#" in target else ""
         if surface in {"site", "wiki"}:
+            nested_diagram = _nested_diagram_target(
+                link_source, clean_target, surface
+            )
+            if nested_diagram:
+                return f"{'!' if bang else ''}[{text}]({nested_diagram}{anchor})"
             diagram_asset = _diagram_asset_target(source, clean_target, surface, bool(bang))
             if diagram_asset:
                 return f"{'!' if bang else ''}[{text}]({diagram_asset}{anchor})"

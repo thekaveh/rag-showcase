@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>lazy-graph-rag service and data flow</title>
+  <style>
+    * { box-sizing: border-box; } html, body { width: 1800px; height: 1000px; margin: 0; overflow: hidden; }
+    body { background: #020617; color: #f8fafc; font-family: "JetBrains Mono", Menlo, monospace; padding: 22px 30px 14px; }
+    header { height: 72px; display: flex; align-items: center; gap: 16px; } .dot { width: 12px; height: 12px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 18px #22d3ee; }
+    h1 { font-size: 28px; margin: 0; letter-spacing: 0; } header p { color: #94a3b8; font-size: 14px; margin: 7px 0 0; }
+    main { height: 850px; border: 1px solid #1e293b; border-radius: 8px; background: #07101f; } svg { display: block; width: 100%; height: 100%; }
+    footer { height: 38px; color: #64748b; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+    .boundary { fill: #0b1220; stroke: #334155; stroke-width: 1.5; stroke-dasharray: 8 6; } .lazy-boundary { fill: #10131d; stroke: #fb923c; stroke-width: 1.5; stroke-dasharray: 6 4; }
+    .lane { fill: #94a3b8; font-size: 13px; font-weight: 700; } .node { stroke-width: 2; rx: 6; } .external { fill: #111827; stroke: #94a3b8; } .backend { fill: #063b32; stroke: #34d399; } .model { fill: #422006; stroke: #fbbf24; } .data { fill: #2e1065; stroke: #a78bfa; } .workflow { fill: #431407; stroke: #fb923c; }
+    .title { fill: #f8fafc; font-size: 12px; font-weight: 700; text-anchor: middle; } .sub { fill: #cbd5e1; font-size: 9px; text-anchor: middle; }
+    .flow { fill: none; stroke: #22d3ee; stroke-width: 2.2; marker-end: url(#arrow); } .build { fill: none; stroke: #fb923c; stroke-width: 2; marker-end: url(#arrow-orange); } .cache { fill: none; stroke: #a78bfa; stroke-width: 2; marker-end: url(#arrow-purple); } .return { fill: none; stroke: #34d399; stroke-width: 2; marker-end: url(#arrow-green); }
+    .step { fill: #020617; stroke: #22d3ee; stroke-width: 1.5; } .step-text { fill: #67e8f9; font-size: 10px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; } .label { fill: #cbd5e1; font-size: 8px; text-anchor: middle; }
+    .ledger { fill: #0f172a; stroke: #334155; stroke-width: 1.5; } .ledger-title { fill: #f8fafc; font-size: 13px; font-weight: 700; } .ledger-head { fill: #67e8f9; font-size: 10px; font-weight: 700; } .ledger-copy { fill: #94a3b8; font-size: 9px; }
+  </style>
+</head>
+<body>
+  <header><span class="dot"></span><div><h1>lazy-graph-rag · service and data flow</h1><p>Hybrid seed retrieval plus an LLM-free cached concept graph built lazily from RagBase chunks</p></div></header>
+  <main>
+    <svg viewBox="0 0 1800 860" role="img" aria-labelledby="title desc">
+      <title id="title">lazy-graph-rag service and data flow</title><desc id="desc">The query path combines hybrid seed search with a deterministic concept graph cached by corpus fingerprint on an Atlas volume.</desc>
+      <defs>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#1e293b" stroke-width="0.6"/></pattern>
+        <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#22d3ee"/></marker><marker id="arrow-orange" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#fb923c"/></marker>
+        <marker id="arrow-purple" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#a78bfa"/></marker><marker id="arrow-green" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#34d399"/></marker>
+      </defs>
+      <rect width="1800" height="860" fill="url(#grid)"/><rect class="boundary" x="185" y="42" width="1570" height="575" rx="10"/>
+      <text class="lane" x="205" y="69">ATLAS COMPOSE STACK · RAG PLUGIN + WEAVIATE + NAMED CACHE VOLUME</text><text class="lane" x="205" y="101" fill="#22d3ee">QUERY PATH · RETRIEVAL AND CACHE CHECK RUN CONCURRENTLY</text>
+      <rect class="lazy-boundary" x="870" y="105" width="855" height="450" rx="10"/><text class="lane" x="890" y="132" fill="#fdba74">LAZY GRAPH PIPELINE · NO LIGHTRAG · NO NEO4J · NO EXTRACTION LLM</text>
+
+      <path class="flow" d="M180 190H220"/><path class="flow" d="M400 190H440"/><path class="flow" d="M620 190H660"/><path class="flow" d="M840 190H920"/>
+      <path class="flow" d="M1100 190H1140"/><path class="flow" d="M1320 190H1370"/><path class="flow" d="M1540 190H1580"/>
+      <path class="flow" d="M530 230V430H920"/><path class="flow" d="M1100 430H1140"/><path class="cache" d="M1320 430H1370"/>
+      <path class="cache" d="M1455 390V270H1455V230"/><path class="build" d="M1540 430H1580"/><path class="build" d="M1660 390V285H1540V230"/>
+      <path class="return" d="M1740 190H1770V585H100V230"/>
+
+      <g><circle class="step" cx="200" cy="190" r="11"/><text class="step-text" x="200" y="190">1</text><text class="label" x="200" y="168">request</text></g><g><circle class="step" cx="420" cy="190" r="11"/><text class="step-text" x="420" y="190">2</text><text class="label" x="420" y="168">dispatch</text></g><g><circle class="step" cx="640" cy="190" r="11"/><text class="step-text" x="640" y="190">3</text><text class="label" x="640" y="168">embed</text></g>
+      <g><circle class="step" cx="880" cy="190" r="11"/><text class="step-text" x="880" y="190">4A</text></g><g><circle class="step" cx="1120" cy="190" r="11"/><text class="step-text" x="1120" y="190">4B</text></g><g><circle class="step" cx="1345" cy="190" r="11"/><text class="step-text" x="1345" y="190">6</text></g><g><circle class="step" cx="1560" cy="190" r="11"/><text class="step-text" x="1560" y="190">7</text></g>
+      <text class="label" x="725" y="448" fill="#67e8f9">5A · read all RagBase chunks</text><text class="label" x="1455" y="365" fill="#c4b5fd">5B · cache hit</text><text class="label" x="1545" y="500" fill="#fdba74">5C · cache miss → build + write</text><text class="label" x="880" y="604" fill="#34d399">8 · answer + sources + cache/index/traversal metadata</text>
+
+      <rect class="node external" x="20" y="150" width="160" height="80"/><text class="title" x="100" y="180">Caller</text><text class="sub" x="100" y="202">Open WebUI / API</text>
+      <rect class="node backend" x="220" y="150" width="180" height="80"/><text class="title" x="310" y="180">LiteLLM</text><text class="sub" x="310" y="202">model: lazy-graph-rag</text>
+      <rect class="node backend" x="440" y="150" width="180" height="80"/><text class="title" x="530" y="180">Lazy graph plugin</text><text class="sub" x="530" y="202">orchestrate · assemble · metrics</text>
+      <rect class="node model" x="660" y="150" width="180" height="80"/><text class="title" x="750" y="180">Query embedding</text><text class="sub" x="750" y="202">nomic-embed-text</text>
+
+      <rect class="node workflow" x="920" y="150" width="180" height="80"/><text class="title" x="1010" y="180">Hybrid seed search</text><text class="sub" x="1010" y="202">seed_k candidates</text>
+      <rect class="node data" x="1140" y="150" width="180" height="80"/><text class="title" x="1230" y="180">Weaviate · RagBase</text><text class="sub" x="1230" y="202">hybrid seed chunks</text>
+      <rect class="node workflow" x="1370" y="150" width="170" height="80"/><text class="title" x="1455" y="180">Budgeted expansion</text><text class="sub" x="1455" y="202">relevance budget · context cap</text>
+      <rect class="node model" x="1580" y="150" width="160" height="80"/><text class="title" x="1660" y="180">light_gen</text><text class="sub" x="1660" y="202">expanded evidence → answer</text>
+
+      <rect class="node workflow" x="920" y="390" width="180" height="80"/><text class="title" x="1010" y="420">Full chunk scan</text><text class="sub" x="1010" y="442">read corpus state</text>
+      <rect class="node data" x="1140" y="390" width="180" height="80"/><text class="title" x="1230" y="420">RagBase chunks</text><text class="sub" x="1230" y="442">content fingerprint input</text>
+      <rect class="node data" x="1370" y="390" width="170" height="80"/><text class="title" x="1455" y="420">Graph cache volume</text><text class="sub" x="1455" y="442">fingerprint → cached index</text>
+      <rect class="node workflow" x="1580" y="390" width="160" height="80"/><text class="title" x="1660" y="420">Deterministic builder</text><text class="sub" x="1660" y="442">concept + co-occurrence graph</text>
+
+      <rect class="ledger" x="45" y="650" width="1710" height="170" rx="8"/><text class="ledger-title" x="70" y="680">MESSAGE CONTRACT, CACHE LIFECYCLE, AND TUNING</text>
+      <line x1="470" y1="695" x2="470" y2="800" stroke="#334155"/><line x1="900" y1="695" x2="900" y2="800" stroke="#334155"/><line x1="1330" y1="695" x2="1330" y2="800" stroke="#334155"/>
+      <text class="ledger-head" x="70" y="710">1–4 · SEED RETRIEVAL</text><text class="ledger-copy" x="70" y="730">question → embedding → hybrid seed candidates</text><text class="ledger-copy" x="70" y="748">seed_k controls graph entry points.</text><text class="ledger-copy" x="70" y="766">Uses the shared RagBase corpus.</text>
+      <text class="ledger-head" x="500" y="710">5 · CACHE OR BUILD</text><text class="ledger-copy" x="500" y="730">all chunks → stable content fingerprint</text><text class="ledger-copy" x="500" y="748">Cache hit reuses the deterministic index.</text><text class="ledger-copy" x="500" y="766">Cache miss builds once and writes the volume.</text>
+      <text class="ledger-head" x="930" y="710">6 · BUDGETED EXPANSION</text><text class="ledger-copy" x="930" y="730">seed nodes → relevance-budgeted neighbors</text><text class="ledger-copy" x="930" y="748">max_context_chunks bounds evidence size.</text><text class="ledger-copy" x="930" y="766">Graph is machine-oriented and query-supporting.</text>
+      <text class="ledger-head" x="1360" y="710">7–8 · GENERATE + RETURN</text><text class="ledger-copy" x="1360" y="730">light_gen receives expanded source chunks.</text><text class="ledger-copy" x="1360" y="748">Response exposes cache and traversal metadata.</text><text class="ledger-copy" x="1360" y="766">No extraction-model call is required.</text>
+    </svg>
+  </main>
+  <footer>Deployment: plugin cache uses an Atlas named volume; Weaviate and LiteLLM run in the Atlas Compose project · Invocation: lazy-graph-rag alias</footer>
+</body>
+</html>

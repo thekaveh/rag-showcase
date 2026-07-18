@@ -58,6 +58,10 @@ def render_site(manifest: dict[str, Any], pages: list[Page], site_dir: Path = SI
     _copy_tree_files(DOCS / "stylesheets", site_dir / "stylesheets")
     _copy_tree_files(DOCS / "results", site_dir / "results", "*.json")
     _copy_tree_files(DOCS / "results", site_dir / "results", "*.jsonl")
+    _copy_tree_files(
+        DOCS / "diagrams" / "approaches",
+        site_dir / "assets" / "diagrams" / "approaches",
+    )
     for html in (DOCS / "diagrams").glob("*.html"):
         target = site_dir / "assets" / "diagrams" / html.name
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -89,6 +93,10 @@ def render_wiki(manifest: dict[str, Any], pages: list[Page], wiki_dir: Path = WI
     _write(wiki_dir / "_Footer.md", "Generated from the canonical rag-showcase docs.\n")
     _copy_tree_files(DOCS / "results", wiki_dir / "results", "*.json")
     _copy_tree_files(DOCS / "results", wiki_dir / "results", "*.jsonl")
+    _copy_tree_files(
+        DOCS / "diagrams" / "approaches",
+        wiki_dir / "diagrams" / "approaches",
+    )
     for html in (DOCS / "diagrams").glob("*.html"):
         target = wiki_dir / "diagrams" / html.name
         target.parent.mkdir(parents=True, exist_ok=True)

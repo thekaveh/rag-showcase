@@ -167,7 +167,13 @@ repository artifact rather than an MkDocs page.
 `vanilla-rag` is the control path: pure dense vector retrieval over plain chunks,
 followed by one answer-generation call.
 
-### 3.2 Internal Steps
+### 3.2 Service and Data Flow
+
+[Open the full-resolution interactive diagram](diagrams/approaches/vanilla-rag/data-flow.html)
+
+![vanilla-rag service and data flow](diagrams/approaches/vanilla-rag/data-flow.png)
+
+### 3.3 Internal Steps
 
 1. Read the latest user message.
 2. Embed the question through LiteLLM.
@@ -177,20 +183,20 @@ followed by one answer-generation call.
 6. Call the `light_gen` model once.
 7. Return the answer plus the retrieved chunk titles/snippets.
 
-### 3.3 Dependencies
+### 3.4 Dependencies
 
 - LiteLLM embedding route.
 - Atlas-ingested Weaviate collection `RagBase_<profile>`.
 - LiteLLM chat route for `light_gen`.
 
-### 3.4 Models Used
+### 3.5 Models Used
 
 - Query embedding: `embed` role, default `nomic-embed-text`.
 - Answer generation: `light_gen` role, default `qwen3.6:latest`.
 - External evaluation: Atlas scores eligible stored contexts through the Ragas
   endpoint; the manifest-configured judge panel scores stored answers separately.
 
-### 3.5 Tuning Surface
+### 3.6 Tuning Surface
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
@@ -200,7 +206,7 @@ followed by one answer-generation call.
 | Prompt template | shared `stuff` prompt | No | Shared with hybrid/contextual. |
 | Generation model | `roles.yaml` `light_gen` | Yes, via roles file | Per-model request defaults come from Atlas's model catalog. |
 
-### 3.6 Observed Behavior
+### 3.7 Observed Behavior
 
 Fast and competitive throughout this bounded run. It won baseline at 4.17,
 ranked third on graph-native at 4.06, and tied for second on cyber at 3.00. Dense
@@ -215,7 +221,13 @@ chunks, but the generation model can synthesize explicit relation dossiers well.
 and dense retrieval over plain chunks, then reranks candidates before generation.
 It does not query LightRAG or use extracted graph entities/relations.
 
-### 4.2 Internal Steps
+### 4.2 Service and Data Flow
+
+[Open the full-resolution interactive diagram](diagrams/approaches/hybrid-rag/data-flow.html)
+
+![hybrid-rag service and data flow](diagrams/approaches/hybrid-rag/data-flow.png)
+
+### 4.3 Internal Steps
 
 1. Read the latest user message.
 2. Embed the question through LiteLLM.
@@ -229,7 +241,7 @@ It does not query LightRAG or use extracted graph entities/relations.
 9. Call the `light_gen` model once.
 10. Return the answer plus reranked sources and TEI scores.
 
-### 4.3 Dependencies
+### 4.4 Dependencies
 
 - LiteLLM embedding route.
 - Atlas-ingested Weaviate collection `RagBase_<profile>`.
@@ -237,7 +249,7 @@ It does not query LightRAG or use extracted graph entities/relations.
 - TEI reranker endpoint.
 - LiteLLM chat route for `light_gen`.
 
-### 4.4 Models Used
+### 4.5 Models Used
 
 - Query embedding: `embed` role, default `nomic-embed-text`.
 - Reranking: Atlas TEI reranker service, default endpoint
@@ -246,7 +258,7 @@ It does not query LightRAG or use extracted graph entities/relations.
 - External evaluation: Atlas scores eligible stored contexts through the Ragas
   endpoint; the manifest-configured judge panel scores stored answers separately.
 
-### 4.5 Tuning Surface
+### 4.6 Tuning Surface
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
@@ -258,7 +270,7 @@ It does not query LightRAG or use extracted graph entities/relations.
 | TEI endpoint | `http://tei-reranker:80` | Yes, `TEI_RERANKER_ENDPOINT` | Reranker quality/model can materially affect results. |
 | Collection | `RagBase_<profile>` | Yes, profile-selected | Plain chunks only. |
 
-### 4.6 Observed Behavior
+### 4.7 Observed Behavior
 
 The canonical route scored 4.00, 3.62, and 2.92 across the three rungs. Its
 high-recall flavor won graph-native at 4.19, while its fast flavor won cyber at
@@ -273,7 +285,13 @@ changed which supporting chunks reached generation.
 chunk at ingest time with a short context blurb, then uses the same hybrid+rerank
 query path as `hybrid-rag`.
 
-### 5.2 Internal Steps
+### 5.2 Service and Data Flow
+
+[Open the full-resolution interactive diagram](diagrams/approaches/contextual-rag/data-flow.html)
+
+![contextual-rag service and data flow](diagrams/approaches/contextual-rag/data-flow.png)
+
+### 5.3 Internal Steps
 
 Ingest-time:
 
@@ -295,7 +313,7 @@ Query-time:
 6. Stuff selected context-prefixed chunks into the shared prompt.
 7. Call `light_gen` once.
 
-### 5.3 Dependencies
+### 5.4 Dependencies
 
 - LiteLLM embedding route.
 - LiteLLM chat route for `contextual_blurb` at ingest time.
@@ -303,7 +321,7 @@ Query-time:
 - TEI reranker endpoint.
 - LiteLLM chat route for `light_gen`.
 
-### 5.4 Models Used
+### 5.5 Models Used
 
 - Ingest-time contextualization: `contextual_blurb` role, default
   `qwen3.6:latest`.
@@ -314,7 +332,7 @@ Query-time:
 - External evaluation: Atlas scores eligible stored contexts through the Ragas
   endpoint; the manifest-configured judge panel scores stored answers separately.
 
-### 5.5 Tuning Surface
+### 5.6 Tuning Surface
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
@@ -326,7 +344,7 @@ Query-time:
 | Hybrid `alpha` | 0.5 | Via flavor | Same search helper as `hybrid-rag`; overridable via `alpha`. |
 | Rerank | on | Via flavor | Same TEI rerank as `hybrid-rag`; disable via `rerank: false`. |
 
-### 5.6 Observed Behavior
+### 5.7 Observed Behavior
 
 This route scored 3.92 on baseline, 4.19 on graph-native, and won cyber at 3.17.
 It also produced the highest cyber answer-relevancy mean at 0.891. It benefits
@@ -341,7 +359,13 @@ the cost of extra ingest-time model work and slower high-recall queries.
 a knowledge graph during indexing and queries over extracted entities,
 relationships, and vector context.
 
-### 6.2 Internal Steps
+### 6.2 Service and Data Flow
+
+[Open the full-resolution interactive diagram](diagrams/approaches/graph-rag/data-flow.html)
+
+![graph-rag service and data flow](diagrams/approaches/graph-rag/data-flow.png)
+
+### 6.3 Internal Steps
 
 Ingest-time:
 
@@ -362,14 +386,14 @@ Query-time:
    compatibility source marker describes the graph path but is not treated as a
    retrieved text context by evaluation.
 
-### 6.3 Dependencies
+### 6.4 Dependencies
 
 - Atlas LightRAG service.
 - LightRAG's configured graph/vector stores, including Neo4j.
 - LightRAG role models for EXTRACT, KEYWORD, and QUERY.
 - LightRAG embedding model.
 
-### 6.4 Models Used
+### 6.5 Models Used
 
 - Graph extraction: Atlas LightRAG EXTRACT role, setup default
   `mistral-small3.2:24b`.
@@ -389,7 +413,7 @@ reuses Atlas's thinking-disabled Qwen model for strict keyword output and final
 answers. Live validation found that assigning Mistral to KEYWORD could produce
 thousands of tokens instead of the requested compact structure.
 
-### 6.5 Tuning Surface
+### 6.6 Tuning Surface
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
@@ -405,7 +429,7 @@ thousands of tokens instead of the requested compact structure.
 | `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | 900 | Yes, Atlas `.env` | Prevents slow extraction calls from failing too early. |
 | Ollama role context caps | 8192 defaults when native Ollama binding is used | Yes | Passed through overlay as `*_OLLAMA_LLM_NUM_CTX`. |
 
-### 6.6 Observed Behavior
+### 6.7 Observed Behavior
 
 `graph-rag` is operational: it indexed all three datasets and answered every
 query cell. It did not win an aggregate, but won three baseline questions and a
@@ -413,7 +437,7 @@ rerank flavor won one graph-native question. Canonical mean latency was 12.61,
 12.47, and 21.20 seconds. The complete profile tier confirms sensitivity to
 mode, fanout, and reranking rather than a single uniformly best setting.
 
-### 6.7 Untested Fine-Tuning Opportunities
+### 6.8 Untested Fine-Tuning Opportunities
 
 The current results should not be read as the ceiling for LightRAG. We have not
 yet swept:
@@ -431,7 +455,13 @@ yet swept:
 `agentic-rag` tests whether an LLM-controlled ReAct loop can decide when to use
 vector search or graph search, instead of following a fixed retrieval path.
 
-### 7.2 Internal Steps
+### 7.2 Service and Data Flow
+
+[Open the full-resolution interactive diagram](diagrams/approaches/agentic-rag/data-flow.html)
+
+![agentic-rag service and data flow](diagrams/approaches/agentic-rag/data-flow.png)
+
+### 7.3 Internal Steps
 
 1. Start with a system prompt telling the model to gather evidence before answering.
 2. Give the model two tools:
@@ -443,14 +473,14 @@ vector search or graph search, instead of following a fixed retrieval path.
 6. If the loop exhausts, return the explicit MAX_STEPS fallback.
 7. Include the tool trace as the source block.
 
-### 7.3 Dependencies
+### 7.4 Dependencies
 
 - LiteLLM chat route for `agentic`.
 - LiteLLM embeddings for vector tool calls.
 - Atlas-ingested Weaviate `RagBase_<profile>`.
 - LightRAG for graph tool calls.
 
-### 7.4 Models Used
+### 7.5 Models Used
 
 - Agent controller: `agentic` role, default `qwen3.6:latest`.
 - Vector tool embedding: `embed` role, default `nomic-embed-text`.
@@ -459,7 +489,7 @@ vector search or graph search, instead of following a fixed retrieval path.
 - External evaluation: Atlas scores eligible tool evidence through the Ragas
   endpoint; the manifest-configured judge panel scores stored answers separately.
 
-### 7.5 Tuning Surface
+### 7.6 Tuning Surface
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
@@ -470,7 +500,7 @@ vector search or graph search, instead of following a fixed retrieval path.
 | System prompt | fixed | No | Affects whether it searches, answers early, or loops. |
 | Agent model | `roles.yaml` `agentic` | Yes, via roles file | Larger/cheaper/non-reasoning choices change behavior. |
 
-### 7.6 Observed Behavior
+### 7.7 Observed Behavior
 
 The agent occasionally won individual multi-step questions, but the hard step
 limit caused frequent incomplete answers. It also became the slowest approach on
@@ -483,7 +513,13 @@ graph-native because each tool loop adds model/tool calls.
 `n8n-adaptive-rag` demonstrates low-code routing. It classifies the query as simple
 or complex, sends it to another approach, then normalizes the response.
 
-### 8.2 Internal Steps
+### 8.2 Service and Data Flow
+
+[Open the full-resolution interactive diagram](diagrams/approaches/n8n-adaptive-rag/data-flow.html)
+
+![n8n-adaptive-rag service and data flow](diagrams/approaches/n8n-adaptive-rag/data-flow.png)
+
+### 8.3 Internal Steps
 
 1. The plugin POSTs `{ "query": ... }` to the n8n production webhook.
 2. n8n calls LiteLLM to classify the query as `simple` or `complex`.
@@ -496,13 +532,13 @@ or complex, sends it to another approach, then normalizes the response.
 6. The plugin wraps that response, counts the classifier call, and records route
    metadata separately from delegated grounding contexts.
 
-### 8.3 Dependencies
+### 8.4 Dependencies
 
 - n8n container and active `adaptive-rag` workflow.
 - LiteLLM from inside n8n for classification.
 - Atlas backend approach routes.
 
-### 8.4 Models Used
+### 8.5 Models Used
 
 - Workflow classifier: `qwen3.6:latest` in
   `n8n/adaptive-rag.workflow.json`.
@@ -512,7 +548,7 @@ or complex, sends it to another approach, then normalizes the response.
 - External evaluation: Atlas scores normalized downstream contexts when available;
   the manifest-configured judge panel scores stored answers separately.
 
-### 8.5 Tuning Surface
+### 8.6 Tuning Surface
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
@@ -523,13 +559,15 @@ or complex, sends it to another approach, then normalizes the response.
 | Approach-call timeout | 175000 ms | Workflow JSON | Workflow HTTP node timeout. |
 | Workflow activation/import | startup script | Yes, via checked-in workflow | `start-all.sh` imports active workflow and restarts n8n. |
 
-### 8.6 Observed Behavior
+### 8.7 Observed Behavior
 
 Its latency depends on the classifier's route and cache state: it averaged 2.80,
 5.30, and 11.07 seconds. It is not a better retriever by itself; its quality is
 bounded by the classifier and selected downstream route.
 
 ## 9. Experimental `lazy-graph-rag`
+
+### 9.1 Purpose
 
 `lazy-graph-rag` is a seventh, explicitly selected prototype. It builds a
 deterministic concept/co-occurrence graph from the existing `RagBase` chunks,
@@ -544,6 +582,12 @@ excluded from the six canonical defaults but was selected explicitly in the
 2026-07-17 ladder. It tied for third on baseline, ranked first on graph-native,
 and tied for second on cyber-threat data. See [`lazy-graph-rag.md`](lazy-graph-rag.md) for its
 full design, phases, metadata contract, limitations, and measured results.
+
+### 9.2 Service and Data Flow
+
+[Open the full-resolution interactive diagram](diagrams/approaches/lazy-graph-rag/data-flow.html)
+
+![lazy-graph-rag service and data flow](diagrams/approaches/lazy-graph-rag/data-flow.png)
 
 ## 10. Cross-Approach Comparison
 

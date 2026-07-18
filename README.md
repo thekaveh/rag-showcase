@@ -273,7 +273,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Quick Start](docs/guide/quickstart.md) | Living | One-command bring-up, prerequisites, and driving the multi-model comparison in Open WebUI |
 | [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and seven-approach parallel flow diagrams |
 | [System diagram (interactive)](docs/diagrams/architecture.md) | Living | Rendered full-system architecture diagram (HTML/SVG in an inline iframe) |
-| [Approach flow diagram (interactive)](docs/diagrams/approach-flows.md) | Living | Rendered parallel-lane diagram of the six approach flow phases (HTML/SVG in an inline iframe) |
+| [Approach flow diagram (interactive)](docs/diagrams/approach-flows.md) | Living | Rendered parallel-lane diagram of the seven approach flow phases (HTML/SVG in an inline iframe) |
 | [Approach internals](docs/approaches.md) | Living | Step-by-step flow, dependencies, tuning variables, tradeoffs, and measured performance for every approach |
 | [Approach flavor tuning](docs/approach-flavor-tuning.md) | Living | Open WebUI model aliases, benchmark flavor selection, and query-time versus index-time tuning knobs |
 | [Evaluation methodology](docs/evaluation-methodology.md) | Living | Atlas/showcase ownership, evidence schema, resumable ladder, Ragas states, operational metrics, judge panel, and four-artifact contract |
