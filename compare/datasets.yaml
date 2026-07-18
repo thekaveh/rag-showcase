@@ -6,13 +6,17 @@ datasets:
     corpus_path: corpus/subset
     ingestion_profile: baseline_curated
     queries_file: demo/queries.yaml
-    matrix_snapshot: docs/results/live-2026-07-13-baseline_curated-matrix.json
-    judgment_snapshot: docs/results/live-2026-07-13-baseline_curated-judgments.json
+    matrix_snapshot: docs/results/live-2026-07-17-baseline_curated-matrix.json
+    judgment_snapshot: docs/results/live-2026-07-17-baseline_curated-judgments.json
     graph_nature: Mostly textual retrieval with a few multi-hop and exact-keyword prompts.
     source_notes: MultiHop-RAG subset plus a local keyword document.
     source_url: https://huggingface.co/datasets/yixuantt/MultiHopRAG
-    evidence_snapshot: docs/results/live-2026-07-13-baseline_curated-evidence.jsonl
-    evaluation_snapshot: docs/results/live-2026-07-13-baseline_curated-evaluation.json
+    evidence_snapshot: docs/results/live-2026-07-17-baseline_curated-evidence.jsonl
+    evaluation_snapshot: docs/results/live-2026-07-17-baseline_curated-evaluation.json
+    flavor_matrix_snapshot: docs/results/live-2026-07-17-baseline_curated-flavors-matrix.json
+    flavor_judgment_snapshot: docs/results/live-2026-07-17-baseline_curated-flavors-judgments.json
+    flavor_evidence_snapshot: docs/results/live-2026-07-17-baseline_curated-flavors-evidence.jsonl
+    flavor_evaluation_snapshot: docs/results/live-2026-07-17-baseline_curated-flavors-evaluation.json
   - id: graph_native
     label: Curated graph-native real-world dossiers
     complexity_level: 2
@@ -20,13 +24,17 @@ datasets:
     corpus_path: corpus/graph_native
     ingestion_profile: graph_native
     queries_file: demo/graph_native_queries.yaml
-    matrix_snapshot: docs/results/live-2026-07-13-graph_native-matrix.json
-    judgment_snapshot: docs/results/live-2026-07-13-graph_native-judgments.json
+    matrix_snapshot: docs/results/live-2026-07-17-graph_native-matrix.json
+    judgment_snapshot: docs/results/live-2026-07-17-graph_native-judgments.json
     graph_nature: Explicit entity and relationship bullets over AI, antitrust, crypto, regulators, witnesses, and timelines.
     source_notes: Committed relation-dense markdown dossiers with source URLs.
     source_url: corpus/graph_native
-    evidence_snapshot: docs/results/live-2026-07-13-graph_native-evidence.jsonl
-    evaluation_snapshot: docs/results/live-2026-07-13-graph_native-evaluation.json
+    evidence_snapshot: docs/results/live-2026-07-17-graph_native-evidence.jsonl
+    evaluation_snapshot: docs/results/live-2026-07-17-graph_native-evaluation.json
+    flavor_matrix_snapshot: docs/results/live-2026-07-17-graph_native-flavors-matrix.json
+    flavor_judgment_snapshot: docs/results/live-2026-07-17-graph_native-flavors-judgments.json
+    flavor_evidence_snapshot: docs/results/live-2026-07-17-graph_native-flavors-evidence.jsonl
+    flavor_evaluation_snapshot: docs/results/live-2026-07-17-graph_native-flavors-evaluation.json
   - id: stark_prime
     label: STaRK-Prime precision-medicine SKB
     complexity_level: 3
@@ -82,7 +90,11 @@ datasets:
     graph_nature: Intrusion groups, campaigns, malware, tools, ATT&CK techniques, mitigations, and explicit uses/mitigates relationships.
     source_notes: Committed bounded export from the public MITRE ATT&CK Enterprise STIX bundle.
     source_url: https://attack.mitre.org/
-    matrix_snapshot: docs/results/live-2026-07-13-cyber_threat_intel-matrix.json
-    judgment_snapshot: docs/results/live-2026-07-13-cyber_threat_intel-judgments.json
-    evidence_snapshot: docs/results/live-2026-07-13-cyber_threat_intel-evidence.jsonl
-    evaluation_snapshot: docs/results/live-2026-07-13-cyber_threat_intel-evaluation.json
+    matrix_snapshot: docs/results/live-2026-07-17-cyber_threat_intel-matrix.json
+    judgment_snapshot: docs/results/live-2026-07-17-cyber_threat_intel-judgments.json
+    evidence_snapshot: docs/results/live-2026-07-17-cyber_threat_intel-evidence.jsonl
+    evaluation_snapshot: docs/results/live-2026-07-17-cyber_threat_intel-evaluation.json
+    flavor_matrix_snapshot: docs/results/live-2026-07-17-cyber_threat_intel-flavors-matrix.json
+    flavor_judgment_snapshot: docs/results/live-2026-07-17-cyber_threat_intel-flavors-judgments.json
+    flavor_evidence_snapshot: docs/results/live-2026-07-17-cyber_threat_intel-flavors-evidence.jsonl
+    flavor_evaluation_snapshot: docs/results/live-2026-07-17-cyber_threat_intel-flavors-evaluation.json

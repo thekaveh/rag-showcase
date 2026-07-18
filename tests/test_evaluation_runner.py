@@ -148,6 +148,7 @@ def test_run_evaluation_persists_every_2x2_cell_and_isolates_timeout(tmp_path: P
         invoke=invoke,
         evaluator=evaluator,
         store=store,
+        runtime_provenance={"project": "rag-showcase", "base_port": 22000},
     )
 
     assert len(rows) == 4
@@ -161,6 +162,11 @@ def test_run_evaluation_persists_every_2x2_cell_and_isolates_timeout(tmp_path: P
     assert len(successful) == 3
     assert all(row["metrics"]["operational"]["latency_ms"] >= 0 for row in rows)
     assert all(row["metrics"]["judge_panel"]["status"] == "disabled" for row in rows)
+    assert all(
+        row["reproducibility"]["runtime"]
+        == {"project": "rag-showcase", "base_port": 22000}
+        for row in rows
+    )
     assert len((tmp_path / "rows.jsonl").read_text(encoding="utf-8").splitlines()) == 4
 
     graph_ok = next(row for row in rows if row["question"]["id"] == "q1"

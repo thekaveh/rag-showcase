@@ -152,6 +152,14 @@ texts`, after retries. Disabling LightRAG query rerank and reducing query fanout
 > one opt-in `graph-rag-rerank` query profile beside rerank-disabled controls. Atlas
 > #654 now validates that consumer env overlay without a bootstrap `.env` mutation.
 
+The 2026-07-17 flavor run then found a second adapter-boundary case: LightRAG
+submitted 43 candidates while TEI's configured client limit is 32. Atlas
+[#713](https://github.com/thekaveh/atlas/issues/713) and
+[#714](https://github.com/thekaveh/atlas/pull/714) now batch adapter requests,
+remap indexes globally, enforce one total timeout budget, and fail the complete
+request if any batch fails. Rag-showcase advanced its submodule to that merged
+fix and validated the same request as 32- and 11-document TEI batches.
+
 ### 2.12 Disabled manifest services can be treated as enabled during dependency checks
 
 > **Resolved upstream.** Atlas #503 now derives dependency enablement from service

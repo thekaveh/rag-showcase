@@ -2,7 +2,7 @@
 
 This document is the canonical guide to how each approach in rag-showcase works,
 what it depends on, what can be tuned, and how it performed in the committed
-2026-07-13 live dataset-ladder run.
+2026-07-17 live dataset-ladder run.
 
 The important terminology distinction:
 
@@ -130,29 +130,31 @@ which is a knowledge-compilation pattern rather than a drop-in RAG server.
 ## 2. Current Measured Results
 
 The current committed live run measured three dataset-ladder rungs. The table
-contains 1-5 means from two blinded local judges. Ragas scores are separate and
-have zero coverage because Atlas #596/#597 rejected the evaluator requests. All
-140 answer cells and all judge prompts completed; named flavor measurements from
-2026-07-03 remain historical tuning evidence.
+contains 1-5 means from two blinded local judges. Ragas faithfulness and answer
+relevancy remain separate coverage-aware metrics; LightRAG answer-only rows are
+ineligible for faithfulness because its response does not expose exact contexts.
+All 140 base-family answer cells and all judge prompts completed. The same run
+also measured 240 flavor cells, summarized in
+[`approach-flavor-tuning.md`](approach-flavor-tuning.md).
 
 | Approach | Baseline curated | Graph-native | Cyber threat intel | Direction |
 |---|---:|---:|---:|---|
-| `vanilla-rag` | **4.42** | 3.62 | 2.67 | Strong simple baseline; loses ground as relation/path constraints grow. |
-| `hybrid-rag` | 4.08 | 3.62 | 3.17 | Reliable text retriever; won two cyber questions. |
-| `contextual-rag` | 3.67 | **4.12** | 3.17 | Best canonical default on graph-native dossiers. |
-| `graph-rag` | 3.00 | 2.38 | 1.50 | Operational end to end, but current query synthesis is uneven. |
-| `agentic-rag` | 2.33 | 2.38 | 1.67 | Step-limited and the slowest path on harder prompts. |
-| `n8n-adaptive-rag` | **4.42** | 3.62 | 2.67 | Fast because it often routes to vanilla; inherits route-map quality. |
-| `lazy-graph-rag` | 3.92 | 3.88 | **3.25** | Experimental; rank improved 4/7 to 2/7 to 1/7. |
+| `vanilla-rag` | **4.17** | 4.06 | 3.00 | Strong simple baseline and competitive on graph-native dossiers. |
+| `hybrid-rag` | 4.00 | 3.62 | 2.92 | Reliable text retriever; its fast/high-recall flavors matter by dataset. |
+| `contextual-rag` | 3.92 | 4.19 | **3.17** | Strongest cyber aggregate and highest answer relevancy there. |
+| `graph-rag` | 3.75 | 2.62 | 2.42 | Operational end to end; quality remains profile-sensitive. |
+| `agentic-rag` | 2.67 | 2.44 | 3.00 | Better on cyber, but bounded tool planning remains expensive. |
+| `n8n-adaptive-rag` | 3.33 | 2.44 | 3.00 | Inherits the quality and cache behavior of its selected downstream route. |
+| `lazy-graph-rag` | 3.92 | **4.31** | 3.00 | Experimental; won graph-native and stayed low-latency. |
 
 Snapshot files:
 
-- Baseline: [`matrix`](results/live-2026-07-13-baseline_curated-matrix.json) and
-  [`evaluation`](results/live-2026-07-13-baseline_curated-evaluation.json)
-- Graph-native: [`matrix`](results/live-2026-07-13-graph_native-matrix.json) and
-  [`evaluation`](results/live-2026-07-13-graph_native-evaluation.json)
-- Cyber: [`matrix`](results/live-2026-07-13-cyber_threat_intel-matrix.json) and
-  [`evaluation`](results/live-2026-07-13-cyber_threat_intel-evaluation.json)
+- Baseline: [`matrix`](results/live-2026-07-17-baseline_curated-matrix.json) and
+  [`evaluation`](results/live-2026-07-17-baseline_curated-evaluation.json)
+- Graph-native: [`matrix`](results/live-2026-07-17-graph_native-matrix.json) and
+  [`evaluation`](results/live-2026-07-17-graph_native-evaluation.json)
+- Cyber: [`matrix`](results/live-2026-07-17-cyber_threat_intel-matrix.json) and
+  [`evaluation`](results/live-2026-07-17-cyber_threat_intel-evaluation.json)
 
 The matching `*-evidence.jsonl` and `*-judgments.json` files are documented in
 the [`results/` artifact index](results/README.md); JSONL remains a downloadable
@@ -200,9 +202,10 @@ followed by one answer-generation call.
 
 ### 3.6 Observed Behavior
 
-Fast and surprisingly competitive on simple fact and exact-context questions. It
-declined on the graph-native corpus because dense top-k alone does not reliably
-assemble relationship chains or cross-document entity links.
+Fast and competitive throughout this bounded run. It won baseline at 4.17,
+ranked third on graph-native at 4.06, and tied for second on cyber at 3.00. Dense
+top-k remains vulnerable when the required path is absent from the selected
+chunks, but the generation model can synthesize explicit relation dossiers well.
 
 ## 4. `hybrid-rag`
 
@@ -257,10 +260,10 @@ It does not query LightRAG or use extracted graph entities/relations.
 
 ### 4.6 Observed Behavior
 
-The high-recall hybrid flavor won the graph-native corpus at 4.25/5, while the
-canonical `hybrid-rag` route scored 3.88/5. That does not mean it used a graph;
-it means keyword+dense retrieval plus reranking found the right supporting chunks
-more reliably than the current LightRAG query configuration.
+The canonical route scored 4.00, 3.62, and 2.92 across the three rungs. Its
+high-recall flavor won graph-native at 4.19, while its fast flavor won cyber at
+3.67. That does not mean either used a graph; candidate fanout and reranking
+changed which supporting chunks reached generation.
 
 ## 5. `contextual-rag`
 
@@ -325,11 +328,10 @@ Query-time:
 
 ### 5.6 Observed Behavior
 
-This was the strongest canonical default on the harder rungs: the best canonical
-approach on graph-native (3.94, second overall) and on cyber threat intel (3.17,
-second overall), while only mid-pack on the simplest baseline corpus (4.08, where
-`vanilla-rag-wide` led at 4.42). It benefits when chunks are ambiguous without their
-document-level context.
+This route scored 3.92 on baseline, 4.19 on graph-native, and won cyber at 3.17.
+It also produced the highest cyber answer-relevancy mean at 0.891. It benefits
+when individual chunks are ambiguous without their document-level context, at
+the cost of extra ingest-time model work and slower high-recall queries.
 
 ## 6. `graph-rag`
 
@@ -405,13 +407,11 @@ thousands of tokens instead of the requested compact structure.
 
 ### 6.6 Observed Behavior
 
-`graph-rag` is operational: it indexed all three datasets and answered every query
-cell. It did not win an aggregate. It won three baseline questions, tied the top
-mean on the cyber credential path, but returned `No relevant context found` on
-four other cyber questions. Its 67-88 second mean latency was much higher than
-chunk retrieval and lazy graph. Historical flavor evidence still shows
-`graph-rag-fast` can outperform default on some questions, while
-`graph-rag-wide` frequently returned truncated answers.
+`graph-rag` is operational: it indexed all three datasets and answered every
+query cell. It did not win an aggregate, but won three baseline questions and a
+rerank flavor won one graph-native question. Canonical mean latency was 12.61,
+12.47, and 21.20 seconds. The complete profile tier confirms sensitivity to
+mode, fanout, and reranking rather than a single uniformly best setting.
 
 ### 6.7 Untested Fine-Tuning Opportunities
 
@@ -420,8 +420,6 @@ yet swept:
 
 - LightRAG query modes beyond the `local`/`hybrid` already sampled by flavors.
 - `top_k`, `chunk_top_k`, and `max_total_tokens` swept systematically.
-- Comparing the now-available `graph-rag-rerank` Atlas profile across the full
-  dataset ladder.
 - Using a stronger QUERY model while keeping a cheaper EXTRACT model.
 - Different graph extraction models and extraction concurrency.
 - More graph-native datasets with harder relationship/path constraints.
@@ -527,8 +525,8 @@ or complex, sends it to another approach, then normalizes the response.
 
 ### 8.6 Observed Behavior
 
-Very fast in the measured runs because it often delegates to `vanilla-rag` and
-benefits from warm caches. It is not a better retriever by itself; its quality is
+Its latency depends on the classifier's route and cache state: it averaged 2.80,
+5.30, and 11.07 seconds. It is not a better retriever by itself; its quality is
 bounded by the classifier and selected downstream route.
 
 ## 9. Experimental `lazy-graph-rag`
@@ -543,8 +541,8 @@ The graph is persisted in a named Compose volume and invalidated by a corpus
 content fingerprint. Fast, balanced, and wide flavors tune
 `relevance_budget`, `seed_k`, `max_context_chunks`, and graph density. It is
 excluded from the six canonical defaults but was selected explicitly in the
-2026-07-13 ladder. It ranked fourth on baseline, second on graph-native, and
-first on cyber-threat data. See [`lazy-graph-rag.md`](lazy-graph-rag.md) for its
+2026-07-17 ladder. It tied for third on baseline, ranked first on graph-native,
+and tied for second on cyber-threat data. See [`lazy-graph-rag.md`](lazy-graph-rag.md) for its
 full design, phases, metadata contract, limitations, and measured results.
 
 ## 10. Cross-Approach Comparison
@@ -564,15 +562,14 @@ full design, phases, metadata contract, limitations, and measured results.
 The current results are a measured baseline, not the end of the search space.
 The highest-leverage tuning work is:
 
-1. Compare the Atlas-owned `graph-rag`, `graph-rag-fast`, `graph-rag-wide`, and
-   `graph-rag-rerank` profiles across every measured dataset.
-2. Use the rerank results to decide whether LightRAG-to-TEI should become the
-   canonical profile default.
-3. Sweep `hybrid-rag` and `contextual-rag` `retrieve_k`, `top_n`, and hybrid
+1. Keep `graph-rag-rerank` opt-in: it improved judge score on the cyber rung but
+   increased latency and reduced answer relevancy; the measured tradeoff does not
+   justify making it the canonical default.
+2. Sweep `hybrid-rag` and `contextual-rag` `retrieve_k`, `top_n`, and hybrid
    `alpha` by dataset — all already flavor-overridable.
-4. Sweep `agentic-rag` `max_steps` and `vector_top_k` (already flavor-overridable)
+3. Sweep `agentic-rag` `max_steps` and `vector_top_k` (already flavor-overridable)
    and improve the tool prompt.
-5. Tune the n8n route map so graph-native queries can route to `hybrid-rag` or
+4. Tune the n8n route map so graph-native queries can route to `hybrid-rag` or
    `graph-rag`, not only `vanilla-rag` or `agentic-rag`.
-6. Treat chunk size/overlap and contextual blurb model/prompt as dataset-level
+5. Treat chunk size/overlap and contextual blurb model/prompt as dataset-level
    tuning variables.

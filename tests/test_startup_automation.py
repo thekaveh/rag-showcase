@@ -51,7 +51,20 @@ def test_start_does_not_background_or_kill_atlas() -> None:
     assert "ATLAS_START_PID" not in script
     assert "cleanup_atlas_start" not in script
     assert "pkill" not in script
-    assert "\ntrap " not in script
+    assert "cleanup_launch_lock" in script
+
+
+def test_start_serializes_port_selection_and_rechecks_immediately_before_launch() -> None:
+    script = _script("start-all.sh")
+
+    lock = script.index("\nacquire_launch_lock\n")
+    first_selection = script.index("select_atlas_base_port.py")
+    recheck = script.index("Rechecking Atlas port block")
+    launch = script.index("==> Starting Atlas")
+    assert lock < first_selection < recheck < launch
+    assert 'select_atlas_base_port.py --base "$ATLAS_BASE_PORT"' in script
+    assert "Reserved Atlas port block" not in script
+    assert "Selected free Atlas port block" in script
 
 
 def test_stop_is_project_scoped_and_preserves_shared_managed_hosts() -> None:

@@ -34,6 +34,7 @@ if str(ROOT) not in sys.path:
 
 from compare.run_matrix import envval, flavors_file  # noqa: E402 — shared .env parser + manifest resolution
 from compare import flavors as flavor_config  # noqa: E402 — selection validation
+from compare.evaluation import load_manifest as load_evaluation_manifest  # noqa: E402
 
 
 class _IndentedDumper(yaml.SafeDumper):
@@ -110,6 +111,28 @@ def capture_json(
 
 def load_manifest() -> dict[str, Any]:
     return yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
+
+
+def evaluation_contract(env: dict[str, str]) -> tuple[set[str], list[str]]:
+    raw_path = env.get("MATRIX_MANIFEST_FILE") or str(ROOT / "compare" / "evaluation.yaml")
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = ROOT / path
+    manifest = load_evaluation_manifest(path)
+    judges = []
+    if manifest.metrics.judge_panel.enabled:
+        configured = env.get("JUDGE_MODELS", "")
+        judges = (
+            list(dict.fromkeys(item.strip() for item in configured.split(",") if item.strip()))
+            if configured
+            else list(manifest.metrics.judge_panel.models)
+        )
+        if not judges:
+            raise RuntimeError(
+                "enabled judge panel requires deployment-specific model aliases in "
+                "JUDGE_MODELS (or models in MATRIX_MANIFEST_FILE)"
+            )
+    return set(manifest.metrics.ragas), judges
 
 
 def write_manifest(manifest: dict[str, Any]) -> None:
@@ -213,7 +236,14 @@ def validate_matrix_cells(matrix: dict[str, Any], *, dataset_id: str) -> None:
     )
 
 
-def validate_judgments(judgments: dict[str, Any], *, dataset_id: str) -> None:
+def validate_judgments(
+    judgments: dict[str, Any],
+    *,
+    dataset_id: str,
+    expected_queries: set[str],
+    expected_approaches: set[str],
+    expected_judges: list[str],
+) -> None:
     """Reject a judge run with unusable verdicts before it is snapshotted.
 
     judge.py exits 0 even when every call failed (e.g. host Ollama down), writing
@@ -221,6 +251,8 @@ def validate_judgments(judgments: dict[str, Any], *, dataset_id: str) -> None:
     "measured" with no scores. Symmetric counterpart to validate_matrix_cells.
     """
     if judgments.get("status") == "disabled":
+        if expected_judges:
+            raise RuntimeError(f"Judgments for {dataset_id} were unexpectedly disabled")
         return
     queries = judgments.get("queries", [])
     if not queries:
@@ -230,12 +262,53 @@ def validate_judgments(judgments: dict[str, Any], *, dataset_id: str) -> None:
         preview = ", ".join(bad[:5]) + ("" if len(bad) <= 5 else f", ... {len(bad) - 5} more")
         raise RuntimeError(
             f"Judgments for {dataset_id} have no valid verdicts for: {preview} "
-            "(is the host Ollama judge panel running?)"
+            "(is the configured judge endpoint available?)"
         )
+    if judgments.get("status") != "ok":
+        raise RuntimeError(f"Judgments for {dataset_id} do not have status=ok")
+    if judgments.get("judges") != expected_judges:
+        raise RuntimeError(
+            f"Judgments for {dataset_id} have unexpected judges: "
+            f"{judgments.get('judges')} != {expected_judges}"
+        )
+    actual_queries = {str(query.get("query_id")) for query in queries}
+    if actual_queries != expected_queries:
+        raise RuntimeError(
+            f"Judgments for {dataset_id} have incomplete query coverage: "
+            f"{sorted(actual_queries)} != {sorted(expected_queries)}"
+        )
+    for query in queries:
+        query_id = query.get("query_id", "?")
+        means = set((query.get("mean_by_approach") or {}).keys())
+        per_judge = query.get("per_judge") or {}
+        if means != expected_approaches:
+            raise RuntimeError(
+                f"Judgments for {dataset_id}/{query_id} have incomplete approach coverage"
+            )
+        if list(per_judge) != expected_judges:
+            raise RuntimeError(
+                f"Judgments for {dataset_id}/{query_id} have incomplete judge coverage"
+            )
+        for judge in expected_judges:
+            verdict = per_judge[judge]
+            if verdict.get("error") or set((verdict.get("scores") or {}).keys()) != expected_approaches:
+                raise RuntimeError(
+                    f"Judgments for {dataset_id}/{query_id} have incomplete judge coverage "
+                    f"for {judge}"
+                )
+    runtime = judgments.get("runtime")
+    if not isinstance(runtime, dict) or not runtime.get("backend") or not runtime.get("endpoint"):
+        raise RuntimeError(f"Judgments for {dataset_id} are missing judge runtime provenance")
 
 
 def validate_canonical_rows(
-    rows: list[dict[str, Any]], *, dataset_id: str, expected_cells: int
+    rows: list[dict[str, Any]],
+    *,
+    dataset_id: str,
+    expected_cells: int,
+    expected_queries: set[str],
+    expected_approaches: set[str],
+    expected_ragas: set[str],
 ) -> None:
     if len(rows) != expected_cells:
         raise RuntimeError(
@@ -254,21 +327,133 @@ def validate_canonical_rows(
             f"Canonical rows for {dataset_id} contain rows from another dataset: "
             f"{wrong_dataset[:5]}"
         )
+    expected_pairs = {
+        (query_id, approach)
+        for query_id in expected_queries
+        for approach in expected_approaches
+    }
+    actual_pairs = {
+        (str(row.get("question", {}).get("id")), str(row.get("approach", {}).get("model")))
+        for row in rows
+    }
+    if actual_pairs != expected_pairs:
+        raise RuntimeError(
+            f"Canonical rows for {dataset_id} have incomplete query/approach coverage"
+        )
+
+    required_hashes = {
+        "evaluation_manifest", "dataset_questions", "flavors", "roles",
+        "consumer_manifest", "atlas_env_user", "runtime_model_inventory",
+        "lightrag_query_profiles",
+    }
+    runtime_values: list[dict[str, Any]] = []
+    hash_values: list[dict[str, str]] = []
+    for row in rows:
+        reproducibility = row.get("reproducibility") or {}
+        hashes = reproducibility.get("config_hashes") or {}
+        runtime = reproducibility.get("runtime") or {}
+        if not required_hashes <= set(hashes):
+            raise RuntimeError(
+                f"Canonical rows for {dataset_id} are missing required provenance hashes"
+            )
+        runtime_files = runtime.get("runtime_files") or {}
+        judge_panel = runtime.get("judge_panel") or {}
+        rag_showcase = runtime.get("rag_showcase") or {}
+        atlas = runtime.get("atlas") or {}
+        runtime_complete = (
+            runtime.get("project")
+            and isinstance(runtime.get("base_port"), int)
+            and (runtime.get("provider_sources") or {}).get("llm")
+            and (runtime.get("provider_sources") or {}).get("comfyui")
+            and rag_showcase.get("commit")
+            and rag_showcase.get("tree")
+            and rag_showcase.get("patch_sha256")
+            and rag_showcase.get("patch_capture") in {"exact", "retrospective-known-scope"}
+            and atlas.get("commit")
+            and atlas.get("tree")
+            and atlas.get("patch_sha256")
+            and atlas.get("patch_capture") in {"exact", "retrospective-known-scope"}
+            and judge_panel.get("endpoint")
+            and isinstance(judge_panel.get("models"), list)
+            and (runtime_files.get("model_inventory") or {}).get("sha256")
+            and (runtime_files.get("lightrag_query_profiles") or {}).get("sha256")
+        )
+        if not runtime_complete:
+            raise RuntimeError(
+                f"Canonical rows for {dataset_id} are missing runtime provenance"
+            )
+        runtime_values.append(runtime)
+        hash_values.append(hashes)
+
+        if row.get("status") != "ok":
+            continue
+        ragas = (row.get("metrics") or {}).get("ragas") or {}
+        if set(ragas.get("requested") or []) != expected_ragas:
+            raise RuntimeError(
+                f"Canonical row {row.get('row_id')} has unexpected Ragas metric coverage"
+            )
+        if ragas.get("status") not in {"ok", "partial", "not_evaluable", "error", "disabled"}:
+            raise RuntimeError(
+                f"Canonical row {row.get('row_id')} has non-terminal Ragas status"
+            )
+        if expected_ragas and ragas.get("status") == "disabled":
+            raise RuntimeError(
+                f"Canonical row {row.get('row_id')} has Ragas unexpectedly disabled"
+            )
+        covered = (
+            set((ragas.get("scores") or {}).keys())
+            | set((ragas.get("not_evaluable") or {}).keys())
+            | set((ragas.get("metric_errors") or {}).keys())
+        )
+        if ragas.get("status") == "error" and ragas.get("error"):
+            covered |= expected_ragas
+        if ragas.get("status") != "disabled" and covered != expected_ragas:
+            raise RuntimeError(
+                f"Canonical row {row.get('row_id')} has incomplete Ragas metric coverage"
+            )
+    if any(value != runtime_values[0] for value in runtime_values[1:]):
+        raise RuntimeError(f"Canonical rows for {dataset_id} have mixed runtime provenance")
+    if any(value != hash_values[0] for value in hash_values[1:]):
+        raise RuntimeError(f"Canonical rows for {dataset_id} have mixed config provenance")
 
 
 def validate_evaluation_summary(
-    summary: dict[str, Any], *, dataset_id: str, expected_cells: int
+    summary: dict[str, Any],
+    *,
+    dataset_id: str,
+    expected_cells: int,
+    expected_status_counts: dict[str, int],
+    expected_judges: list[str] | None = None,
+    expected_query_count: int | None = None,
 ) -> None:
     if summary.get("schema_version") != 1:
         raise RuntimeError(f"Evaluation summary for {dataset_id} has unsupported schema version")
     dataset = summary.get("datasets", {}).get(dataset_id)
     if not isinstance(dataset, dict):
         raise RuntimeError(f"Evaluation summary is missing dataset {dataset_id}")
-    actual = dataset.get("coverage", {}).get("total_rows")
+    coverage = dataset.get("coverage", {})
+    actual = coverage.get("total_rows")
     if actual != expected_cells:
         raise RuntimeError(
             f"Evaluation summary for {dataset_id}: expected {expected_cells} rows, found {actual}"
         )
+    if any(coverage.get(key) != value for key, value in expected_status_counts.items()):
+        raise RuntimeError(
+            f"Evaluation summary for {dataset_id} coverage does not match canonical rows"
+        )
+    if expected_judges is not None:
+        judge = dataset.get("judge_panel") or {}
+        if judge.get("models") != expected_judges:
+            raise RuntimeError(
+                f"Evaluation summary for {dataset_id} has unexpected judge models"
+            )
+        if expected_query_count is not None and (
+            judge.get("evaluated_queries") != expected_query_count
+            or judge.get("total_queries") != expected_query_count
+        ):
+            raise RuntimeError(
+                f"Evaluation summary for {dataset_id} has incomplete judge coverage"
+            )
 
 
 def _load_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -356,15 +541,30 @@ def run_matrix_and_judge(
     matrix_payload = json.loads(matrix_src.read_text(encoding="utf-8"))
     validate_matrix_cells(matrix_payload, dataset_id=dataset_id)
     expected_cells = len(matrix_payload.get("cells", []))
+    expected_queries = {str(query["id"]) for query in matrix_payload.get("queries", [])}
+    expected_approaches = set(matrix_payload.get("models", []))
+    expected_ragas, expected_judges = evaluation_contract(env)
     evidence_src = RESULTS / evidence_name
     evaluation_src = RESULTS / evaluation_name
+    canonical_rows = _load_jsonl(evidence_src)
     validate_canonical_rows(
-        _load_jsonl(evidence_src), dataset_id=dataset_id, expected_cells=expected_cells
+        canonical_rows,
+        dataset_id=dataset_id,
+        expected_cells=expected_cells,
+        expected_queries=expected_queries,
+        expected_approaches=expected_approaches,
+        expected_ragas=expected_ragas,
     )
+    status_counts = {
+        "ok": sum(row.get("status") == "ok" for row in canonical_rows),
+        "errors": sum(row.get("status") == "error" for row in canonical_rows),
+        "timeouts": sum(row.get("status") == "timeout" for row in canonical_rows),
+    }
     validate_evaluation_summary(
         json.loads(evaluation_src.read_text(encoding="utf-8")),
         dataset_id=dataset_id,
         expected_cells=expected_cells,
+        expected_status_counts=status_counts,
     )
 
     env = os.environ.copy()
@@ -374,8 +574,13 @@ def run_matrix_and_judge(
         env["JUDGE_MANIFEST_FILE"] = manifest_path
     run(["uv", "run", "python", "compare/judge.py"], env=env)
     judgments_src = RESULTS / judgments_name
-    validate_judgments(json.loads(judgments_src.read_text(encoding="utf-8")),
-                       dataset_id=dataset_id)
+    validate_judgments(
+        json.loads(judgments_src.read_text(encoding="utf-8")),
+        dataset_id=dataset_id,
+        expected_queries=expected_queries,
+        expected_approaches=expected_approaches,
+        expected_judges=expected_judges,
+    )
     run([
         "uv", "run", "python", "compare/summarize.py",
         "--rows", str(evidence_src),
@@ -386,6 +591,9 @@ def run_matrix_and_judge(
         json.loads(evaluation_src.read_text(encoding="utf-8")),
         dataset_id=dataset_id,
         expected_cells=expected_cells,
+        expected_status_counts=status_counts,
+        expected_judges=expected_judges,
+        expected_query_count=len(expected_queries),
     )
 
     DOC_RESULTS.mkdir(parents=True, exist_ok=True)
@@ -498,6 +706,10 @@ def main() -> None:
             "--include-flavor-tier cannot be combined with --approaches or --flavors"
         )
     validate_selections(args.approaches, args.flavors)
+    try:
+        evaluation_contract(os.environ.copy())
+    except (ValueError, RuntimeError) as exc:
+        raise SystemExit(str(exc)) from exc
     tier_models = flavor_tier_models() if args.include_flavor_tier else []
     if tier_models:
         validate_selections(",".join(tier_models), "")

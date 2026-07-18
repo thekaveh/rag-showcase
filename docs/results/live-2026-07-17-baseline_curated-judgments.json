@@ -1,0 +1,302 @@
+{
+  "status": "ok",
+  "dataset_id": "baseline_curated",
+  "judges": [
+    "qwen3.6:latest",
+    "gemma4:31b"
+  ],
+  "queries": [
+    {
+      "query_id": "keyword",
+      "query": "What does error code WIDGET-ERR-7741 mean and how do I reset it?",
+      "expect_winner": "hybrid-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "lazy-graph-rag": 5.0,
+            "n8n-adaptive-rag": 5.0,
+            "hybrid-rag": 5.0,
+            "graph-rag": 5.0,
+            "vanilla-rag": 5.0,
+            "contextual-rag": 5.0,
+            "agentic-rag": 5.0
+          },
+          "best": "graph-rag",
+          "reason": "All responses accurately provide the specific temperature threshold, part number, and reset instructions, with D offering the most professional RAG-style formatting and explicit citations."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "lazy-graph-rag": 5.0,
+            "n8n-adaptive-rag": 5.0,
+            "hybrid-rag": 5.0,
+            "graph-rag": 5.0,
+            "vanilla-rag": 5.0,
+            "contextual-rag": 5.0,
+            "agentic-rag": 5.0
+          },
+          "best": "graph-rag",
+          "reason": "All answers are factually correct and complete, but Answer D provides the best formatting and grounding with a source citation."
+        }
+      },
+      "mean_by_approach": {
+        "lazy-graph-rag": 5.0,
+        "n8n-adaptive-rag": 5.0,
+        "hybrid-rag": 5.0,
+        "graph-rag": 5.0,
+        "vanilla-rag": 5.0,
+        "contextual-rag": 5.0,
+        "agentic-rag": 5.0
+      },
+      "votes": {
+        "graph-rag": 2
+      },
+      "observed_winner": "graph-rag"
+    },
+    {
+      "query_id": "thematic",
+      "query": "What are the main recurring themes across all the documents?",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "hybrid-rag": 2.0,
+            "contextual-rag": 5.0,
+            "n8n-adaptive-rag": 1.0,
+            "agentic-rag": 1.0,
+            "graph-rag": 4.0,
+            "vanilla-rag": 2.0,
+            "lazy-graph-rag": 2.0
+          },
+          "best": "contextual-rag",
+          "reason": "B successfully synthesizes disparate documents into overarching themes rather than listing disjointed topics or focusing on a single subset."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "hybrid-rag": 5.0,
+            "contextual-rag": 2.0,
+            "n8n-adaptive-rag": 1.0,
+            "agentic-rag": 1.0,
+            "graph-rag": 2.0,
+            "vanilla-rag": 5.0,
+            "lazy-graph-rag": 2.0
+          },
+          "best": "hybrid-rag",
+          "reason": "Answer A and F both correctly perform whole-corpus synthesis by identifying that the documents belong to two distinct thematic clusters (Big Tech/Google vs. SBF/FTX) and thus no single theme recurs across all of them; Answer A is slightly more precise in its grouping."
+        }
+      },
+      "mean_by_approach": {
+        "hybrid-rag": 3.5,
+        "contextual-rag": 3.5,
+        "n8n-adaptive-rag": 1.0,
+        "agentic-rag": 1.0,
+        "graph-rag": 3.0,
+        "vanilla-rag": 3.5,
+        "lazy-graph-rag": 2.0
+      },
+      "votes": {
+        "contextual-rag": 1,
+        "hybrid-rag": 1
+      },
+      "observed_winner": "hybrid-rag"
+    },
+    {
+      "query_id": "multihop",
+      "query": "Compare what two different sources concluded on the same event and reconcile them.",
+      "expect_winner": "agentic-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "n8n-adaptive-rag": 1.0,
+            "lazy-graph-rag": 2.0,
+            "contextual-rag": 2.0,
+            "hybrid-rag": 1.0,
+            "vanilla-rag": 3.0,
+            "graph-rag": 3.0,
+            "agentic-rag": 1.0
+          },
+          "best": "graph-rag",
+          "reason": "F best demonstrates the requested decomposition and comparison of specific source narratives, aligning most closely with the prompt's structural requirements despite being truncated."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "n8n-adaptive-rag": 4.0,
+            "lazy-graph-rag": 2.0,
+            "contextual-rag": 2.0,
+            "hybrid-rag": 2.0,
+            "vanilla-rag": 2.0,
+            "graph-rag": 3.0,
+            "agentic-rag": 4.0
+          },
+          "best": "n8n-adaptive-rag",
+          "reason": "Answers A and G are the only ones that explicitly outline a decomposition strategy and mention specific retrieval tools (search_vectors, query_graph), directly addressing the 'strong answer' requirements."
+        }
+      },
+      "mean_by_approach": {
+        "n8n-adaptive-rag": 2.5,
+        "lazy-graph-rag": 2.0,
+        "contextual-rag": 2.0,
+        "hybrid-rag": 1.5,
+        "vanilla-rag": 2.5,
+        "graph-rag": 3.0,
+        "agentic-rag": 2.5
+      },
+      "votes": {
+        "graph-rag": 1,
+        "n8n-adaptive-rag": 1
+      },
+      "observed_winner": "graph-rag"
+    },
+    {
+      "query_id": "factoid",
+      "query": "What is the firmware version referenced in the widget bootloader error?",
+      "expect_winner": "any",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "graph-rag": 5.0,
+            "lazy-graph-rag": 5.0,
+            "agentic-rag": 1.0,
+            "hybrid-rag": 5.0,
+            "vanilla-rag": 5.0,
+            "n8n-adaptive-rag": 5.0,
+            "contextual-rag": 5.0
+          },
+          "best": "graph-rag",
+          "reason": "Directly answers the question with the correct fact, while C fails to produce an answer and A provides helpful grounding."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "graph-rag": 5.0,
+            "lazy-graph-rag": 5.0,
+            "agentic-rag": 1.0,
+            "hybrid-rag": 5.0,
+            "vanilla-rag": 5.0,
+            "n8n-adaptive-rag": 5.0,
+            "contextual-rag": 5.0
+          },
+          "best": "graph-rag",
+          "reason": "Answer A provides the correct version along with supporting details and a reference, making it the most grounded."
+        }
+      },
+      "mean_by_approach": {
+        "graph-rag": 5.0,
+        "lazy-graph-rag": 5.0,
+        "agentic-rag": 1.0,
+        "hybrid-rag": 5.0,
+        "vanilla-rag": 5.0,
+        "n8n-adaptive-rag": 5.0,
+        "contextual-rag": 5.0
+      },
+      "votes": {
+        "graph-rag": 2
+      },
+      "observed_winner": "graph-rag"
+    },
+    {
+      "query_id": "context_starved",
+      "query": "What does the safety relay do when the coil overheats, and how do I clear it?",
+      "expect_winner": "contextual-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "n8n-adaptive-rag": 5.0,
+            "hybrid-rag": 5.0,
+            "lazy-graph-rag": 5.0,
+            "graph-rag": 5.0,
+            "contextual-rag": 5.0,
+            "agentic-rag": 5.0,
+            "vanilla-rag": 5.0
+          },
+          "best": "graph-rag",
+          "reason": "All answers directly and accurately address the question with specific details, but D stands out for its clear structure and explicit source citations typical of strong RAG outputs."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "n8n-adaptive-rag": 5.0,
+            "hybrid-rag": 4.0,
+            "lazy-graph-rag": 4.0,
+            "graph-rag": 5.0,
+            "contextual-rag": 4.0,
+            "agentic-rag": 5.0,
+            "vanilla-rag": 4.0
+          },
+          "best": "graph-rag",
+          "reason": "Answer D provides all the specific technical details (temperature, part number, error code, and resolution) and includes citations for grounding."
+        }
+      },
+      "mean_by_approach": {
+        "n8n-adaptive-rag": 5.0,
+        "hybrid-rag": 4.5,
+        "lazy-graph-rag": 4.5,
+        "graph-rag": 5.0,
+        "contextual-rag": 4.5,
+        "agentic-rag": 5.0,
+        "vanilla-rag": 4.5
+      },
+      "votes": {
+        "graph-rag": 2
+      },
+      "observed_winner": "graph-rag"
+    },
+    {
+      "query_id": "mixed_batch",
+      "query": "List the widget error codes, then explain how they relate to each other across the docs.",
+      "expect_winner": "n8n-adaptive-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "graph-rag": 1.0,
+            "agentic-rag": 1.0,
+            "contextual-rag": 4.0,
+            "n8n-adaptive-rag": 1.0,
+            "lazy-graph-rag": 5.0,
+            "hybrid-rag": 4.0,
+            "vanilla-rag": 4.0
+          },
+          "best": "lazy-graph-rag",
+          "reason": "Answer E directly answers both parts with specific details and correctly handles the cross-document constraint by noting the lack of relationship due to irrelevant context, while others are truncated or less thorough."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "graph-rag": 2.0,
+            "agentic-rag": 2.0,
+            "contextual-rag": 3.0,
+            "n8n-adaptive-rag": 2.0,
+            "lazy-graph-rag": 5.0,
+            "hybrid-rag": 5.0,
+            "vanilla-rag": 5.0
+          },
+          "best": "lazy-graph-rag",
+          "reason": "Answers E, F, and G all correctly identify that the error codes only appear in one document and thus have no cross-document relationship, while providing full details; E is slightly more comprehensive in its description of the noise documents."
+        }
+      },
+      "mean_by_approach": {
+        "graph-rag": 1.5,
+        "agentic-rag": 1.5,
+        "contextual-rag": 3.5,
+        "n8n-adaptive-rag": 1.5,
+        "lazy-graph-rag": 5.0,
+        "hybrid-rag": 4.5,
+        "vanilla-rag": 4.5
+      },
+      "votes": {
+        "lazy-graph-rag": 2
+      },
+      "observed_winner": "lazy-graph-rag"
+    }
+  ],
+  "ingestion": {
+    "id": "349fa267-c4d3-4fae-b130-84a0ea92407f",
+    "job_id": "349fa267-c4d3-4fae-b130-84a0ea92407f",
+    "profile": "baseline_curated",
+    "revision": "64ce0e99ef6a24b1",
+    "content_digest": "c15c97b98c81115f",
+    "mode": "atlas-job"
+  },
+  "runtime": {
+    "backend": "openai-compatible",
+    "endpoint": "http://localhost:11434/v1/chat/completions",
+    "temperature": 0.0,
+    "thinking": false
+  }
+}

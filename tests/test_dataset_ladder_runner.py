@@ -10,6 +10,69 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_JUDGES = ["qwen3.6:latest", "gemma4:31b"]
+
+
+def _canonical_fixture(dataset_id: str, row_id: str) -> dict:
+    hashes = {
+        "evaluation_manifest": "a", "dataset_questions": "b", "flavors": "c",
+        "roles": "d", "consumer_manifest": "e", "atlas_env_user": "f",
+        "runtime_model_inventory": "g", "lightrag_query_profiles": "h",
+    }
+    runtime = {
+        "project": "rag-showcase", "base_port": 22000,
+        "provider_sources": {"llm": "ollama-localhost", "comfyui": "disabled"},
+        "rag_showcase": {
+            "commit": "repo", "tree": "repo-tree", "dirty": True,
+            "patch_sha256": "repo-patch", "patch_capture": "exact",
+        },
+        "atlas": {
+            "commit": "atlas", "tree": "atlas-tree", "dirty": False,
+            "patch_sha256": "atlas-patch", "patch_capture": "exact",
+        },
+        "judge_panel": {
+            "endpoint": "atlas-litellm", "models": DEFAULT_JUDGES,
+            "thinking": False,
+        },
+        "runtime_files": {
+            "model_inventory": {"sha256": "models", "entries": ["vanilla-rag"]},
+            "lightrag_query_profiles": {"sha256": "profiles", "entries": ["graph-rag"]},
+        },
+    }
+    return {
+        "row_id": row_id, "dataset": {"id": dataset_id}, "status": "ok",
+        "question": {"id": "q1"}, "approach": {"model": "vanilla-rag"},
+        "reproducibility": {"config_hashes": hashes, "runtime": runtime},
+        "metrics": {"ragas": {
+            "status": "ok", "requested": ["faithfulness", "answer_relevancy"],
+            "scores": {"faithfulness": 0.8, "answer_relevancy": 0.8},
+        }},
+    }
+
+
+def _judgments_fixture(dataset_id: str) -> dict:
+    scores = {"vanilla-rag": 4.0}
+    return {
+        "status": "ok", "dataset_id": dataset_id, "judges": DEFAULT_JUDGES,
+        "runtime": {"backend": "atlas-litellm", "endpoint": "atlas-litellm"},
+        "queries": [{
+            "query_id": "q1", "mean_by_approach": scores,
+            "per_judge": {judge: {"scores": scores} for judge in DEFAULT_JUDGES},
+        }],
+    }
+
+
+def _summary_fixture(dataset_id: str) -> dict:
+    return {
+        "schema_version": 1,
+        "datasets": {dataset_id: {
+            "coverage": {"total_rows": 1, "ok": 1, "errors": 0, "timeouts": 0},
+            "judge_panel": {
+                "status": "ok", "models": DEFAULT_JUDGES,
+                "evaluated_queries": 1, "total_queries": 1,
+            },
+        }},
+    }
 
 
 def _load_ladder_module():
@@ -22,6 +85,15 @@ def _load_ladder_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def test_evaluation_contract_requires_explicit_judge_models(monkeypatch) -> None:
+    module = _load_ladder_module()
+    monkeypatch.delenv("JUDGE_MODELS", raising=False)
+    monkeypatch.delenv("MATRIX_MANIFEST_FILE", raising=False)
+
+    with pytest.raises(RuntimeError, match="JUDGE_MODELS"):
+        module.evaluation_contract(dict())
 
 
 def test_start_all_supports_service_only_mode() -> None:
@@ -232,32 +304,135 @@ def test_ladder_runner_can_select_candidate_dataset_when_enabled(monkeypatch) ->
 def test_ladder_runner_rejects_judgments_without_valid_verdicts() -> None:
     module = _load_ladder_module()
 
-    good = {"queries": [{"query_id": "a", "mean_by_approach": {"vanilla-rag": 4.0}}]}
-    module.validate_judgments(good, dataset_id="example")  # must not raise
+    good = {
+        "status": "ok",
+        "judges": ["judge-a", "judge-b"],
+        "runtime": {"backend": "atlas-litellm", "endpoint": "atlas-litellm"},
+        "queries": [
+            {
+                "query_id": "a",
+                "mean_by_approach": {"vanilla-rag": 4.0},
+                "per_judge": {
+                    "judge-a": {"scores": {"vanilla-rag": 4.0}},
+                    "judge-b": {"scores": {"vanilla-rag": 4.0}},
+                },
+            }
+        ],
+    }
+    module.validate_judgments(
+        good,
+        dataset_id="example",
+        expected_queries={"a"},
+        expected_approaches={"vanilla-rag"},
+        expected_judges=["judge-a", "judge-b"],
+    )
 
     empty_means = {"queries": [{"query_id": "a", "mean_by_approach": {}},
                                {"query_id": "b", "mean_by_approach": {"x": 1.0}}]}
     with pytest.raises(RuntimeError, match="example.*a"):
-        module.validate_judgments(empty_means, dataset_id="example")
+        module.validate_judgments(
+            empty_means,
+            dataset_id="example",
+            expected_queries={"a", "b"},
+            expected_approaches={"x"},
+            expected_judges=["judge-a"],
+        )
 
     with pytest.raises(RuntimeError, match="no queries"):
-        module.validate_judgments({"queries": []}, dataset_id="example")
+        module.validate_judgments(
+            {"queries": []}, dataset_id="example", expected_queries={"a"},
+            expected_approaches={"x"}, expected_judges=["judge-a"],
+        )
     module.validate_judgments(
-        {"status": "disabled", "judges": [], "queries": []}, dataset_id="example"
+        {"status": "disabled", "judges": [], "queries": []}, dataset_id="example",
+        expected_queries={"a"}, expected_approaches={"x"}, expected_judges=[],
     )
+
+    incomplete = json.loads(json.dumps(good))
+    incomplete["queries"][0]["per_judge"].pop("judge-b")
+    with pytest.raises(RuntimeError, match="judge coverage"):
+        module.validate_judgments(
+            incomplete, dataset_id="example", expected_queries={"a"},
+            expected_approaches={"vanilla-rag"}, expected_judges=["judge-a", "judge-b"],
+        )
 
 
 def test_ladder_validates_canonical_rows_and_summary() -> None:
     module = _load_ladder_module()
+    runtime = {
+        "project": "rag-showcase",
+        "base_port": 22000,
+        "provider_sources": {"llm": "ollama-localhost", "comfyui": "disabled"},
+        "rag_showcase": {
+            "commit": "repo", "tree": "repo-tree", "dirty": True,
+            "patch_sha256": "repo-patch", "patch_capture": "exact",
+        },
+        "atlas": {
+            "commit": "atlas", "tree": "atlas-tree", "dirty": False,
+            "patch_sha256": "atlas-patch", "patch_capture": "exact",
+        },
+        "judge_panel": {
+            "endpoint": "atlas-litellm", "models": ["judge-a", "judge-b"],
+            "thinking": False,
+        },
+        "runtime_files": {
+            "model_inventory": {"sha256": "models", "entries": ["vanilla-rag"]},
+            "lightrag_query_profiles": {"sha256": "profiles", "entries": ["graph-rag"]},
+        },
+    }
+    hashes = {
+        "evaluation_manifest": "a", "dataset_questions": "b", "flavors": "c",
+        "roles": "d", "consumer_manifest": "e", "atlas_env_user": "f",
+        "runtime_model_inventory": "g", "lightrag_query_profiles": "h",
+    }
     rows = [
-        {"row_id": "a", "dataset": {"id": "example"}, "status": "ok"},
-        {"row_id": "b", "dataset": {"id": "example"}, "status": "error"},
+        {"row_id": "a", "dataset": {"id": "example"}, "status": "ok",
+         "question": {"id": "q1"}, "approach": {"model": "a"},
+         "reproducibility": {"config_hashes": hashes, "runtime": runtime},
+         "metrics": {"ragas": {"status": "ok", "requested": ["answer_relevancy"],
+                                "scores": {"answer_relevancy": 0.8}}}},
+        {"row_id": "b", "dataset": {"id": "example"}, "status": "error",
+         "question": {"id": "q1"}, "approach": {"model": "b"},
+         "reproducibility": {"config_hashes": hashes, "runtime": runtime},
+         "metrics": {"ragas": {"status": "not_run", "requested": [], "scores": {}}}},
     ]
-    module.validate_canonical_rows(rows, dataset_id="example", expected_cells=2)
+    module.validate_canonical_rows(
+        rows, dataset_id="example", expected_cells=2,
+        expected_queries={"q1"}, expected_approaches={"a", "b"},
+        expected_ragas={"answer_relevancy"},
+    )
     with pytest.raises(RuntimeError, match="duplicate row ids"):
-        module.validate_canonical_rows(rows + [rows[0]], dataset_id="example", expected_cells=3)
+        module.validate_canonical_rows(
+            rows + [rows[0]], dataset_id="example", expected_cells=3,
+            expected_queries={"q1"}, expected_approaches={"a", "b"},
+            expected_ragas={"answer_relevancy"},
+        )
     with pytest.raises(RuntimeError, match="expected 3.*found 2"):
-        module.validate_canonical_rows(rows, dataset_id="example", expected_cells=3)
+        module.validate_canonical_rows(
+            rows, dataset_id="example", expected_cells=3,
+            expected_queries={"q1"}, expected_approaches={"a", "b"},
+            expected_ragas={"answer_relevancy"},
+        )
+
+    missing_runtime = json.loads(json.dumps(rows))
+    missing_runtime[0]["reproducibility"].pop("runtime")
+    with pytest.raises(RuntimeError, match="runtime provenance"):
+        module.validate_canonical_rows(
+            missing_runtime, dataset_id="example", expected_cells=2,
+            expected_queries={"q1"}, expected_approaches={"a", "b"},
+            expected_ragas={"answer_relevancy"},
+        )
+
+    disabled_ragas = json.loads(json.dumps(rows))
+    disabled_ragas[0]["metrics"]["ragas"] = {
+        "status": "disabled", "requested": ["answer_relevancy"], "scores": {},
+    }
+    with pytest.raises(RuntimeError, match="Ragas.*disabled"):
+        module.validate_canonical_rows(
+            disabled_ragas, dataset_id="example", expected_cells=2,
+            expected_queries={"q1"}, expected_approaches={"a", "b"},
+            expected_ragas={"answer_relevancy"},
+        )
 
     summary = {
         "schema_version": 1,
@@ -265,9 +440,20 @@ def test_ladder_validates_canonical_rows_and_summary() -> None:
             "total_rows": 2, "ok": 1, "errors": 1, "timeouts": 0,
         }}},
     }
-    module.validate_evaluation_summary(summary, dataset_id="example", expected_cells=2)
+    module.validate_evaluation_summary(
+        summary, dataset_id="example", expected_cells=2,
+        expected_status_counts={"ok": 1, "errors": 1, "timeouts": 0},
+    )
     with pytest.raises(RuntimeError, match="missing dataset"):
-        module.validate_evaluation_summary(summary, dataset_id="other", expected_cells=2)
+        module.validate_evaluation_summary(
+            summary, dataset_id="other", expected_cells=2,
+            expected_status_counts={"ok": 1, "errors": 1, "timeouts": 0},
+        )
+    with pytest.raises(RuntimeError, match="coverage does not match"):
+        module.validate_evaluation_summary(
+            summary, dataset_id="example", expected_cells=2,
+            expected_status_counts={"ok": 2, "errors": 0, "timeouts": 0},
+        )
 
 
 def test_ladder_delegates_lightrag_drain_to_atlas() -> None:
@@ -331,6 +517,7 @@ def test_run_matrix_and_judge_ignores_exported_selection_env(monkeypatch, tmp_pa
     module = _load_ladder_module()
     monkeypatch.setenv("MATRIX_MODELS", "stale-export")
     monkeypatch.setenv("MATRIX_FLAVORS", "stale-export")
+    monkeypatch.setenv("JUDGE_MODELS", ",".join(DEFAULT_JUDGES))
     monkeypatch.setattr(module, "RESULTS", tmp_path / "results")
     monkeypatch.setattr(module, "DOC_RESULTS", tmp_path / "doc-results")
     monkeypatch.setattr(
@@ -354,22 +541,20 @@ def test_run_matrix_and_judge_ignores_exported_selection_env(monkeypatch, tmp_pa
                 {"models": ["vanilla-rag"], "queries": [{"id": "q1"}],
                  "cells": [{"query_id": "q1", "model": "vanilla-rag", "ok": True}]}),
                 encoding="utf-8")
-            (module.RESULTS / env["MATRIX_CANONICAL_FILE"]).write_text(json.dumps({
-                "row_id": env["MATRIX_RUN_ID"] + "-q1",
-                "dataset": {"id": env["MATRIX_DATASET_ID"]},
-                "status": "ok",
-            }) + "\n", encoding="utf-8")
-            (module.RESULTS / env["MATRIX_SUMMARY_FILE"]).write_text(json.dumps({
-                "schema_version": 1,
-                "datasets": {env["MATRIX_DATASET_ID"]: {"coverage": {
-                    "total_rows": 1, "ok": 1, "errors": 0, "timeouts": 0,
-                }}},
-            }), encoding="utf-8")
+            (module.RESULTS / env["MATRIX_CANONICAL_FILE"]).write_text(
+                json.dumps(_canonical_fixture(
+                    env["MATRIX_DATASET_ID"], env["MATRIX_RUN_ID"] + "-q1"
+                )) + "\n",
+                encoding="utf-8",
+            )
+            (module.RESULTS / env["MATRIX_SUMMARY_FILE"]).write_text(
+                json.dumps(_summary_fixture(env["MATRIX_DATASET_ID"])),
+                encoding="utf-8",
+            )
         elif "JUDGE_RESULTS_FILE" in env:
-            (module.RESULTS / env["JUDGE_RESULTS_FILE"]).write_text(json.dumps(
-                {"dataset_id": env.get("MATRIX_DATASET_ID", "ds"),
-                 "queries": [{"query_id": "q1", "mean_by_approach": {"vanilla-rag": 4.0}}]}),
-                encoding="utf-8")
+            (module.RESULTS / env["JUDGE_RESULTS_FILE"]).write_text(
+                json.dumps(_judgments_fixture("ds")), encoding="utf-8"
+            )
     monkeypatch.setattr(module, "run", fake_run)
 
     ingestion = {"id": "ing-1", "profile": "ds", "revision": "rev", "content_digest": "digest"}
@@ -437,6 +622,7 @@ def test_snapshot_manifest_keeps_base_and_flavor_tiers_separate(monkeypatch, tmp
 def test_cold_ingestion_discards_stale_working_evidence_before_matrix(
         monkeypatch, tmp_path) -> None:
     module = _load_ladder_module()
+    monkeypatch.setenv("JUDGE_MODELS", ",".join(DEFAULT_JUDGES))
     monkeypatch.setattr(module, "RESULTS", tmp_path / "results")
     monkeypatch.setattr(module, "DOC_RESULTS", tmp_path / "doc-results")
     module.RESULTS.mkdir(parents=True)
@@ -460,20 +646,16 @@ def test_cold_ingestion_discards_stale_working_evidence_before_matrix(
                  "cells": [{"query_id": "q1", "model": "vanilla-rag", "ok": True}]}),
                 encoding="utf-8",
             )
-            (module.RESULTS / env["MATRIX_CANONICAL_FILE"]).write_text(json.dumps({
-                "row_id": "new", "dataset": {"id": "ds"}, "status": "ok",
-            }) + "\n", encoding="utf-8")
-            (module.RESULTS / env["MATRIX_SUMMARY_FILE"]).write_text(json.dumps({
-                "schema_version": 1,
-                "datasets": {"ds": {"coverage": {"total_rows": 1}}},
-            }), encoding="utf-8")
+            (module.RESULTS / env["MATRIX_CANONICAL_FILE"]).write_text(
+                json.dumps(_canonical_fixture("ds", "new")) + "\n", encoding="utf-8"
+            )
+            (module.RESULTS / env["MATRIX_SUMMARY_FILE"]).write_text(
+                json.dumps(_summary_fixture("ds")), encoding="utf-8"
+            )
         elif "JUDGE_RESULTS_FILE" in env:
-            (module.RESULTS / env["JUDGE_RESULTS_FILE"]).write_text(json.dumps({
-                "dataset_id": "ds",
-                "queries": [{"query_id": "q1", "mean_by_approach": {
-                    "vanilla-rag": 4.0,
-                }}],
-            }), encoding="utf-8")
+            (module.RESULTS / env["JUDGE_RESULTS_FILE"]).write_text(
+                json.dumps(_judgments_fixture("ds")), encoding="utf-8"
+            )
 
     monkeypatch.setattr(module, "run", fake_run)
     ingestion = {

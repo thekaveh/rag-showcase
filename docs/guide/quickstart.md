@@ -30,13 +30,17 @@ Atlas's requirements apply:
 
 This single script:
 
-1. Selects `atlas.consumer.yml` and runs Atlas's native headless env backfill,
+1. Serializes launch-time selection, chooses a completely free 110-port block below
+   the OS dynamic/private range, and rechecks it immediately before Atlas binds.
+   The project name is `rag-showcase`. Set `RAG_SHOWCASE_BASE_PORT` to require a
+   specific block; startup rejects it if any port is occupied.
+2. Selects `atlas.consumer.yml` and runs Atlas's native headless env backfill,
    manifest-aware Compose validation, and consumer doctor. The manifest declares
    project/brand metadata, the env
    file, external Compose overlay, backend plugin root, nineteen LiteLLM aliases,
    Ollama sidecar, adaptive workflow, and RAG ingestion profiles without tracked
    Atlas modifications or a `_user` symlink.
-2. Starts the Atlas `gen-ai-rag` stack with `--no-tui --detach`; Atlas applies
+3. Starts the Atlas `gen-ai-rag` stack with `--no-tui --detach`; Atlas applies
    the `rag-showcase` project and brand metadata, waits on Compose health, and
    returns. On a fresh checkout, the initial bootstrap banner can retain Atlas
    artwork because Atlas renders it before applying the consumer manifest. The
@@ -45,20 +49,20 @@ This single script:
    hardware-dependent Docling source, so Atlas falls back to plain-text parsing and
    the selected profile's Chonkie recursive chunker. Atlas starts only the enabled
    service set and owns dependency and initial one-shot classification.
-3. Proceeds after Atlas's detached health summary, then **assembles the corpus**
+4. Proceeds after Atlas's detached health summary, then **assembles the corpus**
    on the host (`corpus/fetch_corpus.py`). If Atlas reports the known
    [exited-zero one-shot race](https://github.com/thekaveh/atlas/issues/508), the
    wrapper proceeds only when that exact log signature is present and a strict,
    provider-aware Docker-state check confirms every long-lived service is ready
    and every expected init service exited zero.
-4. Waits for model readiness (embed + chat), submits the `showcase_default` Atlas
+5. Waits for model readiness (embed + chat), submits the `showcase_default` Atlas
    **RAG ingestion job**, waits on its machine-readable phase record, and then builds
    the contextual collection from Atlas-written plain chunks. It verifies all
    Atlas-declared base and flavor aliases. Each start also removes
    any exact legacy database duplicates from the retired registration script,
    including rows restored with an older database, without touching unrelated models.
    If cleanup occurs, LiteLLM reloads once so all four workers discard stale routes.
-5. Prints the Open WebUI URL.
+6. Prints the Open WebUI URL.
 
 !!! tip "First run downloads models"
     With local models, the first run may pull several GB, so it takes a while.

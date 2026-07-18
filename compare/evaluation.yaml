@@ -24,12 +24,12 @@ metrics:
     - answer_relevancy
   judge_panel:
     enabled: true
-    endpoint: http://localhost:11434/v1/chat/completions
+    endpoint: atlas-litellm
     temperature: 0
     thinking: false
-    models:
-      - qwen3.6:latest
-      - gemma4:31b
+    # Supply deployment-specific aliases through JUDGE_MODELS. Keeping this
+    # empty avoids assuming an Ollama catalog or any particular hardware.
+    models: []
 
 run:
   retries: 1

@@ -20,7 +20,9 @@ PNG: [`diagrams/img/architecture-detailed.png`](diagrams/img/architecture-detail
 
 Open WebUI and the comparison harness both call the same LiteLLM gateway. Open WebUI
 is the interactive multi-model chat surface; `compare/run_matrix.py` is the repeatable
-test runner; `compare/judge.py` scores stored answer matrices with local judge models.
+test runner; `compare/judge.py` scores stored answer matrices through a configurable
+OpenAI-compatible judge endpoint. The checked-in default routes that traffic through
+Atlas LiteLLM; direct host endpoints remain an explicit experiment override.
 
 ### 1.2 Atlas backend and plugin seam
 
@@ -48,6 +50,9 @@ idempotent import, and webhook probe to Atlas.
 `lazy-graph-rag` reads the same profile-scoped base chunks and keeps its
 fingerprint-keyed concept graph in a dedicated persistent cache volume; it does
 not use Neo4j or create a new graph per query once the cache is warm.
+The opt-in `graph-rag-rerank` profile sends LightRAG candidates through Atlas's
+authenticated TEI adapter. The adapter splits requests at the configured 32-item
+client limit, remaps indexes across batches, and applies one final `top_n`.
 
 ### 1.4 Model strategy
 
@@ -85,9 +90,11 @@ it is separate from graph RAG.
 
 ### 2.3 Graph and agentic lanes
 
-`graph-rag` delegates the whole answer to LightRAG hybrid mode over extracted entities,
-relationships, and vector context. `agentic-rag` runs a bounded ReAct loop that can
-call vector search or graph query tools before returning a final answer and tool trace.
+`graph-rag` delegates the whole answer to an Atlas-managed LightRAG query profile
+over extracted entities, relationships, and vector context. Fast, wide, and
+rerank aliases change query-time mode/fanout/rerank without rebuilding the shared
+graph. `agentic-rag` runs a bounded ReAct loop that can call vector search or graph
+query tools before returning a final answer and tool trace.
 
 ### 2.4 Adaptive workflow lane
 
@@ -164,8 +171,8 @@ flowchart LR
         tooling["corpus/ · Atlas job client · contextual post-step"]
         n8ndir["n8n/ (workflow JSON)"]
         harness["compare/*.py + scripts/run-dataset-ladder.py<br/>host-run via uv"]
-        ollamahost["Ollama (host) — judge panel models"]
     end
+    judgeprovider["optional external OpenAI-compatible judge"]
 
     manifest --> overlay
     manifest --> plugdir
@@ -188,8 +195,8 @@ flowchart LR
     plugdir -- "bind mount :ro → /app/plugins" --> backend
     tooling -- "bind mounts :ro → /app/*" --> backend
     n8ndir -- "Atlas validates + seeds<br/>namespaced workflow" --> n8n
-    harness -- "OpenAI API over localhost" --> litellm
-    harness -- "judge calls" --> ollamahost
+    harness -- "matrix + default judge calls" --> litellm
+    harness -. "optional direct judge override" .-> judgeprovider
     owui --> litellm
     litellm --> backend
     backend --> weaviate & tei & lightrag & n8n & lazycache

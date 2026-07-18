@@ -6,9 +6,13 @@ from __future__ import annotations
 import json
 
 import httpx
+import pytest
 import respx
 
 import compare.judge as judge
+
+JUDGES = ["qwen3.6:latest", "gemma4:31b"]
+TEST_ENDPOINT = "http://localhost:11434/v1/chat/completions"
 
 
 def test_extract_json_variants() -> None:
@@ -70,6 +74,8 @@ def test_main_aggregates_normalized_verdicts(tmp_path, monkeypatch) -> None:
     # so the env seams accept tmp files.
     monkeypatch.setenv("JUDGE_MATRIX_FILE", str(matrix_path))
     monkeypatch.setenv("JUDGE_RESULTS_FILE", str(out_path))
+    monkeypatch.setenv("JUDGE_ENDPOINT", TEST_ENDPOINT)
+    monkeypatch.setenv("JUDGE_MODELS", ",".join(JUDGES))
 
     order = judge.stable_order(["vanilla-rag", "hybrid-rag"], "q1")
     letter = {model: chr(ord("A") + i) for i, model in enumerate(order)}
@@ -80,7 +86,7 @@ def test_main_aggregates_normalized_verdicts(tmp_path, monkeypatch) -> None:
         # judge 2 replies canonically
         {"scores": {hi: 5, lo: 3}, "best": hi, "reason": "y"},
     ])
-    respx.post(judge.OLLAMA).mock(side_effect=lambda request: httpx.Response(
+    respx.post(TEST_ENDPOINT).mock(side_effect=lambda request: httpx.Response(
         200, json={"choices": [{"message": {"content": json.dumps(next(replies))}}]}))
 
     judge.main()
@@ -90,8 +96,14 @@ def test_main_aggregates_normalized_verdicts(tmp_path, monkeypatch) -> None:
     assert q["mean_by_approach"] == {"hybrid-rag": 5.0, "vanilla-rag": 3.0}
     assert q["votes"] == {"hybrid-rag": 2}
     assert q["observed_winner"] == "hybrid-rag"
-    assert out["judges"] == judge.JUDGES
+    assert out["judges"] == JUDGES
     assert out["dataset_id"] == "dataset-a"
+    assert out["runtime"] == {
+        "backend": "openai-compatible",
+        "endpoint": TEST_ENDPOINT,
+        "temperature": 0.0,
+        "thinking": None,
+    }
     assert out["ingestion"] == {
         "id": "ing-1",
         "profile": "baseline_curated",
@@ -106,12 +118,14 @@ def test_main_breaks_mean_ties_by_votes(tmp_path, monkeypatch) -> None:
     out_path = tmp_path / "judgments.json"
     monkeypatch.setenv("JUDGE_MATRIX_FILE", str(matrix_path))
     monkeypatch.setenv("JUDGE_RESULTS_FILE", str(out_path))
+    monkeypatch.setenv("JUDGE_ENDPOINT", TEST_ENDPOINT)
+    monkeypatch.setenv("JUDGE_MODELS", ",".join(JUDGES))
 
     order = judge.stable_order(["vanilla-rag", "hybrid-rag"], "q1")
     letter = {model: chr(ord("A") + i) for i, model in enumerate(order)}
     hi = letter["hybrid-rag"]
     reply = {"scores": {letter["vanilla-rag"]: 4, hi: 4}, "best": hi, "reason": "tie"}
-    respx.post(judge.OLLAMA).mock(return_value=httpx.Response(
+    respx.post(TEST_ENDPOINT).mock(return_value=httpx.Response(
         200, json={"choices": [{"message": {"content": json.dumps(reply)}}]}))
 
     judge.main()
@@ -130,7 +144,9 @@ def test_main_survives_total_judge_outage_with_empty_verdicts(tmp_path, monkeypa
     out_path = tmp_path / "judgments.json"
     monkeypatch.setenv("JUDGE_MATRIX_FILE", str(matrix_path))
     monkeypatch.setenv("JUDGE_RESULTS_FILE", str(out_path))
-    respx.post(judge.OLLAMA).mock(side_effect=httpx.ConnectError("connection refused"))
+    monkeypatch.setenv("JUDGE_ENDPOINT", TEST_ENDPOINT)
+    monkeypatch.setenv("JUDGE_MODELS", ",".join(JUDGES))
+    respx.post(TEST_ENDPOINT).mock(side_effect=httpx.ConnectError("connection refused"))
 
     judge.main()
 
@@ -184,6 +200,14 @@ run:
     assert judge.judge_models() == ["operator-a", "operator-b"]
 
 
+def test_repo_default_requires_explicit_judge_models(monkeypatch) -> None:
+    monkeypatch.delenv("JUDGE_MODELS", raising=False)
+    monkeypatch.delenv("JUDGE_MANIFEST_FILE", raising=False)
+
+    with pytest.raises(ValueError, match="JUDGE_MODELS"):
+        judge.judge_models()
+
+
 def test_main_writes_disabled_artifact_without_calls(tmp_path, monkeypatch) -> None:
     matrix_path = _matrix(tmp_path)
     out_path = tmp_path / "judgments.json"
@@ -220,7 +244,7 @@ def test_main_supports_provider_neutral_endpoint_auth_and_thinking_omission(
     monkeypatch.setenv("JUDGE_MODELS", "portable-judge")
     monkeypatch.setenv("JUDGE_ENDPOINT", endpoint)
     monkeypatch.setenv("JUDGE_API_KEY", "secret-token")
-    monkeypatch.setenv("JUDGE_THINK", "omit")
+    monkeypatch.delenv("JUDGE_THINK", raising=False)
 
     seen: list[httpx.Request] = []
 
@@ -247,4 +271,26 @@ def test_main_supports_provider_neutral_endpoint_auth_and_thinking_omission(
     assert seen[0].headers["Authorization"] == "Bearer secret-token"
     payload = json.loads(seen[0].content)
     assert payload["model"] == "portable-judge"
+    assert "cache" not in payload
     assert "think" not in payload
+
+
+def test_atlas_judge_endpoint_resolves_gateway_and_generated_key(monkeypatch) -> None:
+    values = {"LITELLM_PORT": "22040", "LITELLM_MASTER_KEY": "atlas-secret"}
+    monkeypatch.setattr(
+        judge, "envval", lambda key, default="": values.get(key, default)
+    )
+    monkeypatch.delenv("JUDGE_ENDPOINT", raising=False)
+    monkeypatch.delenv("JUDGE_API_KEY", raising=False)
+
+    endpoint, _, _, headers, use_litellm_cache, runtime = judge.judge_runtime()
+
+    assert endpoint == "http://localhost:22040/v1/chat/completions"
+    assert headers == {"Authorization": "Bearer atlas-secret"}
+    assert use_litellm_cache is True
+    assert runtime == {
+        "backend": "atlas-litellm",
+        "endpoint": "atlas-litellm",
+        "temperature": 0.0,
+        "thinking": False,
+    }

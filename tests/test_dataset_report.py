@@ -26,8 +26,8 @@ def test_dataset_report_ranks_measured_inputs_by_dataset() -> None:
     assert "baseline_curated" in out
     assert "graph_native" in out
     assert "contextual-rag" in out
-    assert "on `graph_native`, `contextual-rag` leads" in out
-    assert "on `cyber_threat_intel`, `lazy-graph-rag` leads" in out
+    assert "on `graph_native`, `lazy-graph-rag` leads" in out
+    assert "on `cyber_threat_intel`, `contextual-rag` leads" in out
     assert "## 3. Flavor-Tier Tuning Results" in out
     assert "## 4. Canonical Evaluation Metrics" in out
     assert "## 5. Base-Family Per-Query Winners" in out

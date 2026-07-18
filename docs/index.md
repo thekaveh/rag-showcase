@@ -43,18 +43,22 @@ supported base approach. It remains outside the backward-compatible ad hoc
 
 ## 2. Headline Result
 
-The 2026-07-13 ladder ran all seven base approaches across three datasets of
-increasing structure. All 140 cells succeeded,
-and the winner shifts with input complexity:
+The 2026-07-17 ladder ran all seven base approaches and all twelve named flavors
+across three datasets of increasing structure. All 380 answer cells succeeded:
+140 base-family cells and 240 flavor cells. Base-family winners shifted with the
+input:
 
 | Dataset | Winning configuration | Judge score |
 |---------|-----------------------|:-----------:|
-| Baseline curated | `n8n-adaptive-rag` / `vanilla-rag` | 4.42 |
-| Graph-native dossiers | `contextual-rag` | 4.12 |
-| Cyber-threat graph (MITRE ATT&CK) | `lazy-graph-rag` | 3.25 |
+| Baseline curated | `vanilla-rag` | 4.17 |
+| Graph-native dossiers | `lazy-graph-rag` | 4.31 |
+| Cyber-threat graph (MITRE ATT&CK) | `contextual-rag` | 3.17 |
 
-Full per-query winners, judge methodology, and raw snapshots are in
-[Evaluation and Results](evaluation-methodology.md).
+The flavor-tier winners were `lazy-graph-rag-wide`,
+`hybrid-rag-high-recall`, and `hybrid-rag-fast`. Full per-query winners, Ragas
+coverage, judge methodology, and raw snapshots are in
+[Evaluation and Results](evaluation-methodology.md) and the
+[Dataset Complexity Report](dataset-complexity-report.md).
 
 ## 3. Documentation
 

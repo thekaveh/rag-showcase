@@ -117,6 +117,7 @@ MATRIX_FLAVORS=lazy-graph-rag uv run python compare/run_matrix.py
 Run the dataset ladder with a flavor selection:
 
 ```bash
+JUDGE_MODELS=judge-a,judge-b \
 uv run python scripts/run-dataset-ladder.py --flavors default,graph-rag-wide
 ```
 
@@ -164,3 +165,31 @@ Matrix outputs now include:
 Judgment files continue to score by `model`, so flavor aliases rank as separate
 rows. This is deliberate: the question is not only which base approach wins, but
 which tuned flavor wins as dataset complexity increases.
+
+## 8. Measured Flavor Results
+
+The 2026-07-17 flavor tier ran all twelve aliases over all 20 measured queries.
+All 240 cells completed without answer errors or timeouts, and both local judges
+scored every query. Flavor means are not mixed into the seven-family leaderboard.
+
+| Dataset | Winning flavor | Judge mean | Mean latency | Answer relevancy |
+|---|---|---:|---:|---:|
+| `baseline_curated` | `lazy-graph-rag-wide` | 4.58 | 6.31 s | 0.798 |
+| `graph_native` | `hybrid-rag-high-recall` | 4.19 | 10.23 s | 0.855 |
+| `cyber_threat_intel` | `hybrid-rag-fast` | 3.67 | 6.98 s | 0.844 |
+
+### 8.1 LightRAG Rerank Tradeoff
+
+`graph-rag-rerank` is compared with the rerank-disabled `fast` and `wide`
+profiles over the same ingested LightRAG graph. Judge means use the two-model
+panel; answer relevancy is Atlas Ragas; latency is end to end through LiteLLM.
+
+| Dataset | Fast: judge / relevancy / latency | Wide: judge / relevancy / latency | Rerank: judge / relevancy / latency | Finding |
+|---|---|---|---|---|
+| `baseline_curated` | 3.67 / 0.844 / 8.76 s | 3.83 / 0.833 / 17.52 s | 3.67 / 0.847 / 20.87 s | **Hurt overall:** no judge gain over fast, negligible relevancy gain, 2.38x latency. |
+| `graph_native` | 2.06 / 0.821 / 11.99 s | 2.62 / 0.816 / 13.37 s | 2.44 / 0.805 / 14.69 s | **Mixed:** judge gain over fast, but below wide, with lower relevancy and higher latency. |
+| `cyber_threat_intel` | 1.92 / 0.841 / 16.58 s | 2.17 / 0.864 / 26.67 s | 2.42 / 0.820 / 31.95 s | **Mixed:** best graph-flavor judge mean, but worst latency and lower relevancy. |
+
+The adapter is now technically valid, including TEI batching when candidate
+count exceeds 32, but the quality/latency tradeoff does not justify enabling it
+in the canonical `graph-rag` profile. It remains an explicit experiment.

@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import socket
 import sys
 from collections.abc import Iterable
 
 
 BLOCK_SIZE = 110
-DEFAULT_CANDIDATES = tuple(range(64500, 65341, 120))
+# Keep automatic allocations below the IANA dynamic/private range. Host runtimes
+# such as Ollama can create ephemeral child listeners after Atlas starts, so a
+# block that was free during preflight can otherwise collide between datasets.
+DEFAULT_CANDIDATES = tuple(range(22000, 32101, 120))
 
 
 def _validate(base: int, block_size: int) -> None:
@@ -22,15 +26,34 @@ def _validate(base: int, block_size: int) -> None:
 
 
 def block_is_free(base: int, *, block_size: int = BLOCK_SIZE) -> bool:
-    """Bind every IPv4 port at once so a partial block cannot be selected."""
+    """Bind every IPv4 and available IPv6 port so the whole block is free."""
     _validate(base, block_size)
     sockets: list[socket.socket] = []
+    ipv6_unavailable = {
+        errno.EAFNOSUPPORT,
+        errno.EPROTONOSUPPORT,
+        errno.EADDRNOTAVAIL,
+    }
     try:
         for port in range(base, base + block_size):
-            listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sockets.append(listener)
-            listener.bind(("0.0.0.0", port))
-            listener.listen(1)
+            for family, address in (
+                (socket.AF_INET, "0.0.0.0"),
+                (socket.AF_INET6, "::"),
+            ):
+                listener: socket.socket | None = None
+                try:
+                    listener = socket.socket(family, socket.SOCK_STREAM)
+                    if family == socket.AF_INET6:
+                        listener.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+                    listener.bind((address, port))
+                    listener.listen(1)
+                    sockets.append(listener)
+                except OSError as exc:
+                    if listener is not None:
+                        listener.close()
+                    if family == socket.AF_INET6 and exc.errno in ipv6_unavailable:
+                        continue
+                    raise
         return True
     except OSError:
         return False

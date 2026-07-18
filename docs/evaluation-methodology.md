@@ -43,10 +43,14 @@ call begins. `MATRIX_MODELS` and `MATRIX_FLAVORS` can narrow or expand a run, bu
 the default remains the six canonical approaches. Secrets are never stored in
 the manifest; evaluator and judge credentials are environment inputs.
 
-The checked-in judge configuration currently selects a local OpenAI-compatible
-endpoint and two local models. That is an experiment default, not a hardware
-requirement. `JUDGE_ENDPOINT`, `JUDGE_API_KEY`, `JUDGE_MODELS`, and
-`JUDGE_THINK=true|false|omit` can target another compatible provider.
+The checked-in judge configuration routes through the running Atlas LiteLLM
+gateway but names no deployment-specific models. Operators must provide model
+aliases through `JUDGE_MODELS`; Atlas then decides which backend serves them.
+`JUDGE_ENDPOINT`, `JUDGE_API_KEY`, and `JUDGE_THINK=true|false|omit` can instead
+target any OpenAI-compatible endpoint, including direct host Ollama when an
+experiment explicitly chooses it. Generic endpoints receive only standard
+OpenAI-compatible fields by default; LiteLLM cache controls are Atlas-only and
+`think` is sent to a generic endpoint only when `JUDGE_THINK` is explicit.
 
 ## 3. Deployment and Invocation Flow
 
@@ -75,8 +79,8 @@ including LightRAG's query cache, remain part of the measured approach.
 
 The experimental `lazy-graph-rag` base and its fast/balanced/wide flavors require
 explicit selection. They do not change the default six-way matrix. The base alias
-is represented in the active 2026-07-13 seven-way run; its flavors remain outside
-that published ladder.
+is represented in the active 2026-07-17 seven-way run; its flavors are measured
+in the separate twelve-alias flavor tier.
 
 ## 4. Model Roles
 
@@ -93,12 +97,25 @@ inside that approach.
 | LightRAG KEYWORD | `qwen3.6:latest` | graph query | Strict keyword/query decomposition with Atlas-scoped thinking disabled. |
 | LightRAG QUERY | `qwen3.6:latest` | graph query | Final graph/vector answer synthesis with Atlas-scoped thinking disabled. |
 | n8n classifier | `qwen3.6:latest` | adaptive workflow | Route a request to a downstream approach. |
-| Judge panel | `qwen3.6:latest`, `gemma4:31b` | stored-answer evaluation only | Two-family subjective quality signal. |
+| Ragas evaluator | `mistral-small3.2:24b` + `nomic-embed-text` | eligible stored evidence | Non-reasoning local faithfulness critic plus semantic answer-relevancy embeddings. |
+| Judge panel | Deployment-specific `JUDGE_MODELS`; July 17 used `qwen3.6:latest`, `gemma4:31b` | stored-answer evaluation only | Two-family subjective quality signal without assuming a provider or hardware profile in source control. |
 
 Model names are current configuration, not runner assumptions. Atlas resolves
 providers, adapters, capabilities, and model-scoped request defaults. In
 particular, Atlas's catalog currently applies `think:false` to its Qwen entry;
 rag-showcase no longer injects that property globally.
+
+Mistral Small 3.2 was selected for extraction and Ragas because it is a
+non-reasoning instruction model with reliable structured responses, avoiding the
+per-call thinking overhead of Qwen during call-heavy work. The evaluator still
+returned null on 118 of 300 faithfulness-eligible cells; those rows are retained
+as partial coverage rather than retried until a favorable score appears. For the
+July 17 run, Qwen and Gemma were selected as two distinct local judge families to
+reduce dependence on one subjective critic. They score stored, anonymized answers
+only and do not participate in retrieval or generation. The checked-in manifest
+intentionally leaves `models: []`; an enabled run must provide deployment-specific
+aliases through `JUDGE_MODELS` (or a custom manifest). The default endpoint remains
+Atlas LiteLLM, so the runner does not assume Ollama or direct host-service access.
 
 ## 5. Approach Processes and Evidence Capabilities
 
@@ -150,7 +167,7 @@ not an answer failure or a numeric zero.
 ## 6. Dataset-Ladder Procedure
 
 The dataset ladder measures one corpus at a time so ingestion provenance and
-result files stay dataset-specific. The active 2026-07-13 committed run contains:
+result files stay dataset-specific. The active 2026-07-17 committed run contains:
 
 | Dataset | Corpus | Queries | Current snapshot generation |
 |---|---|---|---|
@@ -197,7 +214,9 @@ The canonical artifact is newline-delimited JSON. Each row represents one
 - operational latency and attempt count;
 - Ragas status, scores, non-evaluable reasons, and evaluator model metadata;
 - pending/disabled judge status;
-- seed, configuration hashes, and ingestion provenance;
+- seed, configuration hashes, ingestion provenance, repository and Atlas revisions,
+  dirty-state flags, project/base-port/provider selection, and hashes plus entry
+  inventories for Atlas's generated model and LightRAG query-profile registries;
 - durable timeout/error information when the cell fails.
 
 Rows are append-only, flushed, and `fsync`-ed after each cell. Reads and appends use
@@ -207,7 +226,8 @@ append. Concurrent runners can execute different cells, but a second runner wait
 for an in-flight copy of the same cell and then reuses its durable row instead of
 calling the model twice. Resume skips an existing stable row. A duplicate row id,
 malformed JSONL line, changed query, changed flavor, changed seed, changed config
-hash, or changed ingestion metadata aborts resume. The operator must use a new run
+hash, changed ingestion metadata, or changed runtime provenance aborts resume. The
+operator must use a new run
 id or remove the stale working artifact; incompatible evidence is never merged
 silently.
 
@@ -245,7 +265,7 @@ synchronous scoring method. Atlas
 [#596](https://github.com/thekaveh/atlas/issues/596),
 [#597](https://github.com/thekaveh/atlas/issues/597), and
 [#659](https://github.com/thekaveh/atlas/issues/659) resolved those defects. At
-the current `2229fee9` pin, Atlas invokes modern collection metrics through their
+the current `c744467e` pin, Atlas invokes modern collection metrics through their
 async batch API, keeps the client on one event loop, and closes it before loop
 teardown. The renewed run therefore records numeric faithfulness and answer
 relevancy wherever each metric is eligible; answer-only LightRAG rows remain
@@ -254,9 +274,12 @@ explicitly ineligible for faithfulness rather than receiving a fabricated zero.
 ## 9. Independent Judgment Panel
 
 [`compare/judge.py`](../compare/judge.py) operates only on the compatibility
-matrix after approach execution. The current manifest selects
-`qwen3.6:latest` and `gemma4:31b` at temperature `0`, with thinking disabled for
-that local endpoint. The panel is configurable or can be disabled entirely.
+matrix after approach execution. The current manifest selects the Atlas LiteLLM
+endpoint at temperature `0`, with thinking disabled, but deliberately does not
+name deployment-specific judge models. Set `JUDGE_MODELS` to two or more aliases
+available through that Atlas deployment; the July 17 run used
+`qwen3.6:latest,gemma4:31b`. The panel can also be disabled explicitly in a custom
+manifest.
 
 For each query, the harness:
 
@@ -302,7 +325,9 @@ Each renewed dataset run produces four files:
 | `-judgments.json` | Optional panel verdicts, scores, reasons, and winners. |
 
 Working artifacts live under gitignored `compare/results/`. The ladder publishes
-all four to [`docs/results/`](results/) only after validation. Historical rows
+all four to [`docs/results/`](results/) only after validation. The docs generator
+copies both JSON and canonical JSONL artifacts to the generated site and wiki, and
+the docs check rejects missing local targets. Historical rows
 with only matrix/judgment snapshots remain valid and readable.
 
 For spreadsheet analysis, `compare/summarize.py --csv-output <path>` writes a
@@ -311,10 +336,11 @@ deterministic long-form view from the same summary. Each row retains its
 timeouts, and unevaluable counts; the CSV is a generated view, not a fifth source
 of truth.
 
-The active 2026-07-13 snapshots implement this contract for all three measured
-datasets. Atlas Ragas requests were attempted and their #596/#597 contract errors
-are retained per row, so the summaries show zero objective-metric coverage. The
-2026-07-03 matrix/judgment-only flavor snapshots remain readable historical data.
+The active 2026-07-17 snapshots implement this contract for all three measured
+datasets and both the seven-family and twelve-flavor tiers. Atlas Ragas returns
+numeric scores where evidence is eligible. Coverage remains explicit because
+LightRAG does not expose contexts for faithfulness and some evaluator calls can
+still fail independently without invalidating the answer cell.
 
 ## 12. Reproduction and Overrides
 
@@ -322,9 +348,14 @@ Start the stack, then run the default matrix and panel:
 
 ```bash
 ./scripts/start-all.sh
+export JUDGE_MODELS=judge-a,judge-b
 uv run python compare/run_matrix.py
 uv run python compare/judge.py
 ```
+
+Export the judge aliases before matrix execution so canonical provenance records
+the same panel later used by `compare/judge.py`. The runner rejects an enabled
+panel with no resolved aliases before issuing approach calls.
 
 `MATRIX_MODELS` selects an exact comma-separated set of model aliases.
 `MATRIX_FLAVORS` expands named profiles from `compare/flavors.yaml`. The dataset
@@ -352,52 +383,53 @@ Relevant inputs include `MATRIX_MANIFEST_FILE`, `MATRIX_FLAVORS`,
 
 ## 13. Implementation Validation
 
-The 2026-07-13 implementation smoke first exercised `vanilla-rag` and `graph-rag`
-over two datasets through the public LiteLLM aliases:
+The 2026-07-17 validation launched the consumer as project `rag-showcase` and
+selected host Ollama through Atlas's public provider source; ComfyUI was disabled
+because no evaluated approach consumes it. The baseline and graph-native tiers ran
+on verified-free block `64500-64609` with Atlas `2229fee9`. The cyber tiers ran on
+verified-free block `22000-22109` after the rerank repair, using Atlas `c744467e`.
+Every canonical row records its actual split-run base port and Atlas revision. The
+repository's final submodule pin is `c744467e`. Hardware is run metadata, not an
+assumption in startup or evaluation code.
 
-- graph-native: eight questions by two approaches, producing 16 successful,
-  uniquely identified canonical rows;
-- baseline: the exact-keyword question by two approaches, producing two
-  successful, uniquely identified canonical rows;
-- resume: a controlled interruption after the first durable row followed by the
-  same run id, which skipped the completed cell without appending a duplicate;
-- projections: deterministic summary JSON and long-form CSV generated from the
-  canonical JSONL.
+Each measured dataset received a cold stack reset, fresh Atlas ingestion job,
+LightRAG drain, contextual post-processing, base-family matrix, flavor matrix,
+Ragas evaluation, and independent Qwen/Gemma judge pass. The published result is:
 
-The first baseline attempt also exposed a role/model mismatch: using Mistral for
-LightRAG KEYWORD could emit unbounded prose instead of the requested compact
-keyword structure. The checked-in setup now keeps Mistral on EXTRACT and uses
-Atlas's thinking-disabled Qwen model for KEYWORD and QUERY. With that split, the
-previously blocked graph keyword query completed successfully.
+- 140/140 successful base-family cells;
+- 240/240 successful flavor cells;
+- zero answer errors and zero answer timeouts;
+- complete two-judge coverage for every query;
+- numeric answer relevancy for all answer cells and coverage-aware faithfulness
+  for approaches that expose exact contexts.
 
-These runs validate orchestration, evidence durability, resume, graph invocation,
-and reporting. A later 2026-07-14 integration pass pinned Atlas `f52d078e` and
-completed generic `graph_native` ingestion job
-`7127dcc3-7a45-40ad-ae28-5b547cf0bc8b`: 10 files/chunks/vectors/uploads, a drained
-LightRAG queue, 10 contextual chunks, and all eight six-alias smoke checks. That
-pass validates the ingestion transport and serving path, not comparative quality.
+The live flavor run exposed a TEI batch-limit defect in Atlas's LightRAG rerank
+adapter when 43 documents exceeded the service's 32-item client limit. Atlas
+[#713](https://github.com/thekaveh/atlas/issues/713) and
+[#714](https://github.com/thekaveh/atlas/pull/714) added total-budget batching,
+global index remapping, and fail-closed behavior. The submodule was advanced to
+that merged fix and the invalid pre-fix row was discarded before the complete
+rerun. Post-fix requests split into 32- and 11-document TEI batches and all
+`graph-rag-rerank` cells completed.
 
-The subsequent full ladder used pinned Atlas `f52d078e`, completed fresh ingestion
-and LightRAG drain for all three datasets, and published 140/140 successful cells
-across the six canonical approaches plus experimental lazy graph. Both judges
-completed every query. Atlas evaluator defects
-[#596](https://github.com/thekaveh/atlas/issues/596) and
-[#597](https://github.com/thekaveh/atlas/issues/597) prevented valid Ragas scores;
-that limitation is represented as zero coverage and explicit errors, not as a
-blocker to publishing the independently valid answer, operational, and judge data.
+The published panel itself used the direct host-Ollama OpenAI endpoint. That choice
+is recorded in every matrix row's planned judge provenance and in each judgment
+artifact's resolved runtime. The checked-in default now uses `atlas-litellm`, so a
+future run does not require a separately managed host Ollama endpoint.
 
 ## 14. Reading the Current Results
 
-The active ladder shows ranking drift: adaptive/vanilla retrieval tied on the
-baseline corpus, contextual retrieval led graph-native dossiers, and experimental
-lazy graph led the cyber corpus. Default graph-rag was operational but did not win
-an aggregate; agentic retrieval was strongly constrained by latency and
-`MAX_STEPS`.
+The active base ladder shows ranking drift: vanilla retrieval led the baseline,
+experimental lazy graph led graph-native dossiers, and contextual retrieval led
+the cyber corpus. The flavor tier changed the winners to lazy-graph wide,
+hybrid high-recall, and hybrid fast. Default graph-rag was operational but did
+not win an aggregate; agentic retrieval remained constrained by bounded planning
+and latency.
 
 The canonical rows support direct coverage, failure, latency, answer, context,
-and judge comparisons now. Faithfulness and answer-relevancy rankings remain
-unavailable until the Atlas evaluator contract is fixed and the run is repeated.
-See
+Ragas, and judge comparisons. Faithfulness remains intentionally unavailable for
+LightRAG answer-only rows; this is an evidence limitation, not an evaluator or
+answer failure. See
 [`comparison.md`](comparison.md) for narrative findings and
 [`approaches.md`](approaches.md) for each approach's internal steps and tuning
 surface.

@@ -5,16 +5,16 @@ all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
 submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
 as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
 
-> **Live results (2026-07-13).** The current committed base-approach ladder ran
-> seven approaches across three datasets: baseline curated, graph-native dossiers,
-> and a MITRE ATT&CK cyber-threat graph slice. All **140/140** matrix cells
-> succeeded. `n8n-adaptive-rag` and `vanilla-rag` tied on baseline score,
-> `contextual-rag` led graph-native, and experimental `lazy-graph-rag` led cyber.
-> Lazy graph ranked fourth, second, then first as graph complexity increased while
-> remaining much faster than LightRAG and agentic retrieval. Atlas Ragas calls
-> were recorded but rejected by the tracked evaluator contract defects; blinded
-> two-model judge scores, latency, failures, answers, contexts, and reproducibility
-> metadata remain valid. Full analysis, per-query winners,
+> **Live results (2026-07-17).** The current committed run evaluated seven base
+> approaches and twelve named query-time flavors across baseline curated,
+> graph-native, and MITRE ATT&CK cyber-threat datasets. All **380/380** answer
+> cells succeeded: 140 base-family cells and 240 flavor cells. `vanilla-rag` led
+> baseline, experimental `lazy-graph-rag` led graph-native, and `contextual-rag`
+> led cyber by the blinded two-model judge panel. The flavor winners were
+> `lazy-graph-rag-wide`, `hybrid-rag-high-recall`, and `hybrid-rag-fast`.
+> Atlas Ragas returned coverage-aware faithfulness and answer-relevancy scores;
+> LightRAG answer-only rows are correctly ineligible for faithfulness. Full
+> analysis, per-query winners,
 > methodology, raw snapshots, and findings:
 > **[`docs/evaluation-methodology.md`](docs/evaluation-methodology.md)**,
 > **[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md)**, and
@@ -92,6 +92,10 @@ requirements apply:
 This selects the parent-owned `atlas.consumer.yml`, runs Atlas's native headless
 env backfill, manifest-aware Compose validation, and consumer doctor, then starts
 Atlas with `--no-tui --detach`. The
+wrapper serializes launch-time port selection, chooses a completely free 110-port
+block below the OS dynamic/private range, and rechecks it immediately before Atlas
+binds it. It passes project name `rag-showcase`; `RAG_SHOWCASE_BASE_PORT` can require
+a specific block and fails before startup if any port is occupied. The
 manifest registers the project identity, branding, `config/atlas.env.user`,
     external Compose overlay, backend plugin root, Ollama model sidecar, and
     dataset-specific RAG ingestion profiles without tracked Atlas modifications or
@@ -173,8 +177,9 @@ performance for each approach, see [`docs/approaches.md`](docs/approaches.md).
 
 [`lazy-graph-rag`](docs/lazy-graph-rag.md) combines vector seeds with deterministic,
 budgeted concept-graph expansion. It is a separate experimental approach, not a
-LightRAG flavor. In the 2026-07-13 base-approach ladder it ranked fourth on
-baseline, second on graph-native, and first on cyber-threat data. It remains
+LightRAG flavor. In the 2026-07-17 base-approach ladder it tied for third on
+baseline, ranked first on graph-native, and tied for second on cyber-threat data.
+It remains
 experimental and off by default while its lightweight concept extraction and
 co-occurrence semantics are evaluated on additional corpora.
 
@@ -245,10 +250,10 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | `LIGHTRAG_EXTRACT_MAX_ASYNC_LLM` | `1` | LightRAG EXTRACT concurrency | `config/atlas.env.user` |
 | `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | `900` | LightRAG EXTRACT timeout seconds | `config/atlas.env.user` |
 | `OLLAMA_CUSTOM_MODELS` | includes `mistral-small3.2:24b` | local Ollama model activation | compiled from `atlas.consumer.yml` `model_sidecars.ollama` |
-| `LIGHTRAG_QUERY_ENABLE_RERANK` | `false` | lightrag client (graph-rag query rerank flag) | Compose overlay; customize through the selected consumer manifest env file |
-| `LIGHTRAG_QUERY_TOP_K` | `10` | lightrag client (KG top-k) | Compose overlay; customize through the selected consumer manifest env file |
-| `LIGHTRAG_QUERY_CHUNK_TOP_K` | `5` | lightrag client (chunk top-k) | Compose overlay; customize through the selected consumer manifest env file |
-| `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS` | `12000` | lightrag client (query context budget) | Compose overlay; customize through the selected consumer manifest env file |
+| `LIGHTRAG_QUERY_ENABLE_RERANK` | `false` | LightRAG service fallback | Atlas query profile owns each alias; overlay supplies the service fallback |
+| `LIGHTRAG_QUERY_TOP_K` | `10` | LightRAG service fallback | Atlas query profile owns each alias; overlay supplies the service fallback |
+| `LIGHTRAG_QUERY_CHUNK_TOP_K` | `5` | LightRAG service fallback | Atlas query profile owns each alias; overlay supplies the service fallback |
+| `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS` | `12000` | LightRAG service fallback | Atlas query profile owns each alias; overlay supplies the service fallback |
 | `LIGHTRAG_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG base Ollama context cap (used only when a LightRAG role is bound directly to Ollama) | overlay |
 | `LIGHTRAG_EXTRACT_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG EXTRACT-role Ollama context cap | overlay |
 | `LIGHTRAG_KEYWORD_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG KEYWORD-role Ollama context cap | overlay |
@@ -266,7 +271,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Cyber threat dataset plan](docs/superpowers/plans/2026-07-03-cyber-threat-dataset.md) | Historical | Follow-on plan that added the bounded MITRE ATT&CK cyber-threat corpus rung |
 | [Overview](docs/guide/overview.md) | Living | Concepts — how the seven approaches run under identical conditions, flavor aliases, and the fair-comparison guarantees |
 | [Quick Start](docs/guide/quickstart.md) | Living | One-command bring-up, prerequisites, and driving the multi-model comparison in Open WebUI |
-| [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and six-approach parallel flow diagrams |
+| [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and seven-approach parallel flow diagrams |
 | [System diagram (interactive)](docs/diagrams/architecture.md) | Living | Rendered full-system architecture diagram (HTML/SVG in an inline iframe) |
 | [Approach flow diagram (interactive)](docs/diagrams/approach-flows.md) | Living | Rendered parallel-lane diagram of the six approach flow phases (HTML/SVG in an inline iframe) |
 | [Approach internals](docs/approaches.md) | Living | Step-by-step flow, dependencies, tuning variables, tradeoffs, and measured performance for every approach |
@@ -338,12 +343,11 @@ LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
   `atlas.consumer.local.yml`, copy `config/atlas.env.user` to an ignored `.env.*`
   file, point the local manifest's `env.file` at that file, and set
   `ATLAS_CONSUMER_MANIFEST` to the local manifest for your model budget.
-- **`graph-rag` returns one-word answers or takes ~30s/query.** LightRAG's query-time
-  rerank clients are not directly compatible with TEI's payload. Atlas now provides an
-  opt-in backend adapter via `LIGHTRAG_RERANK_ADAPTER_ENABLED=true`; without that adapter,
-  keep `LIGHTRAG_QUERY_ENABLE_RERANK=false`. The showcase also defaults graph queries to
-  `LIGHTRAG_QUERY_TOP_K=10`, `LIGHTRAG_QUERY_CHUNK_TOP_K=5`, and
-  `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS=12000`.
+- **`graph-rag-rerank` fails while other graph profiles work.** Direct LightRAG
+  rerank clients are not wire-compatible with TEI. Keep
+  `LIGHTRAG_RERANK_ADAPTER_ENABLED=true` so Atlas translates and batches requests
+  at TEI's 32-item limit. Canonical, fast, and wide remain rerank-disabled
+  controls; their mode, fanout, and token budgets are Atlas query profiles.
 - **A manual `cd infra && ./start.sh` follows logs.** For scripted Atlas bring-up,
   use `./start.sh --no-tui --detach` (or `--no-follow`) so Atlas waits for health,
   prints a status summary, and returns. `start-all.sh` already uses this path,

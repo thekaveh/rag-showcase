@@ -6,12 +6,11 @@ GraphRAG code and not a claim of implementation parity. It is registered for
 explicit testing but excluded from the six-approach default comparison. Its
 concept indexing and graph traversal are LLM-free.
 
-The prototype is now measured in the committed 2026-07-13 dataset ladder. It
+The prototype is now measured in the committed 2026-07-17 dataset ladder. It
 participated beside all six canonical approaches on baseline, graph-native, and
 MITRE ATT&CK cyber-threat corpora. All 20 lazy-graph cells succeeded. The result
-supports keeping the approach: its judge rank improved from fourth to second to
-first as the corpus became more graph-shaped, with substantially lower latency
-than LightRAG or agentic retrieval. It remains experimental and off by default
+supports keeping the approach: it tied for third on baseline, won graph-native,
+and tied for second on cyber while retaining low latency. It remains experimental and off by default
 because its untyped co-occurrence graph is a useful approximation, not a
 general-purpose knowledge graph.
 
@@ -146,40 +145,41 @@ Recorded fields include:
 
 The consumer-owned Atlas-backed matrix combines those operational fields with
 cold/warm cache state, latency, Ragas state, judge-panel scores, errors, and
-dataset/model/config provenance. Ragas and judge scores remain separate. In this
-run Atlas rejected Ragas evaluation requests because of Atlas #596/#597; the
-evidence rows retain those errors and the reports show zero coverage rather than
-substituting judge scores.
+dataset/model/config provenance. Ragas and judge scores remain separate. The
+current Atlas evaluator returns numeric faithfulness and answer relevancy with
+explicit coverage; missing or failed metric rows are never replaced by judge
+scores or numeric zeroes.
 
 ## 7. Measured Results
 
-The 2026-07-13 run used the same Atlas ingestion revision, generation role,
+The 2026-07-17 run used the same Atlas ingestion revision, generation role,
 embedding role, questions, and blinded judges for every approach. The complete
 artifacts are under [`docs/results/`](results/) and the generated per-query view
 is [`dataset-complexity-report.md`](dataset-complexity-report.md).
 
 | Dataset | Lazy rank | Judge mean | Mean latency | Graph size | Result |
 |---|---:|---:|---:|---|---|
-| `baseline_curated` | 4/7 | 3.92 | 5.12 s | 30 chunks, 453 concepts, 7,523 edges | Competitive, but simpler adaptive/vector paths led. |
-| `graph_native` | 2/7 | 3.88 | 6.07 s | 10 chunks, 162 concepts, 2,475 edges | Won the ecosystem and cross-regulator questions. |
-| `cyber_threat_intel` | 1/7 | 3.25 | 11.95 s | 66 chunks, 762 concepts, 13,949 edges | Won mitigation coverage and campaign timeline synthesis. |
+| `baseline_curated` | tied 3/7 | 3.92 | 5.51 s | 30 chunks, 453 concepts, 7,523 edges | Competitive, but vanilla and hybrid retrieval led. |
+| `graph_native` | 1/7 | 4.31 | 4.94 s | 10 chunks, 162 concepts, 2,475 edges | Won the aggregate and two individual questions. |
+| `cyber_threat_intel` | tied 2/7 | 3.00 | 8.12 s | 66 chunks, 762 concepts, 13,949 edges | Competitive on relation-heavy prompts; contextual RAG led. |
 
-Across the same rungs, default LightRAG averaged 67.39, 88.03, and 67.61 seconds;
-agentic retrieval averaged 35.91, 141.72, and 204.67 seconds. Lazy graph made
+Across the same rungs, default LightRAG averaged 12.61, 12.47, and 21.20 seconds;
+agentic retrieval averaged 10.77, 29.11, and 41.86 seconds. Lazy graph made
 exactly two model calls per query: one embedding and one final generation call.
 It made zero index-time model calls.
 
-Cold deterministic index construction was 0.020 seconds for 30 baseline chunks
-and 0.032 seconds for 66 cyber chunks. The first end-to-end lazy calls, including
-embedding, retrieval, graph build, and generation, were 3.67 and 19.28 seconds.
+Cold deterministic index construction was 0.019 seconds for 30 baseline chunks
+and 0.028 seconds for 66 cyber chunks. The first end-to-end lazy calls include
+embedding, retrieval, graph build, and generation; the graph build itself remains
+negligible relative to model inference.
 Subsequent fingerprint/cache checks took roughly 0.002-0.010 seconds. A separate
 live flavor gate built base, fast, and wide graph densities, then confirmed warm
 hits for base/balanced and fast without cross-flavor rebuild churn.
 
-These numbers do not establish universal superiority. The graph-native aggregate
-winner was contextual RAG, and lazy graph lost several exact path questions where
+These numbers do not establish universal superiority. The cyber aggregate winner
+was contextual RAG, and lazy graph lost several exact path questions where
 typed entity/relation extraction or high-recall chunk retrieval produced better
-evidence. The cyber win nevertheless satisfies the prototype's keep criterion,
+evidence. The graph-native win nevertheless satisfies the prototype's keep criterion,
 so the implementation remains available for explicit selection.
 
 ## 8. Limitations and Decision

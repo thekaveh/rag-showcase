@@ -1,0 +1,395 @@
+{
+  "status": "ok",
+  "dataset_id": "graph_native",
+  "judges": [
+    "qwen3.6:latest",
+    "gemma4:31b"
+  ],
+  "queries": [
+    {
+      "query_id": "entity_bridge",
+      "query": "Explain how Microsoft is connected to OpenAI's 2023 leadership crisis, including the roles of Sam Altman, Greg Brockman, and Satya Nadella.",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "vanilla-rag": 5.0,
+            "hybrid-rag": 4.0,
+            "contextual-rag": 4.0,
+            "graph-rag": 3.0,
+            "n8n-adaptive-rag": 5.0,
+            "agentic-rag": 5.0,
+            "lazy-graph-rag": 4.0
+          },
+          "best": "vanilla-rag",
+          "reason": "Directly and comprehensively addresses all required roles and relationships with accurate, specific details."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "vanilla-rag": 5.0,
+            "hybrid-rag": 4.0,
+            "contextual-rag": 4.0,
+            "graph-rag": 3.0,
+            "n8n-adaptive-rag": 4.0,
+            "agentic-rag": 4.0,
+            "lazy-graph-rag": 4.0
+          },
+          "best": "vanilla-rag",
+          "reason": "Answer A is the most complete, covering the start of the crisis, the specific roles and interventions of all three named individuals, and the ultimate resolution."
+        }
+      },
+      "mean_by_approach": {
+        "vanilla-rag": 5.0,
+        "hybrid-rag": 4.0,
+        "contextual-rag": 4.0,
+        "graph-rag": 3.0,
+        "n8n-adaptive-rag": 4.5,
+        "agentic-rag": 4.5,
+        "lazy-graph-rag": 4.0
+      },
+      "votes": {
+        "vanilla-rag": 2
+      },
+      "observed_winner": "vanilla-rag"
+    },
+    {
+      "query_id": "relationship_chain",
+      "query": "Trace the relationship chain connecting Google, Apple, Safari, the DOJ, Judge Amit Mehta, and Microsoft Bing in the search antitrust material.",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "n8n-adaptive-rag": 2.0,
+            "agentic-rag": 2.0,
+            "vanilla-rag": 5.0,
+            "lazy-graph-rag": 5.0,
+            "contextual-rag": 4.0,
+            "hybrid-rag": 4.0,
+            "graph-rag": 2.0
+          },
+          "best": "vanilla-rag",
+          "reason": "Answer C provides a complete, accurate, and concise graph-style mapping of all required entities and relationships without truncation or irrelevant details."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "n8n-adaptive-rag": 2.0,
+            "agentic-rag": 2.0,
+            "vanilla-rag": 5.0,
+            "lazy-graph-rag": 5.0,
+            "contextual-rag": 5.0,
+            "hybrid-rag": 5.0,
+            "graph-rag": 3.0
+          },
+          "best": "vanilla-rag",
+          "reason": "Answer C provides a clear, complete relationship chain using arrow notation that explicitly connects all requested entities and concepts."
+        }
+      },
+      "mean_by_approach": {
+        "n8n-adaptive-rag": 2.0,
+        "agentic-rag": 2.0,
+        "vanilla-rag": 5.0,
+        "lazy-graph-rag": 5.0,
+        "contextual-rag": 4.5,
+        "hybrid-rag": 4.5,
+        "graph-rag": 2.5
+      },
+      "votes": {
+        "vanilla-rag": 2
+      },
+      "observed_winner": "vanilla-rag"
+    },
+    {
+      "query_id": "shared_actor",
+      "query": "Which companies appear both in AI partnership or investment relationships and in competition or antitrust scrutiny, and what are their connections?",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "graph-rag": 5.0,
+            "agentic-rag": 4.0,
+            "n8n-adaptive-rag": 4.0,
+            "hybrid-rag": 4.0,
+            "lazy-graph-rag": 4.0,
+            "contextual-rag": 4.0,
+            "vanilla-rag": 4.0
+          },
+          "best": "graph-rag",
+          "reason": "Directly answers the prompt with specific examples and clear structure, effectively mapping companies across both contexts."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "graph-rag": 2.0,
+            "agentic-rag": 2.0,
+            "n8n-adaptive-rag": 2.0,
+            "hybrid-rag": 4.0,
+            "lazy-graph-rag": 4.0,
+            "contextual-rag": 3.0,
+            "vanilla-rag": 5.0
+          },
+          "best": "vanilla-rag",
+          "reason": "Answer G provides the most complete and specific details for multiple companies (Microsoft and OpenAI), clearly linking their AI partnerships to their corresponding antitrust scrutiny before cutting off."
+        }
+      },
+      "mean_by_approach": {
+        "graph-rag": 3.5,
+        "agentic-rag": 3.0,
+        "n8n-adaptive-rag": 3.0,
+        "hybrid-rag": 4.0,
+        "lazy-graph-rag": 4.0,
+        "contextual-rag": 3.5,
+        "vanilla-rag": 4.5
+      },
+      "votes": {
+        "graph-rag": 1,
+        "vanilla-rag": 1
+      },
+      "observed_winner": "vanilla-rag"
+    },
+    {
+      "query_id": "timeline_cause",
+      "query": "Summarize the sequence connecting FTX, Alameda Research, Binance, customer withdrawals, bankruptcy, and the DOJ prosecution.",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "n8n-adaptive-rag": 3.0,
+            "agentic-rag": 3.0,
+            "contextual-rag": 5.0,
+            "vanilla-rag": 5.0,
+            "lazy-graph-rag": 5.0,
+            "hybrid-rag": 5.0,
+            "graph-rag": 4.0
+          },
+          "best": "hybrid-rag",
+          "reason": "F provides a complete, accurate causal chain with specific details on the DOJ prosecution and key insiders, without truncation."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "n8n-adaptive-rag": 2.0,
+            "agentic-rag": 2.0,
+            "contextual-rag": 4.0,
+            "vanilla-rag": 4.0,
+            "lazy-graph-rag": 4.0,
+            "hybrid-rag": 5.0,
+            "graph-rag": 2.0
+          },
+          "best": "hybrid-rag",
+          "reason": "Answer F is the most complete and detailed response that avoids truncation, specifically including the role of cooperating witnesses in the DOJ prosecution."
+        }
+      },
+      "mean_by_approach": {
+        "n8n-adaptive-rag": 2.5,
+        "agentic-rag": 2.5,
+        "contextual-rag": 4.5,
+        "vanilla-rag": 4.5,
+        "lazy-graph-rag": 4.5,
+        "hybrid-rag": 5.0,
+        "graph-rag": 3.0
+      },
+      "votes": {
+        "hybrid-rag": 2
+      },
+      "observed_winner": "hybrid-rag"
+    },
+    {
+      "query_id": "witness_network",
+      "query": "Map the witness and insider network around the FTX case: Caroline Ellison, Gary Wang, Nishad Singh, Sam Bankman-Fried, Alameda Research, FTX, and the DOJ.",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "vanilla-rag": 4.0,
+            "hybrid-rag": 4.0,
+            "n8n-adaptive-rag": 3.0,
+            "graph-rag": 3.0,
+            "agentic-rag": 3.0,
+            "contextual-rag": 5.0,
+            "lazy-graph-rag": 4.0
+          },
+          "best": "contextual-rag",
+          "reason": "F is the only complete response that thoroughly maps all requested entities and their relational network without truncation."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "vanilla-rag": 2.0,
+            "hybrid-rag": 2.0,
+            "n8n-adaptive-rag": 3.0,
+            "graph-rag": 3.0,
+            "agentic-rag": 3.0,
+            "contextual-rag": 4.0,
+            "lazy-graph-rag": 5.0
+          },
+          "best": "lazy-graph-rag",
+          "reason": "Answer G is the most complete; it defines all requested entities and their relationships before cutting off in a redundant section."
+        }
+      },
+      "mean_by_approach": {
+        "vanilla-rag": 3.0,
+        "hybrid-rag": 3.0,
+        "n8n-adaptive-rag": 3.0,
+        "graph-rag": 3.0,
+        "agentic-rag": 3.0,
+        "contextual-rag": 4.5,
+        "lazy-graph-rag": 4.5
+      },
+      "votes": {
+        "contextual-rag": 1,
+        "lazy-graph-rag": 1
+      },
+      "observed_winner": "contextual-rag"
+    },
+    {
+      "query_id": "cloud_model_competition",
+      "query": "Compare how Microsoft/OpenAI, Amazon/Anthropic, and Google/Anthropic connect cloud infrastructure to frontier AI models.",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "agentic-rag": 2.0,
+            "n8n-adaptive-rag": 2.0,
+            "hybrid-rag": 4.0,
+            "graph-rag": 3.0,
+            "lazy-graph-rag": 4.0,
+            "contextual-rag": 5.0,
+            "vanilla-rag": 4.0
+          },
+          "best": "contextual-rag",
+          "reason": "Covers all three requested partnerships with specific infrastructure and commercialization details, providing the most complete comparison despite truncation."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "agentic-rag": 2.0,
+            "n8n-adaptive-rag": 2.0,
+            "hybrid-rag": 3.0,
+            "graph-rag": 1.0,
+            "lazy-graph-rag": 2.0,
+            "contextual-rag": 4.0,
+            "vanilla-rag": 3.0
+          },
+          "best": "contextual-rag",
+          "reason": "Answer F is the most complete, providing detailed information for all three partnerships, whereas others are more severely truncated."
+        }
+      },
+      "mean_by_approach": {
+        "agentic-rag": 2.0,
+        "n8n-adaptive-rag": 2.0,
+        "hybrid-rag": 3.5,
+        "graph-rag": 2.0,
+        "lazy-graph-rag": 3.0,
+        "contextual-rag": 4.5,
+        "vanilla-rag": 3.5
+      },
+      "votes": {
+        "contextual-rag": 2
+      },
+      "observed_winner": "contextual-rag"
+    },
+    {
+      "query_id": "default_search_ecosystem",
+      "query": "Describe the default-search ecosystem involving Google Search, Apple Safari, Mozilla Firefox, Microsoft Bing, and the DOJ.",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "lazy-graph-rag": 5.0,
+            "n8n-adaptive-rag": 2.0,
+            "agentic-rag": 2.0,
+            "graph-rag": 2.0,
+            "hybrid-rag": 3.0,
+            "vanilla-rag": 4.0,
+            "contextual-rag": 5.0
+          },
+          "best": "lazy-graph-rag",
+          "reason": "Answer A comprehensively covers all requested entities with specific details on revenue flows and the antitrust timeline, presented clearly without truncation."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "lazy-graph-rag": 5.0,
+            "n8n-adaptive-rag": 1.0,
+            "agentic-rag": 1.0,
+            "graph-rag": 1.0,
+            "hybrid-rag": 1.0,
+            "vanilla-rag": 4.0,
+            "contextual-rag": 5.0
+          },
+          "best": "contextual-rag",
+          "reason": "Answer G provides a comprehensive and well-structured overview of all required relationships (browser, search engine, revenue, and antitrust) including the most recent legal developments."
+        }
+      },
+      "mean_by_approach": {
+        "lazy-graph-rag": 5.0,
+        "n8n-adaptive-rag": 1.5,
+        "agentic-rag": 1.5,
+        "graph-rag": 1.5,
+        "hybrid-rag": 2.0,
+        "vanilla-rag": 4.0,
+        "contextual-rag": 5.0
+      },
+      "votes": {
+        "lazy-graph-rag": 1,
+        "contextual-rag": 1
+      },
+      "observed_winner": "lazy-graph-rag"
+    },
+    {
+      "query_id": "cross_domain_regulators",
+      "query": "Which regulators or government bodies appear across the AI, search, and crypto documents, and what actions did each take?",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "vanilla-rag": 4.0,
+            "lazy-graph-rag": 5.0,
+            "n8n-adaptive-rag": 1.0,
+            "hybrid-rag": 3.0,
+            "contextual-rag": 3.0,
+            "agentic-rag": 1.0,
+            "graph-rag": 3.0
+          },
+          "best": "lazy-graph-rag",
+          "reason": "Directly addresses all requested entities with clear cross-domain mapping and specific actions."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "vanilla-rag": 2.0,
+            "lazy-graph-rag": 4.0,
+            "n8n-adaptive-rag": 1.0,
+            "hybrid-rag": 3.0,
+            "contextual-rag": 3.0,
+            "agentic-rag": 1.0,
+            "graph-rag": 2.0
+          },
+          "best": "lazy-graph-rag",
+          "reason": "Answer B is the most comprehensive, identifying and grouping the most required entities (FTC, CMA, DOJ, and FEC) before it was truncated."
+        }
+      },
+      "mean_by_approach": {
+        "vanilla-rag": 3.0,
+        "lazy-graph-rag": 4.5,
+        "n8n-adaptive-rag": 1.0,
+        "hybrid-rag": 3.0,
+        "contextual-rag": 3.0,
+        "agentic-rag": 1.0,
+        "graph-rag": 2.5
+      },
+      "votes": {
+        "lazy-graph-rag": 2
+      },
+      "observed_winner": "lazy-graph-rag"
+    }
+  ],
+  "ingestion": {
+    "id": "ed211ed6-5b56-4de1-8b3c-2322e8a8f3f5",
+    "job_id": "ed211ed6-5b56-4de1-8b3c-2322e8a8f3f5",
+    "profile": "graph_native",
+    "revision": "c35e3024a2853815",
+    "content_digest": "e5dcbbfb3c341c8f",
+    "mode": "atlas-job"
+  },
+  "runtime": {
+    "backend": "openai-compatible",
+    "endpoint": "http://localhost:11434/v1/chat/completions",
+    "temperature": 0.0,
+    "thinking": false
+  }
+}

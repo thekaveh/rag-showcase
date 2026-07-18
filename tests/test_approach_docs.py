@@ -76,7 +76,7 @@ def test_experimental_lazy_graph_design_is_linked_and_measured() -> None:
         "seed_k",
         "max_context_chunks",
         "content fingerprint",
-        "2026-07-13",
+        "2026-07-17",
         "cyber_threat_intel",
     ]:
         assert phrase in design

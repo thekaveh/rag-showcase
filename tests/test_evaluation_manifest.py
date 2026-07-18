@@ -76,6 +76,13 @@ def test_manifest_resolves_dataset_catalog_and_evidence_capability(tmp_path: Pat
     assert evidence_for_base(manifest, "graph-rag") == "answer_only"
 
 
+def test_repo_default_judge_panel_routes_through_atlas() -> None:
+    manifest = load_manifest(Path("compare/evaluation.yaml"))
+
+    assert manifest.metrics.judge_panel.endpoint == "atlas-litellm"
+    assert manifest.metrics.judge_panel.models == []
+
+
 @pytest.mark.parametrize(
     ("replacement", "message"),
     [
@@ -83,7 +90,6 @@ def test_manifest_resolves_dataset_catalog_and_evidence_capability(tmp_path: Pat
         ("timeout_s: 0", "timeout"),
         ("concurrency: 0", "concurrency"),
         ("ragas: [not-a-metric]", "not-a-metric"),
-        ("models: []", "models"),
         ("endpoint: ''", "endpoint"),
     ],
 )
