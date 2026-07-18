@@ -588,6 +588,36 @@ def test_validation_rejects_flavor_with_unconfigured_base_family(tmp_path: Path)
         build_leaderboards(datasets, root=tmp_path)
 
 
+def test_validation_rejects_flavor_alias_that_shadows_base_approach(tmp_path: Path) -> None:
+    datasets = _write_two_dataset_fixture(tmp_path)
+    flavors_path = tmp_path / "compare" / "flavors.yaml"
+    flavors = yaml.safe_load(flavors_path.read_text(encoding="utf-8"))
+    flavors["flavors"][0]["alias"] = "approach-a"
+    flavors_path.write_text(yaml.safe_dump(flavors), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="flavor alias.*approach-a.*shadows.*base"):
+        build_leaderboards(datasets, root=tmp_path)
+
+
+def test_validation_rejects_duplicate_dataset_ids(tmp_path: Path) -> None:
+    datasets = _write_two_dataset_fixture(tmp_path)
+    datasets.append(dict(datasets[0]))
+
+    with pytest.raises(ValueError, match="duplicate dataset id.*easy"):
+        build_leaderboards(datasets, root=tmp_path)
+
+
+@pytest.mark.parametrize("dataset_id", ["", None])
+def test_validation_rejects_empty_dataset_ids(
+    tmp_path: Path, dataset_id: str | None
+) -> None:
+    datasets = _write_two_dataset_fixture(tmp_path)
+    datasets[0]["id"] = dataset_id
+
+    with pytest.raises(ValueError, match="dataset id must be a nonempty string"):
+        build_leaderboards(datasets, root=tmp_path)
+
+
 @pytest.mark.parametrize("metric_name", ["answer_relevancy", "faithfulness"])
 def test_validation_rejects_ragas_total_that_differs_from_query_count(
     tmp_path: Path, metric_name: str

@@ -158,6 +158,18 @@ def _snapshot_paths(dataset: dict[str, Any], *, tier: str) -> tuple[str, str]:
     return str(evaluation), str(judgment)
 
 
+def _validate_dataset_ids(datasets: list[dict[str, Any]]) -> None:
+    ids: list[str] = []
+    for dataset in datasets:
+        dataset_id = dataset.get("id") if isinstance(dataset, dict) else None
+        if not isinstance(dataset_id, str) or not dataset_id.strip():
+            raise ValueError("dataset id must be a nonempty string")
+        ids.append(dataset_id)
+    duplicates = sorted({dataset_id for dataset_id in ids if ids.count(dataset_id) > 1})
+    if duplicates:
+        raise ValueError(f"duplicate dataset id(s): {', '.join(duplicates)}")
+
+
 def _metric(summary: dict[str, Any], name: str) -> dict[str, Any]:
     ragas = summary.get("ragas")
     if not isinstance(ragas, dict) or not isinstance(ragas.get(name), dict):
@@ -631,12 +643,18 @@ def build_leaderboards(
     datasets: list[dict[str, Any]], *, root: Path = ROOT
 ) -> dict[str, Any]:
     """Build isolated base and flavor leaderboards from measured snapshots."""
+    _validate_dataset_ids(datasets)
     for dataset in datasets:
         if dataset.get("status") == "measured":
             _snapshot_paths(dataset, tier="base")
             _snapshot_paths(dataset, tier="flavors")
     base_approaches = _base_approaches(root)
     flavor_bases = _flavor_bases(root)
+    shadowed_aliases = sorted(set(flavor_bases) & base_approaches)
+    if shadowed_aliases:
+        raise ValueError(
+            f"flavor alias {shadowed_aliases[0]!r} shadows a configured base approach"
+        )
     unknown_bases = sorted(set(flavor_bases.values()) - base_approaches)
     if unknown_bases:
         raise ValueError(
