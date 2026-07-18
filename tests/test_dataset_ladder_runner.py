@@ -123,7 +123,8 @@ def test_start_all_supports_service_only_mode() -> None:
     assert "ATLAS_SOURCE_ARGS" in script
     assert "--llm-provider-source ollama-localhost" not in script
     assert "--comfyui-source disabled" not in script
-    assert "select_atlas_base_port.py" in script
+    assert "select_atlas_base_port.py" not in script
+    assert '--base-port "$ATLAS_BASE_PORT"' in script
     assert "Atlas #654" not in script
     assert "sync_bootstrap_env_key" not in script
 

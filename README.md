@@ -91,11 +91,12 @@ requirements apply:
 
 This selects the parent-owned `atlas.consumer.yml`, runs Atlas's native headless
 env backfill, manifest-aware Compose validation, and consumer doctor, then starts
-Atlas with `--no-tui --detach`. The
-wrapper serializes launch-time port selection, chooses a completely free 110-port
-block below the OS dynamic/private range, and rechecks it immediately before Atlas
-binds it. It passes project name `rag-showcase`; `RAG_SHOWCASE_BASE_PORT` can require
-a specific block and fails before startup if any port is occupied. The
+Atlas with `--no-tui --detach`. Atlas's
+native `--base-port auto` selects a completely free 110-port block below the OS
+dynamic/private range and persists it to `infra/.env`; set `RAG_SHOWCASE_BASE_PORT`
+to pin a specific block instead (Atlas fails before startup if it is occupied). The
+run prints the live Open WebUI URL when it finishes, and every port can be
+re-derived from `infra/.env`. It passes project name `rag-showcase`. The
 manifest registers the project identity, branding, `config/atlas.env.user`,
     external Compose overlay, backend plugin root, Ollama model sidecar, and
     dataset-specific RAG ingestion profiles without tracked Atlas modifications or
