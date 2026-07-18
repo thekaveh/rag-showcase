@@ -268,9 +268,14 @@ def _judge_details(
                 disagreement_counts[approach] += len(scores) * (len(scores) - 1) // 2
         elif means:
             raise ValueError(f"judgment query {index} has means without valid judge scores")
+        query_id = str(query.get("query_id") or index)
+        if "observed_winner" not in query:
+            raise ValueError(
+                f"judgment dataset {dataset_id!r} query {query_id!r} "
+                "is missing observed_winner"
+            )
         winner = query.get("observed_winner")
         if winner is not None:
-            query_id = str(query.get("query_id") or index)
             if not isinstance(winner, str) or not winner:
                 raise ValueError(
                     f"judgment dataset {dataset_id!r} query {query_id!r} "

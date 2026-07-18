@@ -388,6 +388,17 @@ def test_validation_rejects_lower_scoring_observed_winner(tmp_path: Path) -> Non
         build_leaderboards(datasets, root=tmp_path)
 
 
+def test_validation_requires_explicit_observed_winner_field(tmp_path: Path) -> None:
+    datasets = _write_two_dataset_fixture(tmp_path)
+    path = tmp_path / datasets[0]["judgment_snapshot"]
+    artifact = json.loads(path.read_text(encoding="utf-8"))
+    artifact["queries"][0].pop("observed_winner")
+    _write_json(path, artifact)
+
+    with pytest.raises(ValueError, match="easy.*q1.*observed_winner"):
+        build_leaderboards(datasets, root=tmp_path)
+
+
 @pytest.mark.parametrize("winner", ["", 0, False])
 def test_validation_rejects_malformed_falsy_observed_winner(
     tmp_path: Path, winner: object
