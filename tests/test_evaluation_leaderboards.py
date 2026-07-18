@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -555,3 +556,144 @@ def test_committed_leaderboard_report_is_fresh() -> None:
     assert report_leaderboards.build_report() == (
         ROOT / "docs" / "evaluation-results.md"
     ).read_text(encoding="utf-8")
+
+
+def test_renderer_escapes_html_and_marks_missing_values_unsortable() -> None:
+    table = report_leaderboards.render_table(
+        "base-overall",
+        [
+            report_leaderboards.Column("approach", "Approach", sort_type="text"),
+            report_leaderboards.Column("score", "Score"),
+        ],
+        [{"approach": "<unsafe&>", "score": (None, "N/A")}],
+    )
+
+    assert "&lt;unsafe&amp;&gt;" in table
+    assert '<td data-sort-value="">N/A</td>' in table
+
+
+def test_dynamic_judge_columns_are_ordered_by_model_name() -> None:
+    columns = report_leaderboards._judge_columns(["judge-z", "judge-a"])
+
+    assert [column.label for column in columns] == [
+        "Judge judge-a",
+        "Judge judge-a coverage",
+        "Judge judge-z",
+        "Judge judge-z coverage",
+    ]
+
+
+def test_leaderboard_columns_include_all_independent_metrics() -> None:
+    labels = {
+        column.label
+        for columns in (
+            report_leaderboards._overall_columns(["judge-a"], flavors=False),
+            report_leaderboards._by_dataset_columns(["judge-a"], flavors=True),
+        )
+        for column in columns
+    }
+
+    assert {
+        "Dataset-macro judge",
+        "Query-weighted judge",
+        "Judge coverage",
+        "Judge errors",
+        "Judge judge-a",
+        "Judge judge-a coverage",
+        "Judge disagreement",
+        "Answer relevancy coverage (eligible)",
+        "Answer relevancy total rows",
+        "Answer relevancy ineligible",
+        "Answer relevancy errors",
+        "Answer relevancy timeouts",
+        "Faithfulness coverage (eligible)",
+        "Faithfulness total rows",
+        "Faithfulness ineligible",
+        "Faithfulness errors",
+        "Faithfulness timeouts",
+        "Mean latency (ms)",
+        "Successful",
+        "Attempted",
+        "Error rate",
+        "Errors",
+        "Timeouts",
+    } <= labels
+
+
+def test_detailed_rows_include_filter_metadata() -> None:
+    table = report_leaderboards.render_table(
+        "base-by-dataset",
+        [report_leaderboards.Column("approach", "Approach", sort_type="text")],
+        [{
+            "dataset": "dataset-a",
+            "approach": "approach-a",
+            "base-family": "base-a",
+        }],
+    )
+
+    assert 'data-filter-dataset="dataset-a"' in table
+    assert 'data-filter-approach="approach-a"' in table
+    assert 'data-filter-base-family="base-a"' in table
+
+
+def test_report_preserves_aggregation_default_ordering() -> None:
+    result = build_leaderboards(
+        yaml.safe_load((ROOT / "compare" / "datasets.yaml").read_text(encoding="utf-8"))["datasets"]
+    )
+    expected = [row["approach"] for row in result["base"]["overall"]]
+    rows = report_leaderboards._overall_rows(
+        result["base"]["overall"], result["base"]["judge_models"]
+    )
+
+    assert [row["approach"] for row in rows] == expected
+
+
+def test_ragas_coverage_uses_eligible_rows_and_keeps_ineligible_rows_visible(
+    tmp_path: Path,
+) -> None:
+    result = build_leaderboards(_write_two_dataset_fixture(tmp_path), root=tmp_path)
+    partial = next(
+        row for row in report_leaderboards._overall_rows(
+            result["base"]["overall"], result["base"]["judge_models"]
+        )
+        if row["approach"] == "approach-a"
+    )
+    graph_result = build_leaderboards(
+        _write_graph_ineligible_fixture(tmp_path / "graph"), root=tmp_path / "graph"
+    )
+    graph = report_leaderboards._by_dataset_rows(
+        graph_result["base"]["by_dataset"], graph_result["base"]["judge_models"]
+    )[0]
+
+    assert partial["faithfulness-coverage"] == (0.75, "3 / 4 (75.00%)")
+    assert partial["faithfulness-ineligible"] == 1
+    assert graph["faithfulness-coverage"] == (None, "N/A")
+    assert graph["faithfulness-ineligible"] == 2
+
+
+def test_cli_writes_relative_output_from_repo_root_and_creates_parents(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(report_leaderboards, "ROOT", tmp_path)
+    monkeypatch.setattr(report_leaderboards, "build_report", lambda: "report\n")
+    monkeypatch.setattr(sys, "argv", ["report_leaderboards.py", "--output", "nested/report.md"])
+
+    report_leaderboards.main()
+
+    assert (tmp_path / "nested" / "report.md").read_text(encoding="utf-8") == "report\n"
+    assert capsys.readouterr().out == "wrote nested/report.md\n"
+
+
+def test_cli_writes_absolute_output_outside_repo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo_root = tmp_path / "repo"
+    output = tmp_path / "outside" / "report.md"
+    monkeypatch.setattr(report_leaderboards, "ROOT", repo_root)
+    monkeypatch.setattr(report_leaderboards, "build_report", lambda: "report\n")
+    monkeypatch.setattr(sys, "argv", ["report_leaderboards.py", "--output", str(output)])
+
+    report_leaderboards.main()
+
+    assert output.read_text(encoding="utf-8") == "report\n"
+    assert capsys.readouterr().out == f"wrote {output}\n"

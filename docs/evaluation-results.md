@@ -12,13 +12,15 @@ contributes one equally weighted judge mean. **Query-weighted judge mean** is sh
 separately and weights each evaluated query equally. No composite score combines quality,
 coverage, latency, or operational reliability.
 
-Higher judge, answer-relevancy, faithfulness, coverage, successful-response, and
+Higher judge, answer-relevancy, faithfulness, eligible-coverage, successful-response, and
 per-query-win values are better. Lower ranks, disagreement, latency, error rate,
-errors, and timeouts are better. Coverage is evaluated rows over eligible rows; `N/A`
-means no value was recorded and carries an empty machine sort value. Faithfulness
-ineligible rows are reported independently: they are not failures and are never coerced
-to zero. Ragas evaluator errors and timeouts also remain separate from response errors
-and timeouts.
+errors, and timeouts are better. Judge coverage is evaluated judge questions over all
+judge questions. Ragas coverage is evaluated rows over eligible rows (`total rows -
+ineligible`), while each metric's total rows, ineligible rows, evaluator errors, and
+timeouts remain separate columns. `N/A` means no value was recorded or no rows were
+eligible and carries an empty machine sort value. Faithfulness ineligible rows are not
+failures and are never coerced to zero. Ragas evaluator errors and timeouts also remain
+separate from response errors and timeouts.
 
 Base approaches and flavor aliases are intentionally separate tiers. A flavor identifies
 its base family but cannot occupy a base-approach rank.
@@ -47,12 +49,14 @@ its base family but cannot occupy a base-approach rank.
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Worst dataset rank</th>
 <th scope="col" data-sort-type="number" data-sort-direction="higher">Per-query wins</th>
 <th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy mean</th>
-<th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy coverage</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy coverage (eligible)</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy total rows</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Answer relevancy ineligible</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Answer relevancy errors</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Answer relevancy timeouts</th>
 <th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness mean</th>
-<th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness coverage</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness coverage (eligible)</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness total rows</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Faithfulness ineligible</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Faithfulness errors</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Faithfulness timeouts</th>
@@ -85,11 +89,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.87175">0.872</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.416613">0.417</td>
 <td data-sort-value="0.6">12 / 20 (60.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
@@ -120,11 +126,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.851176">0.851</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.432732">0.433</td>
 <td data-sort-value="0.65">13 / 20 (65.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="7">7</td>
 <td data-sort-value="0">0</td>
@@ -155,11 +163,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.798499">0.798</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.398658">0.399</td>
 <td data-sort-value="0.7">14 / 20 (70.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
@@ -190,11 +200,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.867921">0.868</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.379212">0.379</td>
 <td data-sort-value="0.75">15 / 20 (75.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="5">5</td>
 <td data-sort-value="0">0</td>
@@ -225,11 +237,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.804643">0.805</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 20 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -260,11 +274,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.779015">0.779</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.387734">0.388</td>
 <td data-sort-value="0.45">9 / 20 (45.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="11">11</td>
 <td data-sort-value="0">0</td>
@@ -295,11 +311,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.729015">0.729</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.44329">0.443</td>
 <td data-sort-value="0.45">9 / 20 (45.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="11">11</td>
 <td data-sort-value="0">0</td>
@@ -336,13 +354,15 @@ its base family but cannot occupy a base-approach rank.
 <th scope="col" data-sort-type="number" data-sort-direction="higher">Per-query wins</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Answer relevancy rank</th>
 <th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy mean</th>
-<th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy coverage</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy coverage (eligible)</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy total rows</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Answer relevancy ineligible</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Answer relevancy errors</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Answer relevancy timeouts</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Faithfulness rank</th>
 <th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness mean</th>
-<th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness coverage</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness coverage (eligible)</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness total rows</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Faithfulness ineligible</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Faithfulness errors</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Faithfulness timeouts</th>
@@ -375,12 +395,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="6">6</td>
 <td data-sort-value="0.708486">0.708</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="1">1</td>
 <td data-sort-value="0.672138">0.672</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -411,12 +433,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.869325">0.869</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0.644872">0.645</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -447,12 +471,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="1">1</td>
 <td data-sort-value="0.893817">0.894</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0.3">0.300</td>
 <td data-sort-value="0.8333333333333334">5 / 6 (83.33%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="1">1</td>
 <td data-sort-value="0">0</td>
@@ -483,12 +509,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="3">3</td>
 <td data-sort-value="0.858328">0.858</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.636364">0.636</td>
 <td data-sort-value="0.8333333333333334">5 / 6 (83.33%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="1">1</td>
 <td data-sort-value="0">0</td>
@@ -519,12 +547,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.841588">0.842</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 6 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -555,12 +585,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="5">5</td>
 <td data-sort-value="0.733174">0.733</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="5">5</td>
 <td data-sort-value="0.563636">0.564</td>
 <td data-sort-value="0.8333333333333334">5 / 6 (83.33%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="1">1</td>
 <td data-sort-value="0">0</td>
@@ -591,12 +623,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="7">7</td>
 <td data-sort-value="0.566507">0.567</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.663636">0.664</td>
 <td data-sort-value="0.8333333333333334">5 / 6 (83.33%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="1">1</td>
 <td data-sort-value="0">0</td>
@@ -627,12 +661,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.829112">0.829</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.416212">0.416</td>
 <td data-sort-value="0.625">5 / 8 (62.50%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0">0</td>
@@ -663,12 +699,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="3">3</td>
 <td data-sort-value="0.841045">0.841</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="1">1</td>
 <td data-sort-value="0.607143">0.607</td>
 <td data-sort-value="0.625">5 / 8 (62.50%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0">0</td>
@@ -699,12 +737,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.850505">0.851</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.278724">0.279</td>
 <td data-sort-value="0.625">5 / 8 (62.50%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0">0</td>
@@ -735,12 +775,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="1">1</td>
 <td data-sort-value="0.859264">0.859</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0.303159">0.303</td>
 <td data-sort-value="0.75">6 / 8 (75.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0">0</td>
@@ -771,12 +813,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="5">5</td>
 <td data-sort-value="0.795566">0.796</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 8 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -807,12 +851,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="6">6</td>
 <td data-sort-value="0.739673">0.740</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="5">5</td>
 <td data-sort-value="0.0">0.000</td>
 <td data-sort-value="0.125">1 / 8 (12.50%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="7">7</td>
 <td data-sort-value="0">0</td>
@@ -843,12 +889,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="6">6</td>
 <td data-sort-value="0.739673">0.740</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="5">5</td>
 <td data-sort-value="0.0">0.000</td>
 <td data-sort-value="0.125">1 / 8 (12.50%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="7">7</td>
 <td data-sort-value="0">0</td>
@@ -879,12 +927,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="1">1</td>
 <td data-sort-value="0.890624">0.891</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="1">1</td>
 <td data-sort-value="0.231818">0.232</td>
 <td data-sort-value="0.3333333333333333">2 / 6 (33.33%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="4">4</td>
 <td data-sort-value="0">0</td>
@@ -915,12 +965,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="3">3</td>
 <td data-sort-value="0.877311">0.877</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.22381">0.224</td>
 <td data-sort-value="0.5">3 / 6 (50.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0">0</td>
@@ -951,12 +1003,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="5">5</td>
 <td data-sort-value="0.873443">0.873</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.120879">0.121</td>
 <td data-sort-value="0.5">3 / 6 (50.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0">0</td>
@@ -987,12 +1041,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="3">3</td>
 <td data-sort-value="0.877311">0.877</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.22381">0.224</td>
 <td data-sort-value="0.5">3 / 6 (50.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0">0</td>
@@ -1023,12 +1079,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="6">6</td>
 <td data-sort-value="0.819171">0.819</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="5">5</td>
 <td data-sort-value="0.051587">0.052</td>
 <td data-sort-value="0.5">3 / 6 (50.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0">0</td>
@@ -1059,12 +1117,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.87806">0.878</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0.0">0.000</td>
 <td data-sort-value="0.5">3 / 6 (50.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0">0</td>
@@ -1095,12 +1155,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="7">7</td>
 <td data-sort-value="0.779802">0.780</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 6 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -1140,12 +1202,14 @@ its base family but cannot occupy a base-approach rank.
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Worst dataset rank</th>
 <th scope="col" data-sort-type="number" data-sort-direction="higher">Per-query wins</th>
 <th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy mean</th>
-<th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy coverage</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy coverage (eligible)</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy total rows</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Answer relevancy ineligible</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Answer relevancy errors</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Answer relevancy timeouts</th>
 <th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness mean</th>
-<th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness coverage</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness coverage (eligible)</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness total rows</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Faithfulness ineligible</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Faithfulness errors</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Faithfulness timeouts</th>
@@ -1179,11 +1243,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.797335">0.797</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.389347">0.389</td>
 <td data-sort-value="0.8">16 / 20 (80.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="4">4</td>
 <td data-sort-value="0">0</td>
@@ -1215,11 +1281,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.876931">0.877</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.419877">0.420</td>
 <td data-sort-value="0.6">12 / 20 (60.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
@@ -1251,11 +1319,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.817834">0.818</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.468162">0.468</td>
 <td data-sort-value="0.55">11 / 20 (55.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="9">9</td>
 <td data-sort-value="0">0</td>
@@ -1287,11 +1357,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.839142">0.839</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.454723">0.455</td>
 <td data-sort-value="0.75">15 / 20 (75.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="5">5</td>
 <td data-sort-value="0">0</td>
@@ -1323,11 +1395,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.854548">0.855</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.378439">0.378</td>
 <td data-sort-value="0.6">12 / 20 (60.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
@@ -1359,11 +1433,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="3">3</td>
 <td data-sort-value="0.845995">0.846</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.424299">0.424</td>
 <td data-sort-value="0.7">14 / 20 (70.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
@@ -1395,11 +1471,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="1">1</td>
 <td data-sort-value="0.854127">0.854</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.4649">0.465</td>
 <td data-sort-value="0.65">13 / 20 (65.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="7">7</td>
 <td data-sort-value="0">0</td>
@@ -1431,11 +1509,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.835319">0.835</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 20 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -1467,11 +1547,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="1">1</td>
 <td data-sort-value="0.822043">0.822</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 20 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -1503,11 +1585,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="1">1</td>
 <td data-sort-value="0.737848">0.738</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.463492">0.463</td>
 <td data-sort-value="0.45">9 / 20 (45.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="11">11</td>
 <td data-sort-value="0">0</td>
@@ -1539,11 +1623,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.83425">0.834</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 20 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -1575,11 +1661,13 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.725011">0.725</td>
 <td data-sort-value="1.0">20 / 20 (100.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0.730903">0.731</td>
 <td data-sort-value="0.4">8 / 20 (40.00%)</td>
+<td data-sort-value="20">20</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="12">12</td>
 <td data-sort-value="0">0</td>
@@ -1617,13 +1705,15 @@ its base family but cannot occupy a base-approach rank.
 <th scope="col" data-sort-type="number" data-sort-direction="higher">Per-query wins</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Answer relevancy rank</th>
 <th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy mean</th>
-<th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy coverage</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy coverage (eligible)</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Answer relevancy total rows</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Answer relevancy ineligible</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Answer relevancy errors</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Answer relevancy timeouts</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Faithfulness rank</th>
 <th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness mean</th>
-<th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness coverage</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness coverage (eligible)</th>
+<th scope="col" data-sort-type="number" data-sort-direction="higher">Faithfulness total rows</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Faithfulness ineligible</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Faithfulness errors</th>
 <th scope="col" data-sort-type="number" data-sort-direction="lower">Faithfulness timeouts</th>
@@ -1657,12 +1747,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="9">9</td>
 <td data-sort-value="0.797515">0.798</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.681818">0.682</td>
 <td data-sort-value="0.6666666666666666">4 / 6 (66.67%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0">0</td>
@@ -1694,12 +1786,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="10">10</td>
 <td data-sort-value="0.674801">0.675</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0.62619">0.626</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -1731,12 +1825,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="6">6</td>
 <td data-sort-value="0.84577">0.846</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="7">7</td>
 <td data-sort-value="0.619697">0.620</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -1768,12 +1864,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="1">1</td>
 <td data-sort-value="0.905166">0.905</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="9">9</td>
 <td data-sort-value="0.2">0.200</td>
 <td data-sort-value="0.8333333333333334">5 / 6 (83.33%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="1">1</td>
 <td data-sort-value="0">0</td>
@@ -1805,12 +1903,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="8">8</td>
 <td data-sort-value="0.832587">0.833</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 6 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -1842,12 +1942,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="3">3</td>
 <td data-sort-value="0.881562">0.882</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="8">8</td>
 <td data-sort-value="0.595418">0.595</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -1879,12 +1981,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.893177">0.893</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="5">5</td>
 <td data-sort-value="0.680952">0.681</td>
 <td data-sort-value="0.8333333333333334">5 / 6 (83.33%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="1">1</td>
 <td data-sort-value="0">0</td>
@@ -1916,12 +2020,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.868166">0.868</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.72">0.720</td>
 <td data-sort-value="0.8333333333333334">5 / 6 (83.33%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="1">1</td>
 <td data-sort-value="0">0</td>
@@ -1953,12 +2059,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="7">7</td>
 <td data-sort-value="0.844335">0.844</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 6 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -1990,12 +2098,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="5">5</td>
 <td data-sort-value="0.846745">0.847</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 6 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -2027,12 +2137,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="11">11</td>
 <td data-sort-value="0.595951">0.596</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0.7">0.700</td>
 <td data-sort-value="0.8333333333333334">5 / 6 (83.33%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="1">1</td>
 <td data-sort-value="0">0</td>
@@ -2064,12 +2176,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="12">12</td>
 <td data-sort-value="0.575641">0.576</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="1">1</td>
 <td data-sort-value="1.0">1.000</td>
 <td data-sort-value="0.6666666666666666">4 / 6 (66.67%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0">0</td>
@@ -2101,12 +2215,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="1">1</td>
 <td data-sort-value="0.854923">0.855</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="7">7</td>
 <td data-sort-value="0.326753">0.327</td>
 <td data-sort-value="0.625">5 / 8 (62.50%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0">0</td>
@@ -2138,12 +2254,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="5">5</td>
 <td data-sort-value="0.848509">0.849</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.487698">0.488</td>
 <td data-sort-value="0.75">6 / 8 (75.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0">0</td>
@@ -2175,12 +2293,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="8">8</td>
 <td data-sort-value="0.829112">0.829</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0.416212">0.416</td>
 <td data-sort-value="0.625">5 / 8 (62.50%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0">0</td>
@@ -2212,12 +2332,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="6">6</td>
 <td data-sort-value="0.842579">0.843</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.401169">0.401</td>
 <td data-sort-value="0.625">5 / 8 (62.50%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0">0</td>
@@ -2249,12 +2371,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.854504">0.855</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0.381766">0.382</td>
 <td data-sort-value="0.75">6 / 8 (75.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0">0</td>
@@ -2286,12 +2410,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="7">7</td>
 <td data-sort-value="0.833495">0.833</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="8">8</td>
 <td data-sort-value="0.314484">0.314</td>
 <td data-sort-value="0.75">6 / 8 (75.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0">0</td>
@@ -2323,12 +2449,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="3">3</td>
 <td data-sort-value="0.849466">0.849</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="1">1</td>
 <td data-sort-value="0.530688">0.531</td>
 <td data-sort-value="0.75">6 / 8 (75.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0">0</td>
@@ -2360,12 +2488,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="10">10</td>
 <td data-sort-value="0.816143">0.816</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 8 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -2397,12 +2527,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="11">11</td>
 <td data-sort-value="0.805261">0.805</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 8 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -2434,12 +2566,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="12">12</td>
 <td data-sort-value="0.739673">0.740</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="9">9</td>
 <td data-sort-value="0.0">0.000</td>
 <td data-sort-value="0.125">1 / 8 (12.50%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="7">7</td>
 <td data-sort-value="0">0</td>
@@ -2471,12 +2605,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.849188">0.849</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="5">5</td>
 <td data-sort-value="0.392361">0.392</td>
 <td data-sort-value="0.25">2 / 8 (25.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
@@ -2508,12 +2644,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="9">9</td>
 <td data-sort-value="0.821342">0.821</td>
 <td data-sort-value="1.0">8 / 8 (100.00%)</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 8 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="8">8</td>
 <td data-sort-value="8">8</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -2545,12 +2683,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="5">5</td>
 <td data-sort-value="0.843642">0.844</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="8">8</td>
 <td data-sort-value="0.045455">0.045</td>
 <td data-sort-value="0.6666666666666666">4 / 6 (66.67%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0">0</td>
@@ -2582,12 +2722,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="10">10</td>
 <td data-sort-value="0.810705">0.811</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.357143">0.357</td>
 <td data-sort-value="0.16666666666666666">1 / 6 (16.67%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="5">5</td>
 <td data-sort-value="0">0</td>
@@ -2619,12 +2761,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="1">1</td>
 <td data-sort-value="0.890029">0.890</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="9">9</td>
 <td data-sort-value="0.0">0.000</td>
 <td data-sort-value="0.3333333333333333">2 / 6 (33.33%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="4">4</td>
 <td data-sort-value="0">0</td>
@@ -2656,12 +2800,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="7">7</td>
 <td data-sort-value="0.827093">0.827</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0.240385">0.240</td>
 <td data-sort-value="0.3333333333333333">2 / 6 (33.33%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="4">4</td>
 <td data-sort-value="0">0</td>
@@ -2693,12 +2839,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="3">3</td>
 <td data-sort-value="0.873443">0.873</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0.120879">0.121</td>
 <td data-sort-value="0.5">3 / 6 (50.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0">0</td>
@@ -2730,12 +2878,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="8">8</td>
 <td data-sort-value="0.820025">0.820</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="7">7</td>
 <td data-sort-value="0.058824">0.059</td>
 <td data-sort-value="0.5">3 / 6 (50.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0">0</td>
@@ -2767,12 +2917,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="11">11</td>
 <td data-sort-value="0.805158">0.805</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="5">5</td>
 <td data-sort-value="0.208333">0.208</td>
 <td data-sort-value="0.3333333333333333">2 / 6 (33.33%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="4">4</td>
 <td data-sort-value="0">0</td>
@@ -2804,12 +2956,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="2">2</td>
 <td data-sort-value="0.877311">0.877</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.22381">0.224</td>
 <td data-sort-value="0.5">3 / 6 (50.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="3">3</td>
 <td data-sort-value="0">0</td>
@@ -2841,12 +2995,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="12">12</td>
 <td data-sort-value="0.708813">0.709</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="1">1</td>
 <td data-sort-value="0.53125">0.531</td>
 <td data-sort-value="0.3333333333333333">2 / 6 (33.33%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="4">4</td>
 <td data-sort-value="0">0</td>
@@ -2878,12 +3034,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="9">9</td>
 <td data-sort-value="0.819718">0.820</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 6 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -2915,12 +3073,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="4">4</td>
 <td data-sort-value="0.86362">0.864</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 6 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
@@ -2952,12 +3112,14 @@ its base family but cannot occupy a base-approach rank.
 <td data-sort-value="6">6</td>
 <td data-sort-value="0.841376">0.841</td>
 <td data-sort-value="1.0">6 / 6 (100.00%)</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="">N/A</td>
 <td data-sort-value="">N/A</td>
-<td data-sort-value="0.0">0 / 6 (0.00%)</td>
+<td data-sort-value="">N/A</td>
+<td data-sort-value="6">6</td>
 <td data-sort-value="6">6</td>
 <td data-sort-value="0">0</td>
 <td data-sort-value="0">0</td>

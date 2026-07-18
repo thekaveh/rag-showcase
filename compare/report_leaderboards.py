@@ -67,6 +67,12 @@ def _coverage(evaluated: int, total: int) -> tuple[float | None, str]:
     return ratio, f"{evaluated} / {total} ({ratio:.2%})"
 
 
+def _ragas_coverage(metric: dict[str, Any]) -> tuple[float | None, str]:
+    return _coverage(
+        int(metric["evaluated"]), int(metric["total"]) - int(metric["not_evaluable"])
+    )
+
+
 def _rate(value: float | None) -> str:
     return "N/A" if value is None else f"{value:.2%}"
 
@@ -124,7 +130,7 @@ def render_table(table_id: str, columns: list[Column], rows: list[dict[str, Any]
 
 def _judge_columns(models: list[str]) -> list[Column]:
     columns: list[Column] = []
-    for model in models:
+    for model in sorted(models):
         columns.extend([
             Column(f"judge:{model}", f"Judge {model}", direction="higher"),
             Column(f"judge-coverage:{model}", f"Judge {model} coverage", direction="higher"),
@@ -138,7 +144,8 @@ def _metric_columns(prefix: str, label: str, *, include_rank: bool) -> list[Colu
         columns.append(Column(f"{prefix}-rank", f"{label} rank", direction="lower"))
     columns.extend([
         Column(f"{prefix}-mean", f"{label} mean", direction="higher"),
-        Column(f"{prefix}-coverage", f"{label} coverage", direction="higher"),
+        Column(f"{prefix}-coverage", f"{label} coverage (eligible)", direction="higher"),
+        Column(f"{prefix}-total", f"{label} total rows", direction="higher"),
         Column(f"{prefix}-ineligible", f"{label} ineligible", direction="lower"),
         Column(f"{prefix}-errors", f"{label} errors", direction="lower"),
         Column(f"{prefix}-timeouts", f"{label} timeouts", direction="lower"),
@@ -218,10 +225,11 @@ def _by_dataset_columns(models: list[str], *, flavors: bool) -> list[Column]:
 
 
 def _metric_values(row: dict[str, Any], prefix: str, metric: dict[str, Any], *, rank: Any = None) -> dict[str, Any]:
-    coverage = _coverage(int(metric["evaluated"]), int(metric["total"]))
+    coverage = _ragas_coverage(metric)
     values = {
         f"{prefix}-mean": (metric["mean"], _number(metric["mean"], 3)),
         f"{prefix}-coverage": coverage,
+        f"{prefix}-total": int(metric["total"]),
         f"{prefix}-ineligible": int(metric["not_evaluable"]),
         f"{prefix}-errors": int(metric["errors"]),
         f"{prefix}-timeouts": int(metric["timeouts"]),
@@ -339,13 +347,15 @@ def build_report() -> str:
         "separately and weights each evaluated query equally. No composite score combines quality,",
         "coverage, latency, or operational reliability.",
         "",
-        "Higher judge, answer-relevancy, faithfulness, coverage, successful-response, and",
+        "Higher judge, answer-relevancy, faithfulness, eligible-coverage, successful-response, and",
         "per-query-win values are better. Lower ranks, disagreement, latency, error rate,",
-        "errors, and timeouts are better. Coverage is evaluated rows over eligible rows; `N/A`",
-        "means no value was recorded and carries an empty machine sort value. Faithfulness",
-        "ineligible rows are reported independently: they are not failures and are never coerced",
-        "to zero. Ragas evaluator errors and timeouts also remain separate from response errors",
-        "and timeouts.",
+        "errors, and timeouts are better. Judge coverage is evaluated judge questions over all",
+        "judge questions. Ragas coverage is evaluated rows over eligible rows (`total rows -",
+        "ineligible`), while each metric's total rows, ineligible rows, evaluator errors, and",
+        "timeouts remain separate columns. `N/A` means no value was recorded or no rows were",
+        "eligible and carries an empty machine sort value. Faithfulness ineligible rows are not",
+        "failures and are never coerced to zero. Ragas evaluator errors and timeouts also remain",
+        "separate from response errors and timeouts.",
         "",
         "Base approaches and flavor aliases are intentionally separate tiers. A flavor identifies",
         "its base family but cannot occupy a base-approach rank.",
@@ -387,6 +397,9 @@ def main() -> None:
         sys.stdout.write(report)
         return
     output = args.output or DEFAULT_OUTPUT
+    if not output.is_absolute():
+        output = ROOT / output
+    output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(report, encoding="utf-8")
     print(f"wrote {_display_path(output)}")
 
