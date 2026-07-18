@@ -1,0 +1,393 @@
+{
+  "status": "ok",
+  "dataset_id": "cyber_threat_intel",
+  "judges": [
+    "qwen3.6:latest",
+    "gemma4:31b"
+  ],
+  "queries": [
+    {
+      "query_id": "cyber_group_technique_software_chain",
+      "query": "Which intrusion groups in this slice share credential-access or discovery techniques, and what software or tools connect them?",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "contextual-rag-high-recall": 4.0,
+            "hybrid-rag-fast": 4.0,
+            "lazy-graph-rag-fast": 4.0,
+            "lazy-graph-rag-balanced": 4.0,
+            "hybrid-rag-high-recall": 5.0,
+            "graph-rag-fast": 3.0,
+            "vanilla-rag-wide": 4.0,
+            "graph-rag-wide": 3.0,
+            "lazy-graph-rag-wide": 4.0,
+            "n8n-adaptive-rag-default": 3.0,
+            "agentic-rag-deeper": 3.0,
+            "graph-rag-rerank": 3.0
+          },
+          "best": "hybrid-rag-high-recall",
+          "reason": "Answer E provides the clearest and most direct mapping of intrusion groups to specific connecting tools and ATT&CK techniques, fully satisfying the prompt's requirement for graph paths."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "contextual-rag-high-recall": 4.0,
+            "hybrid-rag-fast": 3.0,
+            "lazy-graph-rag-fast": 3.0,
+            "lazy-graph-rag-balanced": 3.0,
+            "hybrid-rag-high-recall": 4.0,
+            "graph-rag-fast": 1.0,
+            "vanilla-rag-wide": 2.0,
+            "graph-rag-wide": 2.0,
+            "lazy-graph-rag-wide": 5.0,
+            "n8n-adaptive-rag-default": 2.0,
+            "agentic-rag-deeper": 3.0,
+            "graph-rag-rerank": 3.0
+          },
+          "best": "lazy-graph-rag-wide",
+          "reason": "Answer I provides the most comprehensive and specific graph paths connecting a large number of intrusion groups to both discovery and credential-access techniques via specific tools (Net and Reg)."
+        }
+      },
+      "mean_by_approach": {
+        "contextual-rag-high-recall": 4.0,
+        "hybrid-rag-fast": 3.5,
+        "lazy-graph-rag-fast": 3.5,
+        "lazy-graph-rag-balanced": 3.5,
+        "hybrid-rag-high-recall": 4.5,
+        "graph-rag-fast": 2.0,
+        "vanilla-rag-wide": 3.0,
+        "graph-rag-wide": 2.5,
+        "lazy-graph-rag-wide": 4.5,
+        "n8n-adaptive-rag-default": 2.5,
+        "agentic-rag-deeper": 3.0,
+        "graph-rag-rerank": 3.0
+      },
+      "votes": {
+        "hybrid-rag-high-recall": 1,
+        "lazy-graph-rag-wide": 1
+      },
+      "observed_winner": "hybrid-rag-high-recall"
+    },
+    {
+      "query_id": "cyber_credential_access_path",
+      "query": "Trace the relationship path from Cleaver, Carbanak, Mimikatz, Windows Credential Editor, and LSASS Memory. Which actors and software converge on credential access?",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "contextual-rag-high-recall": 5.0,
+            "agentic-rag-deeper": 3.0,
+            "n8n-adaptive-rag-default": 3.0,
+            "graph-rag-fast": 2.0,
+            "hybrid-rag-fast": 4.0,
+            "graph-rag-rerank": 3.0,
+            "graph-rag-wide": 3.0,
+            "vanilla-rag-wide": 2.0,
+            "lazy-graph-rag-wide": 2.0,
+            "hybrid-rag-high-recall": 4.0,
+            "lazy-graph-rag-fast": 4.0,
+            "lazy-graph-rag-balanced": 2.0
+          },
+          "best": "contextual-rag-high-recall",
+          "reason": "Directly and comprehensively traces all requested paths to LSASS Memory/OS Credential Dumping, explicitly listing converging actors and software with precise technique mappings."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "contextual-rag-high-recall": 3.0,
+            "agentic-rag-deeper": 2.0,
+            "n8n-adaptive-rag-default": 2.0,
+            "graph-rag-fast": 2.0,
+            "hybrid-rag-fast": 5.0,
+            "graph-rag-rerank": 3.0,
+            "graph-rag-wide": 2.0,
+            "vanilla-rag-wide": 2.0,
+            "lazy-graph-rag-wide": 3.0,
+            "hybrid-rag-high-recall": 4.0,
+            "lazy-graph-rag-fast": 2.0,
+            "lazy-graph-rag-balanced": 1.0
+          },
+          "best": "hybrid-rag-fast",
+          "reason": "Answer E is the most comprehensive; it traces all five requested entities and explicitly lists the converging actors and software before its minor truncation at the very end."
+        }
+      },
+      "mean_by_approach": {
+        "contextual-rag-high-recall": 4.0,
+        "agentic-rag-deeper": 2.5,
+        "n8n-adaptive-rag-default": 2.5,
+        "graph-rag-fast": 2.0,
+        "hybrid-rag-fast": 4.5,
+        "graph-rag-rerank": 3.0,
+        "graph-rag-wide": 2.5,
+        "vanilla-rag-wide": 2.0,
+        "lazy-graph-rag-wide": 2.5,
+        "hybrid-rag-high-recall": 4.0,
+        "lazy-graph-rag-fast": 3.0,
+        "lazy-graph-rag-balanced": 1.5
+      },
+      "votes": {
+        "contextual-rag-high-recall": 1,
+        "hybrid-rag-fast": 1
+      },
+      "observed_winner": "hybrid-rag-fast"
+    },
+    {
+      "query_id": "cyber_campaign_overlap",
+      "query": "Which campaigns overlap by tooling or technique, especially around PowerShell, Reg, spearphishing, discovery, or exfiltration?",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "graph-rag-wide": 2.0,
+            "lazy-graph-rag-fast": 4.0,
+            "graph-rag-rerank": 2.0,
+            "lazy-graph-rag-wide": 3.0,
+            "hybrid-rag-high-recall": 4.0,
+            "hybrid-rag-fast": 5.0,
+            "agentic-rag-deeper": 3.0,
+            "contextual-rag-high-recall": 4.0,
+            "n8n-adaptive-rag-default": 3.0,
+            "graph-rag-fast": 2.0,
+            "vanilla-rag-wide": 4.0,
+            "lazy-graph-rag-balanced": 3.0
+          },
+          "best": "hybrid-rag-fast",
+          "reason": "Answer F comprehensively addresses all requested categories with clear campaign overlaps and specific technique IDs, demonstrating strong shared-entity graph reasoning."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "graph-rag-wide": 2.0,
+            "lazy-graph-rag-fast": 3.0,
+            "graph-rag-rerank": 2.0,
+            "lazy-graph-rag-wide": 2.0,
+            "hybrid-rag-high-recall": 2.0,
+            "hybrid-rag-fast": 5.0,
+            "agentic-rag-deeper": 2.0,
+            "contextual-rag-high-recall": 4.0,
+            "n8n-adaptive-rag-default": 2.0,
+            "graph-rag-fast": 2.0,
+            "vanilla-rag-wide": 2.0,
+            "lazy-graph-rag-balanced": 3.0
+          },
+          "best": "hybrid-rag-fast",
+          "reason": "Answer F is the only complete response that successfully identifies and lists specific overlaps across multiple campaigns for discovery and exfiltration techniques."
+        }
+      },
+      "mean_by_approach": {
+        "graph-rag-wide": 2.0,
+        "lazy-graph-rag-fast": 3.5,
+        "graph-rag-rerank": 2.0,
+        "lazy-graph-rag-wide": 2.5,
+        "hybrid-rag-high-recall": 3.0,
+        "hybrid-rag-fast": 5.0,
+        "agentic-rag-deeper": 2.5,
+        "contextual-rag-high-recall": 4.0,
+        "n8n-adaptive-rag-default": 2.5,
+        "graph-rag-fast": 2.0,
+        "vanilla-rag-wide": 3.0,
+        "lazy-graph-rag-balanced": 3.0
+      },
+      "votes": {
+        "hybrid-rag-fast": 2
+      },
+      "observed_winner": "hybrid-rag-fast"
+    },
+    {
+      "query_id": "cyber_mitigation_coverage",
+      "query": "Which mitigations cover credential, Active Directory, web-content, or registry-related techniques, and which techniques do they mitigate?",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "graph-rag-fast": 3.0,
+            "contextual-rag-high-recall": 3.0,
+            "lazy-graph-rag-fast": 3.0,
+            "lazy-graph-rag-balanced": 4.0,
+            "n8n-adaptive-rag-default": 3.0,
+            "lazy-graph-rag-wide": 3.0,
+            "hybrid-rag-fast": 5.0,
+            "graph-rag-wide": 4.0,
+            "agentic-rag-deeper": 3.0,
+            "graph-rag-rerank": 4.0,
+            "hybrid-rag-high-recall": 3.0,
+            "vanilla-rag-wide": 4.0
+          },
+          "best": "hybrid-rag-fast",
+          "reason": "Provides the most comprehensive and detailed mapping of mitigations to specific techniques across multiple requested categories with clear structure."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "graph-rag-fast": 2.0,
+            "contextual-rag-high-recall": 2.0,
+            "lazy-graph-rag-fast": 4.0,
+            "lazy-graph-rag-balanced": 3.0,
+            "n8n-adaptive-rag-default": 2.0,
+            "lazy-graph-rag-wide": 2.0,
+            "hybrid-rag-fast": 2.0,
+            "graph-rag-wide": 2.0,
+            "agentic-rag-deeper": 2.0,
+            "graph-rag-rerank": 2.0,
+            "hybrid-rag-high-recall": 2.0,
+            "vanilla-rag-wide": 2.0
+          },
+          "best": "lazy-graph-rag-fast",
+          "reason": "Answer C is one of the only complete responses and provides a detailed list of techniques for Active Directory and credential mitigations."
+        }
+      },
+      "mean_by_approach": {
+        "graph-rag-fast": 2.5,
+        "contextual-rag-high-recall": 2.5,
+        "lazy-graph-rag-fast": 3.5,
+        "lazy-graph-rag-balanced": 3.5,
+        "n8n-adaptive-rag-default": 2.5,
+        "lazy-graph-rag-wide": 2.5,
+        "hybrid-rag-fast": 3.5,
+        "graph-rag-wide": 3.0,
+        "agentic-rag-deeper": 2.5,
+        "graph-rag-rerank": 3.0,
+        "hybrid-rag-high-recall": 2.5,
+        "vanilla-rag-wide": 3.0
+      },
+      "votes": {
+        "hybrid-rag-fast": 1,
+        "lazy-graph-rag-fast": 1
+      },
+      "observed_winner": "lazy-graph-rag-fast"
+    },
+    {
+      "query_id": "cyber_campaign_timeline_context",
+      "query": "Compare Frankenstein, Operation CuckooBees, Operation Honeybee, and Night Dragon by timeframe, target context, and the techniques or tools each used.",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "hybrid-rag-fast": 3.0,
+            "vanilla-rag-wide": 2.0,
+            "agentic-rag-deeper": 1.0,
+            "lazy-graph-rag-balanced": 4.0,
+            "contextual-rag-high-recall": 3.0,
+            "graph-rag-wide": 2.0,
+            "graph-rag-rerank": 2.0,
+            "lazy-graph-rag-fast": 3.0,
+            "graph-rag-fast": 2.0,
+            "lazy-graph-rag-wide": 3.0,
+            "hybrid-rag-high-recall": 2.0,
+            "n8n-adaptive-rag-default": 3.0
+          },
+          "best": "lazy-graph-rag-balanced",
+          "reason": "Provides the most comprehensive and specific coverage of all three dimensions with grounded technical details (ATT&CK IDs), despite minor truncation."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "hybrid-rag-fast": 3.0,
+            "vanilla-rag-wide": 2.0,
+            "agentic-rag-deeper": 1.0,
+            "lazy-graph-rag-balanced": 4.0,
+            "contextual-rag-high-recall": 3.0,
+            "graph-rag-wide": 2.0,
+            "graph-rag-rerank": 2.0,
+            "lazy-graph-rag-fast": 2.0,
+            "graph-rag-fast": 2.0,
+            "lazy-graph-rag-wide": 3.0,
+            "hybrid-rag-high-recall": 2.0,
+            "n8n-adaptive-rag-default": 2.0
+          },
+          "best": "lazy-graph-rag-balanced",
+          "reason": "Answer D provides the most comprehensive coverage across all three requested categories for all four campaigns, including specific MITRE ATT&CK IDs."
+        }
+      },
+      "mean_by_approach": {
+        "hybrid-rag-fast": 3.0,
+        "vanilla-rag-wide": 2.0,
+        "agentic-rag-deeper": 1.0,
+        "lazy-graph-rag-balanced": 4.0,
+        "contextual-rag-high-recall": 3.0,
+        "graph-rag-wide": 2.0,
+        "graph-rag-rerank": 2.0,
+        "lazy-graph-rag-fast": 2.5,
+        "graph-rag-fast": 2.0,
+        "lazy-graph-rag-wide": 3.0,
+        "hybrid-rag-high-recall": 2.0,
+        "n8n-adaptive-rag-default": 2.5
+      },
+      "votes": {
+        "lazy-graph-rag-balanced": 2
+      },
+      "observed_winner": "lazy-graph-rag-balanced"
+    },
+    {
+      "query_id": "cyber_protocol_and_web_mitigation_path",
+      "query": "Connect protocol impersonation, web-based content restrictions, spearphishing links, and command-and-control style techniques. Which groups, campaigns, or software are involved?",
+      "expect_winner": "graph-rag",
+      "per_judge": {
+        "qwen3.6:latest": {
+          "scores": {
+            "graph-rag-wide": 1.0,
+            "lazy-graph-rag-fast": 5.0,
+            "vanilla-rag-wide": 5.0,
+            "n8n-adaptive-rag-default": 4.0,
+            "agentic-rag-deeper": 4.0,
+            "graph-rag-rerank": 2.0,
+            "contextual-rag-high-recall": 4.0,
+            "lazy-graph-rag-balanced": 3.0,
+            "hybrid-rag-fast": 3.0,
+            "hybrid-rag-high-recall": 4.0,
+            "graph-rag-fast": 1.0,
+            "lazy-graph-rag-wide": 3.0
+          },
+          "best": "vanilla-rag-wide",
+          "reason": "C directly maps each of the four requested concepts to specific groups, campaigns, and software while explicitly detailing their interconnections as required."
+        },
+        "gemma4:31b": {
+          "scores": {
+            "graph-rag-wide": 1.0,
+            "lazy-graph-rag-fast": 3.0,
+            "vanilla-rag-wide": 5.0,
+            "n8n-adaptive-rag-default": 2.0,
+            "agentic-rag-deeper": 2.0,
+            "graph-rag-rerank": 1.0,
+            "contextual-rag-high-recall": 3.0,
+            "lazy-graph-rag-balanced": 2.0,
+            "hybrid-rag-fast": 2.0,
+            "hybrid-rag-high-recall": 4.0,
+            "graph-rag-fast": 1.0,
+            "lazy-graph-rag-wide": 2.0
+          },
+          "best": "vanilla-rag-wide",
+          "reason": "Answer C is the most comprehensive, providing specific groups, software, and campaigns for every element of the requested connection (Protocol Impersonation, Spearphishing Links, and C2 techniques) while correctly identifying the mitigation relationship."
+        }
+      },
+      "mean_by_approach": {
+        "graph-rag-wide": 1.0,
+        "lazy-graph-rag-fast": 4.0,
+        "vanilla-rag-wide": 5.0,
+        "n8n-adaptive-rag-default": 3.0,
+        "agentic-rag-deeper": 3.0,
+        "graph-rag-rerank": 1.5,
+        "contextual-rag-high-recall": 3.5,
+        "lazy-graph-rag-balanced": 2.5,
+        "hybrid-rag-fast": 2.5,
+        "hybrid-rag-high-recall": 4.0,
+        "graph-rag-fast": 1.0,
+        "lazy-graph-rag-wide": 2.5
+      },
+      "votes": {
+        "vanilla-rag-wide": 2
+      },
+      "observed_winner": "vanilla-rag-wide"
+    }
+  ],
+  "ingestion": {
+    "id": "cb1e73a7-5d4d-4946-be2e-ab1f52d2f4b4",
+    "job_id": "cb1e73a7-5d4d-4946-be2e-ab1f52d2f4b4",
+    "profile": "cyber_threat_intel",
+    "revision": "bfc79c213d77cf5e",
+    "content_digest": "47460fe8a60b1314",
+    "mode": "atlas-job"
+  },
+  "runtime": {
+    "backend": "openai-compatible",
+    "endpoint": "http://localhost:11434/v1/chat/completions",
+    "temperature": 0.0,
+    "thinking": false
+  }
+}

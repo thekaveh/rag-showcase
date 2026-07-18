@@ -1,6 +1,6 @@
 site_name: RAG Showcase
 site_description: >-
-  Six canonical RAG approaches and an experimental lazy graph prototype served
+  Seven RAG approaches, including an experimental lazy graph path, served
   as OpenAI-compatible endpoints on Atlas, with reproducible evaluations.
 sections:
   - title: Home

@@ -3,9 +3,9 @@
 
 For each measured dataset in compare/datasets.yaml, this script can cold-reset the
 Atlas stack, start rag-showcase without the default demo ingest, ingest exactly
-that dataset, wait for LightRAG indexing to drain, run the six-way matrix, run the
-local judge panel, snapshot results under docs/results, update the manifest, and
-regenerate docs/dataset-complexity-report.md.
+that dataset, wait for LightRAG indexing to drain, run the selected base matrix and
+optional non-base flavor tier, run the local judge panel, snapshot results under
+docs/results, update the manifest, and regenerate the dataset report.
 """
 from __future__ import annotations
 
@@ -34,6 +34,7 @@ if str(ROOT) not in sys.path:
 
 from compare.run_matrix import envval, flavors_file  # noqa: E402 — shared .env parser + manifest resolution
 from compare import flavors as flavor_config  # noqa: E402 — selection validation
+from compare.evaluation import load_manifest as load_evaluation_manifest  # noqa: E402
 
 
 class _IndentedDumper(yaml.SafeDumper):
@@ -62,7 +63,8 @@ def parse_args() -> argparse.Namespace:
         "--approaches",
         default="",
         help="Comma-separated approach or flavor alias list (sets MATRIX_MODELS). "
-             "Defaults to all six approaches.",
+             "Defaults to the canonical six approaches; --include-flavor-tier "
+             "adds the experimental lazy-graph family.",
     )
     parser.add_argument(
         "--flavors",
@@ -74,6 +76,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Allow --dataset to select candidate datasets with committed/generated corpus paths.",
     )
+    parser.add_argument(
+        "--include-flavor-tier",
+        action="store_true",
+        help="Run all seven base approaches, then every non-base flavor alias against "
+             "the same ingestion using separate result artifacts.",
+    )
     return parser.parse_args()
 
 
@@ -82,19 +90,49 @@ def run(cmd: list[str], *, env: dict[str, str] | None = None) -> None:
     subprocess.run(cmd, cwd=ROOT, env=env, check=True)
 
 
-def capture_json(cmd: list[str]) -> dict[str, Any]:
+def capture_json(
+    cmd: list[str], *, env: dict[str, str] | None = None
+) -> dict[str, Any]:
     result = subprocess.run(
         cmd,
         cwd=ROOT,
+        env=env,
         text=True,
         capture_output=True,
-        check=True,
+        check=False,
     )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "no child output"
+        raise RuntimeError(
+            f"command failed with exit {result.returncode}: {' '.join(cmd)}\n{detail}"
+        )
     return json.loads(result.stdout)
 
 
 def load_manifest() -> dict[str, Any]:
     return yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
+
+
+def evaluation_contract(env: dict[str, str]) -> tuple[set[str], list[str]]:
+    raw_path = env.get("MATRIX_MANIFEST_FILE") or str(ROOT / "compare" / "evaluation.yaml")
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = ROOT / path
+    manifest = load_evaluation_manifest(path)
+    judges = []
+    if manifest.metrics.judge_panel.enabled:
+        configured = env.get("JUDGE_MODELS", "")
+        judges = (
+            list(dict.fromkeys(item.strip() for item in configured.split(",") if item.strip()))
+            if configured
+            else list(manifest.metrics.judge_panel.models)
+        )
+        if not judges:
+            raise RuntimeError(
+                "enabled judge panel requires deployment-specific model aliases in "
+                "JUDGE_MODELS (or models in MATRIX_MANIFEST_FILE)"
+            )
+    return set(manifest.metrics.ragas), judges
 
 
 def write_manifest(manifest: dict[str, Any]) -> None:
@@ -112,8 +150,12 @@ def project_name() -> str:
 
 
 def cold_reset() -> None:
-    print("$ ./stop.sh --cold", flush=True)
-    subprocess.run(["./stop.sh", "--cold"], cwd=ROOT / "infra", check=True)
+    print("$ ./scripts/stop-all.sh --cold", flush=True)
+    subprocess.run(
+        ["./scripts/stop-all.sh", "--cold"],
+        cwd=ROOT,
+        check=True,
+    )
 
 
 def start_service_only(dataset: dict[str, Any]) -> None:
@@ -133,6 +175,11 @@ def ingest_dataset(dataset: dict[str, Any]) -> dict[str, Any]:
     backend_port = envval("BACKEND_PORT")
     if not backend_port:
         raise RuntimeError("BACKEND_PORT not found in infra/.env")
+    backend_token = envval("BACKEND_INTERNAL_API_TOKEN")
+    if not backend_token:
+        raise RuntimeError("BACKEND_INTERNAL_API_TOKEN not found in infra/.env")
+    job_env = os.environ.copy()
+    job_env["BACKEND_INTERNAL_API_TOKEN"] = backend_token
     record = capture_json(
         [
             "uv",
@@ -144,7 +191,8 @@ def ingest_dataset(dataset: dict[str, Any]) -> dict[str, Any]:
             dataset["ingestion_profile"],
             "--base-url",
             f"http://127.0.0.1:{backend_port}",
-        ]
+        ],
+        env=job_env,
     )
     run(
         [
@@ -156,6 +204,19 @@ def ingest_dataset(dataset: dict[str, Any]) -> dict[str, Any]:
             "python",
             "-m",
             "ingest.contextual",
+        ]
+    )
+    n8n_port = envval("N8N_PORT")
+    if not n8n_port:
+        raise RuntimeError("N8N_PORT not found in infra/.env")
+    run(
+        [
+            "uv",
+            "run",
+            "python",
+            "scripts/verify_adaptive_webhook.py",
+            "--url",
+            f"http://127.0.0.1:{n8n_port}/webhook/adaptive-rag",
         ]
     )
     return record
@@ -175,7 +236,14 @@ def validate_matrix_cells(matrix: dict[str, Any], *, dataset_id: str) -> None:
     )
 
 
-def validate_judgments(judgments: dict[str, Any], *, dataset_id: str) -> None:
+def validate_judgments(
+    judgments: dict[str, Any],
+    *,
+    dataset_id: str,
+    expected_queries: set[str],
+    expected_approaches: set[str],
+    expected_judges: list[str],
+) -> None:
     """Reject a judge run with unusable verdicts before it is snapshotted.
 
     judge.py exits 0 even when every call failed (e.g. host Ollama down), writing
@@ -183,6 +251,8 @@ def validate_judgments(judgments: dict[str, Any], *, dataset_id: str) -> None:
     "measured" with no scores. Symmetric counterpart to validate_matrix_cells.
     """
     if judgments.get("status") == "disabled":
+        if expected_judges:
+            raise RuntimeError(f"Judgments for {dataset_id} were unexpectedly disabled")
         return
     queries = judgments.get("queries", [])
     if not queries:
@@ -192,12 +262,53 @@ def validate_judgments(judgments: dict[str, Any], *, dataset_id: str) -> None:
         preview = ", ".join(bad[:5]) + ("" if len(bad) <= 5 else f", ... {len(bad) - 5} more")
         raise RuntimeError(
             f"Judgments for {dataset_id} have no valid verdicts for: {preview} "
-            "(is the host Ollama judge panel running?)"
+            "(is the configured judge endpoint available?)"
         )
+    if judgments.get("status") != "ok":
+        raise RuntimeError(f"Judgments for {dataset_id} do not have status=ok")
+    if judgments.get("judges") != expected_judges:
+        raise RuntimeError(
+            f"Judgments for {dataset_id} have unexpected judges: "
+            f"{judgments.get('judges')} != {expected_judges}"
+        )
+    actual_queries = {str(query.get("query_id")) for query in queries}
+    if actual_queries != expected_queries:
+        raise RuntimeError(
+            f"Judgments for {dataset_id} have incomplete query coverage: "
+            f"{sorted(actual_queries)} != {sorted(expected_queries)}"
+        )
+    for query in queries:
+        query_id = query.get("query_id", "?")
+        means = set((query.get("mean_by_approach") or {}).keys())
+        per_judge = query.get("per_judge") or {}
+        if means != expected_approaches:
+            raise RuntimeError(
+                f"Judgments for {dataset_id}/{query_id} have incomplete approach coverage"
+            )
+        if list(per_judge) != expected_judges:
+            raise RuntimeError(
+                f"Judgments for {dataset_id}/{query_id} have incomplete judge coverage"
+            )
+        for judge in expected_judges:
+            verdict = per_judge[judge]
+            if verdict.get("error") or set((verdict.get("scores") or {}).keys()) != expected_approaches:
+                raise RuntimeError(
+                    f"Judgments for {dataset_id}/{query_id} have incomplete judge coverage "
+                    f"for {judge}"
+                )
+    runtime = judgments.get("runtime")
+    if not isinstance(runtime, dict) or not runtime.get("backend") or not runtime.get("endpoint"):
+        raise RuntimeError(f"Judgments for {dataset_id} are missing judge runtime provenance")
 
 
 def validate_canonical_rows(
-    rows: list[dict[str, Any]], *, dataset_id: str, expected_cells: int
+    rows: list[dict[str, Any]],
+    *,
+    dataset_id: str,
+    expected_cells: int,
+    expected_queries: set[str],
+    expected_approaches: set[str],
+    expected_ragas: set[str],
 ) -> None:
     if len(rows) != expected_cells:
         raise RuntimeError(
@@ -216,21 +327,133 @@ def validate_canonical_rows(
             f"Canonical rows for {dataset_id} contain rows from another dataset: "
             f"{wrong_dataset[:5]}"
         )
+    expected_pairs = {
+        (query_id, approach)
+        for query_id in expected_queries
+        for approach in expected_approaches
+    }
+    actual_pairs = {
+        (str(row.get("question", {}).get("id")), str(row.get("approach", {}).get("model")))
+        for row in rows
+    }
+    if actual_pairs != expected_pairs:
+        raise RuntimeError(
+            f"Canonical rows for {dataset_id} have incomplete query/approach coverage"
+        )
+
+    required_hashes = {
+        "evaluation_manifest", "dataset_questions", "flavors", "roles",
+        "consumer_manifest", "atlas_env_user", "runtime_model_inventory",
+        "lightrag_query_profiles",
+    }
+    runtime_values: list[dict[str, Any]] = []
+    hash_values: list[dict[str, str]] = []
+    for row in rows:
+        reproducibility = row.get("reproducibility") or {}
+        hashes = reproducibility.get("config_hashes") or {}
+        runtime = reproducibility.get("runtime") or {}
+        if not required_hashes <= set(hashes):
+            raise RuntimeError(
+                f"Canonical rows for {dataset_id} are missing required provenance hashes"
+            )
+        runtime_files = runtime.get("runtime_files") or {}
+        judge_panel = runtime.get("judge_panel") or {}
+        rag_showcase = runtime.get("rag_showcase") or {}
+        atlas = runtime.get("atlas") or {}
+        runtime_complete = (
+            runtime.get("project")
+            and isinstance(runtime.get("base_port"), int)
+            and (runtime.get("provider_sources") or {}).get("llm")
+            and (runtime.get("provider_sources") or {}).get("comfyui")
+            and rag_showcase.get("commit")
+            and rag_showcase.get("tree")
+            and rag_showcase.get("patch_sha256")
+            and rag_showcase.get("patch_capture") in {"exact", "retrospective-known-scope"}
+            and atlas.get("commit")
+            and atlas.get("tree")
+            and atlas.get("patch_sha256")
+            and atlas.get("patch_capture") in {"exact", "retrospective-known-scope"}
+            and judge_panel.get("endpoint")
+            and isinstance(judge_panel.get("models"), list)
+            and (runtime_files.get("model_inventory") or {}).get("sha256")
+            and (runtime_files.get("lightrag_query_profiles") or {}).get("sha256")
+        )
+        if not runtime_complete:
+            raise RuntimeError(
+                f"Canonical rows for {dataset_id} are missing runtime provenance"
+            )
+        runtime_values.append(runtime)
+        hash_values.append(hashes)
+
+        if row.get("status") != "ok":
+            continue
+        ragas = (row.get("metrics") or {}).get("ragas") or {}
+        if set(ragas.get("requested") or []) != expected_ragas:
+            raise RuntimeError(
+                f"Canonical row {row.get('row_id')} has unexpected Ragas metric coverage"
+            )
+        if ragas.get("status") not in {"ok", "partial", "not_evaluable", "error", "disabled"}:
+            raise RuntimeError(
+                f"Canonical row {row.get('row_id')} has non-terminal Ragas status"
+            )
+        if expected_ragas and ragas.get("status") == "disabled":
+            raise RuntimeError(
+                f"Canonical row {row.get('row_id')} has Ragas unexpectedly disabled"
+            )
+        covered = (
+            set((ragas.get("scores") or {}).keys())
+            | set((ragas.get("not_evaluable") or {}).keys())
+            | set((ragas.get("metric_errors") or {}).keys())
+        )
+        if ragas.get("status") == "error" and ragas.get("error"):
+            covered |= expected_ragas
+        if ragas.get("status") != "disabled" and covered != expected_ragas:
+            raise RuntimeError(
+                f"Canonical row {row.get('row_id')} has incomplete Ragas metric coverage"
+            )
+    if any(value != runtime_values[0] for value in runtime_values[1:]):
+        raise RuntimeError(f"Canonical rows for {dataset_id} have mixed runtime provenance")
+    if any(value != hash_values[0] for value in hash_values[1:]):
+        raise RuntimeError(f"Canonical rows for {dataset_id} have mixed config provenance")
 
 
 def validate_evaluation_summary(
-    summary: dict[str, Any], *, dataset_id: str, expected_cells: int
+    summary: dict[str, Any],
+    *,
+    dataset_id: str,
+    expected_cells: int,
+    expected_status_counts: dict[str, int],
+    expected_judges: list[str] | None = None,
+    expected_query_count: int | None = None,
 ) -> None:
     if summary.get("schema_version") != 1:
         raise RuntimeError(f"Evaluation summary for {dataset_id} has unsupported schema version")
     dataset = summary.get("datasets", {}).get(dataset_id)
     if not isinstance(dataset, dict):
         raise RuntimeError(f"Evaluation summary is missing dataset {dataset_id}")
-    actual = dataset.get("coverage", {}).get("total_rows")
+    coverage = dataset.get("coverage", {})
+    actual = coverage.get("total_rows")
     if actual != expected_cells:
         raise RuntimeError(
             f"Evaluation summary for {dataset_id}: expected {expected_cells} rows, found {actual}"
         )
+    if any(coverage.get(key) != value for key, value in expected_status_counts.items()):
+        raise RuntimeError(
+            f"Evaluation summary for {dataset_id} coverage does not match canonical rows"
+        )
+    if expected_judges is not None:
+        judge = dataset.get("judge_panel") or {}
+        if judge.get("models") != expected_judges:
+            raise RuntimeError(
+                f"Evaluation summary for {dataset_id} has unexpected judge models"
+            )
+        if expected_query_count is not None and (
+            judge.get("evaluated_queries") != expected_query_count
+            or judge.get("total_queries") != expected_query_count
+        ):
+            raise RuntimeError(
+                f"Evaluation summary for {dataset_id} has incomplete judge coverage"
+            )
 
 
 def _load_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -253,13 +476,19 @@ def run_matrix_and_judge(
     flavors: str,
     *,
     fresh_ingestion: bool = False,
+    artifact_tier: str = "",
 ) -> tuple[Path, Path, Path, Path]:
     dataset_id = dataset["id"]
-    run_id = f"live-{date_stamp}-{dataset_id}"
-    matrix_name = f"live-{date_stamp}-{dataset_id}-matrix.json"
-    judgments_name = f"live-{date_stamp}-{dataset_id}-judgments.json"
-    evidence_name = f"live-{date_stamp}-{dataset_id}-evidence.jsonl"
-    evaluation_name = f"live-{date_stamp}-{dataset_id}-evaluation.json"
+    if artifact_tier and artifact_tier != "flavors":
+        raise ValueError(f"unsupported artifact tier: {artifact_tier}")
+    stem = f"live-{date_stamp}-{dataset_id}"
+    if artifact_tier:
+        stem += f"-{artifact_tier}"
+    run_id = stem
+    matrix_name = f"{stem}-matrix.json"
+    judgments_name = f"{stem}-judgments.json"
+    evidence_name = f"{stem}-evidence.jsonl"
+    evaluation_name = f"{stem}-evaluation.json"
     working_paths = [
         RESULTS / matrix_name,
         RESULTS / judgments_name,
@@ -298,6 +527,11 @@ def run_matrix_and_judge(
     env["MATRIX_INGESTION_REVISION"] = str(ingestion["revision"])
     env["MATRIX_INGESTION_CONTENT_DIGEST"] = str(ingestion["content_digest"])
     env["MATRIX_INGESTION_MODE"] = "atlas-job"
+    backend_token = envval("BACKEND_INTERNAL_API_TOKEN")
+    if not backend_token:
+        raise RuntimeError("BACKEND_INTERNAL_API_TOKEN not found in infra/.env")
+    env["MATRIX_EVALUATOR_API_KEY_HEADER"] = "Authorization"
+    env["MATRIX_EVALUATOR_API_KEY"] = f"Bearer {backend_token}"
     if approaches:
         env["MATRIX_MODELS"] = approaches
     if flavors:
@@ -307,15 +541,30 @@ def run_matrix_and_judge(
     matrix_payload = json.loads(matrix_src.read_text(encoding="utf-8"))
     validate_matrix_cells(matrix_payload, dataset_id=dataset_id)
     expected_cells = len(matrix_payload.get("cells", []))
+    expected_queries = {str(query["id"]) for query in matrix_payload.get("queries", [])}
+    expected_approaches = set(matrix_payload.get("models", []))
+    expected_ragas, expected_judges = evaluation_contract(env)
     evidence_src = RESULTS / evidence_name
     evaluation_src = RESULTS / evaluation_name
+    canonical_rows = _load_jsonl(evidence_src)
     validate_canonical_rows(
-        _load_jsonl(evidence_src), dataset_id=dataset_id, expected_cells=expected_cells
+        canonical_rows,
+        dataset_id=dataset_id,
+        expected_cells=expected_cells,
+        expected_queries=expected_queries,
+        expected_approaches=expected_approaches,
+        expected_ragas=expected_ragas,
     )
+    status_counts = {
+        "ok": sum(row.get("status") == "ok" for row in canonical_rows),
+        "errors": sum(row.get("status") == "error" for row in canonical_rows),
+        "timeouts": sum(row.get("status") == "timeout" for row in canonical_rows),
+    }
     validate_evaluation_summary(
         json.loads(evaluation_src.read_text(encoding="utf-8")),
         dataset_id=dataset_id,
         expected_cells=expected_cells,
+        expected_status_counts=status_counts,
     )
 
     env = os.environ.copy()
@@ -325,8 +574,13 @@ def run_matrix_and_judge(
         env["JUDGE_MANIFEST_FILE"] = manifest_path
     run(["uv", "run", "python", "compare/judge.py"], env=env)
     judgments_src = RESULTS / judgments_name
-    validate_judgments(json.loads(judgments_src.read_text(encoding="utf-8")),
-                       dataset_id=dataset_id)
+    validate_judgments(
+        json.loads(judgments_src.read_text(encoding="utf-8")),
+        dataset_id=dataset_id,
+        expected_queries=expected_queries,
+        expected_approaches=expected_approaches,
+        expected_judges=expected_judges,
+    )
     run([
         "uv", "run", "python", "compare/summarize.py",
         "--rows", str(evidence_src),
@@ -337,6 +591,9 @@ def run_matrix_and_judge(
         json.loads(evaluation_src.read_text(encoding="utf-8")),
         dataset_id=dataset_id,
         expected_cells=expected_cells,
+        expected_status_counts=status_counts,
+        expected_judges=expected_judges,
+        expected_query_count=len(expected_queries),
     )
 
     DOC_RESULTS.mkdir(parents=True, exist_ok=True)
@@ -357,6 +614,8 @@ def update_dataset_snapshots(
     judgments_path: Path,
     evidence_path: Path,
     evaluation_path: Path,
+    *,
+    flavor_paths: tuple[Path, Path, Path, Path] | None = None,
 ) -> None:
     manifest = load_manifest()
     for dataset in manifest["datasets"]:
@@ -365,6 +624,12 @@ def update_dataset_snapshots(
             dataset["judgment_snapshot"] = str(judgments_path.relative_to(ROOT))
             dataset["evidence_snapshot"] = str(evidence_path.relative_to(ROOT))
             dataset["evaluation_snapshot"] = str(evaluation_path.relative_to(ROOT))
+            if flavor_paths:
+                flavor_matrix, flavor_judgments, flavor_evidence, flavor_evaluation = flavor_paths
+                dataset["flavor_matrix_snapshot"] = str(flavor_matrix.relative_to(ROOT))
+                dataset["flavor_judgment_snapshot"] = str(flavor_judgments.relative_to(ROOT))
+                dataset["flavor_evidence_snapshot"] = str(flavor_evidence.relative_to(ROOT))
+                dataset["flavor_evaluation_snapshot"] = str(flavor_evaluation.relative_to(ROOT))
             dataset["status"] = "measured"
             break
     else:
@@ -422,11 +687,32 @@ def validate_selections(approaches: str, flavors_csv: str) -> None:
             f"invalid --approaches/--flavors selection: {exc.args[0]}") from exc
 
 
+def flavor_tier_models() -> list[str]:
+    """Return every declared tuning alias, excluding all base-family routes."""
+    manifest = flavors_file()
+    if not manifest.is_absolute():
+        manifest = ROOT / manifest
+    profiles = flavor_config.load_flavors(manifest)
+    bases = set(flavor_config.SUPPORTED_APPROACHES)
+    return [profile.alias for profile in profiles.values() if profile.alias not in bases]
+
+
 def main() -> None:
     args = parse_args()
     if args.approaches and args.flavors:
         raise SystemExit("--approaches and --flavors are mutually exclusive")
+    if args.include_flavor_tier and (args.approaches or args.flavors):
+        raise SystemExit(
+            "--include-flavor-tier cannot be combined with --approaches or --flavors"
+        )
     validate_selections(args.approaches, args.flavors)
+    try:
+        evaluation_contract(os.environ.copy())
+    except (ValueError, RuntimeError) as exc:
+        raise SystemExit(str(exc)) from exc
+    tier_models = flavor_tier_models() if args.include_flavor_tier else []
+    if tier_models:
+        validate_selections(",".join(tier_models), "")
     datasets = selected_datasets(args.dataset, include_candidates=args.include_candidates)
     # Validate every selected corpus BEFORE the first cold reset: cold_reset() wipes
     # stack volumes, and discovering a missing generated corpus only after a full
@@ -451,16 +737,31 @@ def main() -> None:
             cold_reset()
         start_service_only(dataset)
         ingestion = ingest_dataset(dataset)
+        base_approaches = args.approaches
+        if args.include_flavor_tier:
+            base_approaches = ",".join(flavor_config.SUPPORTED_APPROACHES)
         matrix, judgments, evidence, evaluation = run_matrix_and_judge(
             dataset,
             ingestion,
             args.date_stamp,
-            args.approaches,
+            base_approaches,
             args.flavors,
             fresh_ingestion=not args.no_cold_reset,
         )
+        flavor_paths = None
+        if tier_models:
+            flavor_paths = run_matrix_and_judge(
+                dataset,
+                ingestion,
+                args.date_stamp,
+                ",".join(tier_models),
+                "",
+                fresh_ingestion=not args.no_cold_reset,
+                artifact_tier="flavors",
+            )
         update_dataset_snapshots(
-            dataset["id"], matrix, judgments, evidence, evaluation
+            dataset["id"], matrix, judgments, evidence, evaluation,
+            flavor_paths=flavor_paths,
         )
         regenerate_report()
 

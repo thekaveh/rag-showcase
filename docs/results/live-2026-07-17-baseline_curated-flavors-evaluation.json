@@ -1,0 +1,2531 @@
+{
+  "datasets": {
+    "baseline_curated": {
+      "approaches": {
+        "agentic-rag-deeper": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 2.916667,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 22713.5,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.575641,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.666667,
+              "errors": 2,
+              "evaluated": 4,
+              "mean": 1.0,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "contextual-rag-high-recall": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 3.916667,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 26844.5,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.905166,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.833333,
+              "errors": 1,
+              "evaluated": 5,
+              "mean": 0.2,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "graph-rag-fast": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 3.666667,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 8759.666667,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.844335,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.0,
+              "errors": 0,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 6,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "graph-rag-rerank": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 3.666667,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 20866.333333,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.846745,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.0,
+              "errors": 0,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 6,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "graph-rag-wide": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 3.833333,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 17524.166667,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.832587,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.0,
+              "errors": 0,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 6,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "hybrid-rag-fast": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 4.083333,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 3227.833333,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.674801,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.62619,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "hybrid-rag-high-recall": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 3.75,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 26029.666667,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.893177,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.833333,
+              "errors": 1,
+              "evaluated": 5,
+              "mean": 0.680952,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "lazy-graph-rag-balanced": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 3.75,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 4911.5,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.868166,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.833333,
+              "errors": 1,
+              "evaluated": 5,
+              "mean": 0.72,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "lazy-graph-rag-fast": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 3.833333,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 3392.666667,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.881562,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.595418,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "lazy-graph-rag-wide": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 4.583333,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 6311.333333,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.797515,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.666667,
+              "errors": 2,
+              "evaluated": 4,
+              "mean": 0.681818,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "n8n-adaptive-rag-default": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 3.166667,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 8537.0,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.595951,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.833333,
+              "errors": 1,
+              "evaluated": 5,
+              "mean": 0.7,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "vanilla-rag-wide": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 4.083333,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 5685.0,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.84577,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.619697,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        }
+      },
+      "complexity_level": 1,
+      "coverage": {
+        "errors": 0,
+        "ok": 72,
+        "timeouts": 0,
+        "total_rows": 72
+      },
+      "judge_panel": {
+        "evaluated_queries": 6,
+        "models": [
+          "qwen3.6:latest",
+          "gemma4:31b"
+        ],
+        "status": "ok",
+        "total_queries": 6
+      },
+      "label": "Baseline curated news + keyword docs",
+      "rankings": {
+        "judge_panel": [
+          {
+            "approaches": [
+              "lazy-graph-rag-wide"
+            ],
+            "coverage": {
+              "lazy-graph-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 1,
+            "value": 4.583333
+          },
+          {
+            "approaches": [
+              "hybrid-rag-fast",
+              "vanilla-rag-wide"
+            ],
+            "coverage": {
+              "hybrid-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              },
+              "vanilla-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 2,
+            "value": 4.083333
+          },
+          {
+            "approaches": [
+              "contextual-rag-high-recall"
+            ],
+            "coverage": {
+              "contextual-rag-high-recall": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 4,
+            "value": 3.916667
+          },
+          {
+            "approaches": [
+              "graph-rag-wide",
+              "lazy-graph-rag-fast"
+            ],
+            "coverage": {
+              "graph-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              },
+              "lazy-graph-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 5,
+            "value": 3.833333
+          },
+          {
+            "approaches": [
+              "hybrid-rag-high-recall",
+              "lazy-graph-rag-balanced"
+            ],
+            "coverage": {
+              "hybrid-rag-high-recall": {
+                "evaluated": 6,
+                "total": 6
+              },
+              "lazy-graph-rag-balanced": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 7,
+            "value": 3.75
+          },
+          {
+            "approaches": [
+              "graph-rag-fast",
+              "graph-rag-rerank"
+            ],
+            "coverage": {
+              "graph-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              },
+              "graph-rag-rerank": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 9,
+            "value": 3.666667
+          },
+          {
+            "approaches": [
+              "n8n-adaptive-rag-default"
+            ],
+            "coverage": {
+              "n8n-adaptive-rag-default": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 11,
+            "value": 3.166667
+          },
+          {
+            "approaches": [
+              "agentic-rag-deeper"
+            ],
+            "coverage": {
+              "agentic-rag-deeper": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 12,
+            "value": 2.916667
+          }
+        ],
+        "operational": {
+          "mean_latency_ms": [
+            {
+              "approaches": [
+                "hybrid-rag-fast"
+              ],
+              "coverage": {
+                "hybrid-rag-fast": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 1,
+              "value": 3227.833333
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-fast"
+              ],
+              "coverage": {
+                "lazy-graph-rag-fast": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 2,
+              "value": 3392.666667
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-balanced"
+              ],
+              "coverage": {
+                "lazy-graph-rag-balanced": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 3,
+              "value": 4911.5
+            },
+            {
+              "approaches": [
+                "vanilla-rag-wide"
+              ],
+              "coverage": {
+                "vanilla-rag-wide": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 4,
+              "value": 5685.0
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-wide"
+              ],
+              "coverage": {
+                "lazy-graph-rag-wide": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 5,
+              "value": 6311.333333
+            },
+            {
+              "approaches": [
+                "n8n-adaptive-rag-default"
+              ],
+              "coverage": {
+                "n8n-adaptive-rag-default": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 6,
+              "value": 8537.0
+            },
+            {
+              "approaches": [
+                "graph-rag-fast"
+              ],
+              "coverage": {
+                "graph-rag-fast": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 7,
+              "value": 8759.666667
+            },
+            {
+              "approaches": [
+                "graph-rag-wide"
+              ],
+              "coverage": {
+                "graph-rag-wide": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 8,
+              "value": 17524.166667
+            },
+            {
+              "approaches": [
+                "graph-rag-rerank"
+              ],
+              "coverage": {
+                "graph-rag-rerank": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 9,
+              "value": 20866.333333
+            },
+            {
+              "approaches": [
+                "agentic-rag-deeper"
+              ],
+              "coverage": {
+                "agentic-rag-deeper": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 10,
+              "value": 22713.5
+            },
+            {
+              "approaches": [
+                "hybrid-rag-high-recall"
+              ],
+              "coverage": {
+                "hybrid-rag-high-recall": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 11,
+              "value": 26029.666667
+            },
+            {
+              "approaches": [
+                "contextual-rag-high-recall"
+              ],
+              "coverage": {
+                "contextual-rag-high-recall": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 12,
+              "value": 26844.5
+            }
+          ]
+        },
+        "ragas": {
+          "answer_relevancy": [
+            {
+              "approaches": [
+                "contextual-rag-high-recall"
+              ],
+              "coverage": {
+                "contextual-rag-high-recall": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 1,
+              "value": 0.905166
+            },
+            {
+              "approaches": [
+                "hybrid-rag-high-recall"
+              ],
+              "coverage": {
+                "hybrid-rag-high-recall": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 2,
+              "value": 0.893177
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-fast"
+              ],
+              "coverage": {
+                "lazy-graph-rag-fast": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 3,
+              "value": 0.881562
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-balanced"
+              ],
+              "coverage": {
+                "lazy-graph-rag-balanced": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 4,
+              "value": 0.868166
+            },
+            {
+              "approaches": [
+                "graph-rag-rerank"
+              ],
+              "coverage": {
+                "graph-rag-rerank": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 5,
+              "value": 0.846745
+            },
+            {
+              "approaches": [
+                "vanilla-rag-wide"
+              ],
+              "coverage": {
+                "vanilla-rag-wide": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 6,
+              "value": 0.84577
+            },
+            {
+              "approaches": [
+                "graph-rag-fast"
+              ],
+              "coverage": {
+                "graph-rag-fast": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 7,
+              "value": 0.844335
+            },
+            {
+              "approaches": [
+                "graph-rag-wide"
+              ],
+              "coverage": {
+                "graph-rag-wide": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 8,
+              "value": 0.832587
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-wide"
+              ],
+              "coverage": {
+                "lazy-graph-rag-wide": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 9,
+              "value": 0.797515
+            },
+            {
+              "approaches": [
+                "hybrid-rag-fast"
+              ],
+              "coverage": {
+                "hybrid-rag-fast": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 10,
+              "value": 0.674801
+            },
+            {
+              "approaches": [
+                "n8n-adaptive-rag-default"
+              ],
+              "coverage": {
+                "n8n-adaptive-rag-default": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 11,
+              "value": 0.595951
+            },
+            {
+              "approaches": [
+                "agentic-rag-deeper"
+              ],
+              "coverage": {
+                "agentic-rag-deeper": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 12,
+              "value": 0.575641
+            }
+          ],
+          "faithfulness": [
+            {
+              "approaches": [
+                "agentic-rag-deeper"
+              ],
+              "coverage": {
+                "agentic-rag-deeper": {
+                  "evaluated": 4,
+                  "total": 6
+                }
+              },
+              "rank": 1,
+              "value": 1.0
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-balanced"
+              ],
+              "coverage": {
+                "lazy-graph-rag-balanced": {
+                  "evaluated": 5,
+                  "total": 6
+                }
+              },
+              "rank": 2,
+              "value": 0.72
+            },
+            {
+              "approaches": [
+                "n8n-adaptive-rag-default"
+              ],
+              "coverage": {
+                "n8n-adaptive-rag-default": {
+                  "evaluated": 5,
+                  "total": 6
+                }
+              },
+              "rank": 3,
+              "value": 0.7
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-wide"
+              ],
+              "coverage": {
+                "lazy-graph-rag-wide": {
+                  "evaluated": 4,
+                  "total": 6
+                }
+              },
+              "rank": 4,
+              "value": 0.681818
+            },
+            {
+              "approaches": [
+                "hybrid-rag-high-recall"
+              ],
+              "coverage": {
+                "hybrid-rag-high-recall": {
+                  "evaluated": 5,
+                  "total": 6
+                }
+              },
+              "rank": 5,
+              "value": 0.680952
+            },
+            {
+              "approaches": [
+                "hybrid-rag-fast"
+              ],
+              "coverage": {
+                "hybrid-rag-fast": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 6,
+              "value": 0.62619
+            },
+            {
+              "approaches": [
+                "vanilla-rag-wide"
+              ],
+              "coverage": {
+                "vanilla-rag-wide": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 7,
+              "value": 0.619697
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-fast"
+              ],
+              "coverage": {
+                "lazy-graph-rag-fast": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 8,
+              "value": 0.595418
+            },
+            {
+              "approaches": [
+                "contextual-rag-high-recall"
+              ],
+              "coverage": {
+                "contextual-rag-high-recall": {
+                  "evaluated": 5,
+                  "total": 6
+                }
+              },
+              "rank": 9,
+              "value": 0.2
+            }
+          ]
+        }
+      }
+    }
+  },
+  "longitudinal": {
+    "agentic-rag-deeper": [
+      {
+        "complexity_level": 1,
+        "dataset_id": "baseline_curated",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 2.916667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 22713.5,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.575641,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.666667,
+            "errors": 2,
+            "evaluated": 4,
+            "mean": 1.0,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "contextual-rag-high-recall": [
+      {
+        "complexity_level": 1,
+        "dataset_id": "baseline_curated",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.916667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 26844.5,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.905166,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.833333,
+            "errors": 1,
+            "evaluated": 5,
+            "mean": 0.2,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "graph-rag-fast": [
+      {
+        "complexity_level": 1,
+        "dataset_id": "baseline_curated",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.666667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 8759.666667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.844335,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 0,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 6,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "graph-rag-rerank": [
+      {
+        "complexity_level": 1,
+        "dataset_id": "baseline_curated",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.666667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 20866.333333,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.846745,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 0,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 6,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "graph-rag-wide": [
+      {
+        "complexity_level": 1,
+        "dataset_id": "baseline_curated",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.833333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 17524.166667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.832587,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 0,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 6,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "hybrid-rag-fast": [
+      {
+        "complexity_level": 1,
+        "dataset_id": "baseline_curated",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 4.083333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 3227.833333,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.674801,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.62619,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "hybrid-rag-high-recall": [
+      {
+        "complexity_level": 1,
+        "dataset_id": "baseline_curated",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.75,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 26029.666667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.893177,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.833333,
+            "errors": 1,
+            "evaluated": 5,
+            "mean": 0.680952,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "lazy-graph-rag-balanced": [
+      {
+        "complexity_level": 1,
+        "dataset_id": "baseline_curated",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.75,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 4911.5,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.868166,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.833333,
+            "errors": 1,
+            "evaluated": 5,
+            "mean": 0.72,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "lazy-graph-rag-fast": [
+      {
+        "complexity_level": 1,
+        "dataset_id": "baseline_curated",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.833333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 3392.666667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.881562,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.595418,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "lazy-graph-rag-wide": [
+      {
+        "complexity_level": 1,
+        "dataset_id": "baseline_curated",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 4.583333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 6311.333333,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.797515,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.666667,
+            "errors": 2,
+            "evaluated": 4,
+            "mean": 0.681818,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "n8n-adaptive-rag-default": [
+      {
+        "complexity_level": 1,
+        "dataset_id": "baseline_curated",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.166667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 8537.0,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.595951,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.833333,
+            "errors": 1,
+            "evaluated": 5,
+            "mean": 0.7,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "vanilla-rag-wide": [
+      {
+        "complexity_level": 1,
+        "dataset_id": "baseline_curated",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 4.083333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 5685.0,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.84577,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.619697,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ]
+  },
+  "overall": {
+    "approaches": {
+      "agentic-rag-deeper": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 2.916667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 22713.5,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.575641,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.666667,
+            "errors": 2,
+            "evaluated": 4,
+            "mean": 1.0,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "contextual-rag-high-recall": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.916667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 26844.5,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.905166,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.833333,
+            "errors": 1,
+            "evaluated": 5,
+            "mean": 0.2,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "graph-rag-fast": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.666667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 8759.666667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.844335,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 0,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 6,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "graph-rag-rerank": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.666667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 20866.333333,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.846745,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 0,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 6,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "graph-rag-wide": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.833333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 17524.166667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.832587,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 0,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 6,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "hybrid-rag-fast": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 4.083333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 3227.833333,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.674801,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.62619,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "hybrid-rag-high-recall": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.75,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 26029.666667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.893177,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.833333,
+            "errors": 1,
+            "evaluated": 5,
+            "mean": 0.680952,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "lazy-graph-rag-balanced": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.75,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 4911.5,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.868166,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.833333,
+            "errors": 1,
+            "evaluated": 5,
+            "mean": 0.72,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "lazy-graph-rag-fast": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.833333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 3392.666667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.881562,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.595418,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "lazy-graph-rag-wide": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 4.583333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 6311.333333,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.797515,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.666667,
+            "errors": 2,
+            "evaluated": 4,
+            "mean": 0.681818,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "n8n-adaptive-rag-default": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.166667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 8537.0,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.595951,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.833333,
+            "errors": 1,
+            "evaluated": 5,
+            "mean": 0.7,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "vanilla-rag-wide": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 4.083333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 5685.0,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.84577,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.619697,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    },
+    "coverage": {
+      "errors": 0,
+      "ok": 72,
+      "timeouts": 0,
+      "total_rows": 72
+    },
+    "judge_panel": {
+      "evaluated_queries": 6,
+      "models": [
+        "qwen3.6:latest",
+        "gemma4:31b"
+      ],
+      "status": "ok",
+      "total_queries": 6
+    },
+    "rankings": {
+      "judge_panel": [
+        {
+          "approaches": [
+            "lazy-graph-rag-wide"
+          ],
+          "coverage": {
+            "lazy-graph-rag-wide": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 1,
+          "value": 4.583333
+        },
+        {
+          "approaches": [
+            "hybrid-rag-fast",
+            "vanilla-rag-wide"
+          ],
+          "coverage": {
+            "hybrid-rag-fast": {
+              "evaluated": 6,
+              "total": 6
+            },
+            "vanilla-rag-wide": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 2,
+          "value": 4.083333
+        },
+        {
+          "approaches": [
+            "contextual-rag-high-recall"
+          ],
+          "coverage": {
+            "contextual-rag-high-recall": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 4,
+          "value": 3.916667
+        },
+        {
+          "approaches": [
+            "graph-rag-wide",
+            "lazy-graph-rag-fast"
+          ],
+          "coverage": {
+            "graph-rag-wide": {
+              "evaluated": 6,
+              "total": 6
+            },
+            "lazy-graph-rag-fast": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 5,
+          "value": 3.833333
+        },
+        {
+          "approaches": [
+            "hybrid-rag-high-recall",
+            "lazy-graph-rag-balanced"
+          ],
+          "coverage": {
+            "hybrid-rag-high-recall": {
+              "evaluated": 6,
+              "total": 6
+            },
+            "lazy-graph-rag-balanced": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 7,
+          "value": 3.75
+        },
+        {
+          "approaches": [
+            "graph-rag-fast",
+            "graph-rag-rerank"
+          ],
+          "coverage": {
+            "graph-rag-fast": {
+              "evaluated": 6,
+              "total": 6
+            },
+            "graph-rag-rerank": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 9,
+          "value": 3.666667
+        },
+        {
+          "approaches": [
+            "n8n-adaptive-rag-default"
+          ],
+          "coverage": {
+            "n8n-adaptive-rag-default": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 11,
+          "value": 3.166667
+        },
+        {
+          "approaches": [
+            "agentic-rag-deeper"
+          ],
+          "coverage": {
+            "agentic-rag-deeper": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 12,
+          "value": 2.916667
+        }
+      ],
+      "operational": {
+        "mean_latency_ms": [
+          {
+            "approaches": [
+              "hybrid-rag-fast"
+            ],
+            "coverage": {
+              "hybrid-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 1,
+            "value": 3227.833333
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-fast"
+            ],
+            "coverage": {
+              "lazy-graph-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 2,
+            "value": 3392.666667
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-balanced"
+            ],
+            "coverage": {
+              "lazy-graph-rag-balanced": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 3,
+            "value": 4911.5
+          },
+          {
+            "approaches": [
+              "vanilla-rag-wide"
+            ],
+            "coverage": {
+              "vanilla-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 4,
+            "value": 5685.0
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-wide"
+            ],
+            "coverage": {
+              "lazy-graph-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 5,
+            "value": 6311.333333
+          },
+          {
+            "approaches": [
+              "n8n-adaptive-rag-default"
+            ],
+            "coverage": {
+              "n8n-adaptive-rag-default": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 6,
+            "value": 8537.0
+          },
+          {
+            "approaches": [
+              "graph-rag-fast"
+            ],
+            "coverage": {
+              "graph-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 7,
+            "value": 8759.666667
+          },
+          {
+            "approaches": [
+              "graph-rag-wide"
+            ],
+            "coverage": {
+              "graph-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 8,
+            "value": 17524.166667
+          },
+          {
+            "approaches": [
+              "graph-rag-rerank"
+            ],
+            "coverage": {
+              "graph-rag-rerank": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 9,
+            "value": 20866.333333
+          },
+          {
+            "approaches": [
+              "agentic-rag-deeper"
+            ],
+            "coverage": {
+              "agentic-rag-deeper": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 10,
+            "value": 22713.5
+          },
+          {
+            "approaches": [
+              "hybrid-rag-high-recall"
+            ],
+            "coverage": {
+              "hybrid-rag-high-recall": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 11,
+            "value": 26029.666667
+          },
+          {
+            "approaches": [
+              "contextual-rag-high-recall"
+            ],
+            "coverage": {
+              "contextual-rag-high-recall": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 12,
+            "value": 26844.5
+          }
+        ]
+      },
+      "ragas": {
+        "answer_relevancy": [
+          {
+            "approaches": [
+              "contextual-rag-high-recall"
+            ],
+            "coverage": {
+              "contextual-rag-high-recall": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 1,
+            "value": 0.905166
+          },
+          {
+            "approaches": [
+              "hybrid-rag-high-recall"
+            ],
+            "coverage": {
+              "hybrid-rag-high-recall": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 2,
+            "value": 0.893177
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-fast"
+            ],
+            "coverage": {
+              "lazy-graph-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 3,
+            "value": 0.881562
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-balanced"
+            ],
+            "coverage": {
+              "lazy-graph-rag-balanced": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 4,
+            "value": 0.868166
+          },
+          {
+            "approaches": [
+              "graph-rag-rerank"
+            ],
+            "coverage": {
+              "graph-rag-rerank": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 5,
+            "value": 0.846745
+          },
+          {
+            "approaches": [
+              "vanilla-rag-wide"
+            ],
+            "coverage": {
+              "vanilla-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 6,
+            "value": 0.84577
+          },
+          {
+            "approaches": [
+              "graph-rag-fast"
+            ],
+            "coverage": {
+              "graph-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 7,
+            "value": 0.844335
+          },
+          {
+            "approaches": [
+              "graph-rag-wide"
+            ],
+            "coverage": {
+              "graph-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 8,
+            "value": 0.832587
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-wide"
+            ],
+            "coverage": {
+              "lazy-graph-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 9,
+            "value": 0.797515
+          },
+          {
+            "approaches": [
+              "hybrid-rag-fast"
+            ],
+            "coverage": {
+              "hybrid-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 10,
+            "value": 0.674801
+          },
+          {
+            "approaches": [
+              "n8n-adaptive-rag-default"
+            ],
+            "coverage": {
+              "n8n-adaptive-rag-default": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 11,
+            "value": 0.595951
+          },
+          {
+            "approaches": [
+              "agentic-rag-deeper"
+            ],
+            "coverage": {
+              "agentic-rag-deeper": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 12,
+            "value": 0.575641
+          }
+        ],
+        "faithfulness": [
+          {
+            "approaches": [
+              "agentic-rag-deeper"
+            ],
+            "coverage": {
+              "agentic-rag-deeper": {
+                "evaluated": 4,
+                "total": 6
+              }
+            },
+            "rank": 1,
+            "value": 1.0
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-balanced"
+            ],
+            "coverage": {
+              "lazy-graph-rag-balanced": {
+                "evaluated": 5,
+                "total": 6
+              }
+            },
+            "rank": 2,
+            "value": 0.72
+          },
+          {
+            "approaches": [
+              "n8n-adaptive-rag-default"
+            ],
+            "coverage": {
+              "n8n-adaptive-rag-default": {
+                "evaluated": 5,
+                "total": 6
+              }
+            },
+            "rank": 3,
+            "value": 0.7
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-wide"
+            ],
+            "coverage": {
+              "lazy-graph-rag-wide": {
+                "evaluated": 4,
+                "total": 6
+              }
+            },
+            "rank": 4,
+            "value": 0.681818
+          },
+          {
+            "approaches": [
+              "hybrid-rag-high-recall"
+            ],
+            "coverage": {
+              "hybrid-rag-high-recall": {
+                "evaluated": 5,
+                "total": 6
+              }
+            },
+            "rank": 5,
+            "value": 0.680952
+          },
+          {
+            "approaches": [
+              "hybrid-rag-fast"
+            ],
+            "coverage": {
+              "hybrid-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 6,
+            "value": 0.62619
+          },
+          {
+            "approaches": [
+              "vanilla-rag-wide"
+            ],
+            "coverage": {
+              "vanilla-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 7,
+            "value": 0.619697
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-fast"
+            ],
+            "coverage": {
+              "lazy-graph-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 8,
+            "value": 0.595418
+          },
+          {
+            "approaches": [
+              "contextual-rag-high-recall"
+            ],
+            "coverage": {
+              "contextual-rag-high-recall": {
+                "evaluated": 5,
+                "total": 6
+              }
+            },
+            "rank": 9,
+            "value": 0.2
+          }
+        ]
+      }
+    }
+  },
+  "run_ids": [
+    "live-2026-07-17-baseline_curated-flavors"
+  ],
+  "runner_versions": [
+    1
+  ],
+  "schema_version": 1
+}

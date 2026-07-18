@@ -43,24 +43,21 @@ flavors:
     label: Graph Fast
     description: Lower LightRAG fanout for quicker graph answers.
     requires_reingest: false
-    params:
-      mode: local
-      top_k: 5
-      chunk_top_k: 3
-      max_total_tokens: 8000
-      enable_rerank: false
+    params: {}
 
   - alias: graph-rag-wide
     base: graph-rag
     label: Graph Wide
     description: Wider LightRAG graph and chunk fanout for relationship-heavy queries.
     requires_reingest: false
-    params:
-      mode: hybrid
-      top_k: 30
-      chunk_top_k: 12
-      max_total_tokens: 24000
-      enable_rerank: false
+    params: {}
+
+  - alias: graph-rag-rerank
+    base: graph-rag
+    label: Graph Rerank
+    description: Canonical LightRAG fanout with Atlas-adapted TEI reranking.
+    requires_reingest: false
+    params: {}
 
   - alias: agentic-rag-deeper
     base: agentic-rag

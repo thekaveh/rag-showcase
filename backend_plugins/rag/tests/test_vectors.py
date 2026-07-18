@@ -403,6 +403,51 @@ def test_rag_weaviate_grpc_port_validation(monkeypatch):
         vectors._weaviate()
 
 
+def test_weaviate_client_uses_configurable_init_timeout(monkeypatch):
+    import sys
+    import types
+
+    seen = {}
+
+    def _connect(**kwargs):
+        seen.update(kwargs)
+        return object()
+
+    class _Timeout:
+        def __init__(self, *, init):
+            self.init = init
+
+    class _AdditionalConfig:
+        def __init__(self, *, timeout):
+            self.timeout = timeout
+
+    weaviate = types.ModuleType("weaviate")
+    weaviate.connect_to_custom = _connect
+    classes = types.ModuleType("weaviate.classes")
+    init = types.ModuleType("weaviate.classes.init")
+    init.Timeout = _Timeout
+    init.AdditionalConfig = _AdditionalConfig
+    monkeypatch.setitem(sys.modules, "weaviate", weaviate)
+    monkeypatch.setitem(sys.modules, "weaviate.classes", classes)
+    monkeypatch.setitem(sys.modules, "weaviate.classes.init", init)
+    monkeypatch.setenv("RAG_WEAVIATE_INIT_TIMEOUT_S", "30")
+
+    vectors._weaviate()
+
+    assert seen["additional_config"].timeout.init == 30
+
+
+def test_weaviate_init_timeout_validation(monkeypatch):
+    import sys
+    import types
+
+    monkeypatch.setitem(sys.modules, "weaviate", types.ModuleType("weaviate"))
+    monkeypatch.setenv("RAG_WEAVIATE_INIT_TIMEOUT_S", "not-a-number")
+
+    with pytest.raises(ValueError, match="RAG_WEAVIATE_INIT_TIMEOUT_S"):
+        vectors._weaviate()
+
+
 @pytest.mark.asyncio
 @respx.mock
 async def test_rerank_warns_on_malformed_batch_env(monkeypatch, caplog):

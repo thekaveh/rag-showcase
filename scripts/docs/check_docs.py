@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 from .build_docs import SITE_SRC, WIKI_SRC, build, check_determinism
 from .links import is_forbidden
@@ -39,6 +41,24 @@ def check_generated_content() -> None:
                     _fail(f"{path}: forbidden cross-surface link {match.group(1)}")
 
 
+def check_local_links(root: Path) -> None:
+    """Reject generated Markdown links whose local file target is absent."""
+    for path in root.rglob("*.md"):
+        text = path.read_text(encoding="utf-8")
+        for match in re.finditer(r"!?\[[^\]]+\]\(([^)]+)\)", text):
+            target = match.group(1).strip()
+            parsed = urlparse(target)
+            if parsed.scheme or parsed.netloc or not parsed.path:
+                continue
+            clean = unquote(parsed.path)
+            candidate = root / clean.lstrip("/") if clean.startswith("/") else path.parent / clean
+            candidates = [candidate]
+            if not candidate.suffix:
+                candidates.extend([candidate.with_suffix(".md"), candidate / "index.md"])
+            if not any(item.exists() for item in candidates):
+                _fail(f"{path}: missing local link target {target}")
+
+
 def check_readme() -> None:
     text = (DOCS.parent / "README.md").read_text(encoding="utf-8")
     if re.search(r"mkdocs|wiki.*sync|github\.io/", text, re.IGNORECASE):
@@ -49,6 +69,8 @@ def main() -> None:
     build()
     check_manifest_h1()
     check_generated_content()
+    check_local_links(SITE_SRC)
+    check_local_links(WIKI_SRC)
     check_readme()
     check_determinism()
     subprocess.run([sys.executable, "-m", "mkdocs", "build", "--clean", "--strict", "--site-dir", "site"], check=True)

@@ -18,6 +18,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -27,10 +28,18 @@ if str(ROOT) not in sys.path:
 from compare.evaluation import load_manifest  # noqa: E402
 
 RESULTS = ROOT / "compare" / "results"
-OLLAMA = "http://localhost:11434/v1/chat/completions"
-JUDGES = ["qwen3.6:latest", "gemma4:31b"]
 MAXLEN = 1200  # cap answer length fed to judges
 DEFAULT_MANIFEST = ROOT / "compare" / "evaluation.yaml"
+
+
+def envval(key: str, default: str = "") -> str:
+    env = ROOT / "infra" / ".env"
+    value = default
+    if env.is_file():
+        for line in env.read_text(encoding="utf-8").splitlines():
+            if line.startswith(key + "="):
+                value = line.split("=", 1)[1].strip()
+    return value
 
 
 def matrix_file() -> Path:
@@ -48,10 +57,19 @@ def judge_models() -> list[str]:
     if not path.is_absolute():
         path = ROOT / path
     panel = load_manifest(path).metrics.judge_panel
-    return list(panel.models) if panel.enabled else []
+    if not panel.enabled:
+        return []
+    if panel.models:
+        return list(panel.models)
+    raise ValueError(
+        "enabled judge panel requires deployment-specific model aliases in "
+        "JUDGE_MODELS (or models in JUDGE_MANIFEST_FILE)"
+    )
 
 
-def judge_runtime() -> tuple[str, float, bool | None, dict[str, str]]:
+def judge_runtime() -> tuple[
+    str, float, bool | None, dict[str, str], bool, dict[str, Any]
+]:
     path = Path(os.environ.get("JUDGE_MANIFEST_FILE", str(DEFAULT_MANIFEST)))
     if not path.is_absolute():
         path = ROOT / path
@@ -60,8 +78,10 @@ def judge_runtime() -> tuple[str, float, bool | None, dict[str, str]]:
     if not endpoint:
         raise ValueError("judge endpoint is required when the judge panel is enabled")
 
-    thinking = panel.thinking
-    if configured := os.environ.get("JUDGE_THINK"):
+    use_litellm_cache = endpoint == "atlas-litellm"
+    thinking = panel.thinking if use_litellm_cache else None
+    if "JUDGE_THINK" in os.environ:
+        configured = os.environ["JUDGE_THINK"]
         normalized = configured.strip().lower()
         if normalized == "omit":
             thinking = None
@@ -71,9 +91,23 @@ def judge_runtime() -> tuple[str, float, bool | None, dict[str, str]]:
             raise ValueError("JUDGE_THINK must be true, false, or omit")
 
     headers: dict[str, str] = {}
-    if api_key := os.environ.get("JUDGE_API_KEY"):
+    if endpoint == "atlas-litellm":
+        port = envval("LITELLM_PORT")
+        if not port:
+            raise ValueError("LITELLM_PORT is required for the atlas-litellm judge endpoint")
+        endpoint_url = f"http://localhost:{port}/v1/chat/completions"
+        api_key = os.environ.get("JUDGE_API_KEY") or envval("LITELLM_MASTER_KEY")
+        if not api_key:
+            raise ValueError("LITELLM_MASTER_KEY or JUDGE_API_KEY is required for Atlas judging")
         headers["Authorization"] = f"Bearer {api_key}"
-    return endpoint, panel.temperature, thinking, headers
+        runtime = {"backend": "atlas-litellm", "endpoint": "atlas-litellm"}
+    else:
+        endpoint_url = endpoint
+        if api_key := os.environ.get("JUDGE_API_KEY"):
+            headers["Authorization"] = f"Bearer {api_key}"
+        runtime = {"backend": "openai-compatible", "endpoint": endpoint}
+    runtime.update({"temperature": panel.temperature, "thinking": thinking})
+    return endpoint_url, panel.temperature, thinking, headers, use_litellm_cache, runtime
 
 
 def stable_order(items: list[str], seed: str) -> list[str]:
@@ -101,6 +135,7 @@ def ask_judge(
     temperature: float,
     thinking: bool | None,
     headers: dict[str, str],
+    use_litellm_cache: bool,
 ) -> tuple[dict | None, str]:
     """One judge call with one retry. Returns (verdict, failure_detail).
 
@@ -116,6 +151,8 @@ def ask_judge(
                 "temperature": temperature,
                 "messages": [{"role": "user", "content": prompt}],
             }
+            if use_litellm_cache:
+                payload["cache"] = {"no-cache": True, "no-store": True}
             if thinking is not None:
                 payload["think"] = thinking
             r = client.post(endpoint, headers=headers, json=payload)
@@ -183,7 +220,7 @@ def main() -> None:
         output.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"wrote {output} (judge panel disabled)")
         return
-    endpoint, temperature, thinking, headers = judge_runtime()
+    endpoint, temperature, thinking, headers, use_litellm_cache, runtime = judge_runtime()
     by_q: dict[str, dict[str, dict]] = {}
     for c in matrix["cells"]:
         by_q.setdefault(c["query_id"], {})[c["model"]] = c
@@ -217,6 +254,7 @@ def main() -> None:
                     temperature=temperature,
                     thinking=thinking,
                     headers=headers,
+                    use_litellm_cache=use_litellm_cache,
                 )
                 if not verdict:
                     print(f"  [{jm}] {qid}: no valid verdict ({err})", flush=True)
@@ -229,6 +267,7 @@ def main() -> None:
         "status": "ok",
         "dataset_id": matrix.get("dataset_id"),
         "judges": panel,
+        "runtime": runtime,
         "queries": [],
     }
     if matrix.get("ingestion"):

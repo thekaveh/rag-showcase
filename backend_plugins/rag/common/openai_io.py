@@ -102,9 +102,10 @@ def _render_footer(m: Metrics) -> str:
             f"{_plural(m.llm_calls, 'LLM call')} · {m.cloud_calls} cloud")
 
 
-def _evidence_extension(sources: list[Source], metrics: Metrics) -> dict[str, Any]:
+def _evidence_extension(answer: str, sources: list[Source], metrics: Metrics) -> dict[str, Any]:
     return {
         "schema_version": 1,
+        "answer": answer,
         "sources": [
             {"title": source.title, "snippet": source.snippet, "score": source.score}
             for source in sources
@@ -130,7 +131,7 @@ def build_response(model: str, answer: str, sources: list[Source],
                      type(answer).__name__, model)
         answer = ""
     content = answer + _render_sources(sources) + _render_footer(metrics)
-    extension = _evidence_extension(sources, metrics)
+    extension = _evidence_extension(answer, sources, metrics)
     if metadata:
         extension.update(metadata)
     response = {

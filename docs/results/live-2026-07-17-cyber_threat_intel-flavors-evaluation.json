@@ -1,0 +1,2547 @@
+{
+  "datasets": {
+    "cyber_threat_intel": {
+      "approaches": {
+        "agentic-rag-deeper": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 2.416667,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 17243.0,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.708813,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.333333,
+              "errors": 4,
+              "evaluated": 2,
+              "mean": 0.53125,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "contextual-rag-high-recall": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 3.5,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 40646.333333,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.810705,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.166667,
+              "errors": 5,
+              "evaluated": 1,
+              "mean": 0.357143,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "graph-rag-fast": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 1.916667,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 16581.833333,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.841376,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.0,
+              "errors": 0,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 6,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "graph-rag-rerank": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 2.416667,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 31947.5,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.819718,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.0,
+              "errors": 0,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 6,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "graph-rag-wide": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 2.166667,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 26667.666667,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.86362,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.0,
+              "errors": 0,
+              "evaluated": 0,
+              "mean": null,
+              "not_evaluable": 6,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "hybrid-rag-fast": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 3.666667,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 6984.5,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.843642,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.666667,
+              "errors": 2,
+              "evaluated": 4,
+              "mean": 0.045455,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "hybrid-rag-high-recall": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 3.333333,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 39889.166667,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.890029,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.333333,
+              "errors": 4,
+              "evaluated": 2,
+              "mean": 0.0,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "lazy-graph-rag-balanced": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 3.0,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 7955.666667,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.873443,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.5,
+              "errors": 3,
+              "evaluated": 3,
+              "mean": 0.120879,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "lazy-graph-rag-fast": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 3.333333,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 7350.666667,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.827093,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.333333,
+              "errors": 4,
+              "evaluated": 2,
+              "mean": 0.240385,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "lazy-graph-rag-wide": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 2.916667,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 10781.333333,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.805158,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.333333,
+              "errors": 4,
+              "evaluated": 2,
+              "mean": 0.208333,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "n8n-adaptive-rag-default": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 2.583333,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 10773.166667,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.877311,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.5,
+              "errors": 3,
+              "evaluated": 3,
+              "mean": 0.22381,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        },
+        "vanilla-rag-wide": {
+          "judge_panel": {
+            "coverage": 1.0,
+            "evaluated": 6,
+            "mean": 3.0,
+            "total": 6
+          },
+          "operational": {
+            "attempted": 6,
+            "error_rate": 0.0,
+            "errors": 0,
+            "mean_latency_ms": 13370.5,
+            "successful": 6,
+            "timeouts": 0
+          },
+          "ragas": {
+            "answer_relevancy": {
+              "coverage": 1.0,
+              "errors": 0,
+              "evaluated": 6,
+              "mean": 0.820025,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            },
+            "faithfulness": {
+              "coverage": 0.5,
+              "errors": 3,
+              "evaluated": 3,
+              "mean": 0.058824,
+              "not_evaluable": 0,
+              "timeouts": 0,
+              "total": 6
+            }
+          }
+        }
+      },
+      "complexity_level": 7,
+      "coverage": {
+        "errors": 0,
+        "ok": 72,
+        "timeouts": 0,
+        "total_rows": 72
+      },
+      "judge_panel": {
+        "evaluated_queries": 6,
+        "models": [
+          "qwen3.6:latest",
+          "gemma4:31b"
+        ],
+        "status": "ok",
+        "total_queries": 6
+      },
+      "label": "MITRE ATT&CK cyber threat graph slice",
+      "rankings": {
+        "judge_panel": [
+          {
+            "approaches": [
+              "hybrid-rag-fast"
+            ],
+            "coverage": {
+              "hybrid-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 1,
+            "value": 3.666667
+          },
+          {
+            "approaches": [
+              "contextual-rag-high-recall"
+            ],
+            "coverage": {
+              "contextual-rag-high-recall": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 2,
+            "value": 3.5
+          },
+          {
+            "approaches": [
+              "hybrid-rag-high-recall",
+              "lazy-graph-rag-fast"
+            ],
+            "coverage": {
+              "hybrid-rag-high-recall": {
+                "evaluated": 6,
+                "total": 6
+              },
+              "lazy-graph-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 3,
+            "value": 3.333333
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-balanced",
+              "vanilla-rag-wide"
+            ],
+            "coverage": {
+              "lazy-graph-rag-balanced": {
+                "evaluated": 6,
+                "total": 6
+              },
+              "vanilla-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 5,
+            "value": 3.0
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-wide"
+            ],
+            "coverage": {
+              "lazy-graph-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 7,
+            "value": 2.916667
+          },
+          {
+            "approaches": [
+              "n8n-adaptive-rag-default"
+            ],
+            "coverage": {
+              "n8n-adaptive-rag-default": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 8,
+            "value": 2.583333
+          },
+          {
+            "approaches": [
+              "agentic-rag-deeper",
+              "graph-rag-rerank"
+            ],
+            "coverage": {
+              "agentic-rag-deeper": {
+                "evaluated": 6,
+                "total": 6
+              },
+              "graph-rag-rerank": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 9,
+            "value": 2.416667
+          },
+          {
+            "approaches": [
+              "graph-rag-wide"
+            ],
+            "coverage": {
+              "graph-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 11,
+            "value": 2.166667
+          },
+          {
+            "approaches": [
+              "graph-rag-fast"
+            ],
+            "coverage": {
+              "graph-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 12,
+            "value": 1.916667
+          }
+        ],
+        "operational": {
+          "mean_latency_ms": [
+            {
+              "approaches": [
+                "hybrid-rag-fast"
+              ],
+              "coverage": {
+                "hybrid-rag-fast": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 1,
+              "value": 6984.5
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-fast"
+              ],
+              "coverage": {
+                "lazy-graph-rag-fast": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 2,
+              "value": 7350.666667
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-balanced"
+              ],
+              "coverage": {
+                "lazy-graph-rag-balanced": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 3,
+              "value": 7955.666667
+            },
+            {
+              "approaches": [
+                "n8n-adaptive-rag-default"
+              ],
+              "coverage": {
+                "n8n-adaptive-rag-default": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 4,
+              "value": 10773.166667
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-wide"
+              ],
+              "coverage": {
+                "lazy-graph-rag-wide": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 5,
+              "value": 10781.333333
+            },
+            {
+              "approaches": [
+                "vanilla-rag-wide"
+              ],
+              "coverage": {
+                "vanilla-rag-wide": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 6,
+              "value": 13370.5
+            },
+            {
+              "approaches": [
+                "graph-rag-fast"
+              ],
+              "coverage": {
+                "graph-rag-fast": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 7,
+              "value": 16581.833333
+            },
+            {
+              "approaches": [
+                "agentic-rag-deeper"
+              ],
+              "coverage": {
+                "agentic-rag-deeper": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 8,
+              "value": 17243.0
+            },
+            {
+              "approaches": [
+                "graph-rag-wide"
+              ],
+              "coverage": {
+                "graph-rag-wide": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 9,
+              "value": 26667.666667
+            },
+            {
+              "approaches": [
+                "graph-rag-rerank"
+              ],
+              "coverage": {
+                "graph-rag-rerank": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 10,
+              "value": 31947.5
+            },
+            {
+              "approaches": [
+                "hybrid-rag-high-recall"
+              ],
+              "coverage": {
+                "hybrid-rag-high-recall": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 11,
+              "value": 39889.166667
+            },
+            {
+              "approaches": [
+                "contextual-rag-high-recall"
+              ],
+              "coverage": {
+                "contextual-rag-high-recall": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 12,
+              "value": 40646.333333
+            }
+          ]
+        },
+        "ragas": {
+          "answer_relevancy": [
+            {
+              "approaches": [
+                "hybrid-rag-high-recall"
+              ],
+              "coverage": {
+                "hybrid-rag-high-recall": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 1,
+              "value": 0.890029
+            },
+            {
+              "approaches": [
+                "n8n-adaptive-rag-default"
+              ],
+              "coverage": {
+                "n8n-adaptive-rag-default": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 2,
+              "value": 0.877311
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-balanced"
+              ],
+              "coverage": {
+                "lazy-graph-rag-balanced": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 3,
+              "value": 0.873443
+            },
+            {
+              "approaches": [
+                "graph-rag-wide"
+              ],
+              "coverage": {
+                "graph-rag-wide": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 4,
+              "value": 0.86362
+            },
+            {
+              "approaches": [
+                "hybrid-rag-fast"
+              ],
+              "coverage": {
+                "hybrid-rag-fast": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 5,
+              "value": 0.843642
+            },
+            {
+              "approaches": [
+                "graph-rag-fast"
+              ],
+              "coverage": {
+                "graph-rag-fast": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 6,
+              "value": 0.841376
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-fast"
+              ],
+              "coverage": {
+                "lazy-graph-rag-fast": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 7,
+              "value": 0.827093
+            },
+            {
+              "approaches": [
+                "vanilla-rag-wide"
+              ],
+              "coverage": {
+                "vanilla-rag-wide": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 8,
+              "value": 0.820025
+            },
+            {
+              "approaches": [
+                "graph-rag-rerank"
+              ],
+              "coverage": {
+                "graph-rag-rerank": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 9,
+              "value": 0.819718
+            },
+            {
+              "approaches": [
+                "contextual-rag-high-recall"
+              ],
+              "coverage": {
+                "contextual-rag-high-recall": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 10,
+              "value": 0.810705
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-wide"
+              ],
+              "coverage": {
+                "lazy-graph-rag-wide": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 11,
+              "value": 0.805158
+            },
+            {
+              "approaches": [
+                "agentic-rag-deeper"
+              ],
+              "coverage": {
+                "agentic-rag-deeper": {
+                  "evaluated": 6,
+                  "total": 6
+                }
+              },
+              "rank": 12,
+              "value": 0.708813
+            }
+          ],
+          "faithfulness": [
+            {
+              "approaches": [
+                "agentic-rag-deeper"
+              ],
+              "coverage": {
+                "agentic-rag-deeper": {
+                  "evaluated": 2,
+                  "total": 6
+                }
+              },
+              "rank": 1,
+              "value": 0.53125
+            },
+            {
+              "approaches": [
+                "contextual-rag-high-recall"
+              ],
+              "coverage": {
+                "contextual-rag-high-recall": {
+                  "evaluated": 1,
+                  "total": 6
+                }
+              },
+              "rank": 2,
+              "value": 0.357143
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-fast"
+              ],
+              "coverage": {
+                "lazy-graph-rag-fast": {
+                  "evaluated": 2,
+                  "total": 6
+                }
+              },
+              "rank": 3,
+              "value": 0.240385
+            },
+            {
+              "approaches": [
+                "n8n-adaptive-rag-default"
+              ],
+              "coverage": {
+                "n8n-adaptive-rag-default": {
+                  "evaluated": 3,
+                  "total": 6
+                }
+              },
+              "rank": 4,
+              "value": 0.22381
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-wide"
+              ],
+              "coverage": {
+                "lazy-graph-rag-wide": {
+                  "evaluated": 2,
+                  "total": 6
+                }
+              },
+              "rank": 5,
+              "value": 0.208333
+            },
+            {
+              "approaches": [
+                "lazy-graph-rag-balanced"
+              ],
+              "coverage": {
+                "lazy-graph-rag-balanced": {
+                  "evaluated": 3,
+                  "total": 6
+                }
+              },
+              "rank": 6,
+              "value": 0.120879
+            },
+            {
+              "approaches": [
+                "vanilla-rag-wide"
+              ],
+              "coverage": {
+                "vanilla-rag-wide": {
+                  "evaluated": 3,
+                  "total": 6
+                }
+              },
+              "rank": 7,
+              "value": 0.058824
+            },
+            {
+              "approaches": [
+                "hybrid-rag-fast"
+              ],
+              "coverage": {
+                "hybrid-rag-fast": {
+                  "evaluated": 4,
+                  "total": 6
+                }
+              },
+              "rank": 8,
+              "value": 0.045455
+            },
+            {
+              "approaches": [
+                "hybrid-rag-high-recall"
+              ],
+              "coverage": {
+                "hybrid-rag-high-recall": {
+                  "evaluated": 2,
+                  "total": 6
+                }
+              },
+              "rank": 9,
+              "value": 0.0
+            }
+          ]
+        }
+      }
+    }
+  },
+  "longitudinal": {
+    "agentic-rag-deeper": [
+      {
+        "complexity_level": 7,
+        "dataset_id": "cyber_threat_intel",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 2.416667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 17243.0,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.708813,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.333333,
+            "errors": 4,
+            "evaluated": 2,
+            "mean": 0.53125,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "contextual-rag-high-recall": [
+      {
+        "complexity_level": 7,
+        "dataset_id": "cyber_threat_intel",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.5,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 40646.333333,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.810705,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.166667,
+            "errors": 5,
+            "evaluated": 1,
+            "mean": 0.357143,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "graph-rag-fast": [
+      {
+        "complexity_level": 7,
+        "dataset_id": "cyber_threat_intel",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 1.916667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 16581.833333,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.841376,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 0,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 6,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "graph-rag-rerank": [
+      {
+        "complexity_level": 7,
+        "dataset_id": "cyber_threat_intel",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 2.416667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 31947.5,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.819718,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 0,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 6,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "graph-rag-wide": [
+      {
+        "complexity_level": 7,
+        "dataset_id": "cyber_threat_intel",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 2.166667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 26667.666667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.86362,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 0,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 6,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "hybrid-rag-fast": [
+      {
+        "complexity_level": 7,
+        "dataset_id": "cyber_threat_intel",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.666667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 6984.5,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.843642,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.666667,
+            "errors": 2,
+            "evaluated": 4,
+            "mean": 0.045455,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "hybrid-rag-high-recall": [
+      {
+        "complexity_level": 7,
+        "dataset_id": "cyber_threat_intel",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.333333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 39889.166667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.890029,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.333333,
+            "errors": 4,
+            "evaluated": 2,
+            "mean": 0.0,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "lazy-graph-rag-balanced": [
+      {
+        "complexity_level": 7,
+        "dataset_id": "cyber_threat_intel",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.0,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 7955.666667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.873443,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.5,
+            "errors": 3,
+            "evaluated": 3,
+            "mean": 0.120879,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "lazy-graph-rag-fast": [
+      {
+        "complexity_level": 7,
+        "dataset_id": "cyber_threat_intel",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.333333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 7350.666667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.827093,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.333333,
+            "errors": 4,
+            "evaluated": 2,
+            "mean": 0.240385,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "lazy-graph-rag-wide": [
+      {
+        "complexity_level": 7,
+        "dataset_id": "cyber_threat_intel",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 2.916667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 10781.333333,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.805158,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.333333,
+            "errors": 4,
+            "evaluated": 2,
+            "mean": 0.208333,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "n8n-adaptive-rag-default": [
+      {
+        "complexity_level": 7,
+        "dataset_id": "cyber_threat_intel",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 2.583333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 10773.166667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.877311,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.5,
+            "errors": 3,
+            "evaluated": 3,
+            "mean": 0.22381,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ],
+    "vanilla-rag-wide": [
+      {
+        "complexity_level": 7,
+        "dataset_id": "cyber_threat_intel",
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.0,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 13370.5,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.820025,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.5,
+            "errors": 3,
+            "evaluated": 3,
+            "mean": 0.058824,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    ]
+  },
+  "overall": {
+    "approaches": {
+      "agentic-rag-deeper": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 2.416667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 17243.0,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.708813,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.333333,
+            "errors": 4,
+            "evaluated": 2,
+            "mean": 0.53125,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "contextual-rag-high-recall": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.5,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 40646.333333,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.810705,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.166667,
+            "errors": 5,
+            "evaluated": 1,
+            "mean": 0.357143,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "graph-rag-fast": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 1.916667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 16581.833333,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.841376,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 0,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 6,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "graph-rag-rerank": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 2.416667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 31947.5,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.819718,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 0,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 6,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "graph-rag-wide": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 2.166667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 26667.666667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.86362,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.0,
+            "errors": 0,
+            "evaluated": 0,
+            "mean": null,
+            "not_evaluable": 6,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "hybrid-rag-fast": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.666667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 6984.5,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.843642,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.666667,
+            "errors": 2,
+            "evaluated": 4,
+            "mean": 0.045455,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "hybrid-rag-high-recall": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.333333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 39889.166667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.890029,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.333333,
+            "errors": 4,
+            "evaluated": 2,
+            "mean": 0.0,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "lazy-graph-rag-balanced": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.0,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 7955.666667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.873443,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.5,
+            "errors": 3,
+            "evaluated": 3,
+            "mean": 0.120879,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "lazy-graph-rag-fast": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.333333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 7350.666667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.827093,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.333333,
+            "errors": 4,
+            "evaluated": 2,
+            "mean": 0.240385,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "lazy-graph-rag-wide": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 2.916667,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 10781.333333,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.805158,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.333333,
+            "errors": 4,
+            "evaluated": 2,
+            "mean": 0.208333,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "n8n-adaptive-rag-default": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 2.583333,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 10773.166667,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.877311,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.5,
+            "errors": 3,
+            "evaluated": 3,
+            "mean": 0.22381,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      },
+      "vanilla-rag-wide": {
+        "judge_panel": {
+          "coverage": 1.0,
+          "evaluated": 6,
+          "mean": 3.0,
+          "total": 6
+        },
+        "operational": {
+          "attempted": 6,
+          "error_rate": 0.0,
+          "errors": 0,
+          "mean_latency_ms": 13370.5,
+          "successful": 6,
+          "timeouts": 0
+        },
+        "ragas": {
+          "answer_relevancy": {
+            "coverage": 1.0,
+            "errors": 0,
+            "evaluated": 6,
+            "mean": 0.820025,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          },
+          "faithfulness": {
+            "coverage": 0.5,
+            "errors": 3,
+            "evaluated": 3,
+            "mean": 0.058824,
+            "not_evaluable": 0,
+            "timeouts": 0,
+            "total": 6
+          }
+        }
+      }
+    },
+    "coverage": {
+      "errors": 0,
+      "ok": 72,
+      "timeouts": 0,
+      "total_rows": 72
+    },
+    "judge_panel": {
+      "evaluated_queries": 6,
+      "models": [
+        "qwen3.6:latest",
+        "gemma4:31b"
+      ],
+      "status": "ok",
+      "total_queries": 6
+    },
+    "rankings": {
+      "judge_panel": [
+        {
+          "approaches": [
+            "hybrid-rag-fast"
+          ],
+          "coverage": {
+            "hybrid-rag-fast": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 1,
+          "value": 3.666667
+        },
+        {
+          "approaches": [
+            "contextual-rag-high-recall"
+          ],
+          "coverage": {
+            "contextual-rag-high-recall": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 2,
+          "value": 3.5
+        },
+        {
+          "approaches": [
+            "hybrid-rag-high-recall",
+            "lazy-graph-rag-fast"
+          ],
+          "coverage": {
+            "hybrid-rag-high-recall": {
+              "evaluated": 6,
+              "total": 6
+            },
+            "lazy-graph-rag-fast": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 3,
+          "value": 3.333333
+        },
+        {
+          "approaches": [
+            "lazy-graph-rag-balanced",
+            "vanilla-rag-wide"
+          ],
+          "coverage": {
+            "lazy-graph-rag-balanced": {
+              "evaluated": 6,
+              "total": 6
+            },
+            "vanilla-rag-wide": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 5,
+          "value": 3.0
+        },
+        {
+          "approaches": [
+            "lazy-graph-rag-wide"
+          ],
+          "coverage": {
+            "lazy-graph-rag-wide": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 7,
+          "value": 2.916667
+        },
+        {
+          "approaches": [
+            "n8n-adaptive-rag-default"
+          ],
+          "coverage": {
+            "n8n-adaptive-rag-default": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 8,
+          "value": 2.583333
+        },
+        {
+          "approaches": [
+            "agentic-rag-deeper",
+            "graph-rag-rerank"
+          ],
+          "coverage": {
+            "agentic-rag-deeper": {
+              "evaluated": 6,
+              "total": 6
+            },
+            "graph-rag-rerank": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 9,
+          "value": 2.416667
+        },
+        {
+          "approaches": [
+            "graph-rag-wide"
+          ],
+          "coverage": {
+            "graph-rag-wide": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 11,
+          "value": 2.166667
+        },
+        {
+          "approaches": [
+            "graph-rag-fast"
+          ],
+          "coverage": {
+            "graph-rag-fast": {
+              "evaluated": 6,
+              "total": 6
+            }
+          },
+          "rank": 12,
+          "value": 1.916667
+        }
+      ],
+      "operational": {
+        "mean_latency_ms": [
+          {
+            "approaches": [
+              "hybrid-rag-fast"
+            ],
+            "coverage": {
+              "hybrid-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 1,
+            "value": 6984.5
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-fast"
+            ],
+            "coverage": {
+              "lazy-graph-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 2,
+            "value": 7350.666667
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-balanced"
+            ],
+            "coverage": {
+              "lazy-graph-rag-balanced": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 3,
+            "value": 7955.666667
+          },
+          {
+            "approaches": [
+              "n8n-adaptive-rag-default"
+            ],
+            "coverage": {
+              "n8n-adaptive-rag-default": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 4,
+            "value": 10773.166667
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-wide"
+            ],
+            "coverage": {
+              "lazy-graph-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 5,
+            "value": 10781.333333
+          },
+          {
+            "approaches": [
+              "vanilla-rag-wide"
+            ],
+            "coverage": {
+              "vanilla-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 6,
+            "value": 13370.5
+          },
+          {
+            "approaches": [
+              "graph-rag-fast"
+            ],
+            "coverage": {
+              "graph-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 7,
+            "value": 16581.833333
+          },
+          {
+            "approaches": [
+              "agentic-rag-deeper"
+            ],
+            "coverage": {
+              "agentic-rag-deeper": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 8,
+            "value": 17243.0
+          },
+          {
+            "approaches": [
+              "graph-rag-wide"
+            ],
+            "coverage": {
+              "graph-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 9,
+            "value": 26667.666667
+          },
+          {
+            "approaches": [
+              "graph-rag-rerank"
+            ],
+            "coverage": {
+              "graph-rag-rerank": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 10,
+            "value": 31947.5
+          },
+          {
+            "approaches": [
+              "hybrid-rag-high-recall"
+            ],
+            "coverage": {
+              "hybrid-rag-high-recall": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 11,
+            "value": 39889.166667
+          },
+          {
+            "approaches": [
+              "contextual-rag-high-recall"
+            ],
+            "coverage": {
+              "contextual-rag-high-recall": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 12,
+            "value": 40646.333333
+          }
+        ]
+      },
+      "ragas": {
+        "answer_relevancy": [
+          {
+            "approaches": [
+              "hybrid-rag-high-recall"
+            ],
+            "coverage": {
+              "hybrid-rag-high-recall": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 1,
+            "value": 0.890029
+          },
+          {
+            "approaches": [
+              "n8n-adaptive-rag-default"
+            ],
+            "coverage": {
+              "n8n-adaptive-rag-default": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 2,
+            "value": 0.877311
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-balanced"
+            ],
+            "coverage": {
+              "lazy-graph-rag-balanced": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 3,
+            "value": 0.873443
+          },
+          {
+            "approaches": [
+              "graph-rag-wide"
+            ],
+            "coverage": {
+              "graph-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 4,
+            "value": 0.86362
+          },
+          {
+            "approaches": [
+              "hybrid-rag-fast"
+            ],
+            "coverage": {
+              "hybrid-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 5,
+            "value": 0.843642
+          },
+          {
+            "approaches": [
+              "graph-rag-fast"
+            ],
+            "coverage": {
+              "graph-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 6,
+            "value": 0.841376
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-fast"
+            ],
+            "coverage": {
+              "lazy-graph-rag-fast": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 7,
+            "value": 0.827093
+          },
+          {
+            "approaches": [
+              "vanilla-rag-wide"
+            ],
+            "coverage": {
+              "vanilla-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 8,
+            "value": 0.820025
+          },
+          {
+            "approaches": [
+              "graph-rag-rerank"
+            ],
+            "coverage": {
+              "graph-rag-rerank": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 9,
+            "value": 0.819718
+          },
+          {
+            "approaches": [
+              "contextual-rag-high-recall"
+            ],
+            "coverage": {
+              "contextual-rag-high-recall": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 10,
+            "value": 0.810705
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-wide"
+            ],
+            "coverage": {
+              "lazy-graph-rag-wide": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 11,
+            "value": 0.805158
+          },
+          {
+            "approaches": [
+              "agentic-rag-deeper"
+            ],
+            "coverage": {
+              "agentic-rag-deeper": {
+                "evaluated": 6,
+                "total": 6
+              }
+            },
+            "rank": 12,
+            "value": 0.708813
+          }
+        ],
+        "faithfulness": [
+          {
+            "approaches": [
+              "agentic-rag-deeper"
+            ],
+            "coverage": {
+              "agentic-rag-deeper": {
+                "evaluated": 2,
+                "total": 6
+              }
+            },
+            "rank": 1,
+            "value": 0.53125
+          },
+          {
+            "approaches": [
+              "contextual-rag-high-recall"
+            ],
+            "coverage": {
+              "contextual-rag-high-recall": {
+                "evaluated": 1,
+                "total": 6
+              }
+            },
+            "rank": 2,
+            "value": 0.357143
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-fast"
+            ],
+            "coverage": {
+              "lazy-graph-rag-fast": {
+                "evaluated": 2,
+                "total": 6
+              }
+            },
+            "rank": 3,
+            "value": 0.240385
+          },
+          {
+            "approaches": [
+              "n8n-adaptive-rag-default"
+            ],
+            "coverage": {
+              "n8n-adaptive-rag-default": {
+                "evaluated": 3,
+                "total": 6
+              }
+            },
+            "rank": 4,
+            "value": 0.22381
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-wide"
+            ],
+            "coverage": {
+              "lazy-graph-rag-wide": {
+                "evaluated": 2,
+                "total": 6
+              }
+            },
+            "rank": 5,
+            "value": 0.208333
+          },
+          {
+            "approaches": [
+              "lazy-graph-rag-balanced"
+            ],
+            "coverage": {
+              "lazy-graph-rag-balanced": {
+                "evaluated": 3,
+                "total": 6
+              }
+            },
+            "rank": 6,
+            "value": 0.120879
+          },
+          {
+            "approaches": [
+              "vanilla-rag-wide"
+            ],
+            "coverage": {
+              "vanilla-rag-wide": {
+                "evaluated": 3,
+                "total": 6
+              }
+            },
+            "rank": 7,
+            "value": 0.058824
+          },
+          {
+            "approaches": [
+              "hybrid-rag-fast"
+            ],
+            "coverage": {
+              "hybrid-rag-fast": {
+                "evaluated": 4,
+                "total": 6
+              }
+            },
+            "rank": 8,
+            "value": 0.045455
+          },
+          {
+            "approaches": [
+              "hybrid-rag-high-recall"
+            ],
+            "coverage": {
+              "hybrid-rag-high-recall": {
+                "evaluated": 2,
+                "total": 6
+              }
+            },
+            "rank": 9,
+            "value": 0.0
+          }
+        ]
+      }
+    }
+  },
+  "run_ids": [
+    "live-2026-07-17-cyber_threat_intel-flavors"
+  ],
+  "runner_versions": [
+    1
+  ],
+  "schema_version": 1
+}

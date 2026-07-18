@@ -20,6 +20,17 @@ services:
       KEYWORD_OLLAMA_LLM_NUM_CTX: ${LIGHTRAG_KEYWORD_OLLAMA_LLM_NUM_CTX:-8192}
       QUERY_OLLAMA_LLM_NUM_CTX: ${LIGHTRAG_QUERY_OLLAMA_LLM_NUM_CTX:-8192}
 
+  # The checked-in workflow reads only the already-injected LiteLLM key from an
+  # HTTP Request expression. Queue workers execute that expression, so both the
+  # main and worker processes need n8n's explicit env-expression opt-in.
+  n8n:
+    environment:
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+
+  n8n-worker:
+    environment:
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+
   backend:
     depends_on:
       lazy-graph-cache-init:
@@ -32,6 +43,7 @@ services:
       RAG_BASE_COLLECTION: ${RAG_BASE_COLLECTION:-RagBase_showcase_default}
       RAG_CONTEXTUAL_COLLECTION: ${RAG_CONTEXTUAL_COLLECTION:-RagContextual_showcase_default}
       RAG_WEAVIATE_GRPC_PORT: ${RAG_WEAVIATE_GRPC_PORT:-50051}
+      RAG_WEAVIATE_INIT_TIMEOUT_S: ${RAG_WEAVIATE_INIT_TIMEOUT_S:-30}
       TEI_RERANKER_ENDPOINT: ${TEI_RERANKER_ENDPOINT:-http://tei-reranker:80}
       TEI_RERANKER_MAX_BATCH: ${TEI_RERANKER_MAX_BATCH:-32}
       N8N_ADAPTIVE_WEBHOOK_URL: ${N8N_ADAPTIVE_WEBHOOK_URL:-http://n8n:5678/webhook/adaptive-rag}

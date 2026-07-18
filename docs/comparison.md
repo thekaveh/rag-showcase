@@ -1,14 +1,14 @@
 # 5.2 RAG Approaches — Live Comparison
 
 A side-by-side comparison of the RAG approaches in this repo, run against a live
-`gen-ai-rag` Atlas stack. The recorded 2026-07-13 run used a local workstation
+`gen-ai-rag` Atlas stack. The recorded 2026-07-17 run used a local workstation
 with host Ollama; that is run metadata, not a repo requirement. See
 [`hardware.md`](hardware.md) for hardware guidance without assuming one host shape.
 
-- **Run date:** 2026-07-13
+- **Run date:** 2026-07-17
 - **Approaches compared:** all 6 canonical approaches plus explicitly selected
-  experimental `lazy-graph-rag` (7 total). The earlier 2026-07-03 snapshots
-  retain the separate 14-alias flavor ladder as historical tuning evidence.
+  experimental `lazy-graph-rag` (7 base families), followed by all 12 named
+  non-base flavor aliases as a separate tier.
 - **Baseline corpus:** 11-document curated corpus — a MultiHop-RAG subset plus `widget-error-codes.md`.
 - **Graph-native corpus:** 10 committed relation-dense dossiers in
   [`corpus/graph_native/`](../corpus/graph_native/).
@@ -35,33 +35,32 @@ measurements, and keep-experimental decision are documented in
 
 ## 1. Headline
 
-The current base-approach ladder completed all 140 cells on all three measured
-datasets without response errors or timeouts. Winners changed as the corpus
-became more relational: `n8n-adaptive-rag` and `vanilla-rag` tied at 4.42 on the
-baseline corpus, `contextual-rag` led graph-native at 4.12, and experimental
-`lazy-graph-rag` led cyber at 3.25. Lazy graph's rank progressed 4/7, 2/7, then
-1/7 while averaging 5.12, 6.07, and 11.95 seconds. Default LightRAG was
-operational throughout but averaged 67.39, 88.03, and 67.61 seconds and ranked
-sixth, equal-sixth, then seventh.
+The renewed ladder completed all 380 answer cells on all three measured datasets
+without response errors or timeouts: 140 base-family cells and 240 flavor cells.
+Base winners changed with the corpus: `vanilla-rag` scored 4.17 on baseline,
+experimental `lazy-graph-rag` scored 4.31 on graph-native, and `contextual-rag`
+scored 3.17 on cyber. The flavor winners were `lazy-graph-rag-wide` at 4.58,
+`hybrid-rag-high-recall` at 4.19, and `hybrid-rag-fast` at 3.67. Default
+LightRAG remained operational and averaged 12.61, 12.47, and 21.20 seconds.
 
 The current run depends on these integration fixes and operating choices:
 
-- scoped `think:false` for local reasoning models via the then-current local
-  `backend_plugins/rag/models.yaml` compatibility layer;
+- Atlas model-scoped `think:false` for the configured Qwen reasoning model;
 - LightRAG role-specific EXTRACT/KEYWORD/QUERY models configured separately;
 - LightRAG EXTRACT tuned to `max_async=1` and `timeout=900`;
 - `nomic-embed-text` embeddings for graph ingestion;
 - LightRAG upload retry on HTTP 409 backpressure, with exact already-processed
   conflicts treated as idempotent during a resumed ingest;
-- TEI rerank batching for high-recall flavors, capped to the reranker's 32-item
-  client batch limit;
-- graph query payload tuned to avoid the broken TEI rerank path and reduce context fanout:
-  `enable_rerank=false`, `top_k=10`, `chunk_top_k=5`, `max_total_tokens=12000`.
+- TEI rerank batching for both chunk and LightRAG candidates, capped to the
+  reranker's 32-item client batch limit;
+- Atlas-managed LightRAG query profiles for canonical, fast, wide, and rerank
+  variants, all sharing one ingested graph.
 
 ## 2. Reproduce
 
 ```bash
 ./scripts/start-all.sh
+export JUDGE_MODELS=judge-a,judge-b
 uv run python compare/run_matrix.py
 uv run python compare/judge.py
 ```
@@ -82,6 +81,7 @@ MATRIX_FLAVORS=default,graph-rag-wide uv run python compare/run_matrix.py
 The graph-native comparison uses the same harness with alternate input/output files:
 
 ```bash
+export JUDGE_MODELS=judge-a,judge-b
 MATRIX_QUERIES_FILE=demo/graph_native_queries.yaml \
 MATRIX_DATASET_ID=graph_native \
 MATRIX_RUN_ID=manual-graph-native \
@@ -110,36 +110,41 @@ uv run python compare/report_datasets.py --output docs/dataset-complexity-report
 That report is committed at [`docs/dataset-complexity-report.md`](dataset-complexity-report.md)
 and is organized by input dataset complexity rather than by vector/graph collection.
 
-The committed 2026-07-13 ladder used the end-to-end runner so every measured
+The committed 2026-07-17 ladder used the end-to-end runner so every measured
 dataset got a fresh ingest, LightRAG drain, matrix run, judge run, result snapshot,
 manifest update, and report regeneration:
 
 ```bash
+JUDGE_MODELS=qwen3.6:latest,gemma4:31b \
 uv run python scripts/run-dataset-ladder.py \
-  --date-stamp 2026-07-13 \
+  --date-stamp 2026-07-17 \
   --dataset baseline_curated \
   --dataset graph_native \
   --dataset cyber_threat_intel \
-  --approaches vanilla-rag,hybrid-rag,contextual-rag,graph-rag,agentic-rag,n8n-adaptive-rag,lazy-graph-rag
+  --include-flavor-tier
 ```
 
 ## 3. The approaches
 
-See the [README](../README.md#4-the-six-approaches) for the entry table and
+See the [README](../README.md#4-the-seven-approaches) for the entry table and
 [`docs/approaches.md`](approaches.md) for exact internal steps, dependencies,
 tuning variables, and measured behavior. In one line each:
 `vanilla-rag` is dense top-k; `hybrid-rag` adds BM25 and TEI rerank;
 `contextual-rag` retrieves context-prefixed chunks; `graph-rag` delegates to
 LightRAG; `agentic-rag` runs a ReAct loop over vector and graph tools; and
-`n8n-adaptive-rag` routes through the n8n workflow.
+`n8n-adaptive-rag` routes through the n8n workflow; experimental
+`lazy-graph-rag` performs deterministic concept-graph expansion.
 
 ## 4. Environment
 
 | Concern | This run |
 |---|---|
 | Hardware | Mac Studio M2 Ultra, 192 GB unified memory |
-| Generation | local Ollama `qwen3.6:latest`, with scoped `think:false` from the then-current local compatibility layer |
-| LightRAG extraction/query | host Ollama `mistral-small3.2:24b`, non-reasoning, `num_ctx=8192` |
+| Atlas | final pin `c744467e` (`v0.1.0-438-gc744467e`), project `rag-showcase`; baseline/graph-native rows record pre-rerank-fix `2229fee9`, cyber rows record `c744467e` |
+| Ports | baseline and graph-native `64500-64609`; cyber `22000-22109`; both blocks were verified free at assignment |
+| Provider | host Ollama selected through Atlas `ollama-localhost`; ComfyUI disabled as not applicable |
+| Generation | local Ollama `qwen3.6:latest`, with Atlas-scoped `think:false` |
+| LightRAG roles | EXTRACT `mistral-small3.2:24b`; KEYWORD/QUERY `qwen3.6:latest` |
 | Embeddings | `nomic-embed-text`, host Ollama for LightRAG; LiteLLM embedding route for plugin vectors |
 | Judges | `qwen3.6:latest` + `gemma4:31b`, local Ollama, `think:false` |
 
@@ -167,33 +172,42 @@ Ollama, or another configured provider.
    drained for all three corpora, including 60 cyber documents producing 66
    chunks. The cyber extraction phase dominated ladder runtime even with the
    dedicated non-reasoning extraction model.
-5. **LightRAG query-time rerank is incompatible with the current TEI endpoint wiring.**
-   LightRAG sent a Jina-style rerank request to Atlas's TEI reranker and TEI returned
-   `422 missing field texts`. Disabling LightRAG query rerank and lowering graph query
-   fanout fixed graph-rag answer quality for most queries.
+5. **LightRAG rerank is now compatible and measured.** Atlas translates the
+   LightRAG request to TEI and batches candidate lists over the 32-item service
+   limit. The run exposed and fixed the missing batching case in Atlas
+   [#713](https://github.com/thekaveh/atlas/issues/713) / [#714](https://github.com/thekaveh/atlas/pull/714),
+   then discarded the pre-fix row and reran the complete flavor tier.
 6. **`agentic-rag` is still step-limited.** `MAX_STEPS=4` is too low for several
    synthesis prompts; it does well on single-hop tool use and often stops early on
    multi-step tasks.
 
 ## 6. Current Seven-Approach Results
 
-The 2026-07-13 ladder ran three datasets, 20 queries, and seven approaches,
-producing 140 successful matrix cells plus complete scores from both judges.
-Each dataset has all four canonical artifacts under [`docs/results/`](results/).
+The 2026-07-17 ladder ran three datasets, 20 queries, and seven base approaches,
+producing 140 successful base cells plus complete scores from both judges. It
+then ran the same queries through all twelve non-base flavors for another 240
+successful cells. Each dataset/tier has all four canonical artifacts under
+[`docs/results/`](results/).
 
 | Dataset | Cells | Winner | Judge mean | Mean latency | Current reading |
 |---|---:|---|---:|---:|---|
-| `baseline_curated` | 42 | `n8n-adaptive-rag` / `vanilla-rag` | 4.42 | 2.23 / 4.28 s | Simple routing and direct vector retrieval remained strongest. |
-| `graph_native` | 56 | `contextual-rag` | 4.12 | 11.85 s | Context-prefixed relation dossiers led; lazy graph was second at 3.88 and 6.07 s. |
-| `cyber_threat_intel` | 42 | `lazy-graph-rag` | 3.25 | 11.95 s | Deterministic graph expansion won the hardest aggregate and two individual questions. |
+| `baseline_curated` | 42 | `vanilla-rag` | 4.17 | 3.83 s | Direct dense retrieval remained the strongest base control. |
+| `graph_native` | 56 | `lazy-graph-rag` | 4.31 | 4.94 s | Deterministic expansion won the relation-dense aggregate. |
+| `cyber_threat_intel` | 42 | `contextual-rag` | 3.17 | 24.20 s | Context-prefixed chunks led; five approaches tied closely at 3.00. |
 
-All approaches had zero response errors and zero timeouts. Atlas Ragas requests
-failed with the tracked evaluator contract defects, so faithfulness and answer
-relevancy are explicitly `not evaluated`; those errors do not alter answer,
-latency, or blinded-judge coverage. The generated
+All approaches had zero response errors and zero timeouts. Atlas Ragas returned
+numeric answer relevancy for every cell and coverage-aware faithfulness for rows
+with exact contexts. LightRAG answer-only rows remain intentionally ineligible
+for faithfulness; they are not assigned zero. The generated
 [`dataset-complexity-report.md`](dataset-complexity-report.md) is the canonical
-aggregate and per-query view. The 2026-07-03 14-alias flavor ladder remains
-historical evidence for tuning behavior, not the active base-approach ranking.
+aggregate and per-query view. Flavor rankings remain separate from the base-family
+leaderboard.
+
+| Dataset | Flavor winner | Judge mean | Mean latency |
+|---|---|---:|---:|
+| `baseline_curated` | `lazy-graph-rag-wide` | 4.58 | 6.31 s |
+| `graph_native` | `hybrid-rag-high-recall` | 4.19 | 10.23 s |
+| `cyber_threat_intel` | `hybrid-rag-fast` | 3.67 | 6.98 s |
 
 ## 7. Judgment Panel
 
@@ -207,10 +221,11 @@ single-model judge. For each query, the harness anonymizes and deterministically
 shuffles the approach answers, gives the judges the query-specific scoring
 rationale from the query YAML, asks for 1-5 scores plus a best-answer letter, and
 then aggregates mean score by approach with best-answer votes as the tiebreaker.
-The judgment files in `docs/results/` keep the per-judge scores and reasons. The
-current harness reads judge models, endpoint, temperature, and optional thinking
-from `compare/evaluation.yaml`; environment overrides can use another
-OpenAI-compatible provider without changing the runner.
+The judgment files in `docs/results/` keep the per-judge scores, reasons, and
+resolved judge backend. This published run used direct host Ollama. The checked-in
+harness now defaults to the Atlas LiteLLM gateway and reads judge models, endpoint,
+temperature, and optional thinking from `compare/evaluation.yaml`; environment
+overrides can use another OpenAI-compatible provider without changing the runner.
 
 ## 8. Graph Findings
 
@@ -219,19 +234,24 @@ the baseline, graph-native, and cyber corpora, drained extraction, and answered
 through the same LiteLLM/Open WebUI route as the other approaches.
 
 The quality story is more nuanced. Default `graph-rag` won three baseline
-questions and tied the top mean on the cyber credential-access path, proving the
-index and query path can expose useful relationships. It nevertheless ranked
-sixth, equal-sixth, and seventh by aggregate while averaging 67-88 seconds. On
-four cyber questions it returned `No relevant context found`, so query-time
-selection and synthesis remain the immediate weakness. Historical flavor results
-still show `graph-rag-fast` can improve some questions and `graph-rag-wide` is too
-broad for the current setup.
+questions and ranked fifth, fifth, then seventh by aggregate, with mean latency
+of 12.61, 12.47, and 21.20 seconds. Atlas-managed profiles materially changed
+both quality and latency, but no one graph profile dominated every dataset.
+
+The rerank-enabled profile is technically healthy but remains opt-in. Against
+`graph-rag-fast`, reranking produced the same baseline judge mean at 2.38x
+latency, gained 0.38 judge points on graph-native with lower Ragas answer
+relevancy, and gained 0.50 judge points on cyber while nearly doubling latency
+and again lowering answer relevancy. Against `graph-rag-wide`, it lost judge mean
+on graph-native, won on cyber, and was slower on all three rungs. The detailed
+tradeoff table is in
+[`approach-flavor-tuning.md`](approach-flavor-tuning.md#81-lightrag-rerank-tradeoff).
 
 The cyber corpus is the clearest warning against assuming that a graph-shaped
 input automatically favors the LLM-extracted graph endpoint. The ATT&CK docs are
-highly relational, but the judges favored experimental lazy graph overall. Lazy
-graph also ranked second on graph-native data, made zero index-time LLM calls,
-and was much faster than LightRAG. It remains experimental because co-occurrence
+highly relational, but the judges favored contextual retrieval overall. Lazy
+graph won graph-native data, made zero index-time LLM calls, and was faster than
+LightRAG. It remains experimental because co-occurrence
 edges are untyped and its concept extractor is deliberately lightweight. See
 [`lazy-graph-rag.md`](lazy-graph-rag.md) for the measured keep decision.
 
@@ -248,13 +268,18 @@ edges are untyped and its concept extractor is deliberately lightweight. See
   available. This is a better graph test than the baseline subset, but it is still not
   a large natural enterprise corpus.
 - **Current local judges:** scores are directional, not authoritative. Answers
-  are shuffled and anonymized, but the 2026-07-13 panel used two local
+  are shuffled and anonymized, but the 2026-07-17 panel used two local
   models. The renewed harness keeps that panel separate from Ragas and operational
   metrics.
+- **Faithfulness coverage varies:** the local evaluator occasionally returned a
+  null faithfulness score. Those rows remain `partial` with
+  `score_missing_or_null`, are excluded from the mean, and appear in each
+  ranking's evaluated/total coverage instead of becoming zero.
 - **Cache effects:** n8n and graph-rag include cache hits in some cells.
 - **Agentic cap:** `MAX_STEPS=4` materially limits `agentic-rag`.
-- **Graph-wide caveat:** `graph-rag-wide` is measured but currently a poor tuning;
-  it frequently returned truncated answers.
+- **Profile sensitivity:** fast, wide, and rerank profiles trade judge quality,
+  answer relevancy, and latency differently by dataset; none is a universal
+  replacement for the canonical profile.
 
 ## 10. Reversibility
 

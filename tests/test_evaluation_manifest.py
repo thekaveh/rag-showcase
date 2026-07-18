@@ -76,6 +76,13 @@ def test_manifest_resolves_dataset_catalog_and_evidence_capability(tmp_path: Pat
     assert evidence_for_base(manifest, "graph-rag") == "answer_only"
 
 
+def test_repo_default_judge_panel_routes_through_atlas() -> None:
+    manifest = load_manifest(Path("compare/evaluation.yaml"))
+
+    assert manifest.metrics.judge_panel.endpoint == "atlas-litellm"
+    assert manifest.metrics.judge_panel.models == []
+
+
 @pytest.mark.parametrize(
     ("replacement", "message"),
     [
@@ -83,7 +90,6 @@ def test_manifest_resolves_dataset_catalog_and_evidence_capability(tmp_path: Pat
         ("timeout_s: 0", "timeout"),
         ("concurrency: 0", "concurrency"),
         ("ragas: [not-a-metric]", "not-a-metric"),
-        ("models: []", "models"),
         ("endpoint: ''", "endpoint"),
     ],
 )
@@ -159,6 +165,7 @@ def test_completion_evidence_prefers_structured_extension() -> None:
         "usage": {"prompt_tokens": 3, "completion_tokens": 4, "total_tokens": 7},
         "rag_showcase": {
             "schema_version": 1,
+            "answer": "structured answer",
             "sources": [{"title": "Doc A", "snippet": "alpha context", "score": 0.7}],
             "metrics": {"seconds": 1.2, "chunks": 1, "llm_calls": 2, "cloud_calls": 0},
         },
@@ -166,7 +173,7 @@ def test_completion_evidence_prefers_structured_extension() -> None:
 
     evidence = completion_evidence(payload)
 
-    assert evidence["answer"] == "answer with rendered fallback"
+    assert evidence["answer"] == "structured answer"
     assert evidence["contexts"] == ["alpha context"]
     assert evidence["sources"] == [
         {"title": "Doc A", "snippet": "alpha context", "score": 0.7}
@@ -175,6 +182,7 @@ def test_completion_evidence_prefers_structured_extension() -> None:
     assert evidence["token_usage"]["total_tokens"] == 7
     assert evidence["response_id"] == "response-1"
     assert evidence["transport"] == "structured"
+    assert "approach_metadata" not in evidence
 
 
 def test_completion_evidence_parses_nested_multiline_rendered_sources() -> None:

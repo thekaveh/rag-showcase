@@ -42,7 +42,6 @@ def _weaviate() -> Any:
     via RAG_WEAVIATE_GRPC_PORT for non-standard deployments — the Atlas-owned
     WEAVIATE_GRPC_PORT is the host-published port, not the in-network port.
     """
-    import weaviate
     from urllib.parse import urlparse
 
     url = urlparse(os.environ.get("WEAVIATE_URL", "http://weaviate:8080"))
@@ -54,9 +53,27 @@ def _weaviate() -> Any:
     except ValueError as e:
         raise ValueError(
             f"RAG_WEAVIATE_GRPC_PORT must be an integer, got {raw_grpc!r}") from e
+    raw_init_timeout = os.environ.get("RAG_WEAVIATE_INIT_TIMEOUT_S", "30")
+    try:
+        init_timeout = int(raw_init_timeout)
+    except ValueError as e:
+        raise ValueError(
+            "RAG_WEAVIATE_INIT_TIMEOUT_S must be a non-negative integer, "
+            f"got {raw_init_timeout!r}"
+        ) from e
+    if init_timeout < 0:
+        raise ValueError(
+            "RAG_WEAVIATE_INIT_TIMEOUT_S must be a non-negative integer, "
+            f"got {raw_init_timeout!r}"
+        )
+
+    import weaviate
+    import weaviate.classes.init as wi
+
     return weaviate.connect_to_custom(
         http_host=host, http_port=http_port, http_secure=False,
         grpc_host=host, grpc_port=grpc_port, grpc_secure=False,
+        additional_config=wi.AdditionalConfig(timeout=wi.Timeout(init=init_timeout)),
     )
 
 

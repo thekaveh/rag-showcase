@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -35,7 +37,8 @@ def test_shape_node_emits_the_fields_the_wrapper_parses() -> None:
     # the wrapper reads data.get("answer") and data.get("route"); assert the
     # emitted OBJECT KEYS (colon forms) — the bare word "answer" also appears in
     # the node's fallback error text, which would keep a key rename green.
-    assert "answer:" in js and "route:" in js
+    assert "answer:" in js and "route:" in js and "rag_showcase:" in js
+    assert "$json.rag_showcase.answer" in js
     respond = _node(wf, "Respond to Webhook")
     # firstIncomingItem returns ONE object (the wrapper also tolerates a list,
     # but the committed workflow should keep the simple shape)
@@ -56,7 +59,31 @@ def test_classify_node_delegates_model_defaults_to_litellm() -> None:
     assert "think" not in body
 
 
-def test_route_node_targets_registered_base_approaches() -> None:
-    js = _node(_workflow(), "Route")["parameters"]["jsCode"]
+def test_route_node_targets_registered_litellm_aliases() -> None:
+    workflow = _workflow()
+    js = _node(workflow, "Route")["parameters"]["jsCode"]
     assert "agentic-rag" in js and "vanilla-rag" in js
-    assert "http://backend:8000/rag/" in js
+    assert "http://litellm:4000/v1/chat/completions" in js
+    assert "http://backend:8000/rag/" not in js
+
+    call = _node(workflow, "Call Approach")["parameters"]
+    headers = call["headerParameters"]["parameters"]
+    assert {"name": "Authorization", "value": "=Bearer {{ $env.LITELLM_API_KEY }}"} in headers
+
+
+def test_queue_runtime_allows_workflow_env_expressions() -> None:
+    overlay = yaml.safe_load(
+        (ROOT / "compose" / "rag-overlay.yml").read_text(encoding="utf-8")
+    )
+
+    for service in ("n8n", "n8n-worker"):
+        assert overlay["services"][service]["environment"][
+            "N8N_BLOCK_ENV_ACCESS_IN_NODE"
+        ] == "false"
+
+
+def test_http_nodes_fail_the_workflow_instead_of_shaping_placeholder_answers() -> None:
+    workflow = _workflow()
+
+    for name in ("Classify", "Call Approach"):
+        assert "onError" not in _node(workflow, name)
