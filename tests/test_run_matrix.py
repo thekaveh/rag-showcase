@@ -10,6 +10,61 @@ import respx
 import compare.run_matrix as run_matrix
 
 
+def test_git_state_records_commit_tree_and_deterministic_patch_digest() -> None:
+    state = run_matrix._git_state(run_matrix.ROOT)
+
+    assert len(str(state["commit"])) == 40
+    assert len(str(state["tree"])) == 40
+    assert isinstance(state["dirty"], bool)
+    assert len(str(state["patch_sha256"])) == 64
+    assert state["patch_sha256"] == run_matrix._git_state(run_matrix.ROOT)["patch_sha256"]
+
+
+def test_runtime_provenance_binds_repo_atlas_provider_and_generated_registries(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("JUDGE_MODELS", "judge-a,judge-b")
+    values = {
+        "PROJECT_NAME": "rag-showcase",
+        "BASE_PORT": "22000",
+        "LLM_PROVIDER_SOURCE": "ollama-localhost",
+        "COMFYUI_SOURCE": "disabled",
+    }
+    monkeypatch.setattr(
+        run_matrix, "envval", lambda key, default="": values.get(key, default)
+    )
+    monkeypatch.setattr(
+        run_matrix,
+        "_git_state",
+        lambda path: {
+            "commit": "repo-sha" if path == run_matrix.ROOT else "atlas-sha",
+            "dirty": True,
+        },
+    )
+
+    runtime = run_matrix._runtime_provenance()
+
+    assert runtime["project"] == "rag-showcase"
+    assert runtime["base_port"] == 22000
+    assert runtime["provider_sources"] == {
+        "llm": "ollama-localhost",
+        "comfyui": "disabled",
+    }
+    assert runtime["rag_showcase"] == {"commit": "repo-sha", "dirty": True}
+    assert runtime["atlas"] == {"commit": "atlas-sha", "dirty": True}
+    assert runtime["runtime_files"]["model_inventory"]["sha256"]
+    assert "vanilla-rag" in runtime["runtime_files"]["model_inventory"]["entries"]
+    assert runtime["runtime_files"]["lightrag_query_profiles"]["sha256"]
+    assert "graph-rag-rerank" in runtime["runtime_files"]["lightrag_query_profiles"]["entries"]
+
+
+def test_runtime_provenance_requires_judges_for_enabled_panel(monkeypatch) -> None:
+    monkeypatch.delenv("JUDGE_MODELS", raising=False)
+
+    with pytest.raises(ValueError, match="JUDGE_MODELS"):
+        run_matrix._runtime_provenance()
+
+
 def test_envval_last_assignment_wins_and_default(tmp_path, monkeypatch) -> None:
     env = tmp_path / "infra" / ".env"
     env.parent.mkdir()
@@ -84,6 +139,7 @@ def test_main_records_failed_cell_and_completes(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("MATRIX_INGESTION_PROFILE", "baseline_curated")
     monkeypatch.setenv("MATRIX_INGESTION_REVISION", "rev-1")
     monkeypatch.setenv("MATRIX_INGESTION_CONTENT_DIGEST", "digest-1")
+    monkeypatch.setenv("JUDGE_MODELS", "judge-a,judge-b")
 
     def responder(request):
         body = json.loads(request.content)
@@ -193,6 +249,7 @@ def test_main_routes_structured_evidence_to_atlas_evaluator(tmp_path, monkeypatc
     monkeypatch.setenv("MATRIX_CANONICAL_FILE", str(canonical))
     monkeypatch.setenv("MATRIX_RUN_ID", "atlas-eval-run")
     monkeypatch.setenv("MATRIX_MODELS", "vanilla-rag")
+    monkeypatch.setenv("JUDGE_MODELS", "judge-a,judge-b")
 
     respx.post("http://localhost:9/v1/chat/completions").mock(return_value=httpx.Response(
         200,
@@ -248,6 +305,7 @@ def test_main_resume_does_not_repeat_completed_gateway_call(tmp_path, monkeypatc
     monkeypatch.setenv("MATRIX_CANONICAL_FILE", str(canonical))
     monkeypatch.setenv("MATRIX_RUN_ID", "resume-run")
     monkeypatch.setenv("MATRIX_MODELS", "vanilla-rag")
+    monkeypatch.setenv("JUDGE_MODELS", "judge-a,judge-b")
     route = respx.post("http://localhost:9/v1/chat/completions").mock(
         return_value=httpx.Response(200, json={
             "id": "completion-1",

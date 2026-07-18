@@ -1,13 +1,24 @@
 """Client for Atlas's LightRAG server (graph + vector RAG)."""
 from __future__ import annotations
 
+import json
 import logging
 import os
+from pathlib import Path
+from typing import Any
 
 import httpx
 
 _TIMEOUT = httpx.Timeout(180.0, connect=10.0)
 _log = logging.getLogger("uvicorn.error")
+_PROFILE_CACHE: dict[str, dict[str, Any]] = {}
+_PROFILE_FIELDS = {
+    "mode",
+    "enable_rerank",
+    "top_k",
+    "chunk_top_k",
+    "max_total_tokens",
+}
 
 
 def _base() -> str:
@@ -46,22 +57,67 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
-def _query_payload(question: str, mode: str, options: dict | None = None) -> dict:
-    options = options or {}
-    return {
+def _load_profiles() -> dict[str, dict[str, Any]]:
+    if _PROFILE_CACHE:
+        return _PROFILE_CACHE
+    raw_path = os.environ.get("LIGHTRAG_QUERY_PROFILES_FILE", "").strip()
+    if not raw_path:
+        raise ValueError("LIGHTRAG_QUERY_PROFILES_FILE is required for a named profile")
+    path = Path(raw_path)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot load LightRAG query profiles from {path}: {exc}") from exc
+    if not isinstance(data, dict) or data.get("version") != 1:
+        raise ValueError(f"{path}: LightRAG query profile registry must use version 1")
+    rows = data.get("profiles")
+    if not isinstance(rows, list):
+        raise ValueError(f"{path}: LightRAG query profile registry needs a profiles list")
+    table: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("name"), str):
+            raise ValueError(f"{path}: LightRAG query profile entries need a name")
+        name = row["name"]
+        if name in table:
+            raise ValueError(f"{path}: duplicate LightRAG query profile {name!r}")
+        table[name] = {key: row[key] for key in _PROFILE_FIELDS if key in row}
+    _PROFILE_CACHE.update(table)
+    return _PROFILE_CACHE
+
+
+def _query_payload(
+    question: str,
+    mode: str | None = None,
+    options: dict | None = None,
+    profile: str | None = None,
+) -> dict:
+    payload: dict[str, Any] = {
         "query": question,
-        "mode": mode,
-        "enable_rerank": options.get(
-            "enable_rerank", _env_bool("LIGHTRAG_QUERY_ENABLE_RERANK", False)),
-        "top_k": options.get("top_k", _env_int("LIGHTRAG_QUERY_TOP_K", 10)),
-        "chunk_top_k": options.get(
-            "chunk_top_k", _env_int("LIGHTRAG_QUERY_CHUNK_TOP_K", 5)),
-        "max_total_tokens": options.get(
-            "max_total_tokens", _env_int("LIGHTRAG_QUERY_MAX_TOTAL_TOKENS", 12000)),
+        "mode": "hybrid",
+        "enable_rerank": _env_bool("LIGHTRAG_QUERY_ENABLE_RERANK", False),
+        "top_k": _env_int("LIGHTRAG_QUERY_TOP_K", 10),
+        "chunk_top_k": _env_int("LIGHTRAG_QUERY_CHUNK_TOP_K", 5),
+        "max_total_tokens": _env_int("LIGHTRAG_QUERY_MAX_TOTAL_TOKENS", 12000),
     }
+    if profile:
+        try:
+            payload.update(_load_profiles()[profile])
+        except KeyError as exc:
+            raise ValueError(f"unknown LightRAG query profile {profile!r}") from exc
+    if mode is not None:
+        payload["mode"] = mode
+    for key, value in (options or {}).items():
+        if key in _PROFILE_FIELDS:
+            payload[key] = value
+    return payload
 
 
-async def query(question: str, mode: str = "hybrid", options: dict | None = None) -> str:
+async def query(
+    question: str,
+    mode: str | None = None,
+    options: dict | None = None,
+    profile: str | None = None,
+) -> str:
     # LightRAG's /query rejects very short queries (min_length=3) with a 422, and
     # a 0–2 char string isn't a meaningful graph question anyway — degrade with a
     # clear message instead of surfacing an unhandled 500.
@@ -69,7 +125,7 @@ async def query(question: str, mode: str = "hybrid", options: dict | None = None
         return "(query too short for the knowledge graph)"
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.post(f"{_base()}/query", headers=_headers(),
-                                 json=_query_payload(question, mode, options))
+                                 json=_query_payload(question, mode, options, profile))
         resp.raise_for_status()
         data = resp.json()
         answer = data.get("response") or data.get("data") or ""

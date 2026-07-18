@@ -22,6 +22,7 @@ def test_build_response_shapes_openai_and_embeds_sources():
     assert "score 0.900" in content
     assert resp["rag_showcase"] == {
         "schema_version": 1,
+        "answer": "The answer.",
         "sources": [{"title": "Doc A", "snippet": "alpha", "score": 0.9}],
         "metrics": {"seconds": 1.2, "chunks": 1, "llm_calls": 1, "cloud_calls": 0},
     }
@@ -56,6 +57,7 @@ def test_build_response_includes_optional_approach_metadata():
 
     extension = response["rag_showcase"]
     assert extension["schema_version"] == 1
+    assert extension["answer"] == "answer"
     assert extension["sources"] == []
     assert extension["metrics"]["chunks"] == 2
     assert extension["lazy_graph"] == {"cache_hit": True, "relevance_tests": 3}
@@ -149,6 +151,7 @@ async def test_build_stream_response_preserves_evidence_and_approach_metadata():
 
     extension = payload["rag_showcase"]
     assert extension["schema_version"] == 1
+    assert extension["answer"] == "hello"
     assert extension["sources"][0]["snippet"] == "context"
     assert extension["metrics"]["llm_calls"] == 2
     assert extension["lazy_graph"] == {"cache_hit": False}

@@ -1,8 +1,9 @@
 """n8n-adaptive-rag: bridge Open WebUI <-> an n8n Adaptive-RAG workflow.
 
-The workflow (built visually in n8n) receives {query}, routes by complexity,
-retrieves, generates, and returns {answer, route}. This thin wrapper makes it
-a selectable OpenAI model.
+The workflow receives {query}, routes by complexity, delegates to another RAG
+approach, and returns its structured evidence with the routing decision. This
+thin wrapper makes it a selectable OpenAI model without disguising routing
+metadata as retrieval evidence.
 """
 from __future__ import annotations
 
@@ -38,8 +39,36 @@ async def n8n_adaptive_rag(req: ChatRequest):
         data = next((d for d in data if isinstance(d, dict)), {})
     elif not isinstance(data, dict):
         data = {}
-    answer = data.get("answer") or ""        # tolerate a null answer
-    route = data.get("route") or "unknown"   # tolerate a null/missing route
-    sources = [Source("🧭 Adaptive route", f"n8n routed this query as **{route}**.", None)]
-    metrics = Metrics(time.monotonic() - t0, 0, 1, 0)
-    return respond(req, flavor.alias, answer, sources, metrics)
+    extension = data.get("rag_showcase")
+    if not isinstance(extension, dict) or extension.get("schema_version") != 1:
+        extension = {}
+
+    structured_answer = extension.get("answer")
+    answer = data.get("answer") or (structured_answer if isinstance(structured_answer, str) else "")
+    route = data.get("route") or "unknown"
+    approach = data.get("approach") or "unknown"
+
+    sources: list[Source] = []
+    raw_sources = extension.get("sources")
+    if isinstance(raw_sources, list):
+        for raw in raw_sources:
+            if not isinstance(raw, dict) or not isinstance(raw.get("snippet"), str):
+                continue
+            score = raw.get("score")
+            sources.append(Source(
+                title=str(raw.get("title") or ""),
+                snippet=raw["snippet"],
+                score=float(score) if isinstance(score, (int, float)) else None,
+            ))
+
+    downstream = extension.get("metrics")
+    if not isinstance(downstream, dict):
+        downstream = {}
+    metrics = Metrics(
+        seconds=time.monotonic() - t0,
+        chunks=int(downstream.get("chunks") or 0),
+        llm_calls=int(downstream.get("llm_calls") or 0) + 1,
+        cloud_calls=int(downstream.get("cloud_calls") or 0),
+    )
+    metadata = {"adaptive": {"route": str(route), "approach": str(approach)}}
+    return respond(req, flavor.alias, answer, sources, metrics, metadata=metadata)

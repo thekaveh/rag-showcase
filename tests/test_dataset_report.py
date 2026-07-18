@@ -26,10 +26,11 @@ def test_dataset_report_ranks_measured_inputs_by_dataset() -> None:
     assert "baseline_curated" in out
     assert "graph_native" in out
     assert "contextual-rag" in out
-    assert "on `graph_native`, `contextual-rag` leads" in out
-    assert "on `cyber_threat_intel`, `lazy-graph-rag` leads" in out
-    assert "## 3. Canonical Evaluation Metrics" in out
-    assert "## 4. Per-Query Winners" in out
+    assert "on `graph_native`, `lazy-graph-rag` leads" in out
+    assert "on `cyber_threat_intel`, `contextual-rag` leads" in out
+    assert "## 3. Flavor-Tier Tuning Results" in out
+    assert "## 4. Canonical Evaluation Metrics" in out
+    assert "## 5. Base-Family Per-Query Winners" in out
     assert "stark_prime" in out
     assert "pending live run" in out
     assert "`stark_prime` | not measured | not measured | not measured" in out
@@ -56,8 +57,9 @@ def test_dataset_report_write_mode_matches_committed_documentation(tmp_path) -> 
     generated = out.read_text(encoding="utf-8")
     assert "## 1. Dataset Complexity Ladder" in generated
     assert "## 2. Judge-Panel Ranking Drift by Input Dataset" in generated
-    assert "## 3. Canonical Evaluation Metrics" in generated
-    assert "## 4. Per-Query Winners" in generated
+    assert "## 3. Flavor-Tier Tuning Results" in generated
+    assert "## 4. Canonical Evaluation Metrics" in generated
+    assert "## 5. Base-Family Per-Query Winners" in generated
     committed = (ROOT / "docs" / "dataset-complexity-report.md").read_text(encoding="utf-8")
     assert generated == committed, (
         "docs/dataset-complexity-report.md is stale — regenerate it with "
@@ -194,9 +196,45 @@ def test_dataset_report_surfaces_canonical_metric_classes_when_available(monkeyp
 
     report = rd.build_report()
 
-    assert "## 3. Canonical Evaluation Metrics" in report
+    assert "## 4. Canonical Evaluation Metrics" in report
     assert "a 0.800 (1/2)" in report
     assert "b 0.700 (2/2)" in report
     assert "a 125 ms (2/2)" in report
     assert "3/4 successful" in report
     assert "1 error, 0 timeouts" in report
+
+
+def test_dataset_report_keeps_flavor_ranking_separate(monkeypatch) -> None:
+    import compare.report_datasets as rd
+
+    manifest = [{
+        "id": "ds_a",
+        "status": "measured",
+        "complexity_level": 1,
+        "graph_nature": "graph",
+        "queries_file": "demo/queries.yaml",
+        "judgment_snapshot": "base.json",
+        "flavor_judgment_snapshot": "flavors.json",
+    }]
+    snapshots = {
+        "base.json": {"queries": [{
+            "query_id": "q1",
+            "observed_winner": "vanilla-rag",
+            "mean_by_approach": {"vanilla-rag": 4.0, "graph-rag": 3.0},
+        }]},
+        "flavors.json": {"queries": [{
+            "query_id": "q1",
+            "observed_winner": "graph-rag-rerank",
+            "mean_by_approach": {"graph-rag-rerank": 4.5, "graph-rag-wide": 2.0},
+        }]},
+    }
+    monkeypatch.setattr(rd, "_load_manifest", lambda: manifest)
+    monkeypatch.setattr(rd, "_load_judgments", lambda path: snapshots[path.name])
+
+    report = rd.build_report()
+
+    flavor_section = report.split("## 3. Flavor-Tier Tuning Results", 1)[1].split(
+        "## 4. Canonical Evaluation Metrics", 1
+    )[0]
+    assert "graph-rag-rerank 4.50" in flavor_section
+    assert "vanilla-rag" not in flavor_section

@@ -13,7 +13,16 @@ from rag.approaches import n8n
 async def test_n8n_wrapper_forwards_and_wraps(monkeypatch):
     monkeypatch.setenv("N8N_ADAPTIVE_WEBHOOK_URL", "http://n8n:5678/webhook/adaptive-rag")
     route = respx.post("http://n8n:5678/webhook/adaptive-rag").mock(
-        return_value=httpx.Response(200, json={"answer": "routed answer", "route": "complex"})
+        return_value=httpx.Response(200, json={
+            "answer": "routed answer",
+            "route": "complex",
+            "approach": "agentic-rag",
+            "rag_showcase": {
+                "schema_version": 1,
+                "sources": [{"title": "Doc A", "snippet": "grounding", "score": 0.8}],
+                "metrics": {"seconds": 2.0, "chunks": 1, "llm_calls": 3, "cloud_calls": 0},
+            },
+        })
     )
     app = FastAPI(); app.include_router(n8n.router)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
@@ -22,7 +31,15 @@ async def test_n8n_wrapper_forwards_and_wraps(monkeypatch):
                                 "messages": [{"role": "user", "content": "hard q"}]})
     assert r.status_code == 200
     content = r.json()["choices"][0]["message"]["content"]
-    assert "routed answer" in content and "complex" in content  # route surfaced
+    assert "routed answer" in content
+    payload = r.json()["rag_showcase"]
+    assert payload["sources"] == [
+        {"title": "Doc A", "snippet": "grounding", "score": 0.8}
+    ]
+    assert payload["metrics"]["chunks"] == 1
+    assert payload["metrics"]["llm_calls"] == 4  # downstream calls + classifier
+    assert payload["adaptive"] == {"route": "complex", "approach": "agentic-rag"}
+    assert all(source["title"] != "Adaptive route" for source in payload["sources"])
     # forwarding the user query to the workflow IS the wrapper's whole job — assert the
     # wire payload, not just the mock's return. Change the key or stop forwarding and the
     # workflow gets an empty/wrong query and answers garbage, with this test still green.
@@ -41,7 +58,8 @@ async def test_n8n_wrapper_falls_back_on_missing_keys(monkeypatch):
                           json={"model": "n8n-adaptive-rag",
                                 "messages": [{"role": "user", "content": "q"}]})
     assert r.status_code == 200
-    assert "unknown" in r.json()["choices"][0]["message"]["content"]  # route fallback
+    assert r.json()["rag_showcase"]["adaptive"]["route"] == "unknown"
+    assert r.json()["rag_showcase"]["sources"] == []
 
 
 @pytest.mark.asyncio
@@ -57,7 +75,7 @@ async def test_n8n_wrapper_tolerates_null_answer(monkeypatch):
                           json={"model": "n8n-adaptive-rag",
                                 "messages": [{"role": "user", "content": "q"}]})
     assert r.status_code == 200
-    assert "unknown" in r.json()["choices"][0]["message"]["content"]
+    assert r.json()["rag_showcase"]["adaptive"]["route"] == "unknown"
 
 
 @pytest.mark.asyncio
@@ -111,4 +129,4 @@ async def test_n8n_wrapper_degrades_on_non_object_body(monkeypatch, body):
                           json={"model": "n8n-adaptive-rag",
                                 "messages": [{"role": "user", "content": "q"}]})
     assert r.status_code == 200
-    assert "unknown" in r.json()["choices"][0]["message"]["content"]
+    assert r.json()["rag_showcase"]["adaptive"]["route"] == "unknown"

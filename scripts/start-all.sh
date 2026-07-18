@@ -7,6 +7,53 @@ ATLAS_CONSUMER_MANIFEST="${ATLAS_CONSUMER_MANIFEST:-$ROOT/atlas.consumer.yml}"
 ATLAS_CONSUMER_MANIFEST="$(python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$ATLAS_CONSUMER_MANIFEST")"
 export ATLAS_CONSUMER_MANIFEST
 
+ATLAS_PROJECT_NAME="${RAG_SHOWCASE_PROJECT_NAME:-rag-showcase}"
+ATLAS_LAUNCH_LOCK="${TMPDIR:-/tmp}/rag-showcase-atlas-port-launch.lock"
+
+cleanup_launch_lock() {
+  if [ -d "$ATLAS_LAUNCH_LOCK" ] && [ "$(cat "$ATLAS_LAUNCH_LOCK/pid" 2>/dev/null || true)" = "$$" ]; then
+    rm -f "$ATLAS_LAUNCH_LOCK/pid"
+    rmdir "$ATLAS_LAUNCH_LOCK"
+  fi
+}
+
+acquire_launch_lock() {
+  if ! mkdir "$ATLAS_LAUNCH_LOCK" 2>/dev/null; then
+    lock_pid="$(cat "$ATLAS_LAUNCH_LOCK/pid" 2>/dev/null || true)"
+    if [ -n "$lock_pid" ] && kill -0 "$lock_pid" 2>/dev/null; then
+      echo "Another rag-showcase Atlas launch is selecting ports (PID $lock_pid)." >&2
+      exit 1
+    fi
+    rm -f "$ATLAS_LAUNCH_LOCK/pid"
+    rmdir "$ATLAS_LAUNCH_LOCK" 2>/dev/null || {
+      echo "Cannot clear stale Atlas launch lock: $ATLAS_LAUNCH_LOCK" >&2
+      exit 1
+    }
+    mkdir "$ATLAS_LAUNCH_LOCK"
+  fi
+  printf '%s\n' "$$" > "$ATLAS_LAUNCH_LOCK/pid"
+}
+
+acquire_launch_lock
+trap cleanup_launch_lock EXIT INT TERM
+if [ -n "${RAG_SHOWCASE_BASE_PORT:-}" ]; then
+  ATLAS_BASE_PORT="$(uv run python scripts/select_atlas_base_port.py \
+    --base "$RAG_SHOWCASE_BASE_PORT")"
+else
+  ATLAS_BASE_PORT="$(uv run python scripts/select_atlas_base_port.py)"
+fi
+echo "==> Selected free Atlas port block ${ATLAS_BASE_PORT}-$((ATLAS_BASE_PORT + 109)) for ${ATLAS_PROJECT_NAME}."
+
+# Provider sources belong to Atlas. Omit them by default so a consumer can use
+# its existing Atlas configuration without this repository assuming host hardware.
+ATLAS_SOURCE_ARGS=()
+if [ -n "${RAG_SHOWCASE_LLM_PROVIDER_SOURCE:-}" ]; then
+  ATLAS_SOURCE_ARGS+=(--llm-provider-source "$RAG_SHOWCASE_LLM_PROVIDER_SOURCE")
+fi
+if [ -n "${RAG_SHOWCASE_COMFYUI_SOURCE:-}" ]; then
+  ATLAS_SOURCE_ARGS+=(--comfyui-source "$RAG_SHOWCASE_COMFYUI_SOURCE")
+fi
+
 RAG_INGESTION_PROFILE="${RAG_INGESTION_PROFILE:-showcase_default}"
 case "$RAG_INGESTION_PROFILE" in
   ""|*[!a-z0-9._-]*|[._-]*)
@@ -42,12 +89,45 @@ fi
 # multi-line container name. -f2- (not -f2): values may themselves contain '='.
 envval() { grep -E "^$1=" infra/.env | tail -1 | cut -d= -f2- || true; }
 
+# Cross-provider LightRAG roles do not inherit LLM_BINDING_API_KEY. Derive their
+# gateway credentials from Atlas's generated LiteLLM secret without committing or
+# printing it. This remains role-scoped: the native Ollama EXTRACT role gets no key.
+sync_runtime_secret_alias() {
+  local source_key="$1" target_key="$2" value tmp
+  value="$(envval "$source_key")"
+  [ -n "$value" ] || {
+    echo "Required runtime secret $source_key is missing from infra/.env" >&2
+    exit 1
+  }
+  tmp="$(mktemp "${TMPDIR:-/tmp}/rag-showcase-env.XXXXXX")"
+  awk -v key="$target_key" -v value="$value" '
+    BEGIN { written = 0 }
+    index($0, key "=") == 1 {
+      if (!written) { print key "=" value; written = 1 }
+      next
+    }
+    { print }
+    END { if (!written) print key "=" value }
+  ' infra/.env > "$tmp"
+  mv "$tmp" infra/.env
+}
+
 echo "==> Running Atlas consumer-manifest preflight…"
 [ -f infra/.env ] || cp infra/.env.example infra/.env
-( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" env backfill )
-( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" compose validate )
-( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" doctor --format json )
+( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
+    --project "$ATLAS_PROJECT_NAME" --base-port "$ATLAS_BASE_PORT" \
+    "${ATLAS_SOURCE_ARGS[@]}" env backfill )
+sync_runtime_secret_alias LITELLM_MASTER_KEY LIGHTRAG_KEYWORD_LLM_BINDING_API_KEY
+sync_runtime_secret_alias LITELLM_MASTER_KEY LIGHTRAG_QUERY_LLM_BINDING_API_KEY
+( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
+    --project "$ATLAS_PROJECT_NAME" --base-port "$ATLAS_BASE_PORT" \
+    "${ATLAS_SOURCE_ARGS[@]}" compose validate )
+( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
+    --project "$ATLAS_PROJECT_NAME" --base-port "$ATLAS_BASE_PORT" \
+    "${ATLAS_SOURCE_ARGS[@]}" doctor --format json )
 
+echo "==> Rechecking Atlas port block immediately before launch…"
+uv run python scripts/select_atlas_base_port.py --base "$ATLAS_BASE_PORT" >/dev/null
 echo "==> Starting Atlas (gen-ai-rag track)…"
 # doc-processor disabled: Atlas ships only GPU-container or localhost Docling, so
 # there's no CPU-container option. ingest falls back to naive text chunking, so
@@ -57,6 +137,8 @@ echo "==> Starting Atlas (gen-ai-rag track)…"
 ATLAS_START_LOG="$(mktemp "${TMPDIR:-/tmp}/rag-showcase-atlas-start.XXXXXX")"
 set +e
 ( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
+    --project "$ATLAS_PROJECT_NAME" --base-port "$ATLAS_BASE_PORT" \
+    "${ATLAS_SOURCE_ARGS[@]}" \
     --no-tui --detach --track gen-ai-rag \
     --lightrag-source container \
     --tei-reranker-source container-cpu --doc-processor-source disabled ) \
@@ -75,6 +157,8 @@ if [ "$ATLAS_START_STATUS" -ne 0 ]; then
   }
 fi
 rm -f "$ATLAS_START_LOG"
+cleanup_launch_lock
+trap - EXIT INT TERM
 
 PROJECT_NAME="$(envval PROJECT_NAME)"
 [ -n "$PROJECT_NAME" ] || { echo "PROJECT_NAME not found in infra/.env; aborting."; exit 1; }
@@ -182,35 +266,24 @@ asyncio.run(_probe())
 done
 [ "$models_ready" = 1 ] || { echo "Local models not ready after ~30 min; aborting before ingest."; exit 1; }
 
-echo "==> Verifying the Atlas-seeded adaptive-rag production webhook…"
-docker exec -i "${PROJECT_NAME}-backend" python - <<'PY'
-import os
-import sys
-
-import httpx
-
-url = os.environ.get("N8N_ADAPTIVE_WEBHOOK_URL", "http://n8n:5678/webhook/adaptive-rag")
-response = httpx.post(
-    url,
-    json={"query": "What is retrieval-augmented generation?"},
-    timeout=240,
-)
-response.raise_for_status()
-sys.exit(0 if response.json().get("answer") else 1)
-PY
-
 if [ "${RAG_SHOWCASE_SKIP_DEFAULT_INGEST:-0}" != "1" ]; then
   echo "==> Running Atlas RAG ingestion profile ${RAG_INGESTION_PROFILE}…"
-  uv run python -m ingest.atlas_job \
+  BACKEND_INTERNAL_API_TOKEN="$(envval BACKEND_INTERNAL_API_TOKEN)" \
+    uv run python -m ingest.atlas_job \
     --profile "$RAG_INGESTION_PROFILE" \
     --base-url "http://127.0.0.1:$(envval BACKEND_PORT)"
   echo "==> Building the showcase contextual index from Atlas-ingested chunks…"
   docker exec -e PYTHONPATH=/app/plugins:/app "${PROJECT_NAME}-backend" \
     python -m ingest.contextual
+  echo "==> Verifying the Atlas-seeded adaptive-rag production webhook…"
+  uv run python scripts/verify_adaptive_webhook.py \
+    --url "http://127.0.0.1:$(envval N8N_PORT)/webhook/adaptive-rag"
+else
+  echo "==> Deferring adaptive-rag semantic verification until dataset ingestion…"
 fi
 
 OWUI="$(envval OPEN_WEB_UI_PORT)"
 [ -n "$OWUI" ] || { echo "OPEN_WEB_UI_PORT not found in infra/.env; aborting."; exit 1; }
 echo "==> Ready. Open the Open WebUI at http://localhost:${OWUI} , start a multi-model"
 echo "    chat, and select: vanilla-rag, hybrid-rag, contextual-rag, graph-rag,"
-echo "    agentic-rag, n8n-adaptive-rag."
+echo "    agentic-rag, n8n-adaptive-rag, lazy-graph-rag."

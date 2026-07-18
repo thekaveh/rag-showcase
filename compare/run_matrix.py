@@ -11,8 +11,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import httpx
 import yaml
@@ -143,11 +145,138 @@ def _config_hashes(query_path: Path) -> dict[str, str]:
         "roles": ROOT / "backend_plugins" / "rag" / "roles.yaml",
         "models": ROOT / "backend_plugins" / "rag" / "models.yaml",
         "consumer_manifest": ROOT / "atlas.consumer.yml",
+        "atlas_env_user": ROOT / "config" / "atlas.env.user",
+        "runtime_model_inventory": ROOT / "infra" / "volumes" / "litellm" / "consumer-models.yaml",
+        "lightrag_query_profiles": ROOT / "infra" / "volumes" / "backend" / "lightrag-query-profiles.json",
     }
     return {
         name: digest
         for name, path in paths.items()
         if (digest := _sha256_file(path if path.is_absolute() else ROOT / path))
+    }
+
+
+def _git_state(path: Path) -> dict[str, str | bool]:
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=path, text=True, capture_output=True, check=True
+    ).stdout.strip()
+    tree = subprocess.run(
+        ["git", "rev-parse", "HEAD^{tree}"],
+        cwd=path,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout.strip()
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        cwd=path,
+        capture_output=True,
+        check=True,
+    ).stdout
+    tracked_patch = subprocess.run(
+        ["git", "diff", "--binary", "HEAD", "--", "."],
+        cwd=path,
+        capture_output=True,
+        check=True,
+    ).stdout
+    untracked = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
+        cwd=path,
+        capture_output=True,
+        check=True,
+    ).stdout.split(b"\0")
+
+    digest = hashlib.sha256()
+    digest.update(b"tracked-patch\0")
+    digest.update(len(tracked_patch).to_bytes(8, "big"))
+    digest.update(tracked_patch)
+    digest.update(b"untracked-files\0")
+    for relative_bytes in sorted(item for item in untracked if item):
+        relative = Path(os.fsdecode(relative_bytes))
+        absolute = path / relative
+        content = (
+            os.fsencode(os.readlink(absolute))
+            if absolute.is_symlink()
+            else absolute.read_bytes()
+        )
+        digest.update(len(relative_bytes).to_bytes(8, "big"))
+        digest.update(relative_bytes)
+        digest.update(len(content).to_bytes(8, "big"))
+        digest.update(content)
+
+    return {
+        "commit": commit,
+        "tree": tree,
+        "dirty": bool(status.strip()),
+        "patch_sha256": digest.hexdigest(),
+        "patch_capture": "exact",
+    }
+
+
+def _runtime_file(path: Path, *, kind: str) -> dict[str, Any]:
+    digest = _sha256_file(path)
+    if not digest:
+        raise RuntimeError(f"required generated runtime file is missing: {path}")
+    if kind == "models":
+        payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        entries = [row.get("model_name") for row in payload.get("model_list", [])]
+    else:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        entries = [row.get("name") for row in payload.get("profiles", [])]
+    return {
+        "path": str(path.relative_to(ROOT)),
+        "sha256": digest,
+        "entries": sorted(str(entry) for entry in entries if entry),
+    }
+
+
+def _runtime_provenance(manifest=None) -> dict[str, Any]:
+    manifest = manifest or load_manifest(evaluation_manifest_file())
+    panel = manifest.metrics.judge_panel
+    judge_models = _csv_env("JUDGE_MODELS") or list(panel.models)
+    judge_endpoint = os.environ.get("JUDGE_ENDPOINT") or panel.endpoint
+    if panel.enabled and not judge_models:
+        raise ValueError(
+            "enabled judge panel requires deployment-specific model aliases in "
+            "JUDGE_MODELS before matrix execution"
+        )
+    judge_thinking = panel.thinking if judge_endpoint == "atlas-litellm" else None
+    if "JUDGE_THINK" in os.environ:
+        normalized = os.environ["JUDGE_THINK"].strip().lower()
+        if normalized == "omit":
+            judge_thinking = None
+        elif normalized in {"true", "false"}:
+            judge_thinking = normalized == "true"
+        else:
+            raise ValueError("JUDGE_THINK must be true, false, or omit")
+    base_port = envval("BASE_PORT")
+    if not base_port:
+        litellm_port = envval("LITELLM_PORT")
+        base_port = str(int(litellm_port) - 40) if litellm_port else "0"
+    return {
+        "project": envval("PROJECT_NAME", "rag-showcase"),
+        "base_port": int(base_port),
+        "provider_sources": {
+            "llm": envval("LLM_PROVIDER_SOURCE", "unspecified"),
+            "comfyui": envval("COMFYUI_SOURCE", "unspecified"),
+        },
+        "rag_showcase": _git_state(ROOT),
+        "atlas": _git_state(ROOT / "infra"),
+        "judge_panel": {
+            "endpoint": judge_endpoint,
+            "models": judge_models if panel.enabled else [],
+            "thinking": judge_thinking,
+        },
+        "runtime_files": {
+            "model_inventory": _runtime_file(
+                ROOT / "infra" / "volumes" / "litellm" / "consumer-models.yaml",
+                kind="models",
+            ),
+            "lightrag_query_profiles": _runtime_file(
+                ROOT / "infra" / "volumes" / "backend" / "lightrag-query-profiles.json",
+                kind="profiles",
+            ),
+        },
     }
 
 
@@ -252,6 +381,7 @@ def main() -> None:
     canonical = canonical_file()
     summary = summary_file()
     RESULTS.mkdir(parents=True, exist_ok=True)
+    runtime_provenance = _runtime_provenance(manifest)
     out: dict = {"base": base, "models": [p.alias for p in profiles],
                  "model_profiles": [
                      {
@@ -270,6 +400,7 @@ def main() -> None:
                  "evaluation_summary_file": str(summary),
                  "queries": [{k: q.get(k) for k in ("id", "query", "expect_winner", "rationale")}
                              for q in queries],
+                 "runtime": runtime_provenance,
                  "cells": []}
     ingestion = ingestion_metadata()
     if ingestion:
@@ -324,6 +455,7 @@ def main() -> None:
                 store=JsonlStore(canonical),
                 config_hashes=_config_hashes(query_path),
                 ingestion=ingestion,
+                runtime_provenance=runtime_provenance,
             )
         finally:
             if evaluator is not None:

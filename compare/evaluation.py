@@ -61,9 +61,7 @@ class JudgePanelSpec(BaseModel):
     models: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def require_enabled_models(self) -> "JudgePanelSpec":
-        if self.enabled and not self.models:
-            raise ValueError("judge panel models must not be empty when enabled")
+    def validate_enabled_panel(self) -> "JudgePanelSpec":
         if self.enabled and not self.endpoint:
             raise ValueError("judge panel endpoint must not be empty when enabled")
         if len(self.models) != len(set(self.models)):
@@ -251,6 +249,8 @@ def completion_evidence(payload: dict[str, Any]) -> dict[str, Any]:
     extension = payload.get("rag_showcase")
     transport = "rendered"
     if isinstance(extension, dict) and extension.get("schema_version") == 1:
+        if isinstance(extension.get("answer"), str):
+            normalized["answer"] = extension["answer"]
         raw_sources = extension.get("sources")
         if isinstance(raw_sources, list):
             sources = []
@@ -271,7 +271,7 @@ def completion_evidence(payload: dict[str, Any]) -> dict[str, Any]:
         approach_metadata = {
             key: value
             for key, value in extension.items()
-            if key not in {"schema_version", "sources", "metrics"}
+            if key not in {"schema_version", "answer", "sources", "metrics"}
         }
         if approach_metadata:
             normalized["approach_metadata"] = approach_metadata
@@ -601,6 +601,7 @@ def _base_row(
     row_id: str,
     config_hashes: dict[str, str],
     ingestion: dict[str, Any],
+    runtime_provenance: dict[str, Any],
 ) -> dict[str, Any]:
     return {
         "schema_version": 1,
@@ -633,6 +634,7 @@ def _base_row(
             "seed": manifest.run.seed,
             "config_hashes": dict(config_hashes),
             "ingestion": dict(ingestion),
+            "runtime": dict(runtime_provenance),
         },
     }
 
@@ -648,6 +650,7 @@ def _run_cell(
     evaluator: Evaluator | None,
     config_hashes: dict[str, str],
     ingestion: dict[str, Any],
+    runtime_provenance: dict[str, Any],
 ) -> dict[str, Any]:
     row_id = stable_row_id(run_id, dataset.id, question.id, approach.model)
     base = _base_row(
@@ -659,6 +662,7 @@ def _run_cell(
         row_id=row_id,
         config_hashes=config_hashes,
         ingestion=ingestion,
+        runtime_provenance=runtime_provenance,
     )
     judge_status = "pending" if manifest.metrics.judge_panel.enabled else "disabled"
     started = time.perf_counter()
@@ -732,10 +736,12 @@ def run_evaluation(
     store: JsonlStore,
     config_hashes: dict[str, str] | None = None,
     ingestion: dict[str, Any] | None = None,
+    runtime_provenance: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Run and durably append missing cells, returning requested rows in stable order."""
     config_hashes = dict(config_hashes or {})
     ingestion = dict(ingestion or {})
+    runtime_provenance = dict(runtime_provenance or {})
     existing_rows = store.rows()
     existing = {row["row_id"]: row for row in existing_rows}
     tasks = [(question, approach) for question in questions for approach in approaches]
@@ -752,6 +758,7 @@ def run_evaluation(
             or reproducibility.get("seed") != manifest.run.seed
             or reproducibility.get("config_hashes", {}) != config_hashes
             or reproducibility.get("ingestion", {}) != ingestion
+            or reproducibility.get("runtime", {}) != runtime_provenance
         )
         if changed:
             raise ValueError(
@@ -780,6 +787,7 @@ def run_evaluation(
             evaluator=evaluator,
             config_hashes=config_hashes,
             ingestion=ingestion,
+            runtime_provenance=runtime_provenance,
         )
 
     def execute_claimed(

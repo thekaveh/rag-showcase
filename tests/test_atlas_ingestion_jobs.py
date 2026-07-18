@@ -27,7 +27,8 @@ from core.consumer_manifest import (
 )
 
 config = load_consumer_config(
-    root / "infra", explicit_paths=[str(root / "atlas.consumer.yml")]
+    root / "infra",
+    explicit_paths=[str(root / "atlas.consumer.yml")],
 )
 profiles = list(config.rag_ingestion_profiles)
 print(json.dumps({
@@ -73,6 +74,8 @@ def test_every_dataset_declares_an_atlas_ingestion_profile() -> None:
             "path": dataset["corpus_path"].removeprefix("corpus/"),
             "bucket": None,
             "prefix": None,
+            "access_key_var": None,
+            "secret_key_var": None,
         }
         assert profile["parser_order"][-1] == "plain_text"
         assert profile["chunker"] == {
@@ -108,6 +111,7 @@ def test_headless_job_client_waits_for_phase_complete_record() -> None:
     calls = {"get": 0}
 
     def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer test-internal-token"
         if request.method == "POST":
             assert request.url.path == "/api/rag/ingestions"
             assert request.extensions["timeout"]["read"] == 70
@@ -150,6 +154,7 @@ def test_headless_job_client_waits_for_phase_complete_record() -> None:
         record = run_ingestion(
             "baseline_curated",
             base_url="http://atlas.test",
+            api_token="test-internal-token",
             timeout_seconds=10,
             poll_seconds=0,
             client=client,
@@ -165,6 +170,7 @@ def test_headless_job_client_surfaces_phase_failures() -> None:
     from ingest.atlas_job import run_ingestion
 
     def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer test-internal-token"
         if request.method == "POST":
             return httpx.Response(
                 202,
@@ -203,6 +209,7 @@ def test_headless_job_client_surfaces_phase_failures() -> None:
             run_ingestion(
                 "graph_native",
                 base_url="http://atlas.test",
+                api_token="test-internal-token",
                 timeout_seconds=10,
                 poll_seconds=0,
                 client=client,

@@ -35,13 +35,12 @@
       "name": "Classify",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [220, 0],
-      "onError": "continueRegularOutput"
+      "position": [220, 0]
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const c=(($json.choices&&$json.choices[0]&&$json.choices[0].message&&$json.choices[0].message.content)||'').toLowerCase();const route=c.includes('complex')?'complex':'simple';const approach=route==='complex'?'agentic-rag':'vanilla-rag';const query=$('Webhook').first().json.body.query;return [{json:{route:route,approach:approach,query:query,url:'http://backend:8000/rag/'+approach+'/v1/chat/completions'}}];"
+        "jsCode": "const c=(($json.choices&&$json.choices[0]&&$json.choices[0].message&&$json.choices[0].message.content)||'').toLowerCase();const route=c.includes('complex')?'complex':'simple';const approach=route==='complex'?'agentic-rag':'vanilla-rag';const query=$('Webhook').first().json.body.query;return [{json:{route:route,approach:approach,query:query,url:'http://litellm:4000/v1/chat/completions'}}];"
       },
       "id": "b3333333-3333-4333-8333-333333333333",
       "name": "Route",
@@ -53,6 +52,12 @@
       "parameters": {
         "method": "POST",
         "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.LITELLM_API_KEY }}" }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ model: $json.approach, messages: [ { role: 'user', content: $json.query } ] }) }}",
@@ -62,13 +67,12 @@
       "name": "Call Approach",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [660, 0],
-      "onError": "continueRegularOutput"
+      "position": [660, 0]
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const ch=$json.choices&&$json.choices[0]&&$json.choices[0].message&&$json.choices[0].message.content;const r=$('Route').first().json;const answer=ch||('(n8n-adaptive-rag: '+r.approach+' returned no answer \\u2014 corpus may be empty or the approach errored)');return [{json:{answer:answer,route:r.route,approach:r.approach}}];"
+        "jsCode": "const ch=$json.choices&&$json.choices[0]&&$json.choices[0].message&&$json.choices[0].message.content;const rs=$json.rag_showcase&&$json.rag_showcase.schema_version===1?$json.rag_showcase:null;const r=$('Route').first().json;const answer=(rs&&$json.rag_showcase.answer)||ch||('(n8n-adaptive-rag: '+r.approach+' returned no answer \\u2014 corpus may be empty or the approach errored)');return [{json:{answer:answer,route:r.route,approach:r.approach,rag_showcase:rs}}];"
       },
       "id": "b5555555-5555-4555-8555-555555555555",
       "name": "Shape",

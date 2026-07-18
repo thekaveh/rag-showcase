@@ -67,6 +67,8 @@ def test_rag_plugin_manifest_declares_required_files_and_typed_knobs() -> None:
     assert env["LITELLM_API_KEY"]["secret"] is True
     assert env["LIGHTRAG_API_KEY"]["secret"] is True
     assert env["RAG_WEAVIATE_GRPC_PORT"]["type"] == "int"
+    assert env["RAG_WEAVIATE_INIT_TIMEOUT_S"]["type"] == "int"
+    assert env["RAG_WEAVIATE_INIT_TIMEOUT_S"]["default"] == "30"
     assert env["TEI_RERANKER_MAX_BATCH"]["type"] == "int"
     assert env["LIGHTRAG_QUERY_ENABLE_RERANK"]["type"] == "bool"
     for name in (

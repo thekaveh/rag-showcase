@@ -85,6 +85,20 @@ def test_backend_and_compare_flavors_have_same_aliases() -> None:
     assert backend_by_alias == compare_by_alias
 
 
+def test_graph_flavors_are_names_only_and_include_rerank_profile() -> None:
+    root = Path(__file__).resolve().parents[1]
+    for relative in ("backend_plugins/rag/flavors.yaml", "compare/flavors.yaml"):
+        rows = yaml.safe_load((root / relative).read_text(encoding="utf-8"))["flavors"]
+        graph_rows = [row for row in rows if row["base"] == "graph-rag"]
+
+        assert {row["alias"] for row in graph_rows} == {
+            "graph-rag-fast",
+            "graph-rag-wide",
+            "graph-rag-rerank",
+        }
+        assert all(not (row.get("params") or {}) for row in graph_rows)
+
+
 def test_expand_selection_expands_base_name_to_all_its_flavors(tmp_path) -> None:
     # The ladder's --flavors graph-rag relies on a base NAME expanding to the base
     # plus every flavor bound to it (documented in approach-flavor-tuning.md §5).

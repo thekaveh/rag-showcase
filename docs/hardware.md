@@ -10,7 +10,7 @@ inference is local and how large the selected models are.
 | Target | CPU | Memory | Disk | Model backend | Expected fit |
 |---|---:|---:|---:|---|---|
 | Development and unit tests | 4+ cores | 16 GB | 20 GB free | none required | Code/test work, no live stack |
-| Stack smoke with remote/cloud LLMs | 8+ cores | 32 GB | 50 GB free | remote/cloud or small local | Bring up Atlas `gen-ai-rag`, ingest a small corpus, try all six routes |
+| Stack smoke with remote/cloud LLMs | 8+ cores | 32 GB | 50 GB free | remote/cloud or small local | Bring up Atlas `gen-ai-rag`, ingest a small corpus, try all seven routes |
 | Recommended local all-six comparison | 12+ cores | 64 GB+ | 100 GB free | accelerated local inference or remote/cloud | Curated corpus, graph-native corpus, judge runs, repeated matrices |
 | Heavy local graph/full-corpus runs | 16+ cores | 96-128 GB+ | 150 GB free | accelerated local inference strongly recommended | Larger corpora, bigger local models, repeated LightRAG rebuilds |
 
@@ -33,7 +33,7 @@ the real requirement up or down.
   non-reasoning model for `LIGHTRAG_EXTRACT_LLM_MODEL` and keep extraction
   concurrency conservative unless the model backend has clear headroom.
 - **Judging:** the comparison harness can use local judge models. Those are
-  additional inference calls after the six approaches answer.
+  additional inference calls after the seven approaches answer.
 
 ## 3. Local Model Guidance
 

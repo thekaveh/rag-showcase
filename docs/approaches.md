@@ -2,7 +2,7 @@
 
 This document is the canonical guide to how each approach in rag-showcase works,
 what it depends on, what can be tuned, and how it performed in the committed
-2026-07-13 live dataset-ladder run.
+2026-07-17 live dataset-ladder run.
 
 The important terminology distinction:
 
@@ -16,7 +16,7 @@ approach with BM25 + dense retrieval and TEI reranking.
 
 ## 1. Shared Invocation Model
 
-All six canonical approaches and the explicit experimental lazy graph route are mounted under the RAG plugin's shared
+All seven approach routes are mounted under the RAG plugin's shared
 `/rag/<approach>/v1/chat/completions` root inside the Atlas backend container.
 [`../backend_plugins/rag/plugin.yml`](../backend_plugins/rag/plugin.yml) declares
 that `/rag` root, `/rag/health`, inherited Kong auth, typed configuration, and
@@ -85,32 +85,76 @@ latency, and the optional blinded judge panel. Graph-rag's missing context is re
 invented evidence. See
 [`evaluation-methodology.md`](evaluation-methodology.md#5-approach-processes-and-evidence-capabilities).
 
+### 1.3 Approach Lifecycle and Persistence
+
+The following comparison separates **how knowledge is prepared** from **how a
+question is answered**. A flavor changes parameters inside one family; it does
+not become a new architecture. The two candidate rows are included to make the
+design space explicit, but they are neither deployed nor included in any score,
+rank, success-rate denominator, or progression chart.
+
+#### 1.3.1 Knowledge Lifecycle
+
+| Approach family | Maturity | Employed in showcase? | Knowledge preparation | Chunk enrichment | Graph creation | Durable state and scope | Human- or machine-oriented? | Query-derived learning persists? |
+|---|---|---|---|---|---|---|---|---|
+| `vanilla-rag` | Canonical control | **Yes** | Atlas parses, chunks, and embeds during ingestion. | None beyond parser output and metadata. | None. | Plain chunks and vectors in profile-scoped `RagBase_<profile>` Weaviate collections. | Machine retrieval index; source text remains human-readable. | **No.** Each query is independent. |
+| `hybrid-rag` | Canonical | **Yes** | Same Atlas ingestion as vanilla; Weaviate maintains vector and BM25 indexes. | None. | None. | Shares profile-scoped `RagBase_<profile>` collections. | Machine retrieval indexes over human-authored chunks. | **No.** Rerank results are request-local. |
+| `contextual-rag` | Canonical | **Yes** | After Atlas ingestion, the showcase generates a situating blurb for every chunk and embeds the enriched text. | **Ahead of query**, using an LLM-generated document-context blurb. | None. | Derived `RagContextual_<profile>` Weaviate collection tied to the ingestion profile. | Machine retrieval index containing human-readable enriched chunks. | **No.** Query results do not rewrite blurbs or indexes. |
+| `graph-rag` (LightRAG) | Canonical | **Yes** | Atlas submits full documents to LightRAG; LightRAG extracts entities, relations, summaries, chunks, and embeddings. | Entity/relation extraction and graph summaries happen **during ingestion**. | **Ahead of query**, once per ingested corpus state, then reused by every graph query profile. | LightRAG storage plus Neo4j for the shared ingested corpus; query profiles do not create separate graphs. | Primarily machine-oriented entity/relation graph, with descriptive labels and summaries. | **No.** A query reads the graph; it does not learn from or write back the answer. |
+| `agentic-rag` | Canonical | **Yes** | Creates no independent index; reuses Atlas's plain chunks and the already-ingested LightRAG graph. | None of its own. | None of its own; graph availability is inherited from LightRAG ingestion. | Shared Weaviate and LightRAG state; ReAct messages and tool traces are request-local. | Mixed: machine indexes plus an LLM-readable tool trace. | **No.** Tool choices and observations are not persisted between queries. |
+| `n8n-adaptive-rag` | Canonical orchestrator | **Yes** | Creates no retrieval state; delegates to another deployed approach. | None of its own. | None of its own. | Only n8n workflow configuration/execution history; retrieval state belongs to the selected route. | Human-editable workflow over machine retrieval services. | **No.** Classification and route choice are per request. |
+| `lazy-graph-rag` | Experimental, opt-in | **Yes - experimental** | Reuses Atlas chunks; on the first query after a cache miss, deterministically indexes concepts and co-occurrences without an LLM. | None; it derives concept postings and edges from existing chunks. | **First query per corpus fingerprint**, then reused until the corpus changes or cache is cleared. | Named-volume cache keyed by collection and corpus fingerprint; no Neo4j. | Machine-oriented lexical concept/co-occurrence graph with inspectable counters. | **No.** Queries reuse but do not mutate the cached graph. |
+| proposed `graphify-rag` | Researched candidate; unimplemented and unmeasured | **No - candidate** | Graphify prebuilds an explainable graph from code, documents, media, and other inputs; semantic extraction may use a configured model. | Inputs become typed concepts and `EXTRACTED`/`INFERRED` edges rather than enriched retrieval chunks. | **Ahead of query** via Graphify build/update operations. | `graphify-out/graph.json` by default; optional Neo4j/FalkorDB export. No showcase namespace exists yet. | Both: machine-queryable graph plus human-facing HTML/report and edge provenance. | **No by default.** A rebuild can update the graph, but query answers do not automatically write back. |
+| proposed `llm-wiki-rag` | Concept candidate; unimplemented and unmeasured | **No - candidate** | An agent incrementally compiles immutable raw sources into linked Markdown pages governed by a schema/instruction file. | **Ahead of query and incrementally**: source material is synthesized into maintained wiki pages, not merely prefixed to chunks. | Human-readable links accumulate as the wiki evolves; a database graph is optional, not intrinsic. | Versionable Markdown wiki plus raw source layer and operating schema. | Primarily human-readable knowledge that is also agent-navigable. | **Optional by design.** Promote/writeback can persist validated answers; it would be disabled during a fair benchmark. |
+
+The Graphify row reflects the current [Graphify project contract](https://github.com/Graphify-Labs/graphify):
+it produces a reusable `graph.json`, supports scoped query/path/explain operations,
+and does not itself provide this showcase's OpenAI-compatible answer-generation
+route. The LLM Wiki row reflects [Karpathy's LLM Wiki idea file](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f),
+which is a knowledge-compilation pattern rather than a drop-in RAG server.
+
+#### 1.3.2 Query Execution and Evidence
+
+| Approach family | Routing or tool selection | Retrieval / traversal at query time | Reranking | Generation and model work | Evidence exposed to evaluation | Principal tuning surface | Best fit and characteristic failure |
+|---|---|---|---|---|---|---|---|
+| `vanilla-rag` | Fixed path; no tools. | Dense top-k over `RagBase_<profile>`. | None. | One query embedding plus one `light_gen` call. | Exact selected chunks and server metrics. | `k`, embedding model, chunk profile, generation role. | Strong inexpensive baseline; misses exact terms and cross-document paths when dense top-k is insufficient. |
+| `hybrid-rag` | Fixed path; no tools. | Weaviate BM25+dense hybrid candidate search. | TEI cross-encoder selects final chunks. | One embedding, one rerank request, one `light_gen` call. | Exact reranked chunks, scores, and server metrics. | `retrieve_k`, `top_n`, `alpha`, rerank on/off. | Exact identifiers plus semantic matches; quality depends on candidate recall and reranker fitness. |
+| `contextual-rag` | Fixed path; no query-time tools. | Hybrid search over context-prefixed chunks. | TEI cross-encoder. | Ingest-time blurb calls; query-time embedding, rerank, and one `light_gen` call. | Exact enriched chunks, scores, and server metrics. | Blurb model/prompt/window plus hybrid knobs. | Ambiguous or context-starved chunks; pays ingestion cost and can encode a poor blurb permanently until reingest. |
+| `graph-rag` (LightRAG) | Fixed LightRAG profile selected by model alias. | LightRAG internally combines entity, relationship, chunk, and vector retrieval according to `local`, `global`, `hybrid`, or another supported mode. It decides traversal/fanout internally; the showcase does not issue a fixed Neo4j k-hop query. | Atlas's LightRAG-to-TEI adapter can enable profile-scoped reranking. | KEYWORD/QUERY model calls at query time; EXTRACT work occurred during ingestion. | Answer, profile metadata, and operational metrics; exact internal contexts are not currently returned, so context-grounding metrics are `not_evaluable`. | Profile mode, `top_k`, `chunk_top_k`, token budget, rerank, and LightRAG role models. | Relationship/community questions; sensitive to extraction quality, profile fanout, and opaque context selection. |
+| `agentic-rag` | The controller LLM selects vector or graph tools during each bounded ReAct turn. | Tool-dependent: Weaviate vector/hybrid retrieval and/or LightRAG graph query. | No additional agent-level rerank; selected tools apply their own behavior. | Up to `max_steps` controller calls plus tool/model calls. | Tool observations/trace and metrics; trajectory is ephemeral. | `max_steps`, vector top-k, graph mode/profile, prompts, controller model. | Questions needing adaptive multi-step evidence gathering; can stop early, loop, or exhaust its step budget. |
+| `n8n-adaptive-rag` | A classifier model chooses `simple` or `complex`, then n8n maps that label to a route. | Entirely inherited from `vanilla-rag` or `agentic-rag` in the current workflow. | Inherited from delegated route. | One classifier call plus all downstream work. | Delegated sources/metrics are preserved; route and selected approach are separate `adaptive` metadata. | Classifier prompt/model, route map, workflow timeouts. | Low-code policy experiments; cannot outperform a poor classifier/route map and owns no retrieval quality itself. |
+| `lazy-graph-rag` | Fixed deterministic flow; no LLM tool chooser. | Hybrid seed chunks -> concept extraction -> budgeted graph expansion -> selected source chunks. | Deterministic relevance scoring; no cross-encoder. | Query embedding and one `light_gen` call; zero LLM index calls. | Selected source chunks plus cache, graph-size, and traversal-budget metadata. | Seed count, relevance budget, graph density, context cap. | Fast relationship expansion over explicit terminology; lexical concept graph can miss aliases and implicit relations. |
+| proposed `graphify-rag` | A future wrapper would choose scoped `query`, `path`, or `explain`; policy is not designed yet. | Graphify provides graph-native scoped subgraphs and explicit path traversal, without a vector index. | None in the current Graphify retrieval contract. | Graph construction may use a semantic model for docs/media; a showcase answer-generation call still needs to be designed. | Graph nodes, edges, confidence/provenance, and paths are available, but no showcase evidence schema exists. | Extractors, semantic backend, community/path limits, update policy, answer wrapper. | Explainable structural/path questions; not yet an end-to-end comparable RAG route. |
+| proposed `llm-wiki-rag` | An agent navigates wiki pages and links; exact retrieval policy depends on the chosen implementation. | Direct page/link navigation, search, or context loading over compiled Markdown. | Not inherent to the pattern. | Significant LLM compilation/maintenance work; query generation reads pre-synthesized pages. | Human-readable pages and source links could be evidence, but no showcase response contract exists. | Schema, compilation prompts, page size/link policy, linting, promotion/writeback. | Durable curated organizational knowledge; freshness, synthesis drift, and benchmark contamination require governance. |
+
 ## 2. Current Measured Results
 
 The current committed live run measured three dataset-ladder rungs. The table
-contains 1-5 means from two blinded local judges. Ragas scores are separate and
-have zero coverage because Atlas #596/#597 rejected the evaluator requests. All
-140 answer cells and all judge prompts completed; named flavor measurements from
-2026-07-03 remain historical tuning evidence.
+contains 1-5 means from two blinded local judges. Ragas faithfulness and answer
+relevancy remain separate coverage-aware metrics; LightRAG answer-only rows are
+ineligible for faithfulness because its response does not expose exact contexts.
+All 140 base-family answer cells and all judge prompts completed. The same run
+also measured 240 flavor cells, summarized in
+[`approach-flavor-tuning.md`](approach-flavor-tuning.md).
 
 | Approach | Baseline curated | Graph-native | Cyber threat intel | Direction |
 |---|---:|---:|---:|---|
-| `vanilla-rag` | **4.42** | 3.62 | 2.67 | Strong simple baseline; loses ground as relation/path constraints grow. |
-| `hybrid-rag` | 4.08 | 3.62 | 3.17 | Reliable text retriever; won two cyber questions. |
-| `contextual-rag` | 3.67 | **4.12** | 3.17 | Best canonical default on graph-native dossiers. |
-| `graph-rag` | 3.00 | 2.38 | 1.50 | Operational end to end, but current query synthesis is uneven. |
-| `agentic-rag` | 2.33 | 2.38 | 1.67 | Step-limited and the slowest path on harder prompts. |
-| `n8n-adaptive-rag` | **4.42** | 3.62 | 2.67 | Fast because it often routes to vanilla; inherits route-map quality. |
-| `lazy-graph-rag` | 3.92 | 3.88 | **3.25** | Experimental; rank improved 4/7 to 2/7 to 1/7. |
+| `vanilla-rag` | **4.17** | 4.06 | 3.00 | Strong simple baseline and competitive on graph-native dossiers. |
+| `hybrid-rag` | 4.00 | 3.62 | 2.92 | Reliable text retriever; its fast/high-recall flavors matter by dataset. |
+| `contextual-rag` | 3.92 | 4.19 | **3.17** | Strongest cyber aggregate and highest answer relevancy there. |
+| `graph-rag` | 3.75 | 2.62 | 2.42 | Operational end to end; quality remains profile-sensitive. |
+| `agentic-rag` | 2.67 | 2.44 | 3.00 | Better on cyber, but bounded tool planning remains expensive. |
+| `n8n-adaptive-rag` | 3.33 | 2.44 | 3.00 | Inherits the quality and cache behavior of its selected downstream route. |
+| `lazy-graph-rag` | 3.92 | **4.31** | 3.00 | Experimental; won graph-native and stayed low-latency. |
 
 Snapshot files:
 
-- Baseline: [`matrix`](results/live-2026-07-13-baseline_curated-matrix.json) and
-  [`evaluation`](results/live-2026-07-13-baseline_curated-evaluation.json)
-- Graph-native: [`matrix`](results/live-2026-07-13-graph_native-matrix.json) and
-  [`evaluation`](results/live-2026-07-13-graph_native-evaluation.json)
-- Cyber: [`matrix`](results/live-2026-07-13-cyber_threat_intel-matrix.json) and
-  [`evaluation`](results/live-2026-07-13-cyber_threat_intel-evaluation.json)
+- Baseline: [`matrix`](results/live-2026-07-17-baseline_curated-matrix.json) and
+  [`evaluation`](results/live-2026-07-17-baseline_curated-evaluation.json)
+- Graph-native: [`matrix`](results/live-2026-07-17-graph_native-matrix.json) and
+  [`evaluation`](results/live-2026-07-17-graph_native-evaluation.json)
+- Cyber: [`matrix`](results/live-2026-07-17-cyber_threat_intel-matrix.json) and
+  [`evaluation`](results/live-2026-07-17-cyber_threat_intel-evaluation.json)
 
 The matching `*-evidence.jsonl` and `*-judgments.json` files are documented in
 the [`results/` artifact index](results/README.md); JSONL remains a downloadable
@@ -158,9 +202,10 @@ followed by one answer-generation call.
 
 ### 3.6 Observed Behavior
 
-Fast and surprisingly competitive on simple fact and exact-context questions. It
-declined on the graph-native corpus because dense top-k alone does not reliably
-assemble relationship chains or cross-document entity links.
+Fast and competitive throughout this bounded run. It won baseline at 4.17,
+ranked third on graph-native at 4.06, and tied for second on cyber at 3.00. Dense
+top-k remains vulnerable when the required path is absent from the selected
+chunks, but the generation model can synthesize explicit relation dossiers well.
 
 ## 4. `hybrid-rag`
 
@@ -215,10 +260,10 @@ It does not query LightRAG or use extracted graph entities/relations.
 
 ### 4.6 Observed Behavior
 
-The high-recall hybrid flavor won the graph-native corpus at 4.25/5, while the
-canonical `hybrid-rag` route scored 3.88/5. That does not mean it used a graph;
-it means keyword+dense retrieval plus reranking found the right supporting chunks
-more reliably than the current LightRAG query configuration.
+The canonical route scored 4.00, 3.62, and 2.92 across the three rungs. Its
+high-recall flavor won graph-native at 4.19, while its fast flavor won cyber at
+3.67. That does not mean either used a graph; candidate fanout and reranking
+changed which supporting chunks reached generation.
 
 ## 5. `contextual-rag`
 
@@ -283,11 +328,10 @@ Query-time:
 
 ### 5.6 Observed Behavior
 
-This was the strongest canonical default on the harder rungs: the best canonical
-approach on graph-native (3.94, second overall) and on cyber threat intel (3.17,
-second overall), while only mid-pack on the simplest baseline corpus (4.08, where
-`vanilla-rag-wide` led at 4.42). It benefits when chunks are ambiguous without their
-document-level context.
+This route scored 3.92 on baseline, 4.19 on graph-native, and won cyber at 3.17.
+It also produced the highest cyber answer-relevancy mean at 0.891. It benefits
+when individual chunks are ambiguous without their document-level context, at
+the cost of extra ingest-time model work and slower high-recall queries.
 
 ## 6. `graph-rag`
 
@@ -309,13 +353,14 @@ Ingest-time:
 Query-time:
 
 1. The wrapper sends the user question to LightRAG `/query`.
-2. The query mode defaults to `hybrid`, overridable per flavor via `mode` (e.g.
-   `graph-rag-fast` uses `local`).
-3. The query payload includes `enable_rerank`, `top_k`, `chunk_top_k`, and
-   `max_total_tokens`.
+2. The selected model alias becomes an Atlas LightRAG query profile (for example,
+   `graph-rag-fast` selects the `local` profile).
+3. Atlas applies the profile's `mode`, `enable_rerank`, `top_k`, `chunk_top_k`,
+   and `max_total_tokens`, with explicit request values taking precedence.
 4. LightRAG performs its graph/vector retrieval and generation internally.
-5. The wrapper returns LightRAG's answer with a single source entry labeled
-   "LightRAG knowledge graph".
+5. The wrapper returns LightRAG's answer and selected profile metadata. The
+   compatibility source marker describes the graph path but is not treated as a
+   retrieved text context by evaluation.
 
 ### 6.3 Dependencies
 
@@ -348,11 +393,11 @@ thousands of tokens instead of the requested compact structure.
 
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
-| Query mode | `hybrid` | Via flavor | Default `hybrid` in `graph.py`; overridable via `mode` (`graph-rag-fast` uses `local`). |
-| `LIGHTRAG_QUERY_ENABLE_RERANK` | `false` | Yes | Disabled because current TEI payload is incompatible with LightRAG's Jina-style rerank client. |
-| `LIGHTRAG_QUERY_TOP_K` | 10 | Yes | Knowledge-graph candidate fanout. |
-| `LIGHTRAG_QUERY_CHUNK_TOP_K` | 5 | Yes | Chunk context fanout. |
-| `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS` | 12000 | Yes | Query prompt/context budget. |
+| Query mode | `hybrid` canonical | Atlas query profile | `graph-rag-fast` selects `local`; profiles live in `atlas.consumer.yml`. |
+| Rerank | off canonical | Atlas query profile | `graph-rag-rerank` enables Atlas's LightRAG-to-TEI adapter without changing the shared graph. |
+| `top_k` / `LIGHTRAG_QUERY_TOP_K` | 10 canonical | Atlas query profile; env fallback | Knowledge-graph candidate fanout; wide uses 30. |
+| `chunk_top_k` / `LIGHTRAG_QUERY_CHUNK_TOP_K` | 5 canonical | Atlas query profile; env fallback | Chunk context fanout; wide uses 12. |
+| `max_total_tokens` / `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS` | 12000 canonical | Atlas query profile; env fallback | Query prompt/context budget; wide uses 24000. |
 | `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | Yes, Atlas `.env` | Extraction model choice has large quality/latency impact. |
 | `LIGHTRAG_KEYWORD_LLM_MODEL` | `qwen3.6:latest` | Yes, Atlas `.env` | Keyword/query decomposition role; model metadata supplies `think:false`. |
 | `LIGHTRAG_QUERY_LLM_MODEL` | `qwen3.6:latest` | Yes, Atlas `.env` | Final graph answer model; model metadata supplies `think:false`. |
@@ -362,13 +407,11 @@ thousands of tokens instead of the requested compact structure.
 
 ### 6.6 Observed Behavior
 
-`graph-rag` is operational: it indexed all three datasets and answered every query
-cell. It did not win an aggregate. It won three baseline questions, tied the top
-mean on the cyber credential path, but returned `No relevant context found` on
-four other cyber questions. Its 67-88 second mean latency was much higher than
-chunk retrieval and lazy graph. Historical flavor evidence still shows
-`graph-rag-fast` can outperform default on some questions, while
-`graph-rag-wide` frequently returned truncated answers.
+`graph-rag` is operational: it indexed all three datasets and answered every
+query cell. It did not win an aggregate, but won three baseline questions and a
+rerank flavor won one graph-native question. Canonical mean latency was 12.61,
+12.47, and 21.20 seconds. The complete profile tier confirms sensitivity to
+mode, fanout, and reranking rather than a single uniformly best setting.
 
 ### 6.7 Untested Fine-Tuning Opportunities
 
@@ -377,7 +420,6 @@ yet swept:
 
 - LightRAG query modes beyond the `local`/`hybrid` already sampled by flavors.
 - `top_k`, `chunk_top_k`, and `max_total_tokens` swept systematically.
-- Re-enabling rerank with a LightRAG-compatible reranker adapter.
 - Using a stronger QUERY model while keeping a cheaper EXTRACT model.
 - Different graph extraction models and extraction concurrency.
 - More graph-native datasets with harder relationship/path constraints.
@@ -449,8 +491,10 @@ or complex, sends it to another approach, then normalizes the response.
    - `simple` -> `vanilla-rag`
    - `complex` -> `agentic-rag`
 4. n8n calls the selected backend approach route.
-5. n8n shapes `{ answer, route, approach }`.
-6. The plugin wraps that response in the common OpenAI-compatible output format.
+5. n8n shapes `{ answer, route, approach, rag_showcase }`, preserving the
+   delegated route's structured evidence.
+6. The plugin wraps that response, counts the classifier call, and records route
+   metadata separately from delegated grounding contexts.
 
 ### 8.3 Dependencies
 
@@ -481,8 +525,8 @@ or complex, sends it to another approach, then normalizes the response.
 
 ### 8.6 Observed Behavior
 
-Very fast in the measured runs because it often delegates to `vanilla-rag` and
-benefits from warm caches. It is not a better retriever by itself; its quality is
+Its latency depends on the classifier's route and cache state: it averaged 2.80,
+5.30, and 11.07 seconds. It is not a better retriever by itself; its quality is
 bounded by the classifier and selected downstream route.
 
 ## 9. Experimental `lazy-graph-rag`
@@ -497,8 +541,8 @@ The graph is persisted in a named Compose volume and invalidated by a corpus
 content fingerprint. Fast, balanced, and wide flavors tune
 `relevance_budget`, `seed_k`, `max_context_chunks`, and graph density. It is
 excluded from the six canonical defaults but was selected explicitly in the
-2026-07-13 ladder. It ranked fourth on baseline, second on graph-native, and
-first on cyber-threat data. See [`lazy-graph-rag.md`](lazy-graph-rag.md) for its
+2026-07-17 ladder. It tied for third on baseline, ranked first on graph-native,
+and tied for second on cyber-threat data. See [`lazy-graph-rag.md`](lazy-graph-rag.md) for its
 full design, phases, metadata contract, limitations, and measured results.
 
 ## 10. Cross-Approach Comparison
@@ -518,15 +562,14 @@ full design, phases, metadata contract, limitations, and measured results.
 The current results are a measured baseline, not the end of the search space.
 The highest-leverage tuning work is:
 
-1. Run a systematic `graph-rag` mode/fanout sweep — `mode`, `top_k`, `chunk_top_k`,
-   and `max_total_tokens` are already flavor-overridable.
-2. Fix or adapt LightRAG query rerank so reranking can be evaluated instead of
-   disabled.
-3. Sweep `hybrid-rag` and `contextual-rag` `retrieve_k`, `top_n`, and hybrid
+1. Keep `graph-rag-rerank` opt-in: it improved judge score on the cyber rung but
+   increased latency and reduced answer relevancy; the measured tradeoff does not
+   justify making it the canonical default.
+2. Sweep `hybrid-rag` and `contextual-rag` `retrieve_k`, `top_n`, and hybrid
    `alpha` by dataset — all already flavor-overridable.
-4. Sweep `agentic-rag` `max_steps` and `vector_top_k` (already flavor-overridable)
+3. Sweep `agentic-rag` `max_steps` and `vector_top_k` (already flavor-overridable)
    and improve the tool prompt.
-5. Tune the n8n route map so graph-native queries can route to `hybrid-rag` or
+4. Tune the n8n route map so graph-native queries can route to `hybrid-rag` or
    `graph-rag`, not only `vanilla-rag` or `agentic-rag`.
-6. Treat chunk size/overlap and contextual blurb model/prompt as dataset-level
+5. Treat chunk size/overlap and contextual blurb model/prompt as dataset-level
    tuning variables.

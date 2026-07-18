@@ -6,7 +6,7 @@ hide:
 # 1 RAG Showcase
 
 <div class="hero-tagline" markdown>
-Six canonical RAG approaches, compared side by side — each served as an OpenAI-compatible
+Seven RAG approaches, compared side by side — each served as an OpenAI-compatible
 endpoint on a fully-local [Atlas](https://github.com/thekaveh/atlas) stack. Ask one
 question in Open WebUI and watch the approaches answer in parallel, with a uniform
 answer, retrieved-context, and metrics surface. It doubles as a reproducible evaluation
@@ -16,7 +16,7 @@ harness that measures *which approach wins on which kind of question*.
 [Quick Start](guide/quickstart.md){ .md-button .md-button--primary }
 [Measured Results](comparison.md){ .md-button }
 
-## 1. The Six Approaches
+## 1. The Seven Approaches
 
 | Endpoint | Approach | Designed to shine on |
 |----------|----------|----------------------|
@@ -26,6 +26,7 @@ harness that measures *which approach wins on which kind of question*.
 | [`graph-rag`](approaches.md#6-graph-rag) | LightRAG over extracted entities, relationships, and vector context | Graph-shaped relationship questions |
 | [`agentic-rag`](approaches.md#7-agentic-rag) | ReAct loop over vector and graph retrieval tools | Multi-hop and comparative questions |
 | [`n8n-adaptive-rag`](approaches.md#8-n8n-adaptive-rag) | Low-code workflow that routes by query complexity | Mixed simple-and-complex batches |
+| [`lazy-graph-rag`](approaches.md#9-experimental-lazy-graph-rag) | Deterministic concept graph with budgeted query-time expansion | Graph-shaped corpora under a lower indexing budget |
 
 The last column is the design intent behind each demo query family, not a measured
 result — the committed runs contradict some intended contrasts (see the
@@ -35,25 +36,29 @@ Any approach can also expose tuned **flavors** — for example `hybrid-rag-high-
 or `graph-rag-fast` — that route to the same base approach with reproducible parameter
 overrides and their own selectable model alias. See [Flavor Tuning](approach-flavor-tuning.md).
 
-An explicitly selected [experimental `lazy-graph-rag`](lazy-graph-rag.md) endpoint
-adds deterministic concept-graph expansion without changing the canonical six.
-It is not included in `default` evaluation expansion, but its 2026-07-13
-seven-way dataset-ladder measurements are committed alongside the canonical runs.
+The [experimental `lazy-graph-rag`](lazy-graph-rag.md) endpoint is the seventh
+supported base approach. It remains outside the backward-compatible ad hoc
+`default` matrix expansion, but joins the measured dataset ladder when
+`--include-flavor-tier` is selected.
 
 ## 2. Headline Result
 
-The 2026-07-13 ladder ran the six canonical approaches plus experimental lazy
-graph across three datasets of increasing structure. All 140 cells succeeded,
-and the winner shifts with input complexity:
+The 2026-07-17 ladder ran all seven base approaches and all twelve named flavors
+across three datasets of increasing structure. All 380 answer cells succeeded:
+140 base-family cells and 240 flavor cells. Base-family winners shifted with the
+input:
 
 | Dataset | Winning configuration | Judge score |
 |---------|-----------------------|:-----------:|
-| Baseline curated | `n8n-adaptive-rag` / `vanilla-rag` | 4.42 |
-| Graph-native dossiers | `contextual-rag` | 4.12 |
-| Cyber-threat graph (MITRE ATT&CK) | `lazy-graph-rag` | 3.25 |
+| Baseline curated | `vanilla-rag` | 4.17 |
+| Graph-native dossiers | `lazy-graph-rag` | 4.31 |
+| Cyber-threat graph (MITRE ATT&CK) | `contextual-rag` | 3.17 |
 
-Full per-query winners, judge methodology, and raw snapshots are in
-[Evaluation and Results](evaluation-methodology.md).
+The flavor-tier winners were `lazy-graph-rag-wide`,
+`hybrid-rag-high-recall`, and `hybrid-rag-fast`. Full per-query winners, Ragas
+coverage, judge methodology, and raw snapshots are in
+[Evaluation and Results](evaluation-methodology.md) and the
+[Dataset Complexity Report](dataset-complexity-report.md).
 
 ## 3. Documentation
 
@@ -71,7 +76,7 @@ Full per-query winners, judge methodology, and raw snapshots are in
 
     ---
 
-    Step-by-step internals, dependencies, and tuning knobs for each of the six.
+    Step-by-step internals, dependencies, and tuning knobs for all seven.
 
     [Approach Internals](approaches.md)
 

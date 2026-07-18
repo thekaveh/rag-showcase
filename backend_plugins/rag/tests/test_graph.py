@@ -14,8 +14,24 @@ def _clear_flavor_cache():
     # A per-test flavors.yaml override loads into the module-global cache; clear
     # before AND after so a tmp table can't leak across tests (mirrors test_flavors.py).
     flavors._CACHE.clear()
+    lightrag._PROFILE_CACHE.clear()
     yield
     flavors._CACHE.clear()
+    lightrag._PROFILE_CACHE.clear()
+
+
+def _profiles_file(tmp_path, monkeypatch, *profiles):
+    path = tmp_path / "lightrag-query-profiles.json"
+    path.write_text(
+        json.dumps({
+            "version": 1,
+            "precedence": ["request", "profile", "service_env_default"],
+            "profiles": list(profiles),
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("LIGHTRAG_QUERY_PROFILES_FILE", str(path))
+    return path
 
 # NOTE: these tests scope respx via `with respx.mock:` inside each test body
 # rather than the `@respx.mock` decorator. Several tests here mock the SAME
@@ -25,7 +41,12 @@ def _clear_flavor_cache():
 
 
 @pytest.mark.asyncio
-async def test_graph_queries_lightrag(monkeypatch):
+async def test_graph_queries_lightrag(tmp_path, monkeypatch):
+    _profiles_file(tmp_path, monkeypatch, {
+        "name": "graph-rag", "mode": "hybrid", "top_k": 10,
+        "chunk_top_k": 5, "max_total_tokens": 12000,
+        "enable_rerank": False,
+    })
     monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
     monkeypatch.setenv("LIGHTRAG_API_KEY", "k")
     with respx.mock:
@@ -62,15 +83,14 @@ async def test_graph_flavor_overrides_query_payload(tmp_path, monkeypatch):
 flavors:
   - alias: graph-rag-wide
     base: graph-rag
-    params:
-      mode: hybrid
-      top_k: 30
-      chunk_top_k: 12
-      max_total_tokens: 24000
-      enable_rerank: false
 """,
         encoding="utf-8",
     )
+    _profiles_file(tmp_path, monkeypatch, {
+        "name": "graph-rag-wide", "mode": "hybrid", "top_k": 30,
+        "chunk_top_k": 12, "max_total_tokens": 24000,
+        "enable_rerank": False,
+    })
     monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
     monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
     with respx.mock:

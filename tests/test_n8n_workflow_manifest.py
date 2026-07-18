@@ -24,7 +24,9 @@ from core.consumer_manifest import (
 )
 
 config = load_consumer_config(
-    root / "infra", explicit_paths=[str(root / "atlas.consumer.yml")]
+    root / "infra",
+    explicit_paths=[str(root / "atlas.consumer.yml")],
+    lightrag_rerank_adapter_enabled=True,
 )
 workflows = list(config.n8n_workflows)
 print(json.dumps({
@@ -81,6 +83,9 @@ def test_consumer_manifest_declares_owned_active_adaptive_workflow() -> None:
 def test_workflow_seeding_has_no_showcase_mount_or_manual_import() -> None:
     overlay = (ROOT / "compose" / "rag-overlay.yml").read_text(encoding="utf-8")
     start = (ROOT / "scripts" / "start-all.sh").read_text(encoding="utf-8")
+    verifier = (ROOT / "scripts" / "verify_adaptive_webhook.py").read_text(
+        encoding="utf-8"
+    )
     migration = (ROOT / "scripts" / "remove_legacy_n8n_workflow.js").read_text(
         encoding="utf-8"
     )
@@ -94,8 +99,10 @@ def test_workflow_seeding_has_no_showcase_mount_or_manual_import() -> None:
     assert 'docker restart "${PROJECT_NAME}-n8n"' in start
     assert "remove_legacy_n8n_workflow.js" in start
     assert "unpublish:workflow --id=adaptiverag00001" not in start
-    assert "N8N_ADAPTIVE_WEBHOOK_URL" in start
-    assert 'response.json().get("answer")' in start
+    assert "verify_adaptive_webhook.py" in start
+    assert "/webhook/adaptive-rag" in start
+    assert 'payload.get("rag_showcase")' in verifier
+    assert 'extension.get("schema_version") == 1' in verifier
 
     assert "adaptiverag00001" in migration
     assert "workflow_entity" in migration

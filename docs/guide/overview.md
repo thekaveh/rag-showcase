@@ -1,6 +1,6 @@
 # 2.1 Overview
 
-RAG Showcase compares six modern retrieval-augmented-generation (RAG) approaches
+RAG Showcase compares seven retrieval-augmented-generation (RAG) approaches
 under **identical conditions** — same corpus, same embedding model, and the same
 generation model for the chunk-based approaches — so the dominant variable is the
 *retrieval-and-reasoning approach* itself. Two deliberate exceptions: `graph-rag`
@@ -13,8 +13,8 @@ generator of whichever approach it routes to (see
 Each approach is an OpenAI-compatible `/rag/<name>/v1/chat/completions` endpoint in a
 self-contained plugin package (`backend_plugins/rag/`) that is **bind-mounted** into
 Atlas's FastAPI backend through a generic *plugin seam*. `atlas.consumer.yml`
-declaratively maps the six base routes and eight flavor aliases into Atlas's
-**LiteLLM** startup configuration, so they appear automatically as selectable
+declaratively maps seven base routes and twelve flavor aliases into Atlas's
+**LiteLLM** startup configuration, so all nineteen appear automatically as selectable
 models in **Open WebUI** without runtime registration calls.
 
 ```mermaid
@@ -27,8 +27,10 @@ flowchart LR
     R --> G[graph-rag]
     R --> A[agentic-rag]
     R --> N[n8n-adaptive-rag]
+    R --> LG[lazy-graph-rag]
     V & H & C & A --> W[(Weaviate<br/>+ TEI rerank)]
     G & A --> LR[(LightRAG<br/>knowledge graph)]
+    LG --> LC[(Persistent lazy<br/>concept-graph cache)]
     N --> WF[n8n workflow<br/>classify → route]
 ```
 

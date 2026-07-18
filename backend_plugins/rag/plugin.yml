@@ -27,6 +27,10 @@ env:
     type: int
     default: "50051"
     description: In-network Weaviate gRPC port; distinct from Atlas's published host port.
+  - name: RAG_WEAVIATE_INIT_TIMEOUT_S
+    type: int
+    default: "30"
+    description: Weaviate client initialization timeout; covers transient gRPC readiness delay.
   - name: TEI_RERANKER_ENDPOINT
     default: http://tei-reranker:80
     description: Text Embeddings Inference reranker endpoint.
