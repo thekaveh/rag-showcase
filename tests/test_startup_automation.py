@@ -32,16 +32,29 @@ def test_start_uses_atlas_consumer_manifest_and_native_headless_preflight() -> N
     assert "--no-tui --detach" in script
 
 
-def test_start_bridges_litellm_secret_to_cross_provider_lightrag_roles() -> None:
+def test_start_does_not_mutate_atlas_env_for_lightrag_role_keys() -> None:
+    # #48: the consumer no longer awk-rewrites Atlas's generated infra/.env to
+    # inject the LiteLLM master key into the LightRAG KEYWORD/QUERY role bindings.
     script = _script("start-all.sh")
 
+    assert "sync_runtime_secret_alias" not in script
+    assert "LIGHTRAG_KEYWORD_LLM_BINDING_API_KEY" not in script
+    assert "LIGHTRAG_QUERY_LLM_BINDING_API_KEY" not in script
+
+    # The bindings still authenticate to in-network LiteLLM because Atlas defaults
+    # these role keys to ${LITELLM_MASTER_KEY} when the LIGHTRAG_* override is unset
+    # (atlas #721). If that upstream default is ever dropped, this test fails and
+    # signals the consumer must re-wire the keys (via the overlay, not .env).
+    lightrag_compose = (
+        ROOT / "infra/services/lightrag/compose.yml"
+    ).read_text(encoding="utf-8")
     assert (
-        "sync_runtime_secret_alias LITELLM_MASTER_KEY "
-        "LIGHTRAG_KEYWORD_LLM_BINDING_API_KEY" in script
+        "${LIGHTRAG_KEYWORD_LLM_BINDING_API_KEY:-${LITELLM_MASTER_KEY}}"
+        in lightrag_compose
     )
     assert (
-        "sync_runtime_secret_alias LITELLM_MASTER_KEY "
-        "LIGHTRAG_QUERY_LLM_BINDING_API_KEY" in script
+        "${LIGHTRAG_QUERY_LLM_BINDING_API_KEY:-${LITELLM_MASTER_KEY}}"
+        in lightrag_compose
     )
 
 

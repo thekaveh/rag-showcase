@@ -89,36 +89,15 @@ fi
 # multi-line container name. -f2- (not -f2): values may themselves contain '='.
 envval() { grep -E "^$1=" infra/.env | tail -1 | cut -d= -f2- || true; }
 
-# Cross-provider LightRAG roles do not inherit LLM_BINDING_API_KEY. Derive their
-# gateway credentials from Atlas's generated LiteLLM secret without committing or
-# printing it. This remains role-scoped: the native Ollama EXTRACT role gets no key.
-sync_runtime_secret_alias() {
-  local source_key="$1" target_key="$2" value tmp
-  value="$(envval "$source_key")"
-  [ -n "$value" ] || {
-    echo "Required runtime secret $source_key is missing from infra/.env" >&2
-    exit 1
-  }
-  tmp="$(mktemp "${TMPDIR:-/tmp}/rag-showcase-env.XXXXXX")"
-  awk -v key="$target_key" -v value="$value" '
-    BEGIN { written = 0 }
-    index($0, key "=") == 1 {
-      if (!written) { print key "=" value; written = 1 }
-      next
-    }
-    { print }
-    END { if (!written) print key "=" value }
-  ' infra/.env > "$tmp"
-  mv "$tmp" infra/.env
-}
+# LightRAG KEYWORD/QUERY role keys need no consumer wiring: Atlas defaults them to
+# ${LITELLM_MASTER_KEY} when the LIGHTRAG_* override is unset (atlas #721), so the
+# in-network LiteLLM bindings authenticate without us mutating Atlas's infra/.env.
 
 echo "==> Running Atlas consumer-manifest preflight…"
 [ -f infra/.env ] || cp infra/.env.example infra/.env
 ( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
     --project "$ATLAS_PROJECT_NAME" --base-port "$ATLAS_BASE_PORT" \
     "${ATLAS_SOURCE_ARGS[@]}" env backfill )
-sync_runtime_secret_alias LITELLM_MASTER_KEY LIGHTRAG_KEYWORD_LLM_BINDING_API_KEY
-sync_runtime_secret_alias LITELLM_MASTER_KEY LIGHTRAG_QUERY_LLM_BINDING_API_KEY
 ( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
     --project "$ATLAS_PROJECT_NAME" --base-port "$ATLAS_BASE_PORT" \
     "${ATLAS_SOURCE_ARGS[@]}" compose validate )
