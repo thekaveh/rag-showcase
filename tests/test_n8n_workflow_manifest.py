@@ -86,9 +86,6 @@ def test_workflow_seeding_has_no_showcase_mount_or_manual_import() -> None:
     verifier = (ROOT / "scripts" / "verify_adaptive_webhook.py").read_text(
         encoding="utf-8"
     )
-    migration = (ROOT / "scripts" / "remove_legacy_n8n_workflow.js").read_text(
-        encoding="utf-8"
-    )
 
     assert "../n8n:/showcase-n8n" not in overlay
     assert "n8n import:workflow" not in start
@@ -97,14 +94,14 @@ def test_workflow_seeding_has_no_showcase_mount_or_manual_import() -> None:
     assert 'if [ -z "$(envval N8N_API_KEY)" ]' in start
     assert "publish:workflow --id=atlas-consumer-adaptive-rag" in start
     assert 'docker restart "${PROJECT_NAME}-n8n"' in start
-    assert "remove_legacy_n8n_workflow.js" in start
     assert "unpublish:workflow --id=adaptiverag00001" not in start
     assert "verify_adaptive_webhook.py" in start
     assert "/webhook/adaptive-rag" in start
     assert 'payload.get("rag_showcase")' in verifier
     assert 'extension.get("schema_version") == 1' in verifier
 
-    assert "adaptiverag00001" in migration
-    assert "workflow_entity" in migration
-    assert "WHERE id = $1" in migration
-    assert "DELETE FROM" in migration
+    # The one-shot legacy unnamespaced-workflow removal has been retired (#52):
+    # no reference in start-all.sh and the migration script is gone.
+    assert "remove_legacy_n8n_workflow.js" not in start
+    assert "adaptiverag00001" not in start
+    assert not (ROOT / "scripts" / "remove_legacy_n8n_workflow.js").exists()
