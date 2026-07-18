@@ -104,14 +104,15 @@ def _query(
     query_id: str,
     scores: dict[str, float],
     *,
-    per_judge: dict[str, dict[str, float]],
-    winner: str,
+    per_judge: dict[str, dict[str, Any]],
+    winner: str | None,
 ) -> dict[str, Any]:
     return {
         "query_id": query_id,
         "mean_by_approach": scores,
         "per_judge": {
-            model: {"scores": model_scores} for model, model_scores in per_judge.items()
+            model: detail if "error" in detail else {"scores": detail}
+            for model, detail in per_judge.items()
         },
         "observed_winner": winner,
     }
@@ -140,20 +141,20 @@ def _write_two_dataset_fixture(tmp_path: Path) -> list[dict[str, Any]]:
         "approach-a": _approach_summary(
             5.0,
             3,
-            3,
-            answer_relevancy=_metric(0.8, 3, 3),
-            faithfulness=_metric(0.9, 2, 3, not_evaluable=1),
+            4,
+            answer_relevancy=_metric(0.8, 3, 4, errors=1),
+            faithfulness=_metric(0.9, 2, 4, not_evaluable=1, errors=1),
             latency=300.0,
-            successful=2,
-            attempted=3,
+            successful=3,
+            attempted=4,
             errors=1,
         ),
         "approach-b": _approach_summary(
             3.0,
             3,
-            3,
-            answer_relevancy=_metric(0.4, 3, 3),
-            faithfulness=_metric(0.5, 3, 3),
+            4,
+            answer_relevancy=_metric(0.4, 4, 4),
+            faithfulness=_metric(0.5, 4, 4),
             latency=500.0,
         ),
     }
@@ -180,13 +181,24 @@ def _write_two_dataset_fixture(tmp_path: Path) -> list[dict[str, Any]]:
         )
         for index in range(1, 4)
     ]
+    queries_two.append(
+        _query(
+            "q4",
+            {},
+            per_judge={
+                "judge-a": {"error": "no valid verdict"},
+                "judge-b": {"error": "no valid verdict"},
+            },
+            winner=None,
+        )
+    )
     first_eval, first_judgments = _write_snapshot(
         tmp_path, "easy", tier="base", approaches=base_one, queries=queries_one
     )
     second_eval, second_judgments = _write_snapshot(
         tmp_path, "hard", tier="base", approaches=base_two, queries=queries_two
     )
-    return [
+    datasets = [
         {
             "id": "easy",
             "complexity_level": 1,
@@ -202,6 +214,33 @@ def _write_two_dataset_fixture(tmp_path: Path) -> list[dict[str, Any]]:
             "judgment_snapshot": second_judgments,
         },
     ]
+    flavors = {"flavors": [{"alias": "approach-a-wide", "base": "approach-a"}]}
+    flavors_path = tmp_path / "compare" / "flavors.yaml"
+    flavors_path.parent.mkdir()
+    flavors_path.write_text(yaml.safe_dump(flavors), encoding="utf-8")
+    flavor_approaches = {"approach-a-wide": _approach_summary(4.0, 1, 1)}
+    flavor_queries = [
+        _query(
+            "q1",
+            {"approach-a-wide": 4.0},
+            per_judge={
+                "judge-a": {"approach-a-wide": 4.0},
+                "judge-b": {"approach-a-wide": 4.0},
+            },
+            winner="approach-a-wide",
+        )
+    ]
+    for dataset in datasets:
+        evaluation, judgments = _write_snapshot(
+            tmp_path,
+            dataset["id"],
+            tier="flavor",
+            approaches=flavor_approaches,
+            queries=flavor_queries,
+        )
+        dataset["flavor_evaluation_snapshot"] = evaluation
+        dataset["flavor_judgment_snapshot"] = judgments
+    return datasets
 
 
 def _write_graph_ineligible_fixture(tmp_path: Path) -> list[dict[str, Any]]:
@@ -228,12 +267,40 @@ def _write_graph_ineligible_fixture(tmp_path: Path) -> list[dict[str, Any]]:
     evaluation, judgments = _write_snapshot(
         tmp_path, "graph", tier="base", approaches=approaches, queries=queries
     )
+    flavors_path = tmp_path / "compare" / "flavors.yaml"
+    flavors_path.parent.mkdir()
+    flavors_path.write_text(
+        yaml.safe_dump({"flavors": [{"alias": "graph-rag-wide", "base": "graph-rag"}]}),
+        encoding="utf-8",
+    )
+    flavor_approaches = {"graph-rag-wide": _approach_summary(4.0, 2, 2)}
+    flavor_queries = [
+        _query(
+            f"q{index}",
+            {"graph-rag-wide": 4.0},
+            per_judge={
+                "judge-a": {"graph-rag-wide": 4.0},
+                "judge-b": {"graph-rag-wide": 4.0},
+            },
+            winner="graph-rag-wide",
+        )
+        for index in range(1, 3)
+    ]
+    flavor_evaluation, flavor_judgments = _write_snapshot(
+        tmp_path,
+        "graph",
+        tier="flavor",
+        approaches=flavor_approaches,
+        queries=flavor_queries,
+    )
     return [{
         "id": "graph",
         "complexity_level": 1,
         "status": "measured",
         "evaluation_snapshot": evaluation,
         "judgment_snapshot": judgments,
+        "flavor_evaluation_snapshot": flavor_evaluation,
+        "flavor_judgment_snapshot": flavor_judgments,
     }]
 
 
@@ -248,7 +315,7 @@ def test_overall_rank_uses_dataset_macro_mean(tmp_path: Path) -> None:
     assert rows["approach-b"]["judge_macro_mean"] == 3.0
     assert rows["approach-a"]["overall_rank"] == 1
     assert rows["approach-a"]["judge_evaluated"] == 4
-    assert rows["approach-a"]["judge_total"] == 4
+    assert rows["approach-a"]["judge_total"] == 5
 
 
 def test_aggregates_counters_models_disagreement_and_weighted_metrics(
@@ -268,12 +335,12 @@ def test_aggregates_counters_models_disagreement_and_weighted_metrics(
     assert row["faithfulness_mean"] == 0.733333
     assert row["faithfulness_evaluated"] == 3
     assert row["faithfulness_not_evaluable"] == 1
-    assert row["mean_latency_ms"] == 233.333333
-    assert row["successful"] == 3
-    assert row["attempted"] == 4
+    assert row["mean_latency_ms"] == 250.0
+    assert row["successful"] == 4
+    assert row["attempted"] == 5
     assert row["errors"] == 1
     assert row["timeouts"] == 0
-    assert row["error_rate"] == 0.25
+    assert row["error_rate"] == 0.2
 
 
 def test_missing_faithfulness_is_not_coerced_to_zero(tmp_path: Path) -> None:
@@ -287,34 +354,6 @@ def test_missing_faithfulness_is_not_coerced_to_zero(tmp_path: Path) -> None:
 
 def test_base_and_flavor_aliases_are_separate(tmp_path: Path) -> None:
     datasets = _write_two_dataset_fixture(tmp_path)
-    flavors = {
-        "flavors": [{"alias": "approach-a-wide", "base": "approach-a"}],
-    }
-    flavors_path = tmp_path / "compare" / "flavors.yaml"
-    flavors_path.parent.mkdir()
-    flavors_path.write_text(yaml.safe_dump(flavors), encoding="utf-8")
-    approaches = {"approach-a-wide": _approach_summary(4.0, 1, 1)}
-    queries = [
-        _query(
-            "q1",
-            {"approach-a-wide": 4.0},
-            per_judge={
-                "judge-a": {"approach-a-wide": 4.0},
-                "judge-b": {"approach-a-wide": 4.0},
-            },
-            winner="approach-a-wide",
-        )
-    ]
-    for dataset in datasets:
-        evaluation, judgments = _write_snapshot(
-            tmp_path,
-            dataset["id"],
-            tier="flavor",
-            approaches=approaches,
-            queries=queries,
-        )
-        dataset["flavor_evaluation_snapshot"] = evaluation
-        dataset["flavor_judgment_snapshot"] = judgments
 
     result = build_leaderboards(datasets, root=tmp_path)
 
@@ -335,6 +374,114 @@ def test_validation_rejects_incompatible_measured_snapshots(tmp_path: Path) -> N
     _write_json(path, artifact)
 
     with pytest.raises(ValueError, match="mean_by_approach"):
+        build_leaderboards(datasets, root=tmp_path)
+
+
+def test_missing_flavor_snapshots_for_measured_dataset_fail(tmp_path: Path) -> None:
+    datasets = _write_two_dataset_fixture(tmp_path)
+    datasets[0].pop("flavor_evaluation_snapshot")
+    datasets[0].pop("flavor_judgment_snapshot")
+
+    with pytest.raises(ValueError, match="'easy'.*flavor_evaluation_snapshot"):
+        build_leaderboards(datasets, root=tmp_path)
+
+
+def test_partial_judge_panel_errors_preserve_valid_scores_and_counts(
+    tmp_path: Path,
+) -> None:
+    datasets = _write_two_dataset_fixture(tmp_path)
+    judgment_path = tmp_path / datasets[0]["judgment_snapshot"]
+    judgments = json.loads(judgment_path.read_text(encoding="utf-8"))
+    judgments["queries"][0]["mean_by_approach"]["approach-a"] = 1.0
+    judgments["queries"][0]["per_judge"]["judge-b"] = {
+        "error": "no valid verdict"
+    }
+    _write_json(judgment_path, judgments)
+    evaluation_path = tmp_path / datasets[0]["evaluation_snapshot"]
+    evaluation = json.loads(evaluation_path.read_text(encoding="utf-8"))
+    evaluation["datasets"]["easy"]["approaches"]["approach-a"]["judge_panel"][
+        "mean"
+    ] = 1.0
+    _write_json(evaluation_path, evaluation)
+
+    result = build_leaderboards(datasets, root=tmp_path)
+    dataset_row = next(
+        row for row in result["base"]["by_dataset"]
+        if row["dataset"] == "easy" and row["approach"] == "approach-a"
+    )
+    overall_row = next(
+        row for row in result["base"]["overall"] if row["approach"] == "approach-a"
+    )
+
+    assert dataset_row["judge_by_model"] == {"judge-a": 1.0, "judge-b": None}
+    assert dataset_row["judge_errors"] == 1
+    assert dataset_row["judge_disagreement"] is None
+    assert overall_row["judge_errors"] == 3
+    assert overall_row["judge_by_model"] == {"judge-a": 3.25, "judge-b": 6.0}
+    assert overall_row["judge_by_model_evaluated"] == {
+        "judge-a": 4,
+        "judge-b": 3,
+    }
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (
+            lambda summary: summary["judge_panel"].update({"mean": 2.0, "evaluated": 0}),
+            "judge mean requires positive evaluated coverage",
+        ),
+        (
+            lambda summary: summary["judge_panel"].update({"mean": float("nan")}),
+            "must be finite",
+        ),
+        (
+            lambda summary: summary["operational"].update({"successful": 0}),
+            "operational counters",
+        ),
+        (
+            lambda summary: summary["ragas"]["faithfulness"].update({"errors": 1}),
+            "Ragas counters",
+        ),
+        (
+            lambda summary: summary["judge_panel"].update({"evaluated": 2}),
+            "judge evaluated count",
+        ),
+    ],
+)
+def test_validation_rejects_malformed_counts_and_denominators(
+    tmp_path: Path,
+    mutate: Any,
+    message: str,
+) -> None:
+    datasets = _write_two_dataset_fixture(tmp_path)
+    path = tmp_path / datasets[0]["evaluation_snapshot"]
+    artifact = json.loads(path.read_text(encoding="utf-8"))
+    mutate(artifact["datasets"]["easy"]["approaches"]["approach-a"])
+    _write_json(path, artifact)
+
+    with pytest.raises(ValueError, match=message):
+        build_leaderboards(datasets, root=tmp_path)
+
+
+def test_validation_requires_same_approaches_on_all_measured_datasets(
+    tmp_path: Path,
+) -> None:
+    datasets = _write_two_dataset_fixture(tmp_path)
+    evaluation_path = tmp_path / datasets[1]["evaluation_snapshot"]
+    evaluation = json.loads(evaluation_path.read_text(encoding="utf-8"))
+    evaluation["datasets"]["hard"]["approaches"].pop("approach-b")
+    _write_json(evaluation_path, evaluation)
+    judgment_path = tmp_path / datasets[1]["judgment_snapshot"]
+    judgments = json.loads(judgment_path.read_text(encoding="utf-8"))
+    for query in judgments["queries"]:
+        query["mean_by_approach"].pop("approach-b", None)
+        for detail in query["per_judge"].values():
+            if "scores" in detail:
+                detail["scores"].pop("approach-b")
+    _write_json(judgment_path, judgments)
+
+    with pytest.raises(ValueError, match="same approach set.*hard"):
         build_leaderboards(datasets, root=tmp_path)
 
 

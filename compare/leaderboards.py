@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,38 @@ def _weighted_mean(points: list[tuple[float | None, int]]) -> float | None:
     usable = [(value, weight) for value, weight in points if value is not None and weight > 0]
     total = sum(weight for _, weight in usable)
     return round(sum(value * weight for value, weight in usable) / total, 6) if total else None
+
+
+def _finite(value: Any, label: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{label} must be numeric")
+    numeric = float(value)
+    if not math.isfinite(numeric):
+        raise ValueError(f"{label} must be finite")
+    return numeric
+
+
+def _counter(value: Any, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{label} must be a non-negative integer")
+    return value
+
+
+def _mean_with_coverage(value: Any, evaluated: int, label: str) -> float | None:
+    if value is None:
+        if evaluated:
+            raise ValueError(f"{label} mean is missing with evaluated coverage")
+        return None
+    numeric = _finite(value, f"{label} mean")
+    if not evaluated:
+        raise ValueError(f"{label} mean requires positive evaluated coverage")
+    return numeric
+
+
+def _coverage(value: Any, evaluated: int, total: int, label: str) -> None:
+    expected = round(evaluated / total, 6) if total else 0.0
+    if _finite(value, f"{label} coverage") != expected:
+        raise ValueError(f"{label} coverage does not match evaluated and total")
 
 
 def competition_ranks(
@@ -78,14 +111,13 @@ def _flavor_bases(root: Path) -> dict[str, str]:
     return bases
 
 
-def _snapshot_paths(dataset: dict[str, Any], *, tier: str) -> tuple[str, str] | None:
-    if tier == "base":
-        keys = ("evaluation_snapshot", "judgment_snapshot")
-    else:
-        keys = ("flavor_evaluation_snapshot", "flavor_judgment_snapshot")
+def _snapshot_paths(dataset: dict[str, Any], *, tier: str) -> tuple[str, str]:
+    keys = (
+        ("evaluation_snapshot", "judgment_snapshot")
+        if tier == "base"
+        else ("flavor_evaluation_snapshot", "flavor_judgment_snapshot")
+    )
     evaluation, judgment = (dataset.get(key) for key in keys)
-    if evaluation is None and judgment is None and tier == "flavors":
-        return None
     if not evaluation or not judgment:
         raise ValueError(
             f"measured dataset {dataset.get('id')!r} requires both {keys[0]} and {keys[1]}"
@@ -98,13 +130,46 @@ def _metric(summary: dict[str, Any], name: str) -> dict[str, Any]:
     if not isinstance(ragas, dict) or not isinstance(ragas.get(name), dict):
         raise ValueError(f"approach summary is missing Ragas metric {name!r}")
     metric = ragas[name]
-    required = ("mean", "evaluated", "total", "not_evaluable", "errors", "timeouts")
+    required = (
+        "mean", "evaluated", "total", "not_evaluable", "errors", "timeouts", "coverage"
+    )
     if any(key not in metric for key in required):
         raise ValueError(f"Ragas metric {name!r} is missing coverage counters")
+    evaluated = _counter(metric["evaluated"], f"Ragas {name} evaluated")
+    total = _counter(metric["total"], f"Ragas {name} total")
+    not_evaluable = _counter(metric["not_evaluable"], f"Ragas {name} not_evaluable")
+    errors = _counter(metric["errors"], f"Ragas {name} errors")
+    timeouts = _counter(metric["timeouts"], f"Ragas {name} timeouts")
+    if evaluated > total:
+        raise ValueError(f"Ragas {name} evaluated count exceeds total")
+    if evaluated + not_evaluable + errors + timeouts != total:
+        raise ValueError(f"Ragas counters for {name} do not add up to total")
+    _mean_with_coverage(metric["mean"], evaluated, f"Ragas {name}")
+    _coverage(metric["coverage"], evaluated, total, f"Ragas {name}")
     return metric
 
 
-def _rankings(summary: dict[str, Any], approaches: dict[str, dict[str, Any]]) -> dict[str, dict[str, int | None]]:
+def _validate_operational(summary: dict[str, Any]) -> dict[str, Any]:
+    operational = summary.get("operational")
+    if not isinstance(operational, dict):
+        raise ValueError("approach summary is missing operational summary")
+    required = ("attempted", "successful", "errors", "timeouts", "mean_latency_ms", "error_rate")
+    if any(key not in operational for key in required):
+        raise ValueError("approach summary has incomplete operational coverage")
+    attempted = _counter(operational["attempted"], "operational attempted")
+    successful = _counter(operational["successful"], "operational successful")
+    errors = _counter(operational["errors"], "operational errors")
+    timeouts = _counter(operational["timeouts"], "operational timeouts")
+    if successful + errors + timeouts != attempted:
+        raise ValueError("operational counters do not add up to attempted")
+    _mean_with_coverage(operational["mean_latency_ms"], successful, "operational latency")
+    expected_rate = round((errors + timeouts) / attempted, 6) if attempted else 0.0
+    if _finite(operational["error_rate"], "operational error_rate") != expected_rate:
+        raise ValueError("operational error_rate does not match response counters")
+    return operational
+
+
+def _rankings(approaches: dict[str, dict[str, Any]]) -> dict[str, dict[str, int | None]]:
     return {
         "judge": competition_ranks(
             {name: values["judge_panel"]["mean"] for name, values in approaches.items()},
@@ -127,74 +192,132 @@ def _rankings(summary: dict[str, Any], approaches: dict[str, dict[str, Any]]) ->
 
 def _judge_details(
     judgments: dict[str, Any], approaches: set[str], dataset_id: str
-) -> tuple[dict[str, dict[str, float | None]], dict[str, float | None], dict[str, int], list[str]]:
+) -> tuple[
+    dict[str, dict[str, float | None]],
+    dict[str, dict[str, int]],
+    dict[str, float | None],
+    dict[str, int],
+    dict[str, int],
+    dict[str, list[float]],
+    int,
+    list[str],
+    int,
+]:
     if judgments.get("dataset_id") != dataset_id:
         raise ValueError(f"judgment snapshot must identify dataset {dataset_id!r}")
     queries = judgments.get("queries")
     if not isinstance(queries, list):
         raise ValueError(f"judgment snapshot for {dataset_id!r} must contain a queries list")
     models = judgments.get("judges", [])
-    if not isinstance(models, list) or not all(isinstance(model, str) for model in models):
+    if (
+        not isinstance(models, list)
+        or not all(isinstance(model, str) for model in models)
+        or len(set(models)) != len(models)
+    ):
         raise ValueError(f"judgment snapshot for {dataset_id!r} has invalid judges")
     model_scores: dict[str, dict[str, list[float]]] = {
         approach: {model: [] for model in models} for approach in approaches
     }
     disagreement_scores: dict[str, list[list[float]]] = {approach: [] for approach in approaches}
+    disagreement_counts = {approach: 0 for approach in approaches}
     winners = {approach: 0 for approach in approaches}
+    mean_scores = {approach: [] for approach in approaches}
+    judge_errors = 0
     for index, query in enumerate(queries):
         if not isinstance(query, dict) or "mean_by_approach" not in query:
             raise ValueError(
                 f"judgment query {index} for {dataset_id!r} must contain mean_by_approach"
             )
         means = query["mean_by_approach"]
-        if not isinstance(means, dict) or set(means) != approaches:
+        if not isinstance(means, dict) or (means and set(means) != approaches):
             raise ValueError(
                 f"judgment query {index} approaches do not match evaluation approaches"
             )
-        per_judge = query.get("per_judge")
-        if not isinstance(per_judge, dict):
-            raise ValueError(f"judgment query {index} for {dataset_id!r} has invalid per_judge")
-        if set(per_judge) != set(models):
-            raise ValueError(
-                f"judgment query {index} judge coverage does not match the panel"
-            )
         for approach, value in means.items():
-            try:
-                float(value)
-            except (TypeError, ValueError) as exc:
-                raise ValueError(f"judgment query {index} has non-numeric score") from exc
+            _finite(value, f"judgment query {index} score for {approach}")
+        per_judge = query.get("per_judge")
+        if not isinstance(per_judge, dict) or set(per_judge) != set(models):
+            raise ValueError(f"judgment query {index} judge coverage does not match the panel")
+        scores_by_approach = {approach: [] for approach in approaches}
         for model, detail in per_judge.items():
-            if not isinstance(model, str) or not isinstance(detail, dict):
+            if not isinstance(detail, dict):
                 raise ValueError(f"judgment query {index} has invalid per-judge result")
+            if "error" in detail:
+                if not detail["error"]:
+                    raise ValueError(f"judgment query {index} has an empty judge error")
+                judge_errors += 1
+                continue
             scores = detail.get("scores")
             if not isinstance(scores, dict) or set(scores) != approaches:
                 raise ValueError(
                     f"judgment query {index} per-judge approaches do not match evaluation approaches"
                 )
             for approach, value in scores.items():
-                try:
-                    model_scores[approach][model].append(float(value))
-                except (TypeError, ValueError) as exc:
-                    raise ValueError(f"judgment query {index} has non-numeric per-judge score") from exc
-        for approach in approaches:
-            values = [scores[approach] for scores in (
-                detail["scores"] for detail in per_judge.values()
-            )]
-            disagreement_scores[approach].append([float(value) for value in values])
+                numeric = _finite(value, f"judgment query {index} score from {model}")
+                model_scores[approach][model].append(numeric)
+                scores_by_approach[approach].append(numeric)
+        if scores_by_approach[next(iter(approaches))] if approaches else False:
+            if set(means) != approaches:
+                raise ValueError(f"judgment query {index} is missing valid mean scores")
+            for approach, scores in scores_by_approach.items():
+                expected = round(sum(scores) / len(scores), 2)
+                if _finite(means[approach], f"judgment query {index} mean") != expected:
+                    raise ValueError(f"judgment query {index} mean_by_approach disagrees with panel")
+                mean_scores[approach].append(float(means[approach]))
+                disagreement_scores[approach].append(scores)
+                disagreement_counts[approach] += len(scores) * (len(scores) - 1) // 2
+        elif means:
+            raise ValueError(f"judgment query {index} has means without valid judge scores")
         winner = query.get("observed_winner")
         if winner is not None:
-            if winner not in approaches:
+            if winner not in approaches or not means:
                 raise ValueError(f"judgment query {index} names an unknown observed winner")
             winners[winner] += 1
     by_model = {
         approach: {model: _mean(scores) for model, scores in model_scores[approach].items()}
         for approach in approaches
     }
+    model_evaluated = {
+        approach: {model: len(scores) for model, scores in model_scores[approach].items()}
+        for approach in approaches
+    }
     disagreement = {
         approach: mean_pairwise_disagreement(values)
         for approach, values in disagreement_scores.items()
     }
-    return by_model, disagreement, winners, sorted(set(models))
+    return (
+        by_model,
+        model_evaluated,
+        disagreement,
+        disagreement_counts,
+        winners,
+        mean_scores,
+        judge_errors,
+        sorted(models),
+        len(queries),
+    )
+
+
+def _validate_judge_summary(
+    summary: dict[str, Any], *, scores: list[float], query_count: int
+) -> None:
+    judge = summary.get("judge_panel")
+    if not isinstance(judge, dict) or any(
+        key not in judge for key in ("mean", "evaluated", "total", "coverage")
+    ):
+        raise ValueError("approach summary has incomplete judge coverage")
+    evaluated = _counter(judge["evaluated"], "judge evaluated")
+    total = _counter(judge["total"], "judge total")
+    if evaluated > total:
+        raise ValueError("judge evaluated count exceeds total")
+    if total != query_count:
+        raise ValueError("judge total count does not match judgment queries")
+    mean = _mean_with_coverage(judge["mean"], evaluated, "judge")
+    _coverage(judge["coverage"], evaluated, total, "judge")
+    if evaluated != len(scores):
+        raise ValueError("judge evaluated count does not match judgment scores")
+    if mean != _mean(scores):
+        raise ValueError("judge mean does not match judgment scores")
 
 
 def _records_for_dataset(
@@ -204,7 +327,7 @@ def _records_for_dataset(
     *,
     flavor_bases: dict[str, str],
     tier: str,
-) -> tuple[list[dict[str, Any]], list[str]]:
+) -> tuple[list[dict[str, Any]], list[str], set[str]]:
     dataset_id = str(dataset.get("id") or "")
     datasets = evaluation.get("datasets")
     if not isinstance(datasets, dict) or set(datasets) != {dataset_id}:
@@ -221,22 +344,25 @@ def _records_for_dataset(
     if tier == "flavors" and not approach_names <= set(flavor_bases):
         raise ValueError(f"flavor snapshot for {dataset_id!r} contains unknown flavor aliases")
     for approach, summary in approaches.items():
-        if not isinstance(summary, dict) or not isinstance(summary.get("judge_panel"), dict):
-            raise ValueError(f"approach {approach!r} is missing judge panel summary")
-        if not isinstance(summary.get("operational"), dict):
-            raise ValueError(f"approach {approach!r} is missing operational summary")
-        judge = summary["judge_panel"]
-        operational = summary["operational"]
-        if any(key not in judge for key in ("mean", "evaluated", "total")):
-            raise ValueError(f"approach {approach!r} has incomplete judge coverage")
-        if any(key not in operational for key in ("attempted", "successful", "errors", "timeouts", "mean_latency_ms")):
-            raise ValueError(f"approach {approach!r} has incomplete operational coverage")
+        if not isinstance(summary, dict):
+            raise ValueError(f"approach {approach!r} has invalid summary")
         _metric(summary, "answer_relevancy")
         _metric(summary, "faithfulness")
-    judge_by_model, disagreement, wins, models = _judge_details(
-        judgments, approach_names, dataset_id
-    )
-    ranks = _rankings(scope, approaches)
+        _validate_operational(summary)
+    (
+        judge_by_model,
+        judge_by_model_evaluated,
+        disagreement,
+        disagreement_evaluated,
+        wins,
+        mean_scores,
+        judge_errors,
+        models,
+        query_count,
+    ) = _judge_details(judgments, approach_names, dataset_id)
+    for approach, summary in approaches.items():
+        _validate_judge_summary(summary, scores=mean_scores[approach], query_count=query_count)
+    ranks = _rankings(approaches)
     records = []
     for approach in sorted(approaches):
         summary = approaches[approach]
@@ -252,8 +378,11 @@ def _records_for_dataset(
                 "judge_mean": summary["judge_panel"]["mean"],
                 "judge_evaluated": int(summary["judge_panel"]["evaluated"]),
                 "judge_total": int(summary["judge_panel"]["total"]),
+                "judge_errors": judge_errors,
                 "judge_by_model": judge_by_model[approach],
+                "judge_by_model_evaluated": judge_by_model_evaluated[approach],
                 "judge_disagreement": disagreement[approach],
+                "judge_disagreement_evaluated": disagreement_evaluated[approach],
                 "answer_relevancy_rank": ranks["answer_relevancy"][approach],
                 "answer_relevancy": _metric(summary, "answer_relevancy"),
                 "faithfulness_rank": ranks["faithfulness"][approach],
@@ -263,7 +392,7 @@ def _records_for_dataset(
                 "query_wins": wins[approach],
             }
         )
-    return records, models
+    return records, models, approach_names
 
 
 def _overall_records(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -276,9 +405,13 @@ def _overall_records(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         faithfulness = [row["faithfulness"] for row in values]
         operational = [row["operational"] for row in values]
         judge_models = sorted({model for row in values for model in row["judge_by_model"]})
+        judge_by_model_evaluated = {
+            model: sum(row["judge_by_model_evaluated"].get(model, 0) for row in values)
+            for model in judge_models
+        }
         judge_by_model = {
             model: _weighted_mean([
-                (row["judge_by_model"].get(model), row["judge_evaluated"])
+                (row["judge_by_model"].get(model), row["judge_by_model_evaluated"].get(model, 0))
                 for row in values
             ])
             for model in judge_models
@@ -296,10 +429,16 @@ def _overall_records(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 ]),
                 "judge_evaluated": sum(row["judge_evaluated"] for row in values),
                 "judge_total": sum(row["judge_total"] for row in values),
+                "judge_errors": sum(row["judge_errors"] for row in values),
                 "judge_by_model": judge_by_model,
+                "judge_by_model_evaluated": judge_by_model_evaluated,
                 "judge_disagreement": _weighted_mean([
-                    (row["judge_disagreement"], row["judge_evaluated"]) for row in values
+                    (row["judge_disagreement"], row["judge_disagreement_evaluated"])
+                    for row in values
                 ]),
+                "judge_disagreement_evaluated": sum(
+                    row["judge_disagreement_evaluated"] for row in values
+                ),
                 "mean_dataset_rank": _mean([
                     float(row["judge_rank"]) for row in values if row["judge_rank"] is not None
                 ]),
@@ -355,27 +494,31 @@ def _overall_records(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     )
 
 
-def _tier(datasets: list[dict[str, Any]], *, root: Path, tier: str, flavor_bases: dict[str, str]) -> dict[str, Any]:
+def _tier(
+    datasets: list[dict[str, Any]], *, root: Path, tier: str, flavor_bases: dict[str, str]
+) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     models: set[str] = set()
-    covered_datasets: set[str] = set()
+    expected_approaches: set[str] | None = None
     for dataset in sorted(datasets, key=lambda row: (int(row["complexity_level"]), str(row["id"]))):
         if dataset.get("status") != "measured":
             continue
-        paths = _snapshot_paths(dataset, tier=tier)
-        if paths is None:
-            continue
-        evaluation_path, judgment_path = paths
-        records, tier_models = _records_for_dataset(
+        evaluation_path, judgment_path = _snapshot_paths(dataset, tier=tier)
+        records, tier_models, approach_names = _records_for_dataset(
             dataset,
             _load_json(root, evaluation_path, description="evaluation"),
             _load_json(root, judgment_path, description="judgment"),
             flavor_bases=flavor_bases,
             tier=tier,
         )
+        if expected_approaches is None:
+            expected_approaches = approach_names
+        elif approach_names != expected_approaches:
+            raise ValueError(
+                f"{tier} snapshots must use the same approach set; dataset {dataset['id']!r} differs"
+            )
         rows.extend(records)
         models.update(tier_models)
-        covered_datasets.add(str(dataset["id"]))
     by_dataset = sorted(
         rows,
         key=lambda row: (
@@ -390,7 +533,7 @@ def _tier(datasets: list[dict[str, Any]], *, root: Path, tier: str, flavor_bases
         "overall": _overall_records(rows),
         "by_dataset": by_dataset,
         "judge_models": sorted(models),
-        "dataset_count": len(covered_datasets),
+        "dataset_count": sum(dataset.get("status") == "measured" for dataset in datasets),
     }
 
 
@@ -398,6 +541,10 @@ def build_leaderboards(
     datasets: list[dict[str, Any]], *, root: Path = ROOT
 ) -> dict[str, Any]:
     """Build isolated base and flavor leaderboards from measured snapshots."""
+    for dataset in datasets:
+        if dataset.get("status") == "measured":
+            _snapshot_paths(dataset, tier="base")
+            _snapshot_paths(dataset, tier="flavors")
     flavor_bases = _flavor_bases(root)
     return {
         "base": _tier(datasets, root=root, tier="base", flavor_bases=flavor_bases),
