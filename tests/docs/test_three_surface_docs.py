@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import pytest
 from PIL import Image
@@ -112,3 +113,19 @@ def test_generated_mkdocs_config_has_no_source_repo_links(tmp_path) -> None:
     assert "repo_name:" not in text
     assert "edit_uri:" not in text
     assert "docs_dir: generated/site" in text
+
+
+def test_sortable_table_script_is_site_only_and_registered(tmp_path: Path) -> None:
+    manifest = load_manifest()
+    pages = iter_pages(manifest)
+    site_dir = tmp_path / "site"
+    wiki_dir = tmp_path / "wiki"
+    render_site(manifest, pages, site_dir)
+    render_wiki(manifest, pages, wiki_dir)
+
+    assert (site_dir / "javascripts" / "sortable-tables.js").is_file()
+    assert not (wiki_dir / "javascripts" / "sortable-tables.js").exists()
+
+    config = tmp_path / "mkdocs.yml"
+    render_mkdocs_yml(manifest, config)
+    assert "javascripts/sortable-tables.js" in config.read_text(encoding="utf-8")
