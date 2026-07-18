@@ -8,41 +8,11 @@ ATLAS_CONSUMER_MANIFEST="$(python3 -c 'import os,sys; print(os.path.abspath(os.p
 export ATLAS_CONSUMER_MANIFEST
 
 ATLAS_PROJECT_NAME="${RAG_SHOWCASE_PROJECT_NAME:-rag-showcase}"
-ATLAS_LAUNCH_LOCK="${TMPDIR:-/tmp}/rag-showcase-atlas-port-launch.lock"
-
-cleanup_launch_lock() {
-  if [ -d "$ATLAS_LAUNCH_LOCK" ] && [ "$(cat "$ATLAS_LAUNCH_LOCK/pid" 2>/dev/null || true)" = "$$" ]; then
-    rm -f "$ATLAS_LAUNCH_LOCK/pid"
-    rmdir "$ATLAS_LAUNCH_LOCK"
-  fi
-}
-
-acquire_launch_lock() {
-  if ! mkdir "$ATLAS_LAUNCH_LOCK" 2>/dev/null; then
-    lock_pid="$(cat "$ATLAS_LAUNCH_LOCK/pid" 2>/dev/null || true)"
-    if [ -n "$lock_pid" ] && kill -0 "$lock_pid" 2>/dev/null; then
-      echo "Another rag-showcase Atlas launch is selecting ports (PID $lock_pid)." >&2
-      exit 1
-    fi
-    rm -f "$ATLAS_LAUNCH_LOCK/pid"
-    rmdir "$ATLAS_LAUNCH_LOCK" 2>/dev/null || {
-      echo "Cannot clear stale Atlas launch lock: $ATLAS_LAUNCH_LOCK" >&2
-      exit 1
-    }
-    mkdir "$ATLAS_LAUNCH_LOCK"
-  fi
-  printf '%s\n' "$$" > "$ATLAS_LAUNCH_LOCK/pid"
-}
-
-acquire_launch_lock
-trap cleanup_launch_lock EXIT INT TERM
-if [ -n "${RAG_SHOWCASE_BASE_PORT:-}" ]; then
-  ATLAS_BASE_PORT="$(uv run python scripts/select_atlas_base_port.py \
-    --base "$RAG_SHOWCASE_BASE_PORT")"
-else
-  ATLAS_BASE_PORT="$(uv run python scripts/select_atlas_base_port.py)"
-fi
-echo "==> Selected free Atlas port block ${ATLAS_BASE_PORT}-$((ATLAS_BASE_PORT + 109)) for ${ATLAS_PROJECT_NAME}."
+# Atlas's native `--base-port auto` selects the first wholly-free BASE_PORT block
+# (using Atlas's own topology span, below the ephemeral range) and persists it to
+# infra/.env — no consumer-side finder or launch lock. Pin RAG_SHOWCASE_BASE_PORT
+# to force a specific block instead.
+ATLAS_BASE_PORT="${RAG_SHOWCASE_BASE_PORT:-auto}"
 
 # Provider sources belong to Atlas. Omit them by default so a consumer can use
 # its existing Atlas configuration without this repository assuming host hardware.
@@ -88,8 +58,6 @@ echo "==> Running Atlas consumer-manifest preflight…"
     --project "$ATLAS_PROJECT_NAME" --base-port "$ATLAS_BASE_PORT" \
     "${ATLAS_SOURCE_ARGS[@]}" doctor --format json )
 
-echo "==> Rechecking Atlas port block immediately before launch…"
-uv run python scripts/select_atlas_base_port.py --base "$ATLAS_BASE_PORT" >/dev/null
 echo "==> Starting Atlas (gen-ai-rag track)…"
 # doc-processor disabled: Atlas ships only GPU-container or localhost Docling, so
 # there's no CPU-container option. ingest falls back to naive text chunking, so
@@ -119,8 +87,6 @@ if [ "$ATLAS_START_STATUS" -ne 0 ]; then
   }
 fi
 rm -f "$ATLAS_START_LOG"
-cleanup_launch_lock
-trap - EXIT INT TERM
 
 PROJECT_NAME="$(envval PROJECT_NAME)"
 [ -n "$PROJECT_NAME" ] || { echo "PROJECT_NAME not found in infra/.env; aborting."; exit 1; }
