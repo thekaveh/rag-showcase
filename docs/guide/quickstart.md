@@ -154,8 +154,9 @@ LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
 
 To confirm the evaluation's Atlas-infra dependencies are up and in order — the
 LiteLLM aliases, Weaviate plus its ingested collections, LightRAG, the TEI
-reranker, and n8n — **without** running any ingestion, approach, or the LLM judge,
-run the read-only preflight against a started stack:
+reranker, n8n, and the required Ollama models (pulled, not just declared) —
+**without** running any ingestion, approach, or the LLM judge, run the read-only
+preflight against a started stack:
 
 ```bash
 make eval-check        # Atlas `doctor` (static) + live read-only dependency probes
