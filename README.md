@@ -294,7 +294,14 @@ below expands that operator contract with adjacent Atlas and startup settings.
 ```bash
 uv run pytest                 # unit suite (mocked I/O) + integration tests (skip without the stack)
 uv run pytest backend_plugins # unit tests only
+make eval-check               # read-only preflight: are the eval's Atlas-infra deps up? (needs a started stack)
 ```
+
+`make eval-check` confirms the evaluation's dependencies — the LiteLLM
+aliases, Weaviate plus its ingested collections, LightRAG, the TEI reranker,
+n8n, and the required Ollama models — are up and in order **without** running
+any ingestion, approach, or the LLM judge. It exits non-zero if anything is
+missing, so it is a cheap gate before an expensive matrix run.
 
 The unit tests mock all external I/O and run without the stack. The
 `tests/test_demo_matrix.py` integration tests exercise the live stack and
