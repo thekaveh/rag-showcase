@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # The services the evaluation reaches through the backend, in the order the
 # report lists them. Kept aligned with backend_plugins/rag/plugin.yml (see
 # tests/test_eval_preflight.py::test_probe_covers_every_declared_dependency).
-DECLARED_SERVICES = ("litellm", "weaviate", "lightrag", "tei-reranker", "n8n")
+DECLARED_SERVICES = ("litellm", "weaviate", "lightrag", "tei-reranker", "n8n", "ollama")
 
 
 def load_expected_aliases(manifest: Path | None = None) -> list[str]:
@@ -46,6 +46,23 @@ def load_expected_aliases(manifest: Path | None = None) -> list[str]:
     data = yaml.safe_load(manifest.read_text(encoding="utf-8"))
     models = (data.get("litellm_models") or {}).get("models") or []
     return sorted(row["name"] for row in models)
+
+
+def load_expected_models(env_user: Path | None = None) -> list[str]:
+    """Return the Ollama models the eval needs — the ``*_MODEL`` role vars in the
+    consumer env file (embedding, LightRAG roles, Ragas). Under ``ollama-localhost``
+    Atlas does not pull these, so a missing one means the eval will fail on first use.
+    """
+    env_user = env_user or (ROOT / "config" / "atlas.env.user")
+    models: set[str] = set()
+    for line in env_user.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        if key.endswith("_MODEL") and val:
+            models.add(val)
+    return sorted(models)
 
 
 def envval(key: str, env_path: Path | None = None) -> str | None:
@@ -133,11 +150,37 @@ def n8n():
     return "healthy (webhook activation is verified separately by a real POST)"
 
 
+def ollama():
+    # Read-only: list already-pulled models via GET /api/tags — never the pull or
+    # generate endpoints. Under ollama-localhost Atlas does not provision models, so
+    # this confirms the host has them without any download or generation.
+    # OLLAMA_ENDPOINT resolves per LLM_PROVIDER_SOURCE.
+    endpoint = (os.environ.get("OLLAMA_ENDPOINT") or "").rstrip("/")
+    if not endpoint:
+        return "skipped — OLLAMA_ENDPOINT unresolved (non-ollama source or stack not fully started)"
+    r = httpx.get(f"{endpoint}/api/tags", timeout=TIMEOUT)
+    r.raise_for_status()
+    tags = {m.get("name", "") for m in r.json().get("models", [])}
+    want = json.loads(os.environ.get("EXPECTED_MODELS", "[]"))
+
+    def present(model):
+        if model in tags or f"{model}:latest" in tags:
+            return True
+        base = model.split(":")[0]
+        return ":" not in model and any(t.split(":")[0] == base for t in tags)
+
+    missing = [m for m in want if not present(m)]
+    if missing:
+        raise RuntimeError(f"model(s) not pulled: {missing} — for ollama-localhost run `ollama pull <name>`")
+    return f"reachable; all {len(want)} required models pulled"
+
+
 record("litellm", litellm)
 record("weaviate", weaviate)
 record("lightrag", lightrag)
 record("tei-reranker", tei_reranker)
 record("n8n", n8n)
+record("ollama", ollama)
 print(json.dumps(results))
 """
 
@@ -172,7 +215,13 @@ def _backend_running(container: str) -> bool:
     return proc.returncode == 0 and proc.stdout.strip() == "true"
 
 
-def run_live_probes(project: str, expected_aliases: list[str], timeout: float) -> dict:
+def run_live_probes(
+    project: str,
+    expected_aliases: list[str],
+    expected_models: list[str],
+    ollama_endpoint: str,
+    timeout: float,
+) -> dict:
     """Probe each running dependency read-only, from inside the backend."""
     container = f"{project}-backend"
     if subprocess.run(["docker", "version"], capture_output=True).returncode != 0:
@@ -187,6 +236,8 @@ def run_live_probes(project: str, expected_aliases: list[str], timeout: float) -
             "docker", "exec", "-i",
             "-e", "PYTHONPATH=/app/plugins",
             "-e", f"EXPECTED_ALIASES={json.dumps(expected_aliases)}",
+            "-e", f"EXPECTED_MODELS={json.dumps(expected_models)}",
+            "-e", f"OLLAMA_ENDPOINT={ollama_endpoint}",
             "-e", f"PREFLIGHT_TIMEOUT={timeout}",
             container, "python", "-",
         ],
@@ -239,7 +290,13 @@ def main(argv: list[str] | None = None) -> int:
     base_port = os.environ.get("RAG_SHOWCASE_BASE_PORT", "auto")
 
     config = None if args.skip_doctor else run_doctor(project, base_port, timeout=max(args.timeout, 60.0))
-    probes = run_live_probes(project, load_expected_aliases(), timeout=args.timeout)
+    probes = run_live_probes(
+        project,
+        load_expected_aliases(),
+        load_expected_models(),
+        envval("OLLAMA_ENDPOINT") or "",
+        timeout=args.timeout,
+    )
 
     if args.format == "json":
         print(json.dumps({"config": config, "live": probes}, indent=2))
