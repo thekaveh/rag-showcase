@@ -48,12 +48,9 @@ With an operator-issued `N8N_API_KEY`, Atlas can activate the workflow through t
 n8n API. n8n 2.28.2 currently imports the workflow as inactive when that key is
 absent, despite the normalized JSON carrying `active: true`. Until
 [Atlas #514](https://github.com/thekaveh/atlas/issues/514) resolves that upstream,
-`scripts/start-all.sh` publishes the Atlas-owned id and reloads n8n once. It also
-deletes the exact legacy pre-manifest id `adaptiverag00001`, whose stale webhook
-database row otherwise blocks the namespaced workflow even after unpublishing. The
-foreign-key cascade removes only that retired route. The wrapper then performs a
-real POST and requires a non-empty answer, an allowed delegated approach, and
-`rag_showcase.schema_version == 1` before startup succeeds.
+`scripts/start-all.sh` publishes the Atlas-owned id and reloads n8n once. The
+wrapper then performs a real POST and requires a non-empty answer, an allowed
+delegated approach, and `rag_showcase.schema_version == 1` before startup succeeds.
 
 The wrapper keeps route choice separate from retrieval evidence. It returns the
 delegated chunks and metrics, adds one LLM call for classification, and records

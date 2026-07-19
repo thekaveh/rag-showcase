@@ -111,11 +111,9 @@ TEI reranker, Weaviate, Neo4j, n8n, Open WebUI, and LiteLLM). The wrapper disabl
     assembles the corpus on the host (`corpus/fetch_corpus.py`), waits for model
     readiness (embed + chat), submits the `showcase_default` Atlas ingestion job,
     builds only the approach-specific contextual index from Atlas-written chunks,
-    verifies every
-Atlas-declared base and flavor alias, and prints the Open WebUI URL. Every start
-reconciles exact legacy duplicates from the former database-backed registration;
-unrelated LiteLLM rows and Atlas-owned declarations are never deleted. When rows
-are removed, the wrapper reloads LiteLLM once to clear every worker's route cache.
+    and prints the Open WebUI URL. Atlas compiles the consumer-declared LiteLLM
+    aliases into `config.yaml` before the proxy boots, so they are discoverable in
+    `/v1/models` at startup with no consumer-side reconcile or proxy restart.
 On a fresh checkout, Atlas renders its initial bootstrap banner before applying
 the consumer manifest, so that first banner can retain Atlas artwork; subsequent
 starts use the configured RAG-SHOWCASE logo. Atlas classifies a fully converged
@@ -229,7 +227,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | `LITELLM_BASE_URL` | `http://litellm:4000` | plugin LiteLLM client | Atlas backend env |
 | `LITELLM_API_KEY` | — | plugin LiteLLM client, n8n workflow node | Atlas backend env |
 | `BACKEND_INTERNAL_API_TOKEN` | — | Bearer used by LiteLLM aliases when invoking trusted backend plugin routes | Atlas `.env`; injected into LiteLLM by the consumer-model overlay |
-| `LITELLM_MASTER_KEY` | — | External LiteLLM gateway authentication and legacy-row reconciliation | Atlas `.env`; mapped to `LITELLM_API_KEY` in the backend |
+| `LITELLM_MASTER_KEY` | — | External LiteLLM gateway authentication | Atlas `.env`; mapped to `LITELLM_API_KEY` in the backend |
 | `WEAVIATE_URL` | `http://weaviate:8080` | vectors | Atlas backend env |
 | `RAG_WEAVIATE_GRPC_PORT` | `50051` | vectors (in-network gRPC port; distinct from Atlas's host-published `WEAVIATE_GRPC_PORT`) | plugin manifest + overlay |
 | `TEI_RERANKER_ENDPOINT` | `http://tei-reranker:80` | vectors (rerank) | overlay |
