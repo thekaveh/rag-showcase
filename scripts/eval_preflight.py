@@ -185,14 +185,17 @@ print(json.dumps(results))
 """
 
 
-def run_doctor(project: str, base_port: str, timeout: float) -> dict:
+def run_doctor(project: str, timeout: float) -> dict:
     """Run Atlas's static consumer preflight (no services started)."""
     manifest = os.environ.get("ATLAS_CONSUMER_MANIFEST", str(ROOT / "atlas.consumer.yml"))
-    cmd = [
-        "./start.sh", "--consumer", manifest,
-        "--project", project, "--base-port", base_port,
-        "doctor", "--format", "json",
-    ]
+    cmd = ["./start.sh", "--consumer", manifest, "--project", project]
+    # Probe the SAME durable block the stack uses: the resolved BASE_PORT in
+    # infra/.env (durable manifest `BASE_PORT: auto`, atlas#751), not a fresh
+    # `--base-port auto` that could re-resolve to a different block.
+    base_port = os.environ.get("RAG_SHOWCASE_BASE_PORT") or envval("BASE_PORT")
+    if base_port:
+        cmd += ["--base-port", base_port]
+    cmd += ["doctor", "--format", "json"]
     try:
         proc = subprocess.run(
             cmd, cwd=ROOT / "infra", capture_output=True, text=True, timeout=timeout,
@@ -287,9 +290,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     project = envval("PROJECT_NAME") or args.project
-    base_port = os.environ.get("RAG_SHOWCASE_BASE_PORT", "auto")
 
-    config = None if args.skip_doctor else run_doctor(project, base_port, timeout=max(args.timeout, 60.0))
+    config = None if args.skip_doctor else run_doctor(project, timeout=max(args.timeout, 60.0))
     probes = run_live_probes(
         project,
         load_expected_aliases(),
