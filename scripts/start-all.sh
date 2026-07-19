@@ -113,11 +113,14 @@ else
   echo "==> Skipping default corpus ingest (RAG_SHOWCASE_SKIP_DEFAULT_INGEST=1)…"
 fi
 
-# Atlas's detached health gates do NOT guarantee Ollama has finished pulling
-# the embed + chat models (a cold first run downloads several GB), and ingest's
-# first embed/contextualize call would then 4xx/5xx and abort the run. Probe a
-# real embed + chat round-trip through LiteLLM (using the plugin's own client and
-# roles) before ingesting. Generous timeout: the chat model can be large.
+# Read-only model-readiness diagnostic (#53): Atlas's detached health gates do NOT
+# guarantee Ollama has finished pulling the embed + chat models (a cold first run
+# downloads several GB), and ingest's first embed/contextualize call would then
+# 4xx/5xx and abort the run. Probe a real embed + chat round-trip through LiteLLM
+# (using the plugin's own client and roles) before ingesting — it mutates nothing.
+# The only remaining docker exec targets are the consumer's OWN plugin/ingest code
+# in the backend (the plugin seam's runtime); no exec/restart reaches an Atlas
+# service (LiteLLM cache/#49, n8n activation/#51 are gone). Generous timeout.
 echo "==> Waiting for the local models (embed + chat) to be pulled and serving…"
 models_ready=0
 for _ in $(seq 1 180); do
@@ -139,6 +142,10 @@ if [ "${RAG_SHOWCASE_SKIP_DEFAULT_INGEST:-0}" != "1" ]; then
     uv run python -m ingest.atlas_job \
     --profile "$RAG_INGESTION_PROFILE" \
     --base-url "http://127.0.0.1:$(envval BACKEND_PORT)"
+  # Consumer-owned ingest step (#53): builds the showcase's contextual index from
+  # the mounted /app/corpus + in-network Weaviate/LiteLLM, so it runs in the plugin
+  # runtime (the backend). Atlas exposes no post-ingest hook to offload it, so this
+  # stays an exec of our OWN code — not coupling to an Atlas service internal.
   echo "==> Building the showcase contextual index from Atlas-ingested chunks…"
   docker exec -e PYTHONPATH=/app/plugins:/app "${PROJECT_NAME}-backend" \
     python -m ingest.contextual
