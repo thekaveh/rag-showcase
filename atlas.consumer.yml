@@ -11,6 +11,8 @@ brand:
 
 env:
   file: ./config/atlas.env.user
+  values:
+    BASE_PORT: auto   # durable free block, stable across restarts (atlas#751)
 
 compose_overlays:
   - ./compose/rag-overlay.yml

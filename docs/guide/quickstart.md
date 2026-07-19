@@ -30,8 +30,9 @@ Atlas's requirements apply:
 
 This single script:
 
-1. Starts Atlas with `--base-port auto`, so Atlas selects a completely free 110-port
-   block below the OS dynamic/private range and persists it to `infra/.env`.
+1. Starts Atlas with durable `BASE_PORT: auto` in the manifest, so Atlas resolves a
+   completely free 110-port block below the OS dynamic/private range once and keeps
+   it stable across restarts (persisted to `infra/.env`).
    The project name is `rag-showcase`. Set `RAG_SHOWCASE_BASE_PORT` to pin a
    specific block; Atlas rejects it if any port is occupied.
 2. Selects `atlas.consumer.yml` and runs Atlas's native headless env backfill,

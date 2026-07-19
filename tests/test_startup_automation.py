@@ -3,6 +3,8 @@ import re
 import sys
 from pathlib import Path
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -88,14 +90,24 @@ def test_start_does_not_background_or_kill_atlas() -> None:
     assert "pkill" not in script
 
 
-def test_start_delegates_port_selection_to_atlas_base_port_auto() -> None:
-    # Port selection is delegated to Atlas's native `--base-port auto`, which
-    # persists the chosen block to infra/.env. No bespoke free-port finder,
-    # launch lock, or pre-launch re-check remains in the consumer (#50).
+def test_start_uses_durable_manifest_base_port_not_cli_auto() -> None:
+    # Base-port selection is durable: atlas.consumer.yml sets `BASE_PORT: auto`
+    # (atlas#751), stable across restarts. The consumer passes NO resolve-fresh CLI
+    # `--base-port auto`; a --base-port flag is added only to force a specific block
+    # via RAG_SHOWCASE_BASE_PORT (#82, follow-on to #50).
     script = _script("start-all.sh")
 
-    assert 'ATLAS_BASE_PORT="${RAG_SHOWCASE_BASE_PORT:-auto}"' in script
-    assert '--base-port "$ATLAS_BASE_PORT"' in script
+    manifest = yaml.safe_load((ROOT / "atlas.consumer.yml").read_text(encoding="utf-8"))
+    assert manifest["env"]["values"]["BASE_PORT"] == "auto"
+
+    # No unconditional/resolve-fresh CLI base-port; the flag is gated behind the
+    # explicit RAG_SHOWCASE_BASE_PORT override.
+    assert '--base-port "$ATLAS_BASE_PORT"' not in script
+    assert 'ATLAS_BASE_PORT="${RAG_SHOWCASE_BASE_PORT:-auto}"' not in script
+    assert "ATLAS_BASE_PORT_ARGS=()" in script
+    assert 'ATLAS_BASE_PORT_ARGS+=(--base-port "$RAG_SHOWCASE_BASE_PORT")' in script
+    assert '"${ATLAS_BASE_PORT_ARGS[@]}"' in script
+
     assert "select_atlas_base_port.py" not in script
     assert "acquire_launch_lock" not in script
     assert "cleanup_launch_lock" not in script

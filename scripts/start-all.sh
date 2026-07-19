@@ -8,11 +8,15 @@ ATLAS_CONSUMER_MANIFEST="$(python3 -c 'import os,sys; print(os.path.abspath(os.p
 export ATLAS_CONSUMER_MANIFEST
 
 ATLAS_PROJECT_NAME="${RAG_SHOWCASE_PROJECT_NAME:-rag-showcase}"
-# Atlas's native `--base-port auto` selects the first wholly-free BASE_PORT block
-# (using Atlas's own topology span, below the ephemeral range) and persists it to
-# infra/.env — no consumer-side finder or launch lock. Pin RAG_SHOWCASE_BASE_PORT
-# to force a specific block instead.
-ATLAS_BASE_PORT="${RAG_SHOWCASE_BASE_PORT:-auto}"
+# Base-port selection is durable: atlas.consumer.yml sets `BASE_PORT: auto`, which
+# Atlas resolves once to a wholly-free 110-port block and keeps stable across
+# restarts (atlas#751). The CLI `--base-port auto` would instead re-resolve fresh
+# every run and can drift to a different block. So pass NO base-port flag by
+# default; set RAG_SHOWCASE_BASE_PORT to force a specific block.
+ATLAS_BASE_PORT_ARGS=()
+if [ -n "${RAG_SHOWCASE_BASE_PORT:-}" ]; then
+  ATLAS_BASE_PORT_ARGS+=(--base-port "$RAG_SHOWCASE_BASE_PORT")
+fi
 
 # Provider sources belong to Atlas. Omit them by default so a consumer can use
 # its existing Atlas configuration without this repository assuming host hardware.
@@ -49,13 +53,13 @@ envval() { grep -E "^$1=" infra/.env | tail -1 | cut -d= -f2- || true; }
 echo "==> Running Atlas consumer-manifest preflight…"
 [ -f infra/.env ] || cp infra/.env.example infra/.env
 ( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
-    --project "$ATLAS_PROJECT_NAME" --base-port "$ATLAS_BASE_PORT" \
+    --project "$ATLAS_PROJECT_NAME" "${ATLAS_BASE_PORT_ARGS[@]}" \
     "${ATLAS_SOURCE_ARGS[@]}" env backfill )
 ( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
-    --project "$ATLAS_PROJECT_NAME" --base-port "$ATLAS_BASE_PORT" \
+    --project "$ATLAS_PROJECT_NAME" "${ATLAS_BASE_PORT_ARGS[@]}" \
     "${ATLAS_SOURCE_ARGS[@]}" compose validate )
 ( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
-    --project "$ATLAS_PROJECT_NAME" --base-port "$ATLAS_BASE_PORT" \
+    --project "$ATLAS_PROJECT_NAME" "${ATLAS_BASE_PORT_ARGS[@]}" \
     "${ATLAS_SOURCE_ARGS[@]}" doctor --format json )
 
 echo "==> Starting Atlas (gen-ai-rag track)…"
@@ -67,7 +71,7 @@ echo "==> Starting Atlas (gen-ai-rag track)…"
 ATLAS_START_LOG="$(mktemp "${TMPDIR:-/tmp}/rag-showcase-atlas-start.XXXXXX")"
 set +e
 ( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
-    --project "$ATLAS_PROJECT_NAME" --base-port "$ATLAS_BASE_PORT" \
+    --project "$ATLAS_PROJECT_NAME" "${ATLAS_BASE_PORT_ARGS[@]}" \
     "${ATLAS_SOURCE_ARGS[@]}" \
     --no-tui --detach --track gen-ai-rag \
     --lightrag-source container \
