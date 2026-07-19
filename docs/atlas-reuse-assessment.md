@@ -65,12 +65,10 @@ API because Atlas had no consumer-owned alias contract. That made ownership
 implicit and left persisted duplicates during migration. Atlas #411 resolved the
 gap with versioned `litellm_models` declarations, approved endpoint templates,
 derived ownership metadata, collision checks, secret references, and generated
-startup configuration. Rag-showcase now uses that contract exclusively during
-normal operation. An idempotent exact-match reconciliation removes only unowned
-rows created by the retired registration script, including both the historical
-`/<approach>/v1` and current `/rag/<approach>/v1` route shapes. Because LiteLLM's
-four workers retain per-process route caches, a changed reconciliation triggers
-one proxy restart and a fresh zero-change verification.
+startup configuration. Rag-showcase now uses that contract exclusively. Atlas compiles the declared
+`litellm_models` into `config.yaml` before the proxy boots, so the aliases are
+discoverable in `/v1/models` at startup with no consumer-side reconciliation or
+proxy restart.
 
 ### 2.4 In-container path mismatch
 
