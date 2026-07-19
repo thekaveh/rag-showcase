@@ -141,11 +141,11 @@ the three stable service choices above remain wrapper contracts.
 
 The `n8n-adaptive-rag` workflow is checked in at
 [`n8n/adaptive-rag.workflow.json`](n8n/adaptive-rag.workflow.json) and declared in
-`atlas.consumer.yml`. Atlas validates, namespaces, imports, and probes the workflow
-during startup. Until [Atlas #514](https://github.com/thekaveh/atlas/issues/514)
-lands, `start-all.sh` also publishes the Atlas-owned workflow and reloads n8n when
-no `N8N_API_KEY` is configured. See [`n8n/README.md`](n8n/README.md) for the
-ownership, lifecycle, and tuning contract.
+`atlas.consumer.yml`. Atlas validates, namespaces, imports, activates, and probes the
+workflow during startup — including activation with no `N8N_API_KEY`
+([Atlas #720](https://github.com/thekaveh/atlas/issues/720)), so `start-all.sh`
+performs no manual publish or n8n restart. See [`n8n/README.md`](n8n/README.md) for
+the ownership, lifecycle, and tuning contract.
 
 For the full corpus (MultiHop-RAG + keyword docs), `python3 -m pip install datasets`
 on the host before running; without it, ingestion uses only the bundled keyword docs, so

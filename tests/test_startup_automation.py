@@ -104,7 +104,9 @@ def test_start_uses_strict_fallback_for_atlas_one_shot_race() -> None:
     assert "--atlas-log" in script
     assert "Atlas #508" in script
     assert "verify_atlas_runtime.py || true" not in script
-    assert script.count("n8n did not recover after workflow activation reload") == 1
+    # Atlas #720 activates the seeded workflow itself; the consumer's manual
+    # publish + n8n-restart reload (and its recovery error) are gone (#51).
+    assert "n8n did not recover after workflow activation reload" not in script
     assert "Verifying the Atlas-seeded adaptive-rag production webhook" in script
 
 

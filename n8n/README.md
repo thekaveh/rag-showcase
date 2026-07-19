@@ -43,14 +43,15 @@ The checked-in workflow has `"active": true`, and the manifest uses
 `active: fromJson`. The backend POSTs to the *production* webhook
 `/webhook/adaptive-rag`, which n8n registers only for a published workflow.
 
-Atlas owns validation, namespacing, import/update, and the declared readiness probe.
-With an operator-issued `N8N_API_KEY`, Atlas can activate the workflow through the
-n8n API. n8n 2.28.2 currently imports the workflow as inactive when that key is
-absent, despite the normalized JSON carrying `active: true`. Until
-[Atlas #514](https://github.com/thekaveh/atlas/issues/514) resolves that upstream,
-`scripts/start-all.sh` publishes the Atlas-owned id and reloads n8n once. The
-wrapper then performs a real POST and requires a non-empty answer, an allowed
-delegated approach, and `rag_showcase.schema_version == 1` before startup succeeds.
+Atlas owns validation, namespacing, import/update, activation, and the declared
+readiness probe. With an operator-issued `N8N_API_KEY`, Atlas activates the workflow
+through the n8n API. With no key, Atlas's seed persists `active: true` via
+`n8n publish:workflow` and restarts n8n once post-seed
+([Atlas #720](https://github.com/thekaveh/atlas/issues/720)) to register the
+production webhook — the consumer performs no manual publish or restart.
+`scripts/start-all.sh` then performs a real POST and requires a non-empty answer, an
+allowed delegated approach, and `rag_showcase.schema_version == 1` before startup
+succeeds.
 
 The wrapper keeps route choice separate from retrieval evidence. It returns the
 delegated chunks and metrics, adds one LLM call for classification, and records

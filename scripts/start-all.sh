@@ -97,31 +97,10 @@ PROJECT_NAME="$(envval PROJECT_NAME)"
 # or `docker restart`. The old per-start reconcile deleted rows from a retired
 # registration script (now gone), which is why it needed to flush worker caches.
 
-# Atlas owns workflow import/update. n8n CE can activate the seeded workflow on
-# the running process only when an operator-issued N8N_API_KEY is configured;
-# otherwise Atlas persists it and explicitly requires one reload.
-n8n_reload=0
-if [ -z "$(envval N8N_API_KEY)" ]; then
-  # Atlas can call n8n's activation API when a UI-issued key exists. Without
-  # one, n8n 2.28 imports the normalized JSON as inactive despite active:true;
-  # publish the Atlas-owned id through n8n's CLI, then reload as the CLI asks.
-  echo "==> Publishing the Atlas-seeded adaptive-rag workflow…"
-  docker exec "${PROJECT_NAME}-n8n" \
-    n8n publish:workflow --id=atlas-consumer-adaptive-rag >/dev/null
-  n8n_reload=1
-fi
-if [ "$n8n_reload" -eq 1 ]; then
-  echo "==> Reloading n8n to activate the Atlas-seeded workflow…"
-  docker restart "${PROJECT_NAME}-n8n" >/dev/null
-  n8n_ready=0
-  for _ in $(seq 1 60); do
-    if docker exec "${PROJECT_NAME}-backend" python -c \
-         "import httpx,sys; sys.exit(0 if httpx.get('http://n8n:5678/healthz',timeout=5).status_code < 500 else 1)" \
-         >/dev/null 2>&1; then n8n_ready=1; break; fi
-    sleep 5
-  done
-  [ "$n8n_ready" = 1 ] || { echo "n8n did not recover after workflow activation reload."; exit 1; }
-fi
+# Atlas owns n8n workflow import + activation. With no N8N_API_KEY, Atlas's seed
+# now persists active=true via `n8n publish:workflow` AND restarts n8n once
+# post-seed (_reactivate_n8n_if_needed) to register the production webhook — so
+# the consumer needs no manual publish:workflow or `docker restart` (atlas #720).
 
 if [ "${RAG_SHOWCASE_SKIP_DEFAULT_INGEST:-0}" != "1" ]; then
   echo "==> Assembling corpus on the host (corpus/raw/)…"

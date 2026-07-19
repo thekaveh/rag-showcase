@@ -91,9 +91,11 @@ def test_workflow_seeding_has_no_showcase_mount_or_manual_import() -> None:
     assert "n8n import:workflow" not in start
     assert "--activeState=fromJson" not in start
     assert "/showcase-n8n" not in start
-    assert 'if [ -z "$(envval N8N_API_KEY)" ]' in start
-    assert "publish:workflow --id=atlas-consumer-adaptive-rag" in start
-    assert 'docker restart "${PROJECT_NAME}-n8n"' in start
+    # Atlas #720 activates the seeded workflow with no API key (publish + one
+    # post-seed n8n restart), so the consumer does no manual activation (#51).
+    assert 'if [ -z "$(envval N8N_API_KEY)" ]' not in start
+    assert "publish:workflow --id=atlas-consumer-adaptive-rag" not in start
+    assert 'docker restart "${PROJECT_NAME}-n8n"' not in start
     assert "unpublish:workflow --id=adaptiverag00001" not in start
     assert "verify_adaptive_webhook.py" in start
     assert "/webhook/adaptive-rag" in start
