@@ -117,14 +117,15 @@ def test_start_all_supports_service_only_mode() -> None:
     assert "--activeState=fromJson" not in script
     assert "adaptive-rag.workflow.json" not in script
     assert '--project "$ATLAS_PROJECT_NAME"' in script
-    assert '--base-port "$ATLAS_BASE_PORT"' in script
+    # Durable manifest BASE_PORT: auto (#82); no resolve-fresh CLI --base-port auto.
+    assert '"${ATLAS_BASE_PORT_ARGS[@]}"' in script
+    assert '--base-port "$ATLAS_BASE_PORT"' not in script
     assert "RAG_SHOWCASE_LLM_PROVIDER_SOURCE" in script
     assert "RAG_SHOWCASE_COMFYUI_SOURCE" in script
     assert "ATLAS_SOURCE_ARGS" in script
     assert "--llm-provider-source ollama-localhost" not in script
     assert "--comfyui-source disabled" not in script
     assert "select_atlas_base_port.py" not in script
-    assert '--base-port "$ATLAS_BASE_PORT"' in script
     assert "Atlas #654" not in script
     assert "sync_bootstrap_env_key" not in script
 
