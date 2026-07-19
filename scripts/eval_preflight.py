@@ -65,6 +65,26 @@ def load_expected_models(env_user: Path | None = None) -> list[str]:
     return sorted(models)
 
 
+def resolve_ollama_endpoint(env_path: Path | None = None) -> str:
+    """Container-reachable Ollama endpoint for the in-backend probe.
+
+    Atlas does not write ``OLLAMA_ENDPOINT`` to ``infra/.env``, so derive it from
+    the active ``LLM_PROVIDER_SOURCE``: an ``ollama-localhost`` provider runs on the
+    host (reached from the backend via ``host.docker.internal``); an
+    ``ollama-container`` provider is in-network. Returns "" for a non-ollama source.
+    """
+    explicit = (envval("OLLAMA_ENDPOINT", env_path) or "").strip()
+    if explicit:
+        return explicit
+    source = (envval("LLM_PROVIDER_SOURCE", env_path) or "").strip()
+    if source == "ollama-localhost":
+        port = envval("OLLAMA_LOCALHOST_PORT", env_path) or "11434"
+        return f"http://host.docker.internal:{port}"
+    if source.startswith("ollama-container"):
+        return "http://ollama:11434"
+    return ""
+
+
 def envval(key: str, env_path: Path | None = None) -> str | None:
     """Read a key from Atlas's generated infra/.env (last assignment wins)."""
     env_path = env_path or (ROOT / "infra" / ".env")
@@ -296,7 +316,7 @@ def main(argv: list[str] | None = None) -> int:
         project,
         load_expected_aliases(),
         load_expected_models(),
-        envval("OLLAMA_ENDPOINT") or "",
+        resolve_ollama_endpoint(),
         timeout=args.timeout,
     )
 
