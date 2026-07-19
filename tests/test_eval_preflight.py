@@ -52,6 +52,21 @@ def test_probe_is_read_only() -> None:
     assert "httpx.post" not in ep.PROBE_SOURCE
     assert ".embed(" not in ep.PROBE_SOURCE
     assert ".chat(" not in ep.PROBE_SOURCE
+    assert "/api/pull" not in ep.PROBE_SOURCE  # never trigger an Ollama download
+
+
+def test_expected_models_from_env_user() -> None:
+    # The Ollama model-presence check must use the eval's real required models —
+    # the *_MODEL role vars in the consumer env file.
+    models = ep.load_expected_models()
+    assert set(models) == {"nomic-embed-text", "mistral-small3.2:24b", "qwen3.6:latest"}
+
+
+def test_probe_checks_ollama_models() -> None:
+    assert "ollama" in ep.DECLARED_SERVICES
+    assert "OLLAMA_ENDPOINT" in ep.PROBE_SOURCE
+    assert "/api/tags" in ep.PROBE_SOURCE
+    assert "EXPECTED_MODELS" in ep.PROBE_SOURCE
 
 
 def test_probe_checks_the_ingested_weaviate_collections() -> None:
