@@ -69,6 +69,25 @@ def test_probe_checks_ollama_models() -> None:
     assert "EXPECTED_MODELS" in ep.PROBE_SOURCE
 
 
+def test_resolve_ollama_endpoint(tmp_path: Path) -> None:
+    # OLLAMA_ENDPOINT is not written to infra/.env; the endpoint is derived from
+    # the active provider source (validated live in Phase 5).
+    env = tmp_path / ".env"
+
+    env.write_text("LLM_PROVIDER_SOURCE=ollama-localhost\nOLLAMA_LOCALHOST_PORT=11434\n", "utf-8")
+    assert ep.resolve_ollama_endpoint(env) == "http://host.docker.internal:11434"
+
+    env.write_text("LLM_PROVIDER_SOURCE=ollama-container-gpu\n", "utf-8")
+    assert ep.resolve_ollama_endpoint(env) == "http://ollama:11434"
+
+    env.write_text("LLM_PROVIDER_SOURCE=none\n", "utf-8")
+    assert ep.resolve_ollama_endpoint(env) == ""
+
+    # An explicit OLLAMA_ENDPOINT (should Atlas ever write one) wins.
+    env.write_text("OLLAMA_ENDPOINT=http://x:11434\nLLM_PROVIDER_SOURCE=ollama-localhost\n", "utf-8")
+    assert ep.resolve_ollama_endpoint(env) == "http://x:11434"
+
+
 def test_probe_checks_the_ingested_weaviate_collections() -> None:
     assert "RAG_BASE_COLLECTION" in ep.PROBE_SOURCE
     assert "RAG_CONTEXTUAL_COLLECTION" in ep.PROBE_SOURCE
