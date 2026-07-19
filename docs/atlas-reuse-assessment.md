@@ -198,17 +198,16 @@ fallback when Atlas performs this bounded convergence wait itself.
 
 ### 2.16 n8n no-API-key seeding does not publish active workflows
 
-Atlas's consumer workflow contract now validates, namespaces, imports, reconciles,
-and probes the Adaptive-RAG workflow. A fresh-volume validation against n8n 2.28.2
-found one remaining lifecycle gap: with `N8N_API_KEY` unset, the CLI import persists
-normalized `active: true` JSON as inactive. The production webhook remains 404, and
-the best-effort seed reports the failed probe without failing stack startup. A
-restart alone does not change the state.
+> **Resolved upstream.** Atlas #720 makes the n8n seed activate a consumer workflow
+> with no API key: it persists `active: true` via `n8n publish:workflow` and restarts
+> n8n once post-seed (`_reactivate_n8n_if_needed`) to register the production webhook
+> — with no consumer-side `docker restart` or manual publish.
 
-The showcase temporarily publishes only the Atlas-owned
-`atlas-consumer-adaptive-rag` id, reloads n8n, and then requires a successful real
-webhook answer. Atlas #514 tracks moving the activation/reload step upstream;
-the manifest and workflow source will remain unchanged when that shim is removed.
+Originally, with `N8N_API_KEY` unset, n8n 2.28.2's CLI import persisted normalized
+`active: true` JSON as inactive and the production webhook stayed 404 until a restart,
+so `start-all.sh` published the Atlas-owned id and reloaded n8n itself. That shim is
+now removed; the showcase only performs its real webhook probe (non-empty answer, an
+allowed delegated approach, and `rag_showcase.schema_version == 1`).
 
 ### 2.17 Generic ingestion lifecycle
 
@@ -322,9 +321,9 @@ This is role-scoped and does not apply request parameters globally.
   convergence:** Atlas #508 classifies the benign zero-exit signature. The showcase
   retains a stricter bounded wait for the observed intermediate `starting` state;
   it does not broaden accepted failures.
-- **Publish active n8n workflows without an API key** (§2.16): honor the effective
-  activation policy on fresh volumes, coalesce any required reload, and make required
-  webhook readiness deterministic (Atlas #514).
+- **(Resolved) Publish active n8n workflows without an API key** (§2.16): Atlas #720
+  now activates a seeded consumer workflow with no API key (publish + one post-seed
+  n8n restart), so the consumer needs no manual publish or reload.
 - **(Resolved) Provide generic RAG ingestion jobs** (§2.17): Atlas #413 now owns
   discover/parse/chunk/embed/vector-write/LightRAG-upload/drain/finalize; the
   showcase retains only its approach-specific contextual transform.

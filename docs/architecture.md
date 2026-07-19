@@ -100,8 +100,8 @@ query tools before returning a final answer and tool trace.
 `n8n-adaptive-rag` is a workflow bridge. The n8n workflow classifies the query,
 routes it to a selected approach, shapes the response, and returns the answer plus
 route metadata to the OpenAI-compatible wrapper. Atlas seeds the checked-in workflow
-as `atlas-consumer-adaptive-rag`; the showcase wrapper only retains the temporary
-no-API-key activation compatibility step tracked by Atlas #514.
+as `atlas-consumer-adaptive-rag` and activates it even with no `N8N_API_KEY`
+(Atlas #720), so the showcase wrapper does no manual publish or n8n restart.
 
 ### 2.5 Lazy graph lane
 
