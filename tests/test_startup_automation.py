@@ -1,4 +1,5 @@
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -56,6 +57,27 @@ def test_start_does_not_mutate_atlas_env_for_lightrag_role_keys() -> None:
         "${LIGHTRAG_QUERY_LLM_BINDING_API_KEY:-${LITELLM_MASTER_KEY}}"
         in lightrag_compose
     )
+
+
+def test_start_has_no_atlas_service_internal_exec_or_restart() -> None:
+    # #53: after #49 (LiteLLM cache) and #51 (n8n activation), the consumer drives
+    # no Atlas SERVICE container. No `docker restart` anywhere; no `docker exec`
+    # into -litellm/-n8n. The only remaining execs are the consumer's own
+    # plugin/ingest code in the backend (read-only model-readiness probe + the
+    # contextual-index build), for which Atlas exposes no post-ingest hook.
+    # Executable lines only — comments legitimately mention the removed calls.
+    code = "\n".join(
+        ln for ln in _script("start-all.sh").splitlines() if not ln.lstrip().startswith("#")
+    )
+
+    assert "docker restart" not in code
+    assert '"${PROJECT_NAME}-litellm"' not in code
+    assert '"${PROJECT_NAME}-n8n"' not in code
+
+    exec_targets = set(
+        re.findall(r'docker exec[^\n]*?"\$\{PROJECT_NAME\}-([a-z0-9-]+)"', code)
+    )
+    assert exec_targets == {"backend"}, exec_targets
 
 
 def test_start_does_not_background_or_kill_atlas() -> None:

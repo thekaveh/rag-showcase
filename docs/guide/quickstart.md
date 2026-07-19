@@ -57,11 +57,10 @@ This single script:
    and every expected init service exited zero.
 5. Waits for model readiness (embed + chat), submits the `showcase_default` Atlas
    **RAG ingestion job**, waits on its machine-readable phase record, and then builds
-   the contextual collection from Atlas-written plain chunks. It verifies all
-   Atlas-declared base and flavor aliases. Each start also removes
-   any exact legacy database duplicates from the retired registration script,
-   including rows restored with an older database, without touching unrelated models.
-   If cleanup occurs, LiteLLM reloads once so all four workers discard stale routes.
+   the contextual collection from Atlas-written plain chunks. Atlas compiles the
+   consumer-declared LiteLLM aliases into `config.yaml` before the proxy boots, so
+   they are discoverable in `/v1/models` at startup with no consumer-side reconcile
+   or restart.
 6. Prints the Open WebUI URL.
 
 !!! tip "First run downloads models"
