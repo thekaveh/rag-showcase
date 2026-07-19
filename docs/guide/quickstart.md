@@ -128,11 +128,11 @@ the `contextual-rag` approach rather than generic infrastructure.
 ## 4. The n8n Workflow
 
 The `n8n-adaptive-rag` workflow is checked in and declared in
-`atlas.consumer.yml`. Atlas validates, namespaces, imports, and probes it; the
-wrapper verifies the real production webhook before reporting readiness. A narrow
-publish/reload compatibility step remains for no-API-key installs until Atlas #514
-lands. See the [n8n Adaptive Workflow](../components/n8n.md) page for ownership,
-lifecycle, workflow shape, and tuning knobs.
+`atlas.consumer.yml`. Atlas validates, namespaces, imports, activates, and probes it
+— including activation with no `N8N_API_KEY` (Atlas #720), so the wrapper does no
+manual publish or n8n restart; it only verifies the real production webhook before
+reporting readiness. See the [n8n Adaptive Workflow](../components/n8n.md) page for
+ownership, lifecycle, workflow shape, and tuning knobs.
 
 ## 5. Development and Testing
 
