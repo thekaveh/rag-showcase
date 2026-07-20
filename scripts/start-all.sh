@@ -18,15 +18,10 @@ if [ -n "${RAG_SHOWCASE_BASE_PORT:-}" ]; then
   ATLAS_BASE_PORT_ARGS+=(--base-port "$RAG_SHOWCASE_BASE_PORT")
 fi
 
-# Provider sources belong to Atlas. Omit them by default so a consumer can use
-# its existing Atlas configuration without this repository assuming host hardware.
-ATLAS_SOURCE_ARGS=()
-if [ -n "${RAG_SHOWCASE_LLM_PROVIDER_SOURCE:-}" ]; then
-  ATLAS_SOURCE_ARGS+=(--llm-provider-source "$RAG_SHOWCASE_LLM_PROVIDER_SOURCE")
-fi
-if [ -n "${RAG_SHOWCASE_COMFYUI_SOURCE:-}" ]; then
-  ATLAS_SOURCE_ARGS+=(--comfyui-source "$RAG_SHOWCASE_COMFYUI_SOURCE")
-fi
+# Compute sources (LLM provider = auto, LightRAG, TEI reranker, doc-processor) are
+# committed in atlas.consumer.yml under env.values (atlas#753/#755), and the
+# manifest names its `profile: dev` bundle — so a manifest/profile-driven start
+# needs no per-run --*-source flags and is correct on every host.
 
 RAG_INGESTION_PROFILE="${RAG_INGESTION_PROFILE:-showcase_default}"
 case "$RAG_INGESTION_PROFILE" in
@@ -54,28 +49,25 @@ echo "==> Running Atlas consumer-manifest preflight…"
 [ -f infra/.env ] || cp infra/.env.example infra/.env
 ( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
     --project "$ATLAS_PROJECT_NAME" "${ATLAS_BASE_PORT_ARGS[@]}" \
-    "${ATLAS_SOURCE_ARGS[@]}" env backfill )
+    env backfill )
 ( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
     --project "$ATLAS_PROJECT_NAME" "${ATLAS_BASE_PORT_ARGS[@]}" \
-    "${ATLAS_SOURCE_ARGS[@]}" compose validate )
+    compose validate )
 ( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
     --project "$ATLAS_PROJECT_NAME" "${ATLAS_BASE_PORT_ARGS[@]}" \
-    "${ATLAS_SOURCE_ARGS[@]}" doctor --format json )
+    doctor --format json )
 
 echo "==> Starting Atlas (gen-ai-rag track)…"
-# doc-processor disabled: Atlas ships only GPU-container or localhost Docling, so
-# there's no CPU-container option. ingest falls back to naive text chunking, so
-# the .md/.txt corpus works with no GPU. For structure-aware chunking, switch to
-# --doc-processor-source docling-localhost (run Docling on the host) or
-# docling-container-gpu (needs an NVIDIA GPU).
+# doc-processor is disabled via atlas.consumer.yml (DOC_PROCESSOR_SOURCE: disabled):
+# Atlas ships only GPU-container or localhost Docling, so there's no CPU-container
+# option. ingest falls back to naive text chunking, so the .md/.txt corpus works
+# with no GPU. For structure-aware chunking, set DOC_PROCESSOR_SOURCE in the
+# manifest to docling-localhost (host Docling) or docling-container-gpu (NVIDIA GPU).
 ATLAS_START_LOG="$(mktemp "${TMPDIR:-/tmp}/rag-showcase-atlas-start.XXXXXX")"
 set +e
 ( cd infra && ./start.sh --consumer "$ATLAS_CONSUMER_MANIFEST" \
     --project "$ATLAS_PROJECT_NAME" "${ATLAS_BASE_PORT_ARGS[@]}" \
-    "${ATLAS_SOURCE_ARGS[@]}" \
-    --no-tui --detach --track gen-ai-rag \
-    --lightrag-source container \
-    --tei-reranker-source container-cpu --doc-processor-source disabled ) \
+    --no-tui --detach --track gen-ai-rag ) \
     2>&1 | tee "$ATLAS_START_LOG"
 ATLAS_START_STATUS=${PIPESTATUS[0]}
 set -e

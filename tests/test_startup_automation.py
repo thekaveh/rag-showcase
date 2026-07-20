@@ -116,6 +116,27 @@ def test_start_uses_durable_manifest_base_port_not_cli_auto() -> None:
     assert not (ROOT / "scripts" / "select_atlas_base_port.py").exists()
 
 
+def test_manifest_commits_profile_and_sources_no_cli_flags() -> None:
+    # atlas#753/#755: the manifest names its profile and commits every compute
+    # source under env.values, so start-all passes no per-run --*-source flag and
+    # a cold start is host-correct on every machine (LLM_PROVIDER_SOURCE: auto).
+    manifest = yaml.safe_load((ROOT / "atlas.consumer.yml").read_text(encoding="utf-8"))
+    assert manifest["profile"] == "dev"
+    values = manifest["env"]["values"]
+    assert values["LLM_PROVIDER_SOURCE"] == "auto"
+    assert values["LIGHTRAG_SOURCE"] == "container"
+    assert values["TEI_RERANKER_SOURCE"] == "container-cpu"
+    assert values["DOC_PROCESSOR_SOURCE"] == "disabled"
+
+    script = _script("start-all.sh")
+    for flag in (
+        "--llm-provider-source", "--comfyui-source", "--lightrag-source",
+        "--tei-reranker-source", "--doc-processor-source",
+    ):
+        assert flag not in script, flag
+    assert "ATLAS_SOURCE_ARGS" not in script
+
+
 def test_stop_is_project_scoped_and_preserves_shared_managed_hosts() -> None:
     script = _script("stop-all.sh")
 
