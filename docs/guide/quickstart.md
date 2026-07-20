@@ -14,9 +14,9 @@ Atlas's requirements apply:
   git submodule update --init --recursive
   ```
 - Host tools **`uv`** and **`python3`** (Atlas's bootstrapper and the host-side corpus fetch use them).
-- An Atlas-supported LLM backend. The wrapper leaves provider selection to Atlas;
-  set `RAG_SHOWCASE_LLM_PROVIDER_SOURCE=ollama-localhost` for one run when an
-  existing host Ollama should be used.
+- An Atlas-supported LLM backend. The manifest commits `LLM_PROVIDER_SOURCE: auto`,
+  so each host resolves the best source (an existing host Ollama if installed, else
+  a container) automatically — no per-run flag.
 - Disk / RAM / headroom for the `gen-ai-rag` stack plus your chosen local models. The
   default local run activates `mistral-small3.2:24b` for LightRAG extraction and
   uses `qwen3.6:latest` for graph keyword/query roles — see
@@ -89,20 +89,17 @@ ATLAS_CONSUMER_MANIFEST="$PWD/atlas.consumer.local.yml" ./scripts/start-all.sh
 ```
 
 Atlas's detached startup revalidates after applying the wrapper's source flags.
-The stable service contracts deliberately fix LightRAG to a container, TEI to its
-CPU container, and Docling to disabled. LLM and ComfyUI sources are not assumed:
-the wrapper uses Atlas's active configuration unless
-`RAG_SHOWCASE_LLM_PROVIDER_SOURCE` or `RAG_SHOWCASE_COMFYUI_SOURCE` is supplied.
-Alternate consumer manifests customize model roles, branding, and other values.
-
-For example, a host-runtime launch is explicit and leaves unrelated host services
-under their existing owners:
+All compute sources are committed in `atlas.consumer.yml` (`profile: dev` +
+`env.values`): `LLM_PROVIDER_SOURCE: auto` (host-adaptive), LightRAG in a container,
+TEI on its CPU container, and Docling disabled. So a plain start is correct on every
+host and needs no per-run source flag:
 
 ```bash
-RAG_SHOWCASE_LLM_PROVIDER_SOURCE=ollama-localhost \
-RAG_SHOWCASE_COMFYUI_SOURCE=managed-localhost-mps \
 ./scripts/start-all.sh
 ```
+
+To pin or change a source, edit the manifest, or pass `--llm-provider-source` (etc.)
+directly to `infra/start.sh` for a one-off — an operator flag wins that run.
 
 ComfyUI is not required by the `gen-ai-rag` track, so omit its override unless an
 enabled Atlas service actually needs it.
