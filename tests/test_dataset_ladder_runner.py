@@ -120,11 +120,17 @@ def test_start_all_supports_service_only_mode() -> None:
     # Durable manifest BASE_PORT: auto (#82); no resolve-fresh CLI --base-port auto.
     assert '"${ATLAS_BASE_PORT_ARGS[@]}"' in script
     assert '--base-port "$ATLAS_BASE_PORT"' not in script
-    assert "RAG_SHOWCASE_LLM_PROVIDER_SOURCE" in script
-    assert "RAG_SHOWCASE_COMFYUI_SOURCE" in script
-    assert "ATLAS_SOURCE_ARGS" in script
-    assert "--llm-provider-source ollama-localhost" not in script
-    assert "--comfyui-source disabled" not in script
+    # Compute sources are committed in atlas.consumer.yml (profile: dev + env.values),
+    # so start-all passes NO per-run --*-source flags or RAG_SHOWCASE_*_SOURCE
+    # overrides (atlas#753/#755).
+    assert "RAG_SHOWCASE_LLM_PROVIDER_SOURCE" not in script
+    assert "RAG_SHOWCASE_COMFYUI_SOURCE" not in script
+    assert "ATLAS_SOURCE_ARGS" not in script
+    assert "--llm-provider-source" not in script
+    assert "--comfyui-source" not in script
+    assert "--lightrag-source" not in script
+    assert "--tei-reranker-source" not in script
+    assert "--doc-processor-source" not in script
     assert "select_atlas_base_port.py" not in script
     assert "Atlas #654" not in script
     assert "sync_bootstrap_env_key" not in script

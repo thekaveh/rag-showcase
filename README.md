@@ -76,9 +76,10 @@ requirements apply:
   temporary disabled-service compatibility overlay uses Compose's `!reset` tag.
 - The vendored **`infra/` submodule initialized**: `git submodule update --init --recursive`.
 - Host tools **`uv`** and **`python3`** (Atlas's bootstrapper and the host-side corpus fetch use them).
-- An Atlas-supported LLM backend. Provider selection remains Atlas-owned. Set
-  `RAG_SHOWCASE_LLM_PROVIDER_SOURCE=ollama-localhost` for a run that should use
-  an existing host Ollama; otherwise the wrapper preserves Atlas's active source.
+- An Atlas-supported LLM backend. The manifest commits `LLM_PROVIDER_SOURCE: auto`
+  (atlas#753), so each host resolves the best source — an existing host Ollama if
+  installed, else a container — with no per-run flag. To pin one, edit the manifest
+  or pass `--llm-provider-source` to `infra/start.sh` (an operator flag wins).
 - Disk/RAM/headroom for the `gen-ai-rag` stack plus whichever local models you
   choose. The default local run asks Atlas to activate `mistral-small3.2:24b`
   for LightRAG extraction and uses Atlas's default `qwen3.6:latest` for graph
@@ -135,10 +136,11 @@ matrix remains the canonical six for backward compatibility.
 The detached startup is the authoritative effective-config check: Atlas applies
 the wrapper's fixed LightRAG container, TEI CPU, and Docling-disabled source flags,
 revalidates the resolved stack, and only then starts the enabled Compose services.
-LLM and ComfyUI sources remain Atlas-owned unless a run supplies
-`RAG_SHOWCASE_LLM_PROVIDER_SOURCE` or `RAG_SHOWCASE_COMFYUI_SOURCE`. An alternate
-`ATLAS_CONSUMER_MANIFEST` can change models, branding, and other consumer values;
-the three stable service choices above remain wrapper contracts.
+Compute sources are committed in `atlas.consumer.yml` (`profile: dev` plus
+`env.values`: `LLM_PROVIDER_SOURCE: auto`, LightRAG container, TEI CPU, Docling
+disabled), so the start passes no per-run source flags and is host-correct on every
+machine. An alternate `ATLAS_CONSUMER_MANIFEST` can change models, branding, sources,
+and other consumer values.
 
 The `n8n-adaptive-rag` workflow is checked in at
 [`n8n/adaptive-rag.workflow.json`](n8n/adaptive-rag.workflow.json) and declared in
@@ -341,11 +343,11 @@ LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
   `cd infra && docker compose build backend`, return to the repo root, and rerun
   `./scripts/start-all.sh`. Automatic source-drift rebuilding is tracked in
   [Atlas #506](https://github.com/thekaveh/atlas/issues/506).
-- **Local generation is too slow.** Use an Atlas LLM provider source appropriate for
-  your machine. For example, `RAG_SHOWCASE_LLM_PROVIDER_SOURCE=ollama-localhost`
-  routes LiteLLM
-  to an existing host Ollama, while `ollama-container-gpu` targets an NVIDIA-capable
-  container runtime. LightRAG role models are now configured through Atlas's
+- **Local generation is too slow.** `LLM_PROVIDER_SOURCE: auto` already routes to a
+  host Ollama when one is installed; to force a specific source, pass
+  `--llm-provider-source` to `infra/start.sh` for one run (e.g. `ollama-localhost`
+  for host Ollama, `ollama-container-gpu` for an NVIDIA-capable container runtime),
+  or commit it in the manifest. LightRAG role models are now configured through Atlas's
   `LIGHTRAG_EXTRACT_LLM_MODEL`, `LIGHTRAG_KEYWORD_LLM_MODEL`, and
   `LIGHTRAG_QUERY_LLM_MODEL` inputs. Copy `atlas.consumer.yml` to the ignored
   `atlas.consumer.local.yml`, copy `config/atlas.env.user` to an ignored `.env.*`
