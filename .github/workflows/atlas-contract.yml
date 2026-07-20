@@ -39,10 +39,15 @@ jobs:
           enable-cache: true
       - name: Materialize the consumer env (env backfill — applies profile + sources)
         run: |
-          cd infra && ./start.sh --consumer ../atlas.consumer.yml \
-            --project rag-showcase env backfill
-      - name: Assert endpoint contract (drift gate — fields our tooling reads)
+          cd infra
+          [ -f .env ] || cp .env.example .env       # env backfill needs a base .env (start-all does the same)
+          ./start.sh --consumer ../atlas.consumer.yml --project rag-showcase env backfill
+      - name: Assert endpoint contract (drift gate — the fields our tooling reads)
+        # Host-published container services expose a HOST endpoint on every host; the
+        # LLM provider's endpoint shape is host-specific (ollama-localhost has a HOST
+        # endpoint, a container source a CONTAINER one), so assert its universal
+        # SOURCE field — which is what our eval tooling actually keys off.
         run: |
           cd infra && ./start.sh --consumer ../atlas.consumer.yml \
             --project rag-showcase endpoints assert --require \
-            ATLAS_LITELLM_HOST_ENDPOINT,ATLAS_WEAVIATE_HOST_ENDPOINT,ATLAS_N8N_HOST_ENDPOINT,ATLAS_OLLAMA_HOST_ENDPOINT,ATLAS_BACKEND_HOST_ENDPOINT
+            ATLAS_LITELLM_HOST_ENDPOINT,ATLAS_WEAVIATE_HOST_ENDPOINT,ATLAS_N8N_HOST_ENDPOINT,ATLAS_BACKEND_HOST_ENDPOINT,ATLAS_OLLAMA_SOURCE
