@@ -1,10 +1,10 @@
 name: Atlas consumer contract
 
 # Pin-bump drift gate. Whenever the vendored Atlas pin (`infra`) or the consumer
-# manifest changes, statically re-run Atlas's consumer preflight and assert that
-# the endpoint contract still exports every field this project's tooling reads. An
+# manifest changes, statically materialize the consumer env and assert that the
+# endpoint contract still exports every field this project's tooling reads. An
 # Atlas bump that drops one fails here — a reviewable diff — instead of surfacing
-# as a runtime 404. Both checks run WITHOUT starting services (no Docker needed).
+# as a runtime 404. Runs WITHOUT starting services (no Docker needed).
 on:
   push:
     branches: [main, develop]
@@ -37,10 +37,10 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - name: Consumer doctor (static preflight — manifest / sources / profile)
+      - name: Materialize the consumer env (env backfill — applies profile + sources)
         run: |
           cd infra && ./start.sh --consumer ../atlas.consumer.yml \
-            --project rag-showcase doctor --format json
+            --project rag-showcase env backfill
       - name: Assert endpoint contract (drift gate — fields our tooling reads)
         run: |
           cd infra && ./start.sh --consumer ../atlas.consumer.yml \
