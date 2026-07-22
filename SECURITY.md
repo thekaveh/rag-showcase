@@ -7,9 +7,8 @@ This repository is a showcase that runs entirely on local infrastructure
 and holds no production data, but security reports are still welcome.
 
 Please report suspected vulnerabilities privately by opening a private security
-advisory on the repository, or by emailing the maintainer listed in
-`atlas.consumer.yml` (`brand.author`). Do not open a public issue for a
-security-sensitive report.
+advisory on the repository (the preferred channel). Do not open a public issue
+for a security-sensitive report.
 
 Include a description of the issue, a reproduction or proof of concept, and the
 commit you tested against. You will receive an acknowledgement within a few
