@@ -72,8 +72,9 @@ retrieval, augmentation, generation, output shaping, and observed tradeoffs. Sou
 **Prerequisites.** This runs entirely on [Atlas](https://github.com/thekaveh/atlas), so Atlas's
 requirements apply:
 
-- **Docker** + **Docker Compose 2.24.4 or newer**, installed and running. The
-  temporary disabled-service compatibility overlay uses Compose's `!reset` tag.
+- **Docker** + **Docker Compose 2.24.4 or newer** (Atlas recommends 2.26.0+),
+  installed and running. The temporary disabled-service compatibility overlay
+  uses Compose's `!reset` tag.
 - The vendored **`infra/` submodule initialized**: `git submodule update --init --recursive`.
 - Host tools **`uv`** and **`python3`** (Atlas's bootstrapper and the host-side corpus fetch use them).
 - An Atlas-supported LLM backend. The manifest commits `LLM_PROVIDER_SOURCE: auto`

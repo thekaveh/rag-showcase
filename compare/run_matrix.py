@@ -194,11 +194,14 @@ def _git_state(path: Path) -> dict[str, str | bool]:
     for relative_bytes in sorted(item for item in untracked if item):
         relative = Path(os.fsdecode(relative_bytes))
         absolute = path / relative
-        content = (
-            os.fsencode(os.readlink(absolute))
-            if absolute.is_symlink()
-            else absolute.read_bytes()
-        )
+        try:
+            content = (
+                os.fsencode(os.readlink(absolute))
+                if absolute.is_symlink()
+                else absolute.read_bytes()
+            )
+        except FileNotFoundError:
+            continue  # untracked file removed between ls-files and read (TOCTOU)
         digest.update(len(relative_bytes).to_bytes(8, "big"))
         digest.update(relative_bytes)
         digest.update(len(content).to_bytes(8, "big"))

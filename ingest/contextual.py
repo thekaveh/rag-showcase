@@ -48,6 +48,10 @@ async def run(
     for source in sorted(grouped):
         source_chunks = sorted(grouped[source], key=lambda chunk: chunk.index)
         document = _document_text(root, source, source_chunks)
+        # Serialized deliberately: concurrent contextualize calls would stack
+        # qwen3.6 requests on host Ollama and reintroduce the model-eviction
+        # thrash documented in the local-graph-run runbook. The curated corpora
+        # are small, so the latency cost is acceptable.
         for chunk in source_chunks:
             blurb = await contextualize(document, chunk.text)
             rows.append({"title": source, "text": f"{blurb}\n\n{chunk.text}"})

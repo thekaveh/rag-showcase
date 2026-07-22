@@ -222,10 +222,14 @@ def load_or_build(
 
     index = build_index(chunks, max_concepts_per_chunk=max_concepts_per_chunk)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
-    temporary.write_text(
-        json.dumps(index.to_dict(), sort_keys=True, separators=(",", ":")),
-        encoding="utf-8",
-    )
+    try:
+        temporary.write_text(
+            json.dumps(index.to_dict(), sort_keys=True, separators=(",", ":")),
+            encoding="utf-8",
+        )
+    except BaseException:
+        temporary.unlink(missing_ok=True)  # don't orphan a partial temp on failure
+        raise
     temporary.replace(path)
     return index, _stats(index, cache_hit=False, started=started)
 

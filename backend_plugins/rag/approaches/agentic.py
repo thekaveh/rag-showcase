@@ -105,6 +105,10 @@ async def agentic_rag(req: ChatRequest):
             break
         messages.append(msg)
         thought = content.strip()
+        # Tool calls within a turn are awaited sequentially on purpose: gathering
+        # them would stack concurrent LightRAG/embed requests on host Ollama and
+        # reintroduce the model-eviction thrash noted in the local-graph-run
+        # runbook. ReAct turns are few, so the latency cost is acceptable.
         for j, call in enumerate(tool_calls):
             # Local models sometimes emit a tool call with a null/absent id. The
             # OpenAI contract requires each tool reply's tool_call_id to match an
