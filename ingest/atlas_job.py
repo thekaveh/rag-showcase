@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import time
 from collections.abc import Callable
@@ -10,6 +11,8 @@ from typing import Any
 
 import httpx
 
+
+_log = logging.getLogger(__name__)
 
 _TERMINAL = frozenset({"completed", "failed", "cancelled"})
 
@@ -65,21 +68,33 @@ def run_ingestion(
         ingestion_id = str(queued["ingestion_id"])
         deadline = time.monotonic() + timeout_seconds
         while True:
-            status_response = http.get(
-                f"{base_url.rstrip('/')}/api/rag/ingestions/{ingestion_id}",
-                headers=headers,
-            )
-            status_response.raise_for_status()
-            record = status_response.json()
-            status = str(record.get("status") or "")
-            if status == "completed":
-                return record
-            if status in _TERMINAL:
-                raise RuntimeError(_failure_detail(record))
+            # Tolerate a transient poll error (Atlas restart, a 502/503 blip)
+            # within the deadline rather than aborting a multi-hour wait on a
+            # single non-2xx — the job keeps progressing server-side. A
+            # persistent outage is still bounded by the deadline below.
+            record: dict[str, Any] | None = None
+            try:
+                status_response = http.get(
+                    f"{base_url.rstrip('/')}/api/rag/ingestions/{ingestion_id}",
+                    headers=headers,
+                )
+                status_response.raise_for_status()
+                record = status_response.json()
+            except httpx.HTTPError as exc:
+                _log.warning("transient error polling ingestion %s (%s); continuing",
+                             ingestion_id, type(exc).__name__)
+            if record is not None:
+                status = str(record.get("status") or "")
+                if status == "completed":
+                    return record
+                if status in _TERMINAL:
+                    raise RuntimeError(_failure_detail(record))
+            else:
+                status = "unknown"
             if time.monotonic() >= deadline:
                 raise TimeoutError(
                     f"Atlas ingestion {ingestion_id} for profile {profile!r} did not "
-                    f"finish within {timeout_seconds:g}s (last status: {status or 'unknown'})"
+                    f"finish within {timeout_seconds:g}s (last status: {status})"
                 )
             sleep(poll_seconds)
     finally:

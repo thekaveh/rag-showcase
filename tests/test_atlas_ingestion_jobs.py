@@ -166,6 +166,36 @@ def test_headless_job_client_waits_for_phase_complete_record() -> None:
     assert calls["get"] == 2
 
 
+def test_headless_job_client_tolerates_transient_poll_error() -> None:
+    # A single transient 5xx mid-poll must NOT abort a long-running wait — the
+    # job keeps progressing server-side. One 502 then completed should return the
+    # completed record, not raise.
+    from ingest.atlas_job import run_ingestion
+
+    calls = {"get": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(202, json={"ingestion_id": "job-1", "status": "pending"})
+        calls["get"] += 1
+        if calls["get"] == 1:
+            return httpx.Response(502, text="bad gateway")
+        return httpx.Response(200, json={"id": "job-1", "status": "completed"})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        record = run_ingestion(
+            "graph_native",
+            base_url="http://atlas.test",
+            api_token="test-internal-token",
+            timeout_seconds=10,
+            poll_seconds=0,
+            client=client,
+        )
+
+    assert record["status"] == "completed"
+    assert calls["get"] == 2
+
+
 def test_headless_job_client_surfaces_phase_failures() -> None:
     from ingest.atlas_job import run_ingestion
 

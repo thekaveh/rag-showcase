@@ -291,6 +291,9 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Live run result snapshots](docs/results/README.md) | Living | Artifact ledger for committed evidence, summaries, matrices, and panel judgments |
 | [n8n workflow](n8n/README.md) | Living | Checked-in Adaptive-RAG workflow, Atlas seeding lifecycle, and workflow tuning knobs |
 | [Live comparison](docs/comparison.md) | Living | Side-by-side results of all seven approaches + live-validation findings (`think:false`, LightRAG role/query tuning, graph-native corpus behavior) |
+| [Changelog](CHANGELOG.md) | Living | Notable changes toward the first release (eval-check preflight, durable manifest config, infra pin-drift guard, seven-approach wording) |
+| [License](LICENSE) | Governance | Apache License 2.0 |
+| [Security policy](SECURITY.md) | Governance | Vulnerability reporting channel and scope |
 
 ## 8. Development & Testing
 
