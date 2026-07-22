@@ -19,6 +19,9 @@ sections:
       - number: "2.3"
         title: Hardware Sizing Guide
         source: hardware.md
+      - number: "2.4"
+        title: Running Graph Approaches Locally
+        source: guide/local-graph-runs.md
   - title: Approaches
     pages:
       - number: "3.1"

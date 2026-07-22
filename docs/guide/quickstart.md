@@ -68,6 +68,12 @@ This single script:
     With local models, the first run may pull several GB, so it takes a while.
     `start-all.sh` gates on model readiness — let it finish.
 
+!!! note "Running the graph approaches locally"
+    LightRAG graph extraction is the heaviest local step and has host-specific
+    footguns (Ollama version skew, model-churn eviction, and an upstream
+    extract-runaway bug). If a run stalls at ingestion or `graph-rag` returns
+    nothing, see [Running Graph Approaches Locally](local-graph-runs.md).
+
 Then open the printed URL, start a **multi-model chat**, and select:
 `vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
 `n8n-adaptive-rag`, `lazy-graph-rag`. One prompt fans out to all of them.
@@ -151,8 +157,9 @@ LITELLM_BASE_URL="http://other-host:4000" LITELLM_MASTER_KEY="sk-yourkey" \
 ```
 
 To confirm the evaluation's Atlas-infra dependencies are up and in order — the
-LiteLLM aliases, Weaviate plus its ingested collections, LightRAG, the TEI
-reranker, n8n, and the required Ollama models (pulled, not just declared) —
+LiteLLM aliases, Weaviate plus its ingested collections, LightRAG (health plus
+knowledge-graph population), the TEI reranker, n8n, and the required Ollama models
+(pulled, not just declared), and flags an Ollama client/server version skew —
 **without** running any ingestion, approach, or the LLM judge, run the read-only
 preflight against a started stack:
 
