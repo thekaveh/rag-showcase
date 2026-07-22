@@ -43,6 +43,11 @@ DECLARED_SERVICES = ("litellm", "weaviate", "lightrag", "tei-reranker", "n8n", "
 # unpopulated graph is expected and fine.
 GRAPH_APPROACHES = ("graph-rag", "lazy-graph-rag", "agentic-rag")
 
+# Ceiling for the Docker CLI readiness calls (docker version / docker inspect) so
+# a hung daemon can't hang the preflight; the in-container probe exec has its own
+# (larger) timeout in run_live_probes.
+_DOCKER_CLI_TIMEOUT = 30.0
+
 
 def load_expected_aliases(manifest: Path | None = None) -> list[str]:
     """Return the LiteLLM alias names Atlas compiles from the consumer manifest.
@@ -83,6 +88,9 @@ def load_expected_models(env_user: Path | None = None) -> list[str]:
         if line.startswith("#") or "=" not in line:
             continue
         key, _, val = line.partition("=")
+        # Strip an inline comment (KEY=model  # note) so it isn't folded into the
+        # tag and silently fail the Ollama presence check.
+        val = val.split(" #", 1)[0].strip()
         if key.endswith("_MODEL") and val:
             models.add(val)
     return sorted(models)
@@ -301,10 +309,13 @@ def run_doctor(project: str, timeout: float) -> dict:
 
 
 def _backend_running(container: str) -> bool:
-    proc = subprocess.run(
-        ["docker", "inspect", "-f", "{{.State.Running}}", container],
-        capture_output=True, text=True,
-    )
+    try:
+        proc = subprocess.run(
+            ["docker", "inspect", "-f", "{{.State.Running}}", container],
+            capture_output=True, text=True, timeout=_DOCKER_CLI_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return False
     return proc.returncode == 0 and proc.stdout.strip() == "true"
 
 
@@ -318,7 +329,15 @@ def run_live_probes(
 ) -> dict:
     """Probe each running dependency read-only, from inside the backend."""
     container = f"{project}-backend"
-    if subprocess.run(["docker", "version"], capture_output=True).returncode != 0:
+    # Bound even the readiness CLI calls so a fully-hung Docker daemon reports
+    # failure instead of hanging the preflight before the bounded exec runs.
+    try:
+        docker_up = subprocess.run(
+            ["docker", "version"], capture_output=True, timeout=_DOCKER_CLI_TIMEOUT,
+        ).returncode == 0
+    except subprocess.TimeoutExpired:
+        docker_up = False
+    if not docker_up:
         return {s: {"ok": False, "detail": "docker unavailable"} for s in DECLARED_SERVICES}
     if not _backend_running(container):
         return {

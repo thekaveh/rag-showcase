@@ -82,11 +82,16 @@ done so idle models unload normally. See
 [thekaveh/atlas#798](https://github.com/thekaveh/atlas/issues/798) for the upstream
 request to size `keep_alive` automatically for host-Ollama ingest.
 
-## After a run: restore the infra pin
+## After a run: the infra pin
 
 Starting the stack can check the vendored `infra/` submodule out to a newer Atlas
-commit and stage that drift in your working tree — so a later `git commit -am` would
-silently bump the pin. Restore it after any run:
+commit and stage that drift in your working tree — so a later `git commit -am`
+could silently bump the pin. `scripts/start-all.sh` restores the pinned SHA
+automatically on every exit (success or failure) via an EXIT trap
+([rag-showcase#96](https://github.com/thekaveh/rag-showcase/issues/96)), so a
+wrapper-driven run leaves the repo clean with no manual step. The commands below
+are only needed if you launched Atlas directly (`infra/start.sh …`, bypassing the
+wrapper) or want to verify the tree is clean:
 
 ```bash
 git restore --staged infra
@@ -94,9 +99,8 @@ git -C infra checkout "$(git ls-tree HEAD infra | awk '{print $3}')"
 git status   # clean, infra back at the pinned SHA
 ```
 
-This is tracked upstream as
-[thekaveh/atlas#797](https://github.com/thekaveh/atlas/issues/797); the consumer-side
-guard is [rag-showcase#96](https://github.com/thekaveh/rag-showcase/issues/96).
+The underlying launcher behavior is tracked upstream as
+[thekaveh/atlas#797](https://github.com/thekaveh/atlas/issues/797).
 
 ## See also
 

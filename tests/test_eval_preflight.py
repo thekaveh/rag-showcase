@@ -71,9 +71,24 @@ def test_expected_models_from_env_user() -> None:
         if line.startswith("#") or "=" not in line:
             continue
         key, _, val = line.partition("=")
+        val = val.split(" #", 1)[0].strip()  # mirror load_expected_models
         if key.endswith("_MODEL") and val:
             expected.add(val)
     assert set(ep.load_expected_models()) == expected
+
+
+def test_load_expected_models_strips_inline_comments(tmp_path: Path) -> None:
+    # A hand-edited env file may carry an inline comment on a *_MODEL line; the
+    # comment must not be folded into the model tag (it would never match
+    # /api/tags and turn eval-check red with a misleading "missing model").
+    env = tmp_path / "atlas.env.user"
+    env.write_text(
+        "LIGHTRAG_QUERY_LLM_MODEL=qwen3.6:latest  # keyword role\n"
+        "LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b\n"
+        "# a comment line, ignored\n",
+        encoding="utf-8",
+    )
+    assert set(ep.load_expected_models(env)) == {"qwen3.6:latest", "mistral-small3.2:24b"}
 
 
 def test_probe_checks_ollama_models() -> None:
