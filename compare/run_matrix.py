@@ -39,8 +39,8 @@ from compare.evaluation import (  # noqa: E402
 from compare.evaluation_summary import write_summary  # noqa: E402
 
 RESULTS = ROOT / "compare" / "results"
-# The six base approaches ("models" because that is the OpenAI-API field name at the
-# gateway boundary). Derived, not copied — compare/flavors.py owns the display order.
+# The six canonical approaches ("models" because that is the OpenAI-API field name
+# at the gateway boundary). Derived, not copied — compare/flavors.py owns the order.
 ALL_MODELS = list(flavor_config.BASE_APPROACHES)
 
 DEFAULT_EVALUATION_MANIFEST = ROOT / "compare" / "evaluation.yaml"

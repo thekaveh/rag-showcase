@@ -120,9 +120,12 @@ def add_chunks(name: str, chunks: list[dict[str, Any]]) -> int:
                     properties={"title": c["title"], "text": c["text"]},
                     vector=c["vector"],
                 )
-        # Weaviate v4 batches absorb per-object errors instead of raising;
-        # surface them and return the count actually inserted (not the input
-        # count) so callers don't over-report a partially failed ingest.
+        # Weaviate v4 (weaviate-client >=4.9,<5, pinned in requirements.txt)
+        # absorbs per-object insert errors instead of raising and exposes them as
+        # `coll.batch.failed_objects` once the dynamic batch closes. Surface them
+        # and return the count actually inserted (not the input count) so callers
+        # don't over-report a partially failed ingest. A weaviate-client bump that
+        # renames this attribute would silently drop the guard — re-verify on bump.
         failed = getattr(coll.batch, "failed_objects", None) or []
         if failed:
             logging.getLogger("uvicorn.error").warning(

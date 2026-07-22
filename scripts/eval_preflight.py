@@ -325,19 +325,28 @@ def run_live_probes(
             s: {"ok": False, "detail": f"{container} is not running — start the stack first"}
             for s in DECLARED_SERVICES
         }
-    proc = subprocess.run(
-        [
-            "docker", "exec", "-i",
-            "-e", "PYTHONPATH=/app/plugins",
-            "-e", f"EXPECTED_ALIASES={json.dumps(expected_aliases)}",
-            "-e", f"EXPECTED_MODELS={json.dumps(expected_models)}",
-            "-e", f"OLLAMA_ENDPOINT={ollama_endpoint}",
-            "-e", f"GRAPH_ALIASES_DECLARED={'1' if graph_expected else '0'}",
-            "-e", f"PREFLIGHT_TIMEOUT={timeout}",
-            container, "python", "-",
-        ],
-        input=PROBE_SOURCE, capture_output=True, text=True,
-    )
+    # Bound the exec too, not only the in-container probes: a wedged container
+    # runtime (distinct from the self-bounded probe code) could otherwise hang
+    # the preflight forever. Generous multiple of the per-probe timeout.
+    exec_timeout = max(120.0, timeout * 12)
+    try:
+        proc = subprocess.run(
+            [
+                "docker", "exec", "-i",
+                "-e", "PYTHONPATH=/app/plugins",
+                "-e", f"EXPECTED_ALIASES={json.dumps(expected_aliases)}",
+                "-e", f"EXPECTED_MODELS={json.dumps(expected_models)}",
+                "-e", f"OLLAMA_ENDPOINT={ollama_endpoint}",
+                "-e", f"GRAPH_ALIASES_DECLARED={'1' if graph_expected else '0'}",
+                "-e", f"PREFLIGHT_TIMEOUT={timeout}",
+                container, "python", "-",
+            ],
+            input=PROBE_SOURCE, capture_output=True, text=True, timeout=exec_timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return {s: {"ok": False,
+                    "detail": f"docker exec probe timed out after {exec_timeout:.0f}s"}
+                for s in DECLARED_SERVICES}
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "probe failed").strip().splitlines()
         return {s: {"ok": False, "detail": detail[-1] if detail else "probe failed"}

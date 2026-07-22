@@ -79,7 +79,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--include-flavor-tier",
         action="store_true",
-        help="Run all seven supported approaches (six base + lazy-graph-rag), then "
+        help="Run all seven supported approaches (six canonical + lazy-graph-rag), then "
              "every non-base flavor alias against the same ingestion using separate "
              "result artifacts.",
     )

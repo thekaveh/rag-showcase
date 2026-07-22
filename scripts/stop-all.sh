@@ -3,7 +3,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 PROJECT_NAME="${RAG_SHOWCASE_PROJECT_NAME:-rag-showcase}"
-ATLAS_CONSUMER_MANIFEST="${ATLAS_CONSUMER_MANIFEST:-$ROOT/atlas.consumer.yml}"
 COLD=0
 case "${1:-}" in
   "") ;;

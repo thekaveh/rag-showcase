@@ -142,7 +142,9 @@ def test_stop_is_project_scoped_and_preserves_shared_managed_hosts() -> None:
 
     assert "docker compose" not in script
     assert 'PROJECT_NAME="${RAG_SHOWCASE_PROJECT_NAME:-rag-showcase}"' in script
-    assert 'ATLAS_CONSUMER_MANIFEST=' in script
+    # stop.sh's teardown is project-scoped via --project; it takes no --consumer,
+    # so stop-all must not carry a dead ATLAS_CONSUMER_MANIFEST assignment.
+    assert "ATLAS_CONSUMER_MANIFEST" not in script
     # Project-scoping is carried by stop_args, which begins with --project <name>;
     # the whole array is passed once (no brittle ${stop_args[@]:2} slice that
     # would silently drop a future prepended flag).

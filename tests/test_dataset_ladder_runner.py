@@ -509,10 +509,21 @@ def test_flavor_tier_selects_every_non_base_alias() -> None:
 
     aliases = module.flavor_tier_models()
 
-    assert len(aliases) == 12
+    # Derive the expected flavor set from the flavors manifest independently of a
+    # hard-coded count: every declared alias that is not a supported approach, so
+    # adding a flavor doesn't false-alarm the test (same principle as the alias
+    # count removed from test_eval_preflight in the prior pass).
+    manifest = module.flavors_file()
+    manifest = manifest if manifest.is_absolute() else module.ROOT / manifest
+    profiles = module.flavor_config.load_flavors(manifest)
+    supported = set(module.flavor_config.SUPPORTED_APPROACHES)
+    expected = {p.alias for p in profiles.values() if p.alias not in supported}
+
+    assert set(aliases) == expected
+    assert aliases  # non-empty sanity
     assert "graph-rag-rerank" in aliases
     assert "lazy-graph-rag-wide" in aliases
-    assert not set(aliases) & set(module.flavor_config.SUPPORTED_APPROACHES)
+    assert not set(aliases) & supported
 
 
 def test_run_matrix_and_judge_ignores_exported_selection_env(monkeypatch, tmp_path) -> None:
