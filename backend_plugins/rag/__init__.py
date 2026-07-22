@@ -18,7 +18,7 @@ async def health() -> dict[str, object]:
     }
 
 # Include all seven approach routers onto the aggregate router the seam loads
-# (six base approaches plus the experimental lazy-graph-rag route).
+# (the six canonical approaches plus the experimental lazy-graph-rag route).
 from .approaches import vanilla  # noqa: E402
 router.include_router(vanilla.router)
 from .approaches import hybrid  # noqa: E402

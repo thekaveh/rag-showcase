@@ -1,4 +1,5 @@
 import json
+import subprocess
 import sys
 import types
 from pathlib import Path
@@ -377,4 +378,26 @@ def test_run_doctor_probes_the_stacks_resolved_base_port(monkeypatch, tmp_path: 
     monkeypatch.setenv("RAG_SHOWCASE_BASE_PORT", "9999")
     ep.run_doctor("rag-showcase", timeout=60.0)
     assert "9999" in captured["cmd"]
+
+
+def test_run_live_probes_bounds_a_wedged_exec(monkeypatch) -> None:
+    # A wedged `docker exec` (runtime stall, distinct from the self-bounded probe
+    # code) must hit the exec timeout and report every service failed, not hang.
+    def _fake_run(cmd, *args, **kwargs):
+        if cmd[:2] == ["docker", "version"]:
+            return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+        if cmd[:2] == ["docker", "inspect"]:
+            return types.SimpleNamespace(returncode=0, stdout="true\n", stderr="")
+        if cmd[1] == "exec":
+            raise subprocess.TimeoutExpired(cmd, 123)
+        raise AssertionError(f"unexpected cmd: {cmd!r}")
+
+    monkeypatch.setattr(ep.subprocess, "run", _fake_run)
+    result = ep.run_live_probes(
+        "rag-showcase", ["vanilla-rag"], ["nomic-embed-text"],
+        "http://ollama:11434", True, timeout=10.0,
+    )
+    assert set(result) == set(ep.DECLARED_SERVICES)
+    assert all(not r["ok"] for r in result.values())
+    assert all("timed out" in r["detail"] for r in result.values())
 
