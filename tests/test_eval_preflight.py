@@ -1,3 +1,5 @@
+import sys
+import types
 from pathlib import Path
 
 import yaml
@@ -127,3 +129,85 @@ def test_make_eval_check_target_runs_the_preflight() -> None:
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     assert "eval-check:" in makefile
     assert "scripts.eval_preflight" in makefile or "scripts/eval_preflight.py" in makefile
+
+
+def test_graph_aliases_declared_reads_manifest(tmp_path: Path) -> None:
+    # The real manifest declares graph-rag / lazy-graph-rag / agentic-rag, so an
+    # empty knowledge graph must gate the eval.
+    assert ep.graph_aliases_declared() is True
+
+    # A vector-only manifest → an unpopulated graph is expected, not a failure.
+    vector_only = tmp_path / "manifest.yml"
+    vector_only.write_text(
+        "litellm_models:\n"
+        "  models:\n"
+        "    - name: vanilla-rag\n"
+        "      model_info: {base_approach: vanilla-rag}\n"
+        "    - name: hybrid-rag\n"
+        "      model_info: {base_approach: hybrid-rag}\n",
+        encoding="utf-8",
+    )
+    assert ep.graph_aliases_declared(vector_only) is False
+
+
+def test_probe_checks_graph_population() -> None:
+    # The lightrag probe must go beyond /health to the read-only /documents graph
+    # signal, and hard-fail an empty graph when graph aliases are declared.
+    assert "/documents" in ep.PROBE_SOURCE
+    assert "GRAPH_ALIASES_DECLARED" in ep.PROBE_SOURCE
+    assert "processed" in ep.PROBE_SOURCE
+    assert "graph EMPTY" in ep.PROBE_SOURCE
+
+
+def _probe_lightrag(monkeypatch, *, statuses, graph_declared):
+    """Exec the in-container PROBE_SOURCE with httpx mocked and return the lightrag
+    result. record() isolates each probe, so the other services failing on unset
+    env doesn't affect the lightrag verdict — this asserts only the graph gate."""
+
+    class _Resp:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    def _get(url, *args, **kwargs):
+        if url.endswith("/documents"):
+            return _Resp({"statuses": statuses})
+        return _Resp({})  # /health and any other GET
+
+    monkeypatch.setitem(sys.modules, "httpx", types.SimpleNamespace(get=_get))
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    monkeypatch.setenv("GRAPH_ALIASES_DECLARED", "1" if graph_declared else "0")
+    ns: dict = {}
+    exec(compile(ep.PROBE_SOURCE, "<probe>", "exec"), ns)
+    return ns["results"]["lightrag"]
+
+
+def test_probe_lightrag_passes_on_populated_graph(monkeypatch) -> None:
+    res = _probe_lightrag(monkeypatch, statuses={"processed": [1, 2, 3]}, graph_declared=True)
+    assert res["ok"] is True
+    assert "3 processed" in res["detail"]
+
+
+def test_probe_lightrag_fails_on_empty_graph_when_declared(monkeypatch) -> None:
+    res = _probe_lightrag(monkeypatch, statuses={}, graph_declared=True)
+    assert res["ok"] is False
+    assert "EMPTY" in res["detail"]
+
+
+def test_probe_lightrag_allows_empty_graph_when_not_declared(monkeypatch) -> None:
+    # Vector-only run: no graph aliases declared → an empty graph is expected.
+    res = _probe_lightrag(monkeypatch, statuses={}, graph_declared=False)
+    assert res["ok"] is True
+
+
+def test_probe_lightrag_fails_on_failed_docs(monkeypatch) -> None:
+    res = _probe_lightrag(
+        monkeypatch, statuses={"processed": [1, 2], "failed": [9]}, graph_declared=True
+    )
+    assert res["ok"] is False
+    assert "FAILED" in res["detail"]
