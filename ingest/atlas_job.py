@@ -68,10 +68,6 @@ def run_ingestion(
         ingestion_id = str(queued["ingestion_id"])
         deadline = time.monotonic() + timeout_seconds
         while True:
-            # Tolerate a transient poll error (Atlas restart, a 502/503 blip)
-            # within the deadline rather than aborting a multi-hour wait on a
-            # single non-2xx — the job keeps progressing server-side. A
-            # persistent outage is still bounded by the deadline below.
             record: dict[str, Any] | None = None
             try:
                 status_response = http.get(

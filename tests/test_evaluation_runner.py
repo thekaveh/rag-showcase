@@ -177,6 +177,32 @@ def test_run_evaluation_persists_every_2x2_cell_and_isolates_timeout(tmp_path: P
     assert graph_call["contexts"] == []
 
 
+def test_run_evaluation_treats_none_completion_as_cell_error(tmp_path: Path) -> None:
+    # invoke returning None without raising (gateway 200 with a null body, or a
+    # custom callable) must become a per-cell error row via completion_evidence,
+    # NOT an AssertionError that aborts the whole matrix run (the old
+    # `assert last_error is not None` on the payload-None path did that).
+    manifest, dataset = _manifest(tmp_path)
+    questions = [QuestionSpec(id="q1", query="one")]
+    approaches = [
+        SelectedApproach(model="vanilla-rag", base_model="vanilla-rag", flavor="default",
+                         evidence="answer_with_contexts"),
+    ]
+
+    def invoke(model: str, query: str, timeout_s: float):
+        return None  # success-shaped (no raise) but a None payload
+
+    rows = run_evaluation(
+        manifest=manifest, run_id="run-1", dataset=dataset, questions=questions,
+        approaches=approaches, invoke=invoke, evaluator=_Evaluator(),
+        store=JsonlStore(tmp_path / "rows.jsonl"),
+        runtime_provenance={"project": "rag-showcase", "base_port": 22000},
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["status"] != "ok"  # per-cell error row, run did not abort
+
+
 def test_run_evaluation_resume_skips_completed_rows_without_duplicates(tmp_path: Path) -> None:
     manifest, dataset = _manifest(tmp_path)
     questions = [QuestionSpec(id="q1", query="one"), QuestionSpec(id="q2", query="two")]

@@ -677,9 +677,11 @@ def _run_cell(
         except Exception as exc:  # noqa: BLE001 - every failed cell is durable evidence.
             last_error = exc
     latency_ms = round((time.perf_counter() - started) * 1000)
-    if last_error is not None or payload is None:
-        assert last_error is not None
+    if last_error is not None:
         return _error_row(base, last_error, latency_ms, attempts, judge_status)
+    # A None payload (invoke returned None without raising) is a malformed
+    # completion — let it flow to completion_evidence, which raises and becomes a
+    # per-cell error row, never an AssertionError that aborts the whole run.
 
     try:
         evidence = completion_evidence(payload)
