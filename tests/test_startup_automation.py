@@ -299,3 +299,18 @@ def test_runtime_verifier_rejects_genuine_failures() -> None:
     assert pending == []
     assert "backend: unhealthy" in failures
     assert "n8n-init: exited 17" in failures
+
+
+def test_start_all_guards_the_infra_pin() -> None:
+    # atlas#797: start-all.sh must snapshot the infra pin and restore it on exit so a
+    # run leaves the repo byte-clean at the pin (see scripts/restore-infra-pin.sh,
+    # covered functionally in tests/test_infra_pin_guard.py).
+    script = _script("start-all.sh")
+    assert "RAG_SHOWCASE_INFRA_PIN" in script
+    assert "rev-parse HEAD:infra" in script
+    assert "trap _restore_infra_pin EXIT" in script
+    assert "restore-infra-pin.sh" in script
+
+    guard = (ROOT / "scripts" / "restore-infra-pin.sh").read_text(encoding="utf-8")
+    assert "restore --staged" in guard
+    assert "checkout" in guard
