@@ -211,3 +211,42 @@ def test_probe_lightrag_fails_on_failed_docs(monkeypatch) -> None:
     )
     assert res["ok"] is False
     assert "FAILED" in res["detail"]
+
+
+def test_ollama_version_skew_detected(monkeypatch) -> None:
+    def _run(*args, **kwargs):
+        return types.SimpleNamespace(
+            stdout="ollama version is 0.32.1\n",
+            stderr="Warning: client version is 0.21.0\n",
+            returncode=0,
+        )
+
+    monkeypatch.setattr(ep.subprocess, "run", _run)
+    msg = ep.check_ollama_version_skew()
+    assert msg is not None
+    assert "0.21.0" in msg and "0.32.1" in msg
+
+
+def test_ollama_version_skew_none_when_aligned(monkeypatch) -> None:
+    def _run(*args, **kwargs):
+        return types.SimpleNamespace(stdout="ollama version is 0.32.1\n", stderr="", returncode=0)
+
+    monkeypatch.setattr(ep.subprocess, "run", _run)
+    assert ep.check_ollama_version_skew() is None
+
+
+def test_ollama_version_skew_none_when_cli_absent(monkeypatch) -> None:
+    def _run(*args, **kwargs):
+        raise FileNotFoundError("ollama")
+
+    monkeypatch.setattr(ep.subprocess, "run", _run)
+    assert ep.check_ollama_version_skew() is None
+
+
+def test_format_report_shows_version_skew_warning() -> None:
+    probes = {s: {"ok": True, "detail": "ok"} for s in ep.DECLARED_SERVICES}
+    report = ep.format_report({"ok": True, "detail": "passed"}, probes, ["ollama skew: fix it"])
+    assert "⚠" in report
+    assert "ollama skew: fix it" in report
+    # An advisory must not flip the overall result.
+    assert "all dependencies ready" in report

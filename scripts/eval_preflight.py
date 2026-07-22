@@ -108,6 +108,33 @@ def resolve_ollama_endpoint(env_path: Path | None = None) -> str:
     return ""
 
 
+def check_ollama_version_skew() -> str | None:
+    """Advisory: warn when the host Ollama CLI and server versions disagree.
+
+    A skew (e.g. the desktop app auto-updates while a Homebrew CLI stays behind)
+    can wedge a graph run. ``ollama --version`` prints the server version and, when
+    they differ, a ``Warning: client version is ...`` line — surface that verbatim.
+    Never gates the exit code; returns None when aligned or when Ollama is absent.
+    """
+    try:
+        proc = subprocess.run(
+            ["ollama", "--version"], capture_output=True, text=True, timeout=10
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    out = f"{proc.stdout}\n{proc.stderr}"
+    warn = next(
+        (ln.strip() for ln in out.splitlines()
+         if "warning" in ln.lower() and "client version" in ln.lower()),
+        None,
+    )
+    if not warn:
+        return None
+    server = next((ln.strip() for ln in out.splitlines() if "version is" in ln.lower()), "")
+    detail = f"{server}; {warn}" if server else warn
+    return f"{detail} — update the Ollama CLI to match the server and restart the app"
+
+
 def envval(key: str, env_path: Path | None = None) -> str | None:
     """Read a key from Atlas's generated infra/.env (last assignment wins)."""
     env_path = env_path or (ROOT / "infra" / ".env")
@@ -328,7 +355,7 @@ def overall_ok(config: dict | None, probes: dict) -> bool:
     return ok
 
 
-def format_report(config: dict | None, probes: dict) -> str:
+def format_report(config: dict | None, probes: dict, warnings: list[str] | None = None) -> str:
     rows: list[tuple[str, str, bool, str]] = []
     if config is not None:
         rows.append(("config", "atlas doctor", config.get("ok", False), config.get("detail", "")))
@@ -343,6 +370,8 @@ def format_report(config: dict | None, probes: dict) -> str:
     lines.append("")
     lines.append("RESULT: " + ("all dependencies ready ✓" if overall_ok(config, probes)
                                else "one or more checks FAILED ✗"))
+    for warning in warnings or []:
+        lines.append(f"  ⚠ {warning}")
     return "\n".join(lines)
 
 
@@ -366,10 +395,13 @@ def main(argv: list[str] | None = None) -> int:
         timeout=args.timeout,
     )
 
+    skew = check_ollama_version_skew()
+    warnings = [skew] if skew else []
+
     if args.format == "json":
-        print(json.dumps({"config": config, "live": probes}, indent=2))
+        print(json.dumps({"config": config, "live": probes, "warnings": warnings}, indent=2))
     else:
-        print(format_report(config, probes))
+        print(format_report(config, probes, warnings))
     return 0 if overall_ok(config, probes) else 1
 
 
