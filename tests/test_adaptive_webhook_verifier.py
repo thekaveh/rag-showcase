@@ -43,3 +43,20 @@ def test_verifier_requires_structured_rag_extension() -> None:
             "rag_showcase": {"schema_version": 1},
         }
     )
+    # Every guard clause earns one negative: empty/whitespace answer (the .strip()
+    # truthiness guard), a non-dict payload (the isinstance dict guard), a wrong
+    # schema_version, and a payload missing the answer key entirely. This verifier
+    # is the production gate start-all.sh uses to confirm the adaptive webhook.
+    assert not module.is_valid_payload(
+        {"answer": "", "approach": "vanilla-rag", "rag_showcase": {"schema_version": 1}}
+    )
+    assert not module.is_valid_payload(
+        {"answer": "   ", "approach": "vanilla-rag", "rag_showcase": {"schema_version": 1}}
+    )
+    assert not module.is_valid_payload(["not", "a", "dict"])
+    assert not module.is_valid_payload(
+        {"answer": "x", "approach": "vanilla-rag", "rag_showcase": {"schema_version": 2}}
+    )
+    assert not module.is_valid_payload(
+        {"approach": "vanilla-rag", "rag_showcase": {"schema_version": 1}}
+    )

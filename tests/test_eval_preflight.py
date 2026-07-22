@@ -1,3 +1,4 @@
+import json
 import sys
 import types
 from pathlib import Path
@@ -250,3 +251,120 @@ def test_format_report_shows_version_skew_warning() -> None:
     assert "ollama skew: fix it" in report
     # An advisory must not flip the overall result.
     assert "all dependencies ready" in report
+
+
+def test_probe_lightrag_fails_when_extraction_in_flight(monkeypatch) -> None:
+    # The fourth graph-population branch: processed>0 but pending/processing docs
+    # remain → extraction is not done, so the eval must not be gated green.
+    res = _probe_lightrag(
+        monkeypatch,
+        statuses={"processed": [1, 2], "pending": [3, 4]},
+        graph_declared=True,
+    )
+    assert res["ok"] is False
+    assert "in progress" in res["detail"]
+
+
+def _probe_ollama(monkeypatch, *, tags, expected_models):
+    """Exec PROBE_SOURCE with httpx.get mocked for /api/tags; return the ollama
+    result. record() isolates each probe, so sibling probes failing on unset env
+    does not affect the ollama verdict."""
+
+    class _Resp:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    def _get(url, *args, **kwargs):
+        if url.endswith("/api/tags"):
+            return _Resp({"models": [{"name": t} for t in tags]})
+        return _Resp({})
+
+    monkeypatch.setitem(sys.modules, "httpx", types.SimpleNamespace(get=_get))
+    monkeypatch.setenv("OLLAMA_ENDPOINT", "http://ollama:11434")
+    monkeypatch.setenv("EXPECTED_MODELS", json.dumps(expected_models))
+    ns: dict = {}
+    exec(compile(ep.PROBE_SOURCE, "<probe>", "exec"), ns)
+    return ns["results"]["ollama"]
+
+
+def test_probe_ollama_matches_exact_tag_and_latest(monkeypatch) -> None:
+    # present() strategy 1 (exact) and 2 (model:latest fallback).
+    res = _probe_ollama(
+        monkeypatch,
+        tags={"mistral-small3.2:24b", "qwen3.6:latest"},
+        expected_models=["mistral-small3.2:24b", "qwen3.6"],
+    )
+    assert res["ok"] is True
+
+
+def test_probe_ollama_matches_tagless_base_name(monkeypatch) -> None:
+    # present() strategy 3: wanting "qwen3.6" against a differently-tagged pull.
+    res = _probe_ollama(monkeypatch, tags={"qwen3.6:32b"}, expected_models=["qwen3.6"])
+    assert res["ok"] is True
+
+
+def test_probe_ollama_fails_on_missing_model(monkeypatch) -> None:
+    res = _probe_ollama(
+        monkeypatch, tags={"qwen3.6:latest"}, expected_models=["gemma:7b"]
+    )
+    assert res["ok"] is False
+    assert "not pulled" in res["detail"]
+
+
+def test_probe_env_var_contract_round_trips() -> None:
+    # Every showcase-computed value the in-container probe reads must be passed in
+    # by run_live_probes (via `-e`), and vice versa — a rename on either side
+    # otherwise silently breaks eval-check with no test to catch it.
+    import inspect
+    import re
+
+    rlp = inspect.getsource(ep.run_live_probes)
+    passed = set(re.findall(r'"-e",\s*f?"([A-Z_][A-Z0-9_]*)=', rlp))
+    read = set()
+    for m in re.finditer(r'os\.environ\.get\(\s*"([A-Z_][A-Z0-9_]*)"', ep.PROBE_SOURCE):
+        read.add(m.group(1))
+    for m in re.finditer(r'os\.environ\[\s*"([A-Z_][A-Z0-9_]*)"', ep.PROBE_SOURCE):
+        read.add(m.group(1))
+
+    showcase_computed = {
+        "EXPECTED_ALIASES", "EXPECTED_MODELS", "OLLAMA_ENDPOINT",
+        "GRAPH_ALIASES_DECLARED", "PREFLIGHT_TIMEOUT",
+    }
+    assert showcase_computed <= passed, f"not passed via -e: {showcase_computed - passed}"
+    assert showcase_computed <= read, f"not read in PROBE_SOURCE: {showcase_computed - read}"
+
+
+def test_run_doctor_probes_the_stacks_resolved_base_port(monkeypatch, tmp_path: Path) -> None:
+    # doctor must validate the SAME durable BASE_PORT the stack uses (resolved in
+    # infra/.env), not a fresh `--base-port auto` that could re-resolve elsewhere.
+    # Captures the assembled cmd so a refactor that drops the envval('BASE_PORT')
+    # fallback is caught.
+    captured: dict = {}
+
+    def _fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        return types.SimpleNamespace(returncode=0, stdout="{}", stderr="")
+
+    def _fake_envval(key, env_path=None):
+        return {"BASE_PORT": "22000"}.get(key)
+
+    monkeypatch.setattr(ep.subprocess, "run", _fake_run)
+    monkeypatch.setattr(ep, "envval", _fake_envval)
+    monkeypatch.delenv("RAG_SHOWCASE_BASE_PORT", raising=False)
+
+    ep.run_doctor("rag-showcase", timeout=60.0)
+
+    assert "--base-port" in captured["cmd"]
+    assert "22000" in captured["cmd"]
+
+    # An explicit RAG_SHOWCASE_BASE_PORT override wins over the resolved block.
+    monkeypatch.setenv("RAG_SHOWCASE_BASE_PORT", "9999")
+    ep.run_doctor("rag-showcase", timeout=60.0)
+    assert "9999" in captured["cmd"]
+
