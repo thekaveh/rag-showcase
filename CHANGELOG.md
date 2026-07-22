@@ -38,8 +38,8 @@ releases yet; this section tracks the unreleased work toward `0.1.0`.
 - LiteLLM aliases declared in the manifest are compiled into `config.yaml`
   before the proxy boots, so they are discoverable at startup with no
   consumer-side reconcile or restart.
-- Standardized the project description on "seven approaches" (six base plus
-  the experimental `lazy-graph-rag`) across the manifest, plugin, CLI help,
+- Standardized the project description on "seven approaches" (six canonical
+  plus the experimental `lazy-graph-rag`) across the manifest, plugin, CLI help,
   and documentation.
 
 ### Fixed

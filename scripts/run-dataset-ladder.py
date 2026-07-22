@@ -302,14 +302,15 @@ def validate_judgments(
         raise RuntimeError(f"Judgments for {dataset_id} are missing judge runtime provenance")
 
 
+# Accepted complexity (overnight §3.30): this is the canonical-results integrity
+# gate — one rule branch per validation concern (row shape, per-metric range,
+# count reconciliation), each early-returning. Splitting into focused validators
+# is a reasonable refactor but belongs in its own change; the per-rule structure
+# here is already linear and readable.
 def validate_canonical_rows(
     rows: list[dict[str, Any]],
     *,
-    dataset_id: str,  # noqa: C901 — accepted complexity (overnight §3.30): this is the
-    # canonical-results integrity gate — one rule branch per validation concern
-    # (row shape, per-metric range, count reconciliation), each early-returning.
-    # Splitting into focused validators is a reasonable refactor but belongs in its
-    # own change; the per-rule structure here is already linear and readable.
+    dataset_id: str,
     expected_cells: int,
     expected_queries: set[str],
     expected_approaches: set[str],

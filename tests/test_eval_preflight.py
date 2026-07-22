@@ -17,7 +17,7 @@ def test_expected_aliases_match_consumer_manifest() -> None:
     declared = sorted(row["name"] for row in manifest["litellm_models"]["models"])
 
     assert ep.load_expected_aliases() == declared
-    assert len(declared) == 19
+    assert declared  # non-empty sanity; the set-equality above is the real contract
 
 
 def test_probe_source_compiles() -> None:
@@ -60,9 +60,19 @@ def test_probe_is_read_only() -> None:
 
 def test_expected_models_from_env_user() -> None:
     # The Ollama model-presence check must use the eval's real required models —
-    # the *_MODEL role vars in the consumer env file.
-    models = ep.load_expected_models()
-    assert set(models) == {"nomic-embed-text", "mistral-small3.2:24b", "qwen3.6:latest"}
+    # the *_MODEL role vars in the consumer env file. Derive the expected set
+    # independently from that file so a model bump doesn't false-alarm the test
+    # (it verifies load_expected_models reads the right file/keys, not today's tags).
+    env_user = ROOT / "config" / "atlas.env.user"
+    expected: set[str] = set()
+    for line in env_user.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        if key.endswith("_MODEL") and val:
+            expected.add(val)
+    assert set(ep.load_expected_models()) == expected
 
 
 def test_probe_checks_ollama_models() -> None:

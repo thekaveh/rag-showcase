@@ -281,6 +281,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Evaluation methodology](docs/evaluation-methodology.md) | Living | Atlas/showcase ownership, evidence schema, resumable ladder, Ragas states, operational metrics, judge panel, and four-artifact contract |
 | [Evaluation results and leaderboards](docs/evaluation-results.md) | Generated | Complete static base and flavor rankings for every approach and metric |
 | [Hardware sizing](docs/hardware.md) | Living | Minimum and recommended hardware profiles for live stack, local models, and graph-heavy runs |
+| [Running graph approaches locally](docs/guide/local-graph-runs.md) | Living | Host-Ollama tuning, version parity, and the known graph-extraction blocker for a clean local graph run |
 | [Atlas-reuse assessment](docs/atlas-reuse-assessment.md) | Living | What reused cleanly, friction found, recommendations for Atlas |
 | [Dependency contract ledger](docs/dependency-contracts.md) | Living | Each consumed external dependency (LiteLLM, Weaviate, LightRAG, TEI, n8n, Atlas) and the exact pinned version its contract was verified against |
 | [Atlas LightRAG role-model spec](docs/atlas-lightrag-role-model-spec.md) | Implemented upstream | Historical Atlas-side spec for first-class LightRAG EXTRACT/KEYWORD/QUERY model wiring |
