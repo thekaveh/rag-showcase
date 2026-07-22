@@ -51,3 +51,15 @@ jobs:
           cd infra && ./start.sh --consumer ../atlas.consumer.yml \
             --project rag-showcase endpoints assert --require \
             ATLAS_LITELLM_HOST_ENDPOINT,ATLAS_WEAVIATE_HOST_ENDPOINT,ATLAS_N8N_HOST_ENDPOINT,ATLAS_BACKEND_HOST_ENDPOINT,ATLAS_OLLAMA_SOURCE
+      - name: Assert the infra pin did not drift (guards thekaveh/atlas#797)
+        # The env-backfill / assert smoke above must not silently advance or stage
+        # the pinned infra submodule (atlas#797). Fail with a reviewable diff if it
+        # did — the CI complement to scripts/restore-infra-pin.sh. Remove once #797 ships.
+        run: |
+          if [ -n "$(git status --porcelain -- infra)" ]; then
+            echo "::error::infra submodule drifted or was staged during the smoke run:"
+            git status --porcelain -- infra
+            git diff HEAD -- infra || true
+            exit 1
+          fi
+          echo "infra pin unchanged at $(git rev-parse HEAD:infra)"
