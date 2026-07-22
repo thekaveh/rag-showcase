@@ -3,6 +3,21 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# Pin guard (thekaveh/atlas#797): the Atlas launcher can advance AND git-stage the
+# vendored infra submodule during a run. Snapshot its pinned SHA now and restore it
+# on exit (success OR failure) so a run always leaves the repo byte-clean at the pin
+# — no manual `git restore --staged infra && git -C infra checkout <pin>`. Remove
+# this guard once atlas#797 ships.
+RAG_SHOWCASE_INFRA_PIN="$(git -C "$ROOT" rev-parse HEAD:infra 2>/dev/null \
+  || git -C "$ROOT/infra" rev-parse HEAD 2>/dev/null || echo "")"
+_restore_infra_pin() {
+  local ec=$?
+  [ -n "$RAG_SHOWCASE_INFRA_PIN" ] \
+    && bash "$ROOT/scripts/restore-infra-pin.sh" "$ROOT" "$RAG_SHOWCASE_INFRA_PIN" || true
+  return "$ec"
+}
+trap _restore_infra_pin EXIT
+
 ATLAS_CONSUMER_MANIFEST="${ATLAS_CONSUMER_MANIFEST:-$ROOT/atlas.consumer.yml}"
 ATLAS_CONSUMER_MANIFEST="$(python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$ATLAS_CONSUMER_MANIFEST")"
 export ATLAS_CONSUMER_MANIFEST
