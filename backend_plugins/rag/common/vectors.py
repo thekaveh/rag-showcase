@@ -228,11 +228,21 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         for start in range(0, len(hits), max_batch):
             batch = hits[start:start + max_batch]
-            resp = await client.post(
-                f"{endpoint}/rerank",
-                json={"query": query, "texts": [h.text for h in batch]},
-            )
-            resp.raise_for_status()
+            try:
+                resp = await client.post(
+                    f"{endpoint}/rerank",
+                    json={"query": query, "texts": [h.text for h in batch]},
+                )
+                resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                # A flaky/down reranker degrades to the pre-rerank candidate order
+                # instead of 500-ing the request — the candidates are already
+                # usable (the rerank=False branch returns them directly), matching
+                # this function's own degrade-on-bad-shape philosophy below.
+                logging.getLogger("uvicorn.error").warning(
+                    "TEI rerank failed (%s); returning %d unranked candidate(s)",
+                    type(exc).__name__, len(hits))
+                return hits[:top_n]
             ranking = resp.json()
             if not isinstance(ranking, list):
                 return hits[:top_n]  # unexpected reranker shape — fall back to input order

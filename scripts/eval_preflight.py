@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # The services the evaluation reaches through the backend, in the order the
 # report lists them. Kept aligned with backend_plugins/rag/plugin.yml (see
-# tests/test_eval_preflight.py::test_probe_covers_every_declared_dependency).
+# tests/test_eval_preflight.py::test_probe_covers_every_declared_plugin_endpoint).
 DECLARED_SERVICES = ("litellm", "weaviate", "lightrag", "tei-reranker", "n8n", "ollama")
 
 # Approaches whose retrieval depends on the LightRAG knowledge graph. When the

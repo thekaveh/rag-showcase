@@ -91,6 +91,20 @@ async def test_rerank_falls_back_when_all_indices_out_of_range(monkeypatch):
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_rerank_degrades_on_tei_http_failure(monkeypatch):
+    # A flaky/down reranker (5xx, connect error, timeout) must degrade to the
+    # pre-rerank candidate order instead of 500-ing the whole request — the
+    # candidates are usable on their own. Guards the hybrid/contextual path.
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    hits = [Hit("A", "a", 0.1), Hit("B", "b", 0.2)]
+    respx.post("http://tei-reranker:80/rerank").mock(
+        return_value=httpx.Response(503, text="upstream down"))
+    out = await rerank("q", hits, top_n=2)
+    assert out == hits[:2]  # unranked fallback, no exception propagated
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_rerank_tolerates_null_score(monkeypatch):
     # a present-but-null score ("score": null) must not raise TypeError on
     # float(None); the row keeps its place, sorted as 0.0 like an unscored hit.
