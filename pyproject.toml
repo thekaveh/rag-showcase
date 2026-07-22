@@ -6,7 +6,7 @@
 # [project].dependencies; see [dependency-groups] below.
 name = "rag-showcase"
 version = "0.1.0"
-description = "Six-approach RAG comparison showcase over Atlas"
+description = "Seven-approach RAG comparison showcase over Atlas"
 requires-python = ">=3.10"
 
 [tool.pytest.ini_options]

@@ -153,7 +153,7 @@ def test_ladder_runner_exposes_measured_dataset_selection() -> None:
     assert "--include-candidates" in result.stdout
     normalized = " ".join(result.stdout.split())
     assert "Defaults to the canonical six approaches" in normalized
-    assert "all seven base approaches" in normalized
+    assert "seven supported approaches" in normalized
 
 
 def test_overlay_passes_lightrag_ollama_context_caps() -> None:
