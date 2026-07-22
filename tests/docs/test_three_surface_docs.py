@@ -104,6 +104,26 @@ def test_local_link_checker_rejects_missing_target(tmp_path) -> None:
         check_local_links(tmp_path)
 
 
+def test_generated_site_rewrites_interactive_diagram_iframe_src(tmp_path) -> None:
+    # The interactive diagrams embed their HTML via <iframe src="...">. That src is
+    # an HTML attribute (not a markdown link), so the link rewriter skips it; the
+    # transform must rewrite it separately to the assets/ path on the site or the
+    # inline iframe 404s (only the "Open full size" fallback would work).
+    manifest = load_manifest()
+    pages = iter_pages(manifest)
+    site_dir = tmp_path / "site"
+    render_site(manifest, pages, site_dir)
+
+    for page in ("diagrams/architecture.md", "diagrams/approach-flows.md"):
+        text = (site_dir / page).read_text(encoding="utf-8")
+        match = re.search(r'<iframe[^>]*\bsrc="([^"]+)"', text)
+        assert match, f"{page}: no iframe found"
+        src = match.group(1)
+        assert src.startswith("../assets/diagrams/"), f"{page}: iframe src not rewritten: {src}"
+        # the referenced HTML asset is actually published beside the page
+        assert (site_dir / page).parent.joinpath(src).is_file(), f"{page}: iframe target missing: {src}"
+
+
 def test_generated_mkdocs_config_has_no_source_repo_links(tmp_path) -> None:
     manifest = load_manifest()
     target = tmp_path / "mkdocs.yml"

@@ -14,6 +14,11 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Ceiling for the Docker CLI snapshot calls so a wedged daemon can't hang the
+# convergence poll (the outer wait_for_runtime deadline is only re-checked
+# between iterations); mirrors eval_preflight._DOCKER_CLI_TIMEOUT.
+_DOCKER_CLI_TIMEOUT = 30.0
+
 LONG_LIVED_SERVICES = {
     "backend",
     "kong-api-gateway",
@@ -75,27 +80,35 @@ def required_services(llm_source: str) -> tuple[set[str], set[str]]:
 
 
 def docker_snapshot(project: str) -> dict[str, dict[str, Any]]:
-    ids = subprocess.run(
-        [
-            "docker",
-            "ps",
-            "-aq",
-            "--filter",
-            f"label=com.docker.compose.project={project}",
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.split()
+    try:
+        ids = subprocess.run(
+            [
+                "docker",
+                "ps",
+                "-aq",
+                "--filter",
+                f"label=com.docker.compose.project={project}",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=_DOCKER_CLI_TIMEOUT,
+        ).stdout.split()
+    except subprocess.TimeoutExpired:
+        return {}  # wedged daemon — report no snapshot; the outer deadline bounds the wait
     if not ids:
         return {}
 
-    inspected = subprocess.run(
-        ["docker", "inspect", *ids],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        inspected = subprocess.run(
+            ["docker", "inspect", *ids],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=_DOCKER_CLI_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return {}
     snapshot: dict[str, dict[str, Any]] = {}
     for item in json.loads(inspected.stdout):
         labels = item.get("Config", {}).get("Labels", {}) or {}
