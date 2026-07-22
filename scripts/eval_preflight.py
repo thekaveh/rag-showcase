@@ -11,7 +11,8 @@ Two phases:
      plugin-manifest / LiteLLM-model validation; no services required).
   2. Live    — read-only probes of each running dependency the RAG plugin
      declares in ``backend_plugins/rag/plugin.yml``: LiteLLM aliases, Weaviate
-     readiness + the ingested collections, LightRAG, the TEI reranker, and n8n.
+     readiness + the ingested collections, LightRAG (health + knowledge-graph
+     population), the TEI reranker, and n8n.
      The probes run *inside* the backend container so they use the exact
      in-network endpoints and credentials the evaluation itself uses.
 
@@ -35,6 +36,13 @@ ROOT = Path(__file__).resolve().parents[1]
 # tests/test_eval_preflight.py::test_probe_covers_every_declared_dependency).
 DECLARED_SERVICES = ("litellm", "weaviate", "lightrag", "tei-reranker", "n8n", "ollama")
 
+# Approaches whose retrieval depends on the LightRAG knowledge graph. When the
+# manifest declares any alias for these, an empty graph is a hard failure — the
+# eval would route those approaches and get nothing back (the false-green that
+# ``eval-check`` exists to catch). On a vector-only run (none declared) an
+# unpopulated graph is expected and fine.
+GRAPH_APPROACHES = ("graph-rag", "lazy-graph-rag", "agentic-rag")
+
 
 def load_expected_aliases(manifest: Path | None = None) -> list[str]:
     """Return the LiteLLM alias names Atlas compiles from the consumer manifest.
@@ -46,6 +54,21 @@ def load_expected_aliases(manifest: Path | None = None) -> list[str]:
     data = yaml.safe_load(manifest.read_text(encoding="utf-8"))
     models = (data.get("litellm_models") or {}).get("models") or []
     return sorted(row["name"] for row in models)
+
+
+def graph_aliases_declared(manifest: Path | None = None) -> bool:
+    """True if the consumer manifest declares any graph-dependent LiteLLM alias.
+
+    Drives the preflight's graph-population gate: only when a graph approach is
+    routable does an empty knowledge graph count as a failure (see GRAPH_APPROACHES).
+    """
+    manifest = manifest or (ROOT / "atlas.consumer.yml")
+    data = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    models = (data.get("litellm_models") or {}).get("models") or []
+    return any(
+        (row.get("model_info") or {}).get("base_approach") in GRAPH_APPROACHES
+        for row in models
+    )
 
 
 def load_expected_models(env_user: Path | None = None) -> list[str]:
@@ -150,9 +173,29 @@ def lightrag():
     base = os.environ["LIGHTRAG_ENDPOINT"].rstrip("/")
     key = os.environ.get("LIGHTRAG_API_KEY", "")
     headers = {"X-API-Key": key} if key else {}
-    r = httpx.get(f"{base}/health", headers=headers, timeout=TIMEOUT)
+    # Reachability.
+    httpx.get(f"{base}/health", headers=headers, timeout=TIMEOUT).raise_for_status()
+    # Graph population — a green /health only says the service is UP, not that
+    # extraction ran. GET /documents (read-only) reports per-status doc counts;
+    # an empty graph while graph aliases are declared is the exact "false-green"
+    # this probe exists to catch (see GRAPH_APPROACHES).
+    r = httpx.get(f"{base}/documents", headers=headers, timeout=TIMEOUT)
     r.raise_for_status()
-    return "healthy"
+    statuses = r.json().get("statuses", {}) or {}
+    counts = {str(k).lower(): len(v or []) for k, v in statuses.items()}
+    processed = counts.get("processed", 0)
+    failed = counts.get("failed", 0)
+    inflight = counts.get("pending", 0) + counts.get("processing", 0)
+    graph = f"graph: {processed} processed / {failed} failed / {inflight} in-flight doc(s)"
+    graph_expected = os.environ.get("GRAPH_ALIASES_DECLARED") == "1"
+    if graph_expected and processed == 0:
+        raise RuntimeError(f"healthy but {graph} — graph EMPTY while graph aliases are "
+                           "declared; extraction did not populate the knowledge graph")
+    if failed:
+        raise RuntimeError(f"healthy but {graph} — {failed} doc(s) FAILED extraction (partial graph)")
+    if inflight:
+        raise RuntimeError(f"healthy but {graph} — extraction still in progress")
+    return f"healthy; {graph}"
 
 
 def tei_reranker():
@@ -243,6 +286,7 @@ def run_live_probes(
     expected_aliases: list[str],
     expected_models: list[str],
     ollama_endpoint: str,
+    graph_expected: bool,
     timeout: float,
 ) -> dict:
     """Probe each running dependency read-only, from inside the backend."""
@@ -261,6 +305,7 @@ def run_live_probes(
             "-e", f"EXPECTED_ALIASES={json.dumps(expected_aliases)}",
             "-e", f"EXPECTED_MODELS={json.dumps(expected_models)}",
             "-e", f"OLLAMA_ENDPOINT={ollama_endpoint}",
+            "-e", f"GRAPH_ALIASES_DECLARED={'1' if graph_expected else '0'}",
             "-e", f"PREFLIGHT_TIMEOUT={timeout}",
             container, "python", "-",
         ],
@@ -317,6 +362,7 @@ def main(argv: list[str] | None = None) -> int:
         load_expected_aliases(),
         load_expected_models(),
         resolve_ollama_endpoint(),
+        graph_aliases_declared(),
         timeout=args.timeout,
     )
 
