@@ -247,7 +247,12 @@ def _rankings(approaches: dict[str, dict[str, Any]]) -> dict[str, dict[str, int 
 
 def _judge_details(
     judgments: dict[str, Any], approaches: set[str], dataset_id: str
-) -> tuple[
+) -> tuple[  # noqa: C901 — accepted complexity (overnight §3.30): this aggregates every
+    # per-approach metric from the judged results in one pass; the branchiness is
+    # inherent to fan-out over metric families, not accidental. Returning a typed
+    # dataclass instead of this positional tuple is a worthwhile follow-up, but it
+    # must land as its own reviewed+tested change (it reshapes the harness result
+    # path that feeds the committed leaderboards), not as drive-by churn here.
     dict[str, dict[str, float | None]],
     dict[str, dict[str, int]],
     dict[str, float | None],
