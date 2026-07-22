@@ -7,8 +7,9 @@ Git submodule at `infra/`) and comes up with **one command**.
 
 Atlas's requirements apply:
 
-- **Docker** + **Docker Compose 2.24.4 or newer**, installed and running. The
-  temporary disabled-service compatibility overlay uses Compose's `!reset` tag.
+- **Docker** + **Docker Compose 2.20.3 or newer** (Atlas recommends 2.26.0+),
+  installed and running. The Compose top-level file merges fragments via the
+  native `include:` directive.
 - The vendored `infra/` submodule initialized:
   ```bash
   git submodule update --init --recursive

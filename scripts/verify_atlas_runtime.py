@@ -184,7 +184,7 @@ def wait_for_runtime(project: str, llm_source: str, timeout: float = 300.0) -> b
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", default=env_value("PROJECT_NAME"))
     parser.add_argument("--llm-source", default=env_value("LLM_PROVIDER_SOURCE"))
     parser.add_argument("--atlas-log", type=Path, required=True)

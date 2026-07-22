@@ -79,8 +79,14 @@ def run_ingestion(
                     headers=headers,
                 )
                 status_response.raise_for_status()
-                record = status_response.json()
-            except httpx.HTTPError as exc:
+                parsed = status_response.json()
+                if isinstance(parsed, dict):
+                    record = parsed
+            except (httpx.HTTPError, ValueError) as exc:
+                # Tolerate a transient error (Atlas restart, a 502/503 blip) AND a
+                # malformed 200 body (non-JSON, or a non-object JSON value) within
+                # the deadline rather than aborting a multi-hour wait on one bad
+                # poll. A persistent outage is still bounded by the deadline below.
                 _log.warning("transient error polling ingestion %s (%s); continuing",
                              ingestion_id, type(exc).__name__)
             if record is not None:

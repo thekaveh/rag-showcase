@@ -105,6 +105,20 @@ async def test_rerank_degrades_on_tei_http_failure(monkeypatch):
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_rerank_degrades_on_non_json_200(monkeypatch):
+    # A 200 with a non-JSON body (e.g. an HTML error page from a sidecar) makes
+    # resp.json() raise JSONDecodeError (a ValueError); the degrade contract must
+    # catch it too, not just httpx.HTTPError.
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    hits = [Hit("A", "a"), Hit("B", "b")]
+    respx.post("http://tei-reranker:80/rerank").mock(
+        return_value=httpx.Response(200, text="<html>bad gateway</html>"))
+    out = await rerank("q", hits, top_n=2)
+    assert out == hits[:2]  # unranked fallback, no exception propagated
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_rerank_tolerates_null_score(monkeypatch):
     # a present-but-null score ("score": null) must not raise TypeError on
     # float(None); the row keeps its place, sorted as 0.0 like an unscored hit.

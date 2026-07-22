@@ -64,9 +64,22 @@ async def run(
         )
     indexed = [{**row, "vector": vector} for row, vector in zip(rows, embeddings)]
 
+    # Idempotent rebuild: wipe + recreate + repopulate. Non-atomic by design —
+    # Weaviate has no multi-call transaction; a mid-build failure leaves the
+    # collection empty until the next start-all re-runs this step (contextual-rag
+    # then degrades to no hits, not a 500). BASE_COLLECTION is untouched, so the
+    # vector approaches keep serving throughout.
     await asyncio.to_thread(vectors.delete_collection, contextual_collection)
     await asyncio.to_thread(vectors.ensure_collection, contextual_collection)
     count = await asyncio.to_thread(vectors.add_chunks, contextual_collection, indexed)
+    if count != len(indexed):
+        # add_chunks returns the count actually inserted (Weaviate v4 absorbs
+        # per-object errors); a partial write would leave the contextual
+        # collection with silent gaps that skew the contextual-vs-hybrid contrast.
+        raise RuntimeError(
+            f"contextual ingest partial write: {count}/{len(indexed)} chunks "
+            f"inserted into {contextual_collection}"
+        )
     return {
         "base_collection": base_collection,
         "source_chunks": len(chunks),

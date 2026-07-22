@@ -14,7 +14,7 @@ INCLUDE_RE = re.compile(r"\{%\s*include-markdown\s+\"([^\"]+)\"\s*%\}", re.MULTI
 IFRAME_SRC_RE = re.compile(r'(<iframe\b[^>]*?\bsrc=")([^"]+)(")')
 SOURCE_DIRS = {
     "backend_plugins", "compare", "compose", "corpus", "demo", "ingest",
-    "n8n", "register", "scripts",
+    "n8n", "scripts",
 }
 
 

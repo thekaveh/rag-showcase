@@ -163,7 +163,10 @@ PROBE_SOURCE = r"""
 import json, os, urllib.parse
 import httpx
 
-TIMEOUT = float(os.environ.get("PREFLIGHT_TIMEOUT", "10"))
+try:
+    TIMEOUT = float(os.environ.get("PREFLIGHT_TIMEOUT", "10"))
+except ValueError:
+    TIMEOUT = 10.0  # a malformed manual override degrades to the default, not a crash
 results = {}
 
 

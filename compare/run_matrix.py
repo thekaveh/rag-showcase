@@ -143,7 +143,6 @@ def _config_hashes(query_path: Path) -> dict[str, str]:
         "dataset_questions": query_path,
         "flavors": ROOT / flavors_file(),
         "roles": ROOT / "backend_plugins" / "rag" / "roles.yaml",
-        "models": ROOT / "backend_plugins" / "rag" / "models.yaml",
         "consumer_manifest": ROOT / "atlas.consumer.yml",
         "atlas_env_user": ROOT / "config" / "atlas.env.user",
         "runtime_model_inventory": ROOT / "infra" / "volumes" / "litellm" / "consumer-models.yaml",
@@ -255,10 +254,20 @@ def _runtime_provenance(manifest=None) -> dict[str, Any]:
     base_port = envval("BASE_PORT")
     if not base_port:
         litellm_port = envval("LITELLM_PORT")
-        base_port = str(int(litellm_port) - 40) if litellm_port else "0"
+        if litellm_port:
+            try:
+                base_port = str(int(litellm_port) - 40)
+            except ValueError:
+                raise RuntimeError(f"LITELLM_PORT={litellm_port!r} must be an integer")
+        else:
+            base_port = "0"
+    try:
+        base_port_int = int(base_port)
+    except ValueError:
+        raise RuntimeError(f"BASE_PORT={base_port!r} must be an integer")
     return {
         "project": envval("PROJECT_NAME", "rag-showcase"),
-        "base_port": int(base_port),
+        "base_port": base_port_int,
         "provider_sources": {
             "llm": envval("LLM_PROVIDER_SOURCE", "unspecified"),
             "comfyui": envval("COMFYUI_SOURCE", "unspecified"),

@@ -28,6 +28,9 @@ def is_valid_payload(payload: Any) -> bool:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", required=True, help="Adaptive RAG production webhook URL")
+    # Default ≥ the 240s workflow budget the n8n adaptive approach allows
+    # (backend_plugins/rag/approaches/n8n.py _TIMEOUT) so verification doesn't
+    # time out before a legitimately-slow classification completes.
     parser.add_argument("--timeout", type=float, default=240.0)
     return parser.parse_args()
 

@@ -196,6 +196,37 @@ def test_headless_job_client_tolerates_transient_poll_error() -> None:
     assert calls["get"] == 2
 
 
+def test_headless_job_client_tolerates_malformed_poll_body() -> None:
+    # A 200 with a non-JSON body (or a non-object JSON value) must not abort a
+    # multi-hour wait on one bad poll — the loop tolerates it within the deadline.
+    from ingest.atlas_job import run_ingestion
+
+    calls = {"get": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(202, json={"ingestion_id": "job-1", "status": "pending"})
+        calls["get"] += 1
+        if calls["get"] == 1:
+            return httpx.Response(200, text="<html>upstream blip</html>")  # non-JSON 200
+        if calls["get"] == 2:
+            return httpx.Response(200, json=["not", "an", "object"])  # non-dict JSON
+        return httpx.Response(200, json={"id": "job-1", "status": "completed"})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        record = run_ingestion(
+            "graph_native",
+            base_url="http://atlas.test",
+            api_token="test-internal-token",
+            timeout_seconds=10,
+            poll_seconds=0,
+            client=client,
+        )
+
+    assert record["status"] == "completed"
+    assert calls["get"] == 3
+
+
 def test_headless_job_client_surfaces_phase_failures() -> None:
     from ingest.atlas_job import run_ingestion
 

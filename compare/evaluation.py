@@ -809,6 +809,11 @@ def run_evaluation(
             row = execute_claimed(question, approach)
             existing[row["row_id"]] = row
     else:
+        # concurrency>1: on a worker exception the context-manager exit calls
+        # shutdown(wait=True), so in-flight siblings finish (their results are
+        # still durable-appended) before the first failure propagates. That
+        # wait is deliberate — result durability outranks fast-fail here, and
+        # the default is concurrency=1 (which fast-fails immediately above).
         with ThreadPoolExecutor(max_workers=manifest.run.concurrency) as executor:
             futures = {
                 executor.submit(execute_claimed, question, approach): (question, approach)

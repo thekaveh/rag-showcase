@@ -99,7 +99,7 @@ def delete_collection(name: str) -> None:
 
     Used to make ingest idempotent: a warm re-run of start-all.sh rebuilds the
     corpus from scratch instead of appending duplicate chunks (add_chunks inserts
-    with fresh UUIDs and never dedups), mirroring register's delete-then-add.
+    with fresh UUIDs and never dedups), using the same delete-then-add pattern.
     """
     client = _weaviate()
     try:
@@ -234,16 +234,17 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
                     json={"query": query, "texts": [h.text for h in batch]},
                 )
                 resp.raise_for_status()
-            except httpx.HTTPError as exc:
-                # A flaky/down reranker degrades to the pre-rerank candidate order
-                # instead of 500-ing the request — the candidates are already
-                # usable (the rerank=False branch returns them directly), matching
-                # this function's own degrade-on-bad-shape philosophy below.
+                ranking = resp.json()
+            except (httpx.HTTPError, ValueError) as exc:
+                # A flaky/down reranker — or a 200 with a non-JSON body (HTML error
+                # page from a sidecar, JSONDecodeError is a ValueError) — degrades to
+                # the pre-rerank candidate order instead of 500-ing the request; the
+                # candidates are already usable (the rerank=False branch returns them
+                # directly), matching this function's degrade-on-bad-shape philosophy.
                 logging.getLogger("uvicorn.error").warning(
                     "TEI rerank failed (%s); returning %d unranked candidate(s)",
                     type(exc).__name__, len(hits))
                 return hits[:top_n]
-            ranking = resp.json()
             if not isinstance(ranking, list):
                 return hits[:top_n]  # unexpected reranker shape — fall back to input order
             for row in ranking:
