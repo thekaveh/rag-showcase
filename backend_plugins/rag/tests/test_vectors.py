@@ -132,6 +132,19 @@ async def test_rerank_tolerates_null_score(monkeypatch):
     assert out[1].score is None  # null-score row retained, not dropped or 500
 
 
+@pytest.mark.asyncio
+@respx.mock
+async def test_rerank_rejects_bool_score(monkeypatch):
+    # a bool score (True/False) is an int subclass; it must read as no score
+    # (None), not coerce to 1.0/0.0 — mirrors the leaderboards guard.
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    hits = [Hit("A", "a")]
+    respx.post("http://tei-reranker:80/rerank").mock(
+        return_value=httpx.Response(200, json=[{"index": 0, "score": True}]))
+    out = await rerank("q", hits, top_n=1)
+    assert out[0].score is None
+
+
 class _FakeBatchCtx:
     """Stand-in for the `coll.batch.dynamic()` context manager."""
     def __init__(self, parent):

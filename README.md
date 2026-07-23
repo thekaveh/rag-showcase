@@ -272,6 +272,8 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Approach flavors plan](docs/superpowers/plans/2026-07-02-approach-flavors.md) | Historical | Follow-on plan that added the tunable flavor alias system |
 | [Atlas LightRAG alignment plan](docs/superpowers/plans/2026-07-02-atlas-lightrag-alignment.md) + [design](docs/superpowers/specs/2026-07-02-atlas-lightrag-alignment-design.md) | Historical | Follow-on plan/design that wired LightRAG role models through Atlas inputs |
 | [Cyber threat dataset plan](docs/superpowers/plans/2026-07-03-cyber-threat-dataset.md) | Historical | Follow-on plan that added the bounded MITRE ATT&CK cyber-threat corpus rung |
+| [Sortable leaderboards design](docs/superpowers/specs/2026-07-17-sortable-evaluation-leaderboards-design.md) | Historical | Design for the sortable, filterable evaluation leaderboards |
+| [Sortable leaderboards plan](docs/superpowers/plans/2026-07-17-sortable-evaluation-leaderboards.md) | Historical | Implementation plan for the sortable leaderboards |
 | [Overview](docs/guide/overview.md) | Living | Concepts — how the seven approaches run under identical conditions, flavor aliases, and the fair-comparison guarantees |
 | [Quick Start](docs/guide/quickstart.md) | Living | One-command bring-up, prerequisites, and driving the multi-model comparison in Open WebUI |
 | [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and seven-approach parallel flow diagrams |

@@ -43,7 +43,13 @@ def main() -> int:
         timeout=args.timeout,
     )
     response.raise_for_status()
-    payload = response.json()
+    try:
+        payload = response.json()
+    except ValueError:
+        # A 200 with a non-JSON body (e.g. an HTML error page from a sidecar
+        # reverse proxy) is an invalid adaptive-rag response, not a traceback.
+        print("Invalid adaptive-rag response: non-JSON body", file=sys.stderr)
+        return 1
     if is_valid_payload(payload):
         return 0
     print(f"Invalid adaptive-rag response: {payload!r}", file=sys.stderr)

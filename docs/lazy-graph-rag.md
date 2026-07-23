@@ -2,9 +2,9 @@
 
 `lazy-graph-rag` is an **experimental** seventh approach inspired by the public
 LazyGraphRAG design direction. It is a repo-native approximation, not Microsoft
-GraphRAG code and not a claim of implementation parity. It is registered for
-explicit testing but excluded from the six-approach default comparison. Its
-concept indexing and graph traversal are LLM-free.
+GraphRAG code and not a claim of implementation parity. It is off by default but
+registered for explicit testing and measured in the committed dataset ladder
+(see below). Its concept indexing and graph traversal are LLM-free.
 
 The prototype is now measured in the committed 2026-07-17 dataset ladder. It
 participated beside all six canonical approaches on baseline, graph-native, and

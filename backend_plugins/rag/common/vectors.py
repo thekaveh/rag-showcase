@@ -159,7 +159,7 @@ def read_ingested_chunks(collection: str) -> list[IngestedChunk]:
             source = str(properties.get("source") or properties.get("title") or "")
             text = str(properties.get("content") or properties.get("text") or "")
             raw_index = properties.get("chunkIndex", 0)
-            index = raw_index if isinstance(raw_index, int) else 0
+            index = raw_index if isinstance(raw_index, int) and not isinstance(raw_index, bool) else 0
             if source and text:
                 chunks.append(IngestedChunk(source=source, text=text, index=index))
         return sorted(chunks, key=lambda chunk: (chunk.source, chunk.index))
