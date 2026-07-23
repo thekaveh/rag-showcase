@@ -259,7 +259,9 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
                 # float(None) raises TypeError, so guard the value like the sibling
                 # score parse in _hits_from_objects (score=None is sorted as 0.0).
                 raw = row.get("score")
-                score = float(raw) if isinstance(raw, (int, float)) else None
+                # Exclude bool (an int subclass) so a misbehaving reranker can't
+                # coerce True→1.0 and bypass the leaderboards' score-type guard.
+                score = float(raw) if isinstance(raw, (int, float)) and not isinstance(raw, bool) else None
                 ordered.append(Hit(title=h.title, text=h.text, score=score))
     # if every ranked index was out of range (or the list was empty), fall back
     # to input order rather than dropping all sources

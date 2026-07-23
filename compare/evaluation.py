@@ -531,6 +531,11 @@ class AtlasEvaluationClient:
                     if value is None:
                         metric_errors[metric] = "score_missing_or_null"
                         continue
+                    if isinstance(value, bool):
+                        # bool is an int subclass; reject it so a bool score can't
+                        # be coerced to 1.0/0.0 and bypass the leaderboards guard.
+                        metric_errors[metric] = "score_not_numeric"
+                        continue
                     try:
                         score = float(value)
                     except (TypeError, ValueError):

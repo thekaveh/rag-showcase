@@ -58,7 +58,7 @@ async def n8n_adaptive_rag(req: ChatRequest):
             sources.append(Source(
                 title=str(raw.get("title") or ""),
                 snippet=raw["snippet"],
-                score=float(score) if isinstance(score, (int, float)) else None,
+                score=float(score) if isinstance(score, (int, float)) and not isinstance(score, bool) else None,
             ))
 
     downstream = extension.get("metrics")
