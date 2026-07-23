@@ -281,6 +281,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Approach flow diagram (interactive)](docs/diagrams/approach-flows.md) | Living | Rendered parallel-lane diagram of the seven approach flow phases (HTML/SVG in an inline iframe) |
 | [Approach internals](docs/approaches.md) | Living | Step-by-step flow, dependencies, tuning variables, tradeoffs, and measured performance for every approach |
 | [Approach flavor tuning](docs/approach-flavor-tuning.md) | Living | Open WebUI model aliases, benchmark flavor selection, and query-time versus index-time tuning knobs |
+| [Experimental lazy graph RAG](docs/lazy-graph-rag.md) | Living | Design and results of the seventh approach — a deterministic concept graph with budgeted query-time expansion |
 | [Evaluation methodology](docs/evaluation-methodology.md) | Living | Atlas/showcase ownership, evidence schema, resumable ladder, Ragas states, operational metrics, judge panel, and four-artifact contract |
 | [Evaluation results and leaderboards](docs/evaluation-results.md) | Generated | Complete static base and flavor rankings for every approach and metric |
 | [Hardware sizing](docs/hardware.md) | Living | Minimum and recommended hardware profiles for live stack, local models, and graph-heavy runs |

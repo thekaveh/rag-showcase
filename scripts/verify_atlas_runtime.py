@@ -59,6 +59,8 @@ FAILED_START_SUMMARY = "[ERROR] Failed to start some services"
 def env_value(name: str) -> str:
     value = ""
     env_file = ROOT / "infra" / ".env"
+    if not env_file.is_file():
+        return value  # a missing .env (cold checkout) must not crash argparse defaults
     for raw_line in env_file.read_text(encoding="utf-8").splitlines():
         if raw_line.startswith(f"{name}="):
             value = raw_line.split("=", 1)[1].strip()

@@ -270,7 +270,7 @@ synchronous scoring method. Atlas
 [#596](https://github.com/thekaveh/atlas/issues/596),
 [#597](https://github.com/thekaveh/atlas/issues/597), and
 [#659](https://github.com/thekaveh/atlas/issues/659) resolved those defects. At
-the current `c744467e` pin, Atlas invokes modern collection metrics through their
+the current `3c03bbfc` pin, Atlas invokes modern collection metrics through their
 async batch API, keeps the client on one event loop, and closes it before loop
 teardown. The renewed run therefore records numeric faithfulness and answer
 relevancy wherever each metric is eligible; answer-only LightRAG rows remain
@@ -394,7 +394,7 @@ because no evaluated approach consumes it. The baseline and graph-native tiers r
 on verified-free block `64500-64609` with Atlas `2229fee9`. The cyber tiers ran on
 verified-free block `22000-22109` after the rerank repair, using Atlas `c744467e`.
 Every canonical row records its actual split-run base port and Atlas revision. The
-repository's final submodule pin is `c744467e`. Hardware is run metadata, not an
+repository's current submodule pin is `3c03bbfc`. Hardware is run metadata, not an
 assumption in startup or evaluation code.
 
 Each measured dataset received a cold stack reset, fresh Atlas ingestion job,
