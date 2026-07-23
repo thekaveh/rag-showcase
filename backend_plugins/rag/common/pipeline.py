@@ -18,5 +18,5 @@ def stuff(question: str, hits: list[Hit]) -> str:
 async def answer_from_context(model: str, question: str, hits: list[Hit]) -> tuple[str, int]:
     resp = await litellm.chat(model, [{"role": "user", "content": stuff(question, hits)}])
     choices = resp.get("choices") or []
-    content = (choices[0].get("message", {}).get("content") if choices else None) or ""
+    content = ((choices[0].get("message") or {}).get("content") if choices else None) or ""
     return content, 1

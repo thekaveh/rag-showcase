@@ -39,6 +39,7 @@ async def test_contextualize_calls_blurb_model(monkeypatch):
     {},                                             # malformed: no choices key at all
     {"choices": [{"message": {"content": None}}]},  # choice present, null content
     {"choices": [{"message": {}}]},                 # choice present, no content key
+    {"choices": [{"message": None}]},               # choice present, null message object
 ])
 async def test_contextualize_degrades_to_empty_string(monkeypatch, resp):
     # the blurb reply is parsed with the same guard-and-degrade idiom as

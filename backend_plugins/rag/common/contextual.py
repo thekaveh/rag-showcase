@@ -37,5 +37,5 @@ async def contextualize(doc_text: str, chunk_text: str) -> str:
             doc=_doc_window(doc_text, chunk_text), chunk=chunk_text)}],
     )
     choices = resp.get("choices") or []
-    content = (choices[0].get("message", {}).get("content") if choices else None) or ""
+    content = ((choices[0].get("message") or {}).get("content") if choices else None) or ""
     return content.strip()
