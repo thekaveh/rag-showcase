@@ -38,6 +38,22 @@ def svg_to_png(svg_path: Path, png_path: Path) -> None:
     cairosvg.svg2png(url=str(svg_path), write_to=str(png_path), output_width=2400)
 
 
+def _render_fallback_png(svg: str, png: Path) -> None:
+    if png.exists():
+        return
+    # A unique-per-call path (not a fixed shared name) so two concurrent
+    # local `build()` invocations never unlink/overwrite each other's
+    # in-flight temp file.
+    fd, tmp_name = tempfile.mkstemp(suffix=".svg", dir=ROOT, prefix=".tmp-docs-diagram-")
+    os.close(fd)
+    tmp_svg = Path(tmp_name)
+    tmp_svg.write_text(svg, encoding="utf-8")
+    try:
+        svg_to_png(tmp_svg, png)
+    finally:
+        tmp_svg.unlink(missing_ok=True)
+
+
 def render_all(site_dir: Path | None = None, wiki_dir: Path | None = None) -> None:
     html_dir = DOCS / "diagrams"
     img_dir = html_dir / "img"
@@ -50,18 +66,7 @@ def render_all(site_dir: Path | None = None, wiki_dir: Path | None = None) -> No
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(svg, encoding="utf-8")
         png = img_dir / f"{name}.png"
-        if not png.exists():
-            # A unique-per-call path (not a fixed shared name) so two concurrent
-            # local `build()` invocations never unlink/overwrite each other's
-            # in-flight temp file.
-            fd, tmp_name = tempfile.mkstemp(suffix=".svg", dir=ROOT, prefix=".tmp-docs-diagram-")
-            os.close(fd)
-            tmp_svg = Path(tmp_name)
-            tmp_svg.write_text(svg, encoding="utf-8")
-            try:
-                svg_to_png(tmp_svg, png)
-            finally:
-                tmp_svg.unlink(missing_ok=True)
+        _render_fallback_png(svg, png)
         if site_dir is not None:
             target = site_dir / "assets" / "img" / png.name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -70,3 +75,18 @@ def render_all(site_dir: Path | None = None, wiki_dir: Path | None = None) -> No
             target = wiki_dir / "img" / png.name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(png, target)
+
+    # The seven per-approach diagrams (diagrams/approaches/<name>/data-flow.html)
+    # are nested outside html_dir's own top-level glob, so they never got the
+    # cairosvg fallback above — only the manual headless-Chrome workflow in
+    # docs/architecture.md §6 could regenerate a missing one. build_docs.py's
+    # _copy_tree_files already distributes whatever PNG is committed under
+    # diagrams/approaches/ into site_dir/wiki_dir wholesale, so this loop only
+    # needs to fill in a missing PNG in place; it must not also copy by
+    # png.name into the flat site/wiki img/ dirs like the top-level loop does,
+    # since all seven share the filename "data-flow.png" and would overwrite
+    # each other there.
+    for html_path in sorted((html_dir / "approaches").glob("*/data-flow.html")):
+        svg = extract_svg(html_path)
+        png = html_path.parent / "data-flow.png"
+        _render_fallback_png(svg, png)
