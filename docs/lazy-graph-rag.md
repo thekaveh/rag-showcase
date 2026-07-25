@@ -10,9 +10,9 @@ The prototype is now measured in the committed 2026-07-17 dataset ladder. It
 participated beside all six canonical approaches on baseline, graph-native, and
 MITRE ATT&CK cyber-threat corpora. All 20 lazy-graph cells succeeded. The result
 supports keeping the approach: it tied for third on baseline, won graph-native,
-and tied for second on cyber while retaining low latency. It remains experimental and off by default
-because its untyped co-occurrence graph is a useful approximation, not a
-general-purpose knowledge graph.
+and tied for second on cyber while retaining low latency. It remains
+experimental and off by default because its untyped co-occurrence graph is a
+useful approximation, not a general-purpose knowledge graph.
 
 ## 1. Why It Is a Separate Approach
 
