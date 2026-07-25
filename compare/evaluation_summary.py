@@ -191,6 +191,13 @@ def _scope_summary(
                         metric_timeouts += 1
                     else:
                         metric_errors += 1
+                else:
+                    # An absent score with no not_evaluable/metric_errors/error-status
+                    # explanation at all — an unclassifiable artifact shape rather
+                    # than a documented degrade path. Count it as an error (not a
+                    # silent drop) so evaluated+not_evaluable+errors+timeouts==total
+                    # still reconciles against len(approach_rows) below.
+                    metric_errors += 1
             total = len(approach_rows)
             ragas[metric] = {
                 "mean": _mean(values),

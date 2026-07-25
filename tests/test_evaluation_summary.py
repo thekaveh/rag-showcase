@@ -251,6 +251,24 @@ def test_ragas_metric_bool_score_counts_as_metric_error_not_1_0() -> None:
     assert faithfulness["total"] == 1
 
 
+def test_ragas_metric_unclassifiable_absence_counts_as_error_not_silent_drop() -> None:
+    # A row with status="ok", ragas.status="ok", but no score for the metric and
+    # no not_evaluable/metric_errors entry explaining why — an artifact shape none
+    # of the documented degrade paths recognize. Must still land in one of the
+    # counters (as an error) rather than vanishing from the evaluated+
+    # not_evaluable+errors+timeouts==total reconciliation entirely.
+    rows = [_row("easy", 1, "q1", "a", faithfulness=None, ragas_status="ok")]
+
+    summary = build_summary(rows, judgments=None)
+
+    faithfulness = summary["datasets"]["easy"]["approaches"]["a"]["ragas"]["faithfulness"]
+    assert faithfulness["evaluated"] == 0
+    assert faithfulness["not_evaluable"] == 0
+    assert faithfulness["errors"] == 1
+    assert faithfulness["timeouts"] == 0
+    assert faithfulness["total"] == 1
+
+
 def test_summary_separates_metric_timeouts_from_errors(tmp_path: Path) -> None:
     summary = build_summary(
         [_row("easy", 1, "q1", "a", status="timeout", faithfulness=None)],

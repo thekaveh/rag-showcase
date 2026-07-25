@@ -20,7 +20,13 @@ from compare.evaluation import (
 )
 
 
-def test_evaluation_module_imports_without_posix_fcntl() -> None:
+def test_evaluation_module_defers_fcntl_import_to_lock_use_not_module_import() -> None:
+    # fcntl only exists on POSIX; importing it at MODULE scope would break this
+    # module on Windows entirely, even for code paths that never touch locking.
+    # `import compare.evaluation` must succeed with fcntl unavailable (proving the
+    # import is deferred into _exclusive_file_lock, not hoisted to module scope) —
+    # but actually taking a lock must still fail loudly (not silently no-op) once
+    # fcntl is genuinely needed, so a real cross-platform gap isn't masked.
     script = """
 import builtins
 
@@ -33,6 +39,20 @@ def guarded_import(name, *args, **kwargs):
 
 builtins.__import__ = guarded_import
 import compare.evaluation
+print("import-ok")
+
+import os
+if os.name != "nt":
+    import tempfile
+    from pathlib import Path
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            with compare.evaluation._exclusive_path_lock(Path(tmp) / "lock"):
+                pass
+        except ImportError:
+            print("lock-raised-import-error")
+        else:
+            print("lock-did-not-raise")
 """
     result = subprocess.run(
         [sys.executable, "-c", script],
@@ -43,6 +63,12 @@ import compare.evaluation
     )
 
     assert result.returncode == 0, result.stderr
+    assert "import-ok" in result.stdout
+    if "lock-raised-import-error" in result.stdout or "lock-did-not-raise" in result.stdout:
+        # Only asserted on POSIX (os.name == "nt" skips the lock probe above).
+        assert "lock-raised-import-error" in result.stdout, (
+            "taking a lock with fcntl unavailable must raise, not silently succeed"
+        )
 
 
 def _manifest(tmp_path: Path, *, retries: int = 0, concurrency: int = 1) -> tuple[object, object]:

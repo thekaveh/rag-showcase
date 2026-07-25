@@ -87,6 +87,26 @@ def _load_ladder_module():
     return module
 
 
+def test_atlas_job_timeout_constant_matches_the_real_default() -> None:
+    # _ATLAS_JOB_TIMEOUT_SECONDS is a hand-duplicated copy of
+    # ingest.atlas_job.run_ingestion's own timeout_seconds default, used to size
+    # this script's outer subprocess circuit-breaker margin (passes 39-41's
+    # timeout-margin fixes all assumed the two stay in sync). Nothing else ties
+    # them together, so a future change to atlas_job's default without updating
+    # this constant would silently under-cover the child's real worst case again.
+    import inspect
+
+    from ingest.atlas_job import run_ingestion
+
+    module = _load_ladder_module()
+    real_default = inspect.signature(run_ingestion).parameters["timeout_seconds"].default
+
+    assert module._ATLAS_JOB_TIMEOUT_SECONDS == real_default
+    # The two legs (submission timeout_seconds+60, then a full poll timeout_seconds)
+    # are additive, not overlapping — the outer bound must clear that whole total.
+    assert module._SUBPROCESS_TIMEOUT > 2 * real_default + 60
+
+
 def test_evaluation_contract_requires_explicit_judge_models(monkeypatch) -> None:
     module = _load_ladder_module()
     monkeypatch.delenv("JUDGE_MODELS", raising=False)

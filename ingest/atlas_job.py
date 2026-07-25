@@ -73,6 +73,12 @@ def run_ingestion(
                 status_response = http.get(
                     f"{base_url.rstrip('/')}/api/rag/ingestions/{ingestion_id}",
                     headers=headers,
+                    # Cap this call to what's left before the deadline (floored so a
+                    # near-expired deadline still gets one real attempt) — otherwise
+                    # the client's own default timeout (up to 120s read + 10s
+                    # connect) lets one poll overshoot the deadline check below by
+                    # that much before this loop ever notices.
+                    timeout=max(1.0, deadline - time.monotonic()),
                 )
                 status_response.raise_for_status()
                 parsed = status_response.json()

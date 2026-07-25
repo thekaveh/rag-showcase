@@ -60,16 +60,13 @@ async def test_chat_forwards_tools_and_omits_when_absent(monkeypatch):
 @pytest.mark.asyncio
 @respx.mock
 async def test_chat_delegates_model_request_defaults_to_litellm(monkeypatch):
-    # Atlas owns per-model request defaults in its catalog. The plugin must send
-    # only approach-level arguments and must not consult a local override layer.
+    # Atlas owns per-model request defaults in its catalog (e.g. qwen3.6:latest's
+    # think:false). backend_plugins/rag/common/config.py has no per-model request-
+    # param function of its own (confirmed: only role()/litellm_base()/litellm_key()
+    # exist) — the plugin must send only approach-level arguments (temperature) and
+    # never inject an Atlas-owned knob like "think" itself.
     monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
     monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
-    monkeypatch.setattr(
-        litellm.config,
-        "model_params",
-        lambda _model: (_ for _ in ()).throw(AssertionError("local model params used")),
-        raising=False,
-    )
     route = respx.post("http://litellm:4000/v1/chat/completions").mock(
         return_value=httpx.Response(200, json={"choices": [{"message": {"content": "x"}}]}))
     await litellm.chat("qwen3.6:latest", [{"role": "user", "content": "q"}])
