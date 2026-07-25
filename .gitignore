@@ -9,8 +9,6 @@ htmlcov/
 corpus/raw/
 corpus/subset/
 corpus/generated/
-infra/.env
-infra/volumes/
 
 # Local env files and macOS clutter (documented workflows export env vars in the
 # shell; a stray root .env must never be committable)
