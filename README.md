@@ -244,6 +244,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | `RAG_ROLES_FILE` | `/app/plugins/rag/roles.yaml` | config | plugin manifest; supplied by `config/atlas.env.user` and overlay |
 | `RAG_FLAVORS_FILE` | `/app/plugins/rag/flavors.yaml` | runtime flavor parameter loader | plugin manifest; supplied by `config/atlas.env.user` and overlay; aliases are declared in `atlas.consumer.yml` and drift-tested against this file |
 | `RAG_INGESTION_PROFILE` | `showcase_default` | startup, Atlas ingestion job, collection selection | host env + overlay; dataset ladder sets the selected dataset id |
+| `RAG_INGESTION_CORPUS_ROOT` | `/app/corpus` | Atlas ingestion job (container path the corpus mount resolves under) | overlay; pinned to match the `../corpus:/app/corpus:ro` mount instead of relying on Atlas's own default |
 | `RAG_BASE_COLLECTION` | `RagBase_<profile>` | vanilla, hybrid, agentic vector tool, contextual post-step | derived by `start-all.sh`; override only with a matching Atlas profile target |
 | `RAG_CONTEXTUAL_COLLECTION` | `RagContextual_<profile>` | contextual post-step and contextual-rag | derived by `start-all.sh` |
 | `BACKEND_PLUGINS_DIR` | `/app/plugins` | plugin seam (Atlas) | overlay |

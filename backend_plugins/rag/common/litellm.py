@@ -29,14 +29,18 @@ async def embed(texts: list[str], model: str | None = None) -> list[list[float]]
             data = body.get("data") if isinstance(body, dict) else None
         except ValueError:
             data = None
-        if not isinstance(data, list):
+        if not isinstance(data, list) or not all(
+            isinstance(row, dict) and isinstance(row.get("embedding"), list) for row in data
+        ):
             # Unlike rerank()/n8n's optional evidence, embeddings are load-bearing —
             # every caller indexes the result positionally (`embed([q])[0]`); a
-            # silent [] would surface as a confusing downstream IndexError instead
-            # of this clear, diagnosable failure.
+            # silent [] (or an uncaught AttributeError/KeyError from a malformed
+            # row) would surface as a confusing downstream failure instead of this
+            # clear, diagnosable one.
             raise RuntimeError(
                 f"LiteLLM embeddings gateway returned a malformed response for "
-                f"model {model!r} (expected a JSON object with a 'data' list)")
+                f"model {model!r} (expected a JSON object with a 'data' list of "
+                f"{{'embedding': [...]}} rows)")
         # /v1/embeddings does not guarantee `data` is returned in input order; map
         # back by `index` (as rerank() does) so the positional zip() at the ingest
         # call sites pairs each chunk with its own vector.

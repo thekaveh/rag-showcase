@@ -167,6 +167,21 @@ async def test_lightrag_query_degrades_on_non_dict_body(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_lightrag_query_degrades_on_non_json_body(monkeypatch):
+    # A 200 with a non-JSON body (an HTML error page from a proxy/sidecar in
+    # front of LightRAG) must not raise JSONDecodeError — degrade to "" like the
+    # non-dict-body case, matching every other client's decode guard in this
+    # module (n8n, atlas_job, vectors.rerank, litellm chat/embed).
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    with respx.mock:
+        respx.post("http://lightrag:9621/query").mock(
+            return_value=httpx.Response(200, content=b"<html>bad gateway</html>",
+                                         headers={"content-type": "text/html"}))
+        out = await lightrag.query("a real graph question")
+        assert out == ""
+
+
+@pytest.mark.asyncio
 async def test_lightrag_query_reads_data_field_fallback(monkeypatch):
     # query() recognizes the answer under either `response` or `data`
     # (data.get("response") or data.get("data")). When LightRAG answers under the

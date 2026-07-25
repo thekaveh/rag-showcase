@@ -135,7 +135,14 @@ async def query(
         resp = await client.post(f"{_base()}/query", headers=_headers(),
                                  json=_query_payload(question, mode, options, profile))
         resp.raise_for_status()
-        data = resp.json()
+        try:
+            data = resp.json()
+        except ValueError:
+            # A 200 with a non-JSON body (an HTML error page from a proxy/sidecar
+            # in front of LightRAG) must not raise JSONDecodeError — mirror the
+            # decode guards every other client in this module uses (n8n.py,
+            # atlas_job.py, vectors.py rerank, litellm.py chat/embed).
+            data = {}
         # A valid-JSON-but-non-object body ([], null, a bare string) must not
         # AttributeError on .get() — mirror the shape guards every other client
         # in this module uses (n8n.py, atlas_job.py, vectors.py rerank).

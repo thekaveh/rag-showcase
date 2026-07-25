@@ -135,6 +135,20 @@ async def test_embed_raises_clear_error_when_data_key_missing(monkeypatch):
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_embed_raises_clear_error_on_malformed_row(monkeypatch):
+    # A "data" list with a valid shape overall but a row that isn't a
+    # {"embedding": [...]} object must raise the same clear RuntimeError, not a
+    # raw AttributeError/KeyError from indexing a malformed row.
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    respx.post("http://litellm:4000/v1/embeddings").mock(
+        return_value=httpx.Response(200, json={"data": ["not-an-object"]}))
+    with pytest.raises(RuntimeError, match="malformed response"):
+        await litellm.embed(["a"], model="nomic-embed-text")
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_chat_degrades_to_empty_dict_on_non_json_200(monkeypatch):
     # a 200 with a non-JSON body must degrade to {} so callers' existing
     # `resp.get("choices") or []` fallback kicks in, instead of raising
