@@ -229,6 +229,61 @@ class _FakeDelClient:
     def close(self): self.closed = True
 
 
+class _FakeCreateColls:
+    def __init__(self, present): self.present = present; self.created = []
+    def exists(self, name): return self.present
+    def create(self, **kwargs): self.created.append(kwargs)
+
+
+class _FakeEnsureClient:
+    def __init__(self, present): self.collections = _FakeCreateColls(present); self.closed = False
+    def close(self): self.closed = True
+
+
+def _stub_weaviate_config_module(monkeypatch):
+    import sys
+    import types
+    # ensure_collection imports weaviate.classes.config lazily (the dev env
+    # deliberately omits weaviate-client); stub the module chain the same way
+    # test_search_hybrid_passes_alpha_k_and_requests_score does for .classes.query.
+    weaviate_mod = types.ModuleType("weaviate")
+    classes_mod = types.ModuleType("weaviate.classes")
+    config_mod = types.ModuleType("weaviate.classes.config")
+    config_mod.Configure = type(
+        "Configure", (), {"Vectorizer": type("Vectorizer", (), {"none": staticmethod(lambda: "none")})}
+    )
+    config_mod.Property = lambda name, data_type: ("Property", name, data_type)
+    config_mod.DataType = type("DataType", (), {"TEXT": "TEXT"})
+    weaviate_mod.classes = classes_mod
+    classes_mod.config = config_mod
+    monkeypatch.setitem(sys.modules, "weaviate", weaviate_mod)
+    monkeypatch.setitem(sys.modules, "weaviate.classes", classes_mod)
+    monkeypatch.setitem(sys.modules, "weaviate.classes.config", config_mod)
+
+
+def test_ensure_collection_creates_when_absent(monkeypatch):
+    from rag.common import vectors
+    _stub_weaviate_config_module(monkeypatch)
+    client = _FakeEnsureClient(present=False)
+    monkeypatch.setattr(vectors, "_weaviate", lambda: client)
+    vectors.ensure_collection("RagContextual")
+    assert len(client.collections.created) == 1
+    assert client.collections.created[0]["name"] == "RagContextual"
+    assert client.closed is True
+
+
+def test_ensure_collection_noop_when_present(monkeypatch):
+    # warm re-run: the collection already exists, so create() must not be called
+    # again (Weaviate errors on a duplicate collection name).
+    from rag.common import vectors
+    _stub_weaviate_config_module(monkeypatch)
+    client = _FakeEnsureClient(present=True)
+    monkeypatch.setattr(vectors, "_weaviate", lambda: client)
+    vectors.ensure_collection("RagContextual")
+    assert client.collections.created == []
+    assert client.closed is True
+
+
 def test_delete_collection_drops_when_present(monkeypatch):
     # ingest idempotency: an existing collection is dropped so a warm re-run
     # rebuilds it instead of appending duplicate chunks.

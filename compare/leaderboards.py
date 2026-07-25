@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from compare import flavors as flavor_config
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -481,7 +482,10 @@ def _records_for_dataset(
                 ),
                 "approach": approach,
                 "base_family": base_family,
-                "maturity": "experimental" if base_family == "lazy-graph-rag" else "canonical",
+                "maturity": (
+                    "experimental" if base_family in flavor_config.EXPERIMENTAL_APPROACHES
+                    else "canonical"
+                ),
                 "judge_rank": ranks["judge"][approach],
                 "judge_mean": summary["judge_panel"]["mean"],
                 "judge_evaluated": int(summary["judge_panel"]["evaluated"]),

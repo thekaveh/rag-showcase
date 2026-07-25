@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import re
 import shutil
+import tempfile
 from pathlib import Path
 
 from .manifest import DOCS, ROOT
@@ -49,7 +51,12 @@ def render_all(site_dir: Path | None = None, wiki_dir: Path | None = None) -> No
             out.write_text(svg, encoding="utf-8")
         png = img_dir / f"{name}.png"
         if not png.exists():
-            tmp_svg = ROOT / ".tmp-docs-diagram.svg"
+            # A unique-per-call path (not a fixed shared name) so two concurrent
+            # local `build()` invocations never unlink/overwrite each other's
+            # in-flight temp file.
+            fd, tmp_name = tempfile.mkstemp(suffix=".svg", dir=ROOT, prefix=".tmp-docs-diagram-")
+            os.close(fd)
+            tmp_svg = Path(tmp_name)
             tmp_svg.write_text(svg, encoding="utf-8")
             try:
                 svg_to_png(tmp_svg, png)

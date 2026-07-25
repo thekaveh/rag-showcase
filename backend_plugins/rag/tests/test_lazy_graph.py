@@ -96,6 +96,25 @@ def test_retrieve_enforces_relevance_and_context_budgets():
     assert result.hits[0].title == "Operation Honeybee"
 
 
+def test_retrieve_falls_back_to_seed_hits_when_nothing_scores():
+    # A question whose extracted concepts don't appear anywhere in the index, with
+    # no seed hits either, means chunk_scores stays empty (Counter()) — the
+    # fallback branch (hits = seed_hits[:max_context_chunks]) must return [], not
+    # raise or return an unrelated chunk.
+    index = build_index(_chunks())
+
+    result = retrieve(
+        index,
+        "aardvark zebra unrelated question",
+        seed_hits=[],
+        relevance_budget=4,
+        max_context_chunks=2,
+    )
+
+    assert result.hits == []
+    assert result.relevance_tests == 0
+
+
 @pytest.mark.asyncio
 async def test_lazy_graph_route_returns_openai_shape_sources_and_graph_metrics(
     tmp_path, monkeypatch

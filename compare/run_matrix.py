@@ -155,9 +155,13 @@ def _config_hashes(query_path: Path) -> dict[str, str]:
     }
 
 
+_GIT_CLI_TIMEOUT = 30.0
+
+
 def _git_state(path: Path) -> dict[str, str | bool]:
     commit = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=path, text=True, capture_output=True, check=True
+        ["git", "rev-parse", "HEAD"], cwd=path, text=True, capture_output=True,
+        check=True, timeout=_GIT_CLI_TIMEOUT,
     ).stdout.strip()
     tree = subprocess.run(
         ["git", "rev-parse", "HEAD^{tree}"],
@@ -165,24 +169,28 @@ def _git_state(path: Path) -> dict[str, str | bool]:
         text=True,
         capture_output=True,
         check=True,
+        timeout=_GIT_CLI_TIMEOUT,
     ).stdout.strip()
     status = subprocess.run(
         ["git", "status", "--porcelain", "--untracked-files=all"],
         cwd=path,
         capture_output=True,
         check=True,
+        timeout=_GIT_CLI_TIMEOUT,
     ).stdout
     tracked_patch = subprocess.run(
         ["git", "diff", "--binary", "HEAD", "--", "."],
         cwd=path,
         capture_output=True,
         check=True,
+        timeout=_GIT_CLI_TIMEOUT,
     ).stdout
     untracked = subprocess.run(
         ["git", "ls-files", "--others", "--exclude-standard", "-z"],
         cwd=path,
         capture_output=True,
         check=True,
+        timeout=_GIT_CLI_TIMEOUT,
     ).stdout.split(b"\0")
 
     digest = hashlib.sha256()
@@ -221,10 +229,15 @@ def _runtime_file(path: Path, *, kind: str) -> dict[str, Any]:
         raise RuntimeError(f"required generated runtime file is missing: {path}")
     if kind == "models":
         payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        entries = [row.get("model_name") for row in payload.get("model_list", [])]
+        rows = payload.get("model_list", [])
+        key = "model_name"
     else:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        entries = [row.get("name") for row in payload.get("profiles", [])]
+        rows = payload.get("profiles", [])
+        key = "name"
+    if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+        raise RuntimeError(f"{path}: expected a list of {kind} entry objects")
+    entries = [row.get(key) for row in rows]
     return {
         "path": str(path.relative_to(ROOT)),
         "sha256": digest,
@@ -299,6 +312,12 @@ def _dataset_for(manifest, query_path: Path) -> DatasetSpec:
     matches = [dataset for dataset in datasets(manifest) if dataset.questions_file == resolved]
     if len(matches) == 1:
         return matches[0]
+    if len(matches) > 1:
+        ids = ", ".join(sorted(dataset.id for dataset in matches))
+        raise ValueError(
+            f"{resolved} is ambiguous: matched {len(matches)} configured datasets "
+            f"({ids}) sharing the same queries_file — set MATRIX_DATASET_ID"
+        )
     return DatasetSpec(
         id=query_path.stem,
         label=f"Ad hoc dataset ({query_path.name})",

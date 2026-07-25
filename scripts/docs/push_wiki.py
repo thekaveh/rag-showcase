@@ -10,10 +10,16 @@ from pathlib import Path
 from .build_docs import WIKI_SRC, build
 
 REPO = "git@github.com:thekaveh/rag-showcase.wiki.git"
+# Local git ops are fast; clone/push cross the network (SSH to GitHub) and get a
+# longer budget. Both are bounded so an SSH auth prompt or stall in unattended CI
+# (.github/workflows/docs.yml's wiki job) fails fast with a diagnosable error
+# instead of hanging until the job's own outer timeout kills it.
+_LOCAL_GIT_TIMEOUT = 30.0
+_NETWORK_GIT_TIMEOUT = 120.0
 
 
-def run(cmd: list[str], cwd: Path | None = None) -> None:
-    subprocess.run(cmd, cwd=cwd, check=True)
+def run(cmd: list[str], cwd: Path | None = None, timeout: float = _LOCAL_GIT_TIMEOUT) -> None:
+    subprocess.run(cmd, cwd=cwd, check=True, timeout=timeout)
 
 
 def main() -> None:
@@ -33,7 +39,7 @@ def main() -> None:
 
     with tempfile.TemporaryDirectory() as td:
         work = Path(td) / "wiki"
-        run(["git", "clone", REPO, str(work)])
+        run(["git", "clone", REPO, str(work)], timeout=_NETWORK_GIT_TIMEOUT)
         for child in work.iterdir():
             if child.name == ".git":
                 continue
@@ -48,12 +54,15 @@ def main() -> None:
             else:
                 shutil.copy2(src, dst)
         run(["git", "add", "."], cwd=work)
-        status = subprocess.run(["git", "status", "--porcelain"], cwd=work, check=True, text=True, capture_output=True)
+        status = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=work, check=True, text=True,
+            capture_output=True, timeout=_LOCAL_GIT_TIMEOUT,
+        )
         if not status.stdout.strip():
             print("wiki already up to date")
             return
         run(["git", "commit", "-m", "docs: sync generated wiki"], cwd=work)
-        run(["git", "push", "origin", "HEAD:master"], cwd=work)
+        run(["git", "push", "origin", "HEAD:master"], cwd=work, timeout=_NETWORK_GIT_TIMEOUT)
 
 
 if __name__ == "__main__":

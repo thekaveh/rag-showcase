@@ -111,6 +111,12 @@ def docker_snapshot(project: str) -> dict[str, dict[str, Any]]:
         )
     except subprocess.TimeoutExpired:
         return {}
+    except subprocess.CalledProcessError:
+        # A container from the `ps` snapshot above can be removed/recycled before
+        # `inspect` runs — likely exactly while one-shot init containers are
+        # exiting/being pruned during Atlas convergence. Treat like the timeout
+        # case: no snapshot this poll, retry on the next one instead of crashing.
+        return {}
     snapshot: dict[str, dict[str, Any]] = {}
     for item in json.loads(inspected.stdout):
         labels = item.get("Config", {}).get("Labels", {}) or {}

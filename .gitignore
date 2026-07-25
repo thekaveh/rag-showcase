@@ -32,3 +32,4 @@ site/
 # docs/manifest.yaml; these are rebuilt by scripts/docs.
 generated/
 mkdocs.yml
+.tmp-docs-diagram-*.svg

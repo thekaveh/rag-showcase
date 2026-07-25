@@ -42,6 +42,8 @@ def _mean_scores(judgments: dict) -> dict[str, float]:
     buckets: dict[str, list[float]] = {}
     for query in judgments["queries"]:
         for approach, score in query.get("mean_by_approach", {}).items():
+            if isinstance(score, bool):
+                continue
             buckets.setdefault(approach, []).append(float(score))
     return {approach: round(sum(scores) / len(scores), 2)
             for approach, scores in buckets.items() if scores}
@@ -77,6 +79,7 @@ def _query_rows(judgments: dict) -> list[tuple[str, str, str]]:
         scores = {
             approach: float(score)
             for approach, score in query.get("mean_by_approach", {}).items()
+            if not isinstance(score, bool)
         }
         query_id = query.get("query_id") or query.get("id") or query.get("query", "")
         winner = str(query.get("observed_winner") or _winner(scores))

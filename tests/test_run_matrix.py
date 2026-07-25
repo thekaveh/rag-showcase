@@ -84,6 +84,80 @@ def test_runtime_provenance_binds_repo_atlas_provider_and_generated_registries(
     assert "graph-rag-rerank" in runtime["runtime_files"]["lightrag_query_profiles"]["entries"]
 
 
+def test_runtime_file_rejects_non_object_model_list_rows(tmp_path) -> None:
+    path = tmp_path / "consumer-models.yaml"
+    path.write_text("model_list:\n  - model_name: ok\n  - not-an-object\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="expected a list of models entry objects"):
+        run_matrix._runtime_file(path, kind="models")
+
+
+def test_runtime_file_rejects_non_list_profiles(tmp_path) -> None:
+    path = tmp_path / "lightrag-query-profiles.json"
+    path.write_text(json.dumps({"profiles": {"not": "a list"}}), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="expected a list of profiles entry objects"):
+        run_matrix._runtime_file(path, kind="profiles")
+
+
+def test_dataset_for_raises_on_ambiguous_shared_queries_file(tmp_path, monkeypatch) -> None:
+    # Two configured datasets sharing the same queries_file must not silently fall
+    # through to the "ad hoc dataset" branch — that would mislabel provenance for
+    # a real manifest-authoring error instead of surfacing it.
+    from compare.evaluation import load_manifest
+
+    (tmp_path / "questions").mkdir()
+    (tmp_path / "corpus" / "a").mkdir(parents=True)
+    (tmp_path / "corpus" / "b").mkdir(parents=True)
+    shared = tmp_path / "questions" / "shared.yaml"
+    shared.write_text("queries: []\n", encoding="utf-8")
+    (tmp_path / "datasets.yaml").write_text(
+        """
+datasets:
+  - id: ds-a
+    label: Dataset A
+    complexity_level: 1
+    status: measured
+    corpus_path: corpus/a
+    queries_file: questions/shared.yaml
+    graph_nature: relational
+  - id: ds-b
+    label: Dataset B
+    complexity_level: 1
+    status: measured
+    corpus_path: corpus/b
+    queries_file: questions/shared.yaml
+    graph_nature: relational
+""",
+        encoding="utf-8",
+    )
+    manifest_path = tmp_path / "evaluation.yaml"
+    manifest_path.write_text(
+        """
+version: 1
+datasets_file: datasets.yaml
+approaches:
+  - model: vanilla-rag
+    evidence: answer_with_contexts
+metrics:
+  ragas: []
+  judge_panel:
+    enabled: false
+    models: []
+run:
+  retries: 0
+  timeout_s: 10
+  evaluator_timeout_s: 20
+  concurrency: 1
+  seed: test-seed
+""",
+        encoding="utf-8",
+    )
+    manifest = load_manifest(manifest_path)
+    monkeypatch.delenv("MATRIX_DATASET_ID", raising=False)
+
+    with pytest.raises(ValueError, match="ambiguous.*ds-a.*ds-b"):
+        run_matrix._dataset_for(manifest, shared)
+
+
 def test_runtime_provenance_requires_judges_for_enabled_panel(monkeypatch) -> None:
     monkeypatch.delenv("JUDGE_MODELS", raising=False)
 

@@ -251,6 +251,26 @@ def _runtime_snapshot(module, llm_source="ollama-container-cpu"):
     return snapshot
 
 
+def test_docker_snapshot_tolerates_inspect_called_process_error(monkeypatch) -> None:
+    # A container from the `ps` snapshot can be removed/recycled before `inspect`
+    # runs (TOCTOU) — likely exactly while one-shot init containers are exiting/
+    # being pruned during Atlas convergence. Must degrade like the timeout case
+    # (retry next poll), not crash with an uncaught CalledProcessError.
+    module = _load_runtime_module()
+    calls = {"n": 0}
+
+    def fake_run(cmd, **kwargs):
+        calls["n"] += 1
+        if cmd[:2] == ["docker", "ps"]:
+            return type("R", (), {"stdout": "abc123\n"})()
+        raise module.subprocess.CalledProcessError(1, cmd)
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    assert module.docker_snapshot("rag-showcase") == {}
+    assert calls["n"] == 2
+
+
 def test_runtime_verifier_requires_exact_atlas_exited_zero_signature() -> None:
     module = _load_runtime_module()
 

@@ -106,6 +106,10 @@ def _judge_scores(
         if query_scores:
             evaluated_queries[dataset_id].add((dataset_id, str(query.get("query_id") or "")))
         for approach, value in query_scores.items():
+            if isinstance(value, bool):
+                return invalid(
+                    f"judgment query at index {index} has a non-numeric score"
+                )
             try:
                 scores[dataset_id][str(approach)].append(float(value))
             except (TypeError, ValueError):
@@ -168,8 +172,15 @@ def _scope_summary(
                     continue
                 result = row.get("metrics", {}).get("ragas", {})
                 score = (result.get("scores") or {}).get(metric)
-                if score is not None:
+                if isinstance(score, (int, float)) and not isinstance(score, bool):
                     values.append(float(score))
+                elif isinstance(score, bool):
+                    # A bool score is a corrupted artifact, not a legitimate 1.0/0.0
+                    # (the same exclusion the writers already apply) — count it as a
+                    # metric error rather than silently dropping it from every
+                    # counter, which would break the evaluated+not_evaluable+errors+
+                    # timeouts == total reconciliation this summary depends on.
+                    metric_errors += 1
                 elif metric in (result.get("not_evaluable") or {}):
                     not_evaluable += 1
                 elif metric in (result.get("metric_errors") or {}) or result.get(

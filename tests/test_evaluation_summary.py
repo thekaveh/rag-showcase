@@ -218,6 +218,39 @@ def test_write_summary_preserves_metrics_when_judgments_artifact_is_invalid(
         ]["mean"] == 0.8
 
 
+def test_judge_scores_reject_bool_as_non_numeric() -> None:
+    # A bool `mean_by_approach` value must not silently coerce to 1.0/0.0 via
+    # float(True) — the same exclusion the writers (evaluation.py, judge.py)
+    # already apply. Treat it as the same invalid-artifact case as a real
+    # non-numeric value.
+    rows = [_row("easy", 1, "q1", "a", faithfulness=0.8)]
+    judgments = {
+        "dataset_id": "easy",
+        "judges": ["judge-a"],
+        "queries": [{"query_id": "q1", "mean_by_approach": {"a": True}}],
+    }
+
+    summary = build_summary(rows, judgments=judgments)
+
+    judge = summary["datasets"]["easy"]["judge_panel"]
+    assert judge["status"] == "error"
+    assert judge["error"]
+
+
+def test_ragas_metric_bool_score_counts_as_metric_error_not_1_0() -> None:
+    # A bool ragas score is a corrupted artifact, not a legitimate 1.0/0.0 —
+    # must not be silently averaged in, and must still reconcile against total.
+    rows = [_row("easy", 1, "q1", "a", faithfulness=True)]
+
+    summary = build_summary(rows, judgments=None)
+
+    faithfulness = summary["datasets"]["easy"]["approaches"]["a"]["ragas"]["faithfulness"]
+    assert faithfulness["mean"] is None
+    assert faithfulness["evaluated"] == 0
+    assert faithfulness["errors"] == 1
+    assert faithfulness["total"] == 1
+
+
 def test_summary_separates_metric_timeouts_from_errors(tmp_path: Path) -> None:
     summary = build_summary(
         [_row("easy", 1, "q1", "a", status="timeout", faithfulness=None)],

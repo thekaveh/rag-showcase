@@ -238,3 +238,35 @@ def test_dataset_report_keeps_flavor_ranking_separate(monkeypatch) -> None:
     )[0]
     assert "graph-rag-rerank 4.50" in flavor_section
     assert "vanilla-rag" not in flavor_section
+
+
+def test_mean_scores_excludes_bool_values() -> None:
+    # A bool `mean_by_approach` value must not silently coerce to 1.0/0.0 via
+    # float(True/False) — same exclusion the writers (evaluation.py, judge.py)
+    # already apply. A corrupted judgment artifact must not skew the mean.
+    import compare.report_datasets as rd
+
+    judgments = {"queries": [
+        {"mean_by_approach": {"vanilla-rag": 4.0, "graph-rag": True}},
+        {"mean_by_approach": {"vanilla-rag": 2.0, "graph-rag": False}},
+    ]}
+
+    scores = rd._mean_scores(judgments)
+
+    assert scores["vanilla-rag"] == 3.0
+    assert "graph-rag" not in scores  # every graph-rag score was a bool -> excluded
+
+
+def test_query_rows_excludes_bool_scores_from_ranking() -> None:
+    import compare.report_datasets as rd
+
+    judgments = {"queries": [
+        {"query_id": "q1", "mean_by_approach": {"vanilla-rag": 4.0, "graph-rag": True}},
+    ]}
+
+    rows = rd._query_rows(judgments)
+
+    assert len(rows) == 1
+    _, winner, ranking = rows[0]
+    assert winner == "vanilla-rag"
+    assert "graph-rag" not in ranking
