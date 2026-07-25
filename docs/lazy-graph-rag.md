@@ -195,13 +195,15 @@ so the implementation remains available for explicit selection.
   claim-synthesis stage.
 - The steady path still scans all chunk text to verify the content fingerprint.
 - Results cover three bounded corpora and two local judges, not a broad benchmark.
-- Objective Ragas coverage is unavailable until Atlas #596/#597 are fixed and
-  this exact run is repeated.
+- Faithfulness coverage is incomplete on every rung (83% baseline, 63%
+  graph-native, 50% cyber-threat), though answer relevancy is fully covered
+  everywhere. See [`docs/results/`](results/) for the recorded Ragas scores
+  (objective evaluator coverage is otherwise in place across all three rungs
+  and every lazy-graph flavor, resolving the prior Atlas #596/#597 blocker).
 
 **Decision:** retain the prototype as an experimental seventh approach, keep it
 excluded from `default`, and continue measuring it. It beat existing approaches
 on graph-native tasks and remained competitive on the cyber aggregate without
 added index-time LLM cost, so removal is not warranted. Promotion to a
-canonical default would require more datasets, objective evaluator coverage,
-stronger concept/entity resolution, and explicit typed-relation or community
-semantics.
+canonical default would require more datasets, stronger concept/entity
+resolution, and explicit typed-relation or community semantics.
