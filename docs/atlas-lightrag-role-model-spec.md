@@ -142,8 +142,14 @@ Rag-showcase now declares Atlas's public inputs in `config/atlas.env.user`, whic
 ```dotenv
 LIGHTRAG_EMBEDDING_MODEL=nomic-embed-text
 LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b
-LIGHTRAG_KEYWORD_LLM_MODEL=mistral-small3.2:24b
-LIGHTRAG_QUERY_LLM_MODEL=mistral-small3.2:24b
+LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.6:latest
+LIGHTRAG_QUERY_LLM_MODEL=qwen3.6:latest
+# KEYWORD/QUERY stay behind LiteLLM (not a native Ollama role call) so the
+# catalog-scoped think:false request default for qwen3.6 still applies.
+LIGHTRAG_KEYWORD_LLM_BINDING=openai
+LIGHTRAG_KEYWORD_LLM_BINDING_HOST=http://litellm:4000/v1
+LIGHTRAG_QUERY_LLM_BINDING=openai
+LIGHTRAG_QUERY_LLM_BINDING_HOST=http://litellm:4000/v1
 LIGHTRAG_EXTRACT_MAX_ASYNC_LLM=1
 LIGHTRAG_EXTRACT_LLM_TIMEOUT=900
 ```

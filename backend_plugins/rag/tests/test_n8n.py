@@ -132,6 +132,35 @@ async def test_n8n_wrapper_degrades_on_non_object_body(monkeypatch, body):
     assert r.json()["rag_showcase"]["adaptive"]["route"] == "unknown"
 
 
+@pytest.mark.parametrize("chunks", ["many", [1, 2], {"n": 1}, True])
+@pytest.mark.asyncio
+@respx.mock
+async def test_n8n_wrapper_degrades_on_non_numeric_metrics(monkeypatch, chunks):
+    # a non-numeric metrics.chunks/llm_calls/cloud_calls value (a stringified
+    # number from a "Set" node, a nested object/list under the wrong key, or a
+    # bool) must degrade to 0, not raise ValueError/TypeError -> 500, matching
+    # this file's degrade-on-malformed-field philosophy for every other field.
+    monkeypatch.setenv("N8N_ADAPTIVE_WEBHOOK_URL", "http://n8n:5678/webhook/adaptive-rag")
+    respx.post("http://n8n:5678/webhook/adaptive-rag").mock(
+        return_value=httpx.Response(200, json={
+            "answer": "ok", "route": "simple", "approach": "vanilla-rag",
+            "rag_showcase": {
+                "schema_version": 1,
+                "metrics": {"chunks": chunks, "llm_calls": chunks, "cloud_calls": chunks},
+            },
+        }))
+    app = FastAPI(); app.include_router(n8n.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/n8n-adaptive-rag/v1/chat/completions",
+                          json={"model": "n8n-adaptive-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200
+    metrics = r.json()["rag_showcase"]["metrics"]
+    assert metrics["chunks"] == 0
+    assert metrics["llm_calls"] == 1  # downstream 0 + classifier's own call
+    assert metrics["cloud_calls"] == 0
+
+
 @pytest.mark.asyncio
 @respx.mock
 async def test_n8n_wrapper_degrades_on_non_json_200_body(monkeypatch):

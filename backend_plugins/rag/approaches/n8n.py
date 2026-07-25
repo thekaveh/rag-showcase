@@ -71,11 +71,19 @@ async def n8n_adaptive_rag(req: ChatRequest):
     downstream = extension.get("metrics")
     if not isinstance(downstream, dict):
         downstream = {}
+
+    def _count(value: object) -> int:
+        # mirrors the score guard above: an operator-built workflow could easily
+        # stringify a number (a "Set" node) or nest the wrong value here, and
+        # int() on that raises ValueError/TypeError uncaught -> a raw 500 instead
+        # of this file's degrade-on-malformed-field philosophy.
+        return int(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else 0
+
     metrics = Metrics(
         seconds=time.monotonic() - t0,
-        chunks=int(downstream.get("chunks") or 0),
-        llm_calls=int(downstream.get("llm_calls") or 0) + 1,
-        cloud_calls=int(downstream.get("cloud_calls") or 0),
+        chunks=_count(downstream.get("chunks")),
+        llm_calls=_count(downstream.get("llm_calls")) + 1,
+        cloud_calls=_count(downstream.get("cloud_calls")),
     )
     metadata = {"adaptive": {"route": str(route), "approach": str(approach)}}
     return respond(req, flavor.alias, answer, sources, metrics, metadata=metadata)
