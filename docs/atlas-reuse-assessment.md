@@ -35,8 +35,8 @@ documented downstream-routes extension point (symmetric to the `_user/` compose
 overlay).
 
 > **Resolved upstream.** Atlas `cd7aab7` (#162; documented in #164, `6fd482b`)
-> upstreamed this exact seam
-> (`services/backend/app/app/plugin_seam.py`, #162/#164) — same `BACKEND_PLUGINS_DIR`
+> upstreamed this exact seam (`services/backend/app/app/plugin_seam.py`,
+> #162/#164) — same `BACKEND_PLUGINS_DIR`
 > contract: load each immediate package exposing a module-level `router`,
 > pip-install its `requirements.txt`, no-op when the dir is absent. The showcase no
 > longer needs a fork-side seam; the plugin loads through Atlas's **native** seam via

@@ -43,7 +43,8 @@ python3 -m pip install datasets
 
 If `datasets` is unavailable, the script degrades gracefully to keyword-docs only.
 
-The graph-native and cyber-threat corpora are already committed and do not need a fetch step. Use
+The graph-native and cyber-threat corpora are already committed and do not need
+a fetch step. Use
 [`demo/graph_native_queries.yaml`](../demo/graph_native_queries.yaml) with the
 comparison harness for graph-native and
 [`demo/cyber_threat_intel_queries.yaml`](../demo/cyber_threat_intel_queries.yaml)

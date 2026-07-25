@@ -580,8 +580,9 @@ content fingerprint. Fast, balanced, and wide flavors tune
 `relevance_budget`, `seed_k`, `max_context_chunks`, and graph density. It is
 excluded from the six canonical defaults but was selected explicitly in the
 2026-07-17 ladder. It tied for third on baseline, ranked first on graph-native,
-and tied for second on cyber-threat data. See [`lazy-graph-rag.md`](lazy-graph-rag.md) for its
-full design, phases, metadata contract, limitations, and measured results.
+and tied for second on cyber-threat data. See
+[`lazy-graph-rag.md`](lazy-graph-rag.md) for its full design, phases, metadata
+contract, limitations, and measured results.
 
 ### 9.2 Service and Data Flow
 
