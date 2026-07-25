@@ -13,11 +13,16 @@ from rag.common import lightrag
 def _clear_flavor_cache():
     # A per-test flavors.yaml override loads into the module-global cache; clear
     # before AND after so a tmp table can't leak across tests (mirrors test_flavors.py).
+    # lightrag._PROFILES_LOADED must be reset alongside the cache dict: it's a
+    # separate loaded-sentinel (mirrors config._LOADED) so an empty profiles list
+    # still counts as "loaded" and isn't cleared by emptying the dict alone.
     flavors._CACHE.clear()
     lightrag._PROFILE_CACHE.clear()
+    lightrag._PROFILES_LOADED = False
     yield
     flavors._CACHE.clear()
     lightrag._PROFILE_CACHE.clear()
+    lightrag._PROFILES_LOADED = False
 
 
 def _profiles_file(tmp_path, monkeypatch, *profiles):

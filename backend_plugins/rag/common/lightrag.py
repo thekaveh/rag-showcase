@@ -12,6 +12,12 @@ import httpx
 _TIMEOUT = httpx.Timeout(180.0, connect=10.0)
 _log = logging.getLogger("uvicorn.error")
 _PROFILE_CACHE: dict[str, dict[str, Any]] = {}
+# A valid-but-empty profiles list yields an empty _PROFILE_CACHE, which is falsy
+# — gating on truthiness (as config._load used to) would treat that as a
+# permanent miss and re-open + re-parse the profiles file on every request that
+# passes profile= (graph.py always does), blocking the event loop each time
+# instead of loading once. Mirror config._LOADED: cache the loaded state itself.
+_PROFILES_LOADED = False
 _PROFILE_FIELDS = {
     "mode",
     "enable_rerank",
@@ -58,7 +64,8 @@ def _env_int(name: str, default: int) -> int:
 
 
 def _load_profiles() -> dict[str, dict[str, Any]]:
-    if _PROFILE_CACHE:
+    global _PROFILES_LOADED
+    if _PROFILES_LOADED:
         return _PROFILE_CACHE
     raw_path = os.environ.get("LIGHTRAG_QUERY_PROFILES_FILE", "").strip()
     if not raw_path:
@@ -82,6 +89,7 @@ def _load_profiles() -> dict[str, dict[str, Any]]:
             raise ValueError(f"{path}: duplicate LightRAG query profile {name!r}")
         table[name] = {key: row[key] for key in _PROFILE_FIELDS if key in row}
     _PROFILE_CACHE.update(table)
+    _PROFILES_LOADED = True
     return _PROFILE_CACHE
 
 

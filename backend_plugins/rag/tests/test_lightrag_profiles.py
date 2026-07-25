@@ -9,9 +9,13 @@ from rag.common import lightrag
 
 @pytest.fixture(autouse=True)
 def _clear_profile_cache():
+    # Reset both the cache and the loaded-sentinel before AND after each test so
+    # one test's (possibly empty) load can't mask the next test's env override.
     lightrag._PROFILE_CACHE.clear()
+    lightrag._PROFILES_LOADED = False
     yield
     lightrag._PROFILE_CACHE.clear()
+    lightrag._PROFILES_LOADED = False
 
 
 def _write(tmp_path, monkeypatch, profiles: list[dict]) -> None:
@@ -82,3 +86,22 @@ def test_duplicate_profiles_are_rejected(tmp_path, monkeypatch) -> None:
 
     with pytest.raises(ValueError, match="duplicate LightRAG query profile"):
         lightrag._query_payload("question", profile="duplicate")
+
+
+def test_empty_profiles_list_is_cached_negatively(tmp_path, monkeypatch) -> None:
+    # A valid-but-empty profiles list yields an empty _PROFILE_CACHE, which is
+    # falsy — the load must be remembered via _PROFILES_LOADED so a request-path
+    # profile lookup doesn't re-open and re-parse the file on every call.
+    _write(tmp_path, monkeypatch, [])
+
+    with pytest.raises(ValueError, match="unknown LightRAG query profile"):
+        lightrag._query_payload("question", profile="anything")
+
+    assert lightrag._PROFILES_LOADED is True
+    assert lightrag._PROFILE_CACHE == {}
+
+    # Even if a profile later appears in the file, the one-time (empty) load
+    # stays cached until the process restarts — same contract as config._load.
+    _write(tmp_path, monkeypatch, [{"name": "late", "mode": "hybrid"}])
+    with pytest.raises(ValueError, match="unknown LightRAG query profile"):
+        lightrag._query_payload("question", profile="late")
