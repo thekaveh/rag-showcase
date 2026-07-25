@@ -19,7 +19,7 @@ harness that measures *which approach wins on which kind of question*.
 ## 1. The Seven Approaches
 
 | Endpoint | Approach | Designed to shine on |
-|----------|----------|----------------------|
+|---|---|---|
 | [`vanilla-rag`](approaches.md#3-vanilla-rag) | Dense top-k retrieval, then a single generation call (the control) | Simple factoids; the baseline |
 | [`hybrid-rag`](approaches.md#4-hybrid-rag) | Weaviate hybrid retrieval (BM25 + dense), then TEI reranking | Exact keyword and identifier queries |
 | [`contextual-rag`](approaches.md#5-contextual-rag) | Anthropic Contextual Retrieval over context-prefixed chunks | Context-starved chunks |
@@ -49,7 +49,7 @@ across three datasets of increasing structure. All 380 answer cells succeeded:
 input:
 
 | Dataset | Winning configuration | Judge score |
-|---------|-----------------------|:-----------:|
+|---|---|:---:|
 | Baseline curated | `vanilla-rag` | 4.17 |
 | Graph-native dossiers | `lazy-graph-rag` | 4.31 |
 | Cyber-threat graph (MITRE ATT&CK) | `contextual-rag` | 3.17 |

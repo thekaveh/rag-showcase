@@ -157,7 +157,7 @@ the thematic / multi-hop demo queries have little to work with — see
 ## 4. The Seven Approaches
 
 | Model | Approach | Designed to win on |
-|-------|----------|--------------------|
+|---|---|---|
 | [`vanilla-rag`](docs/approaches.md#3-vanilla-rag) | dense top-k → stuff → one call (baseline) | — (the control) |
 | [`hybrid-rag`](docs/approaches.md#4-hybrid-rag) | Weaviate hybrid retrieval (BM25+dense) → TEI rerank; **not graph RAG** | exact keyword / ID queries |
 | [`contextual-rag`](docs/approaches.md#5-contextual-rag) | Anthropic Contextual Retrieval over context-prefixed chunks | context-starved chunks |
@@ -224,7 +224,7 @@ auth policy, typed environment contract, and service dependencies. The table
 below expands that operator contract with adjacent Atlas and startup settings.
 
 | Variable | Default | Read by | Source |
-|----------|---------|---------|--------|
+|---|---|---|---|
 | `LITELLM_BASE_URL` | `http://litellm:4000` | plugin LiteLLM client | Atlas backend env |
 | `LITELLM_API_KEY` | — | plugin LiteLLM client, n8n workflow node | Atlas backend env |
 | `BACKEND_INTERNAL_API_TOKEN` | — | Bearer used by LiteLLM aliases when invoking trusted backend plugin routes | Atlas `.env`; injected into LiteLLM by the consumer-model overlay |
@@ -274,7 +274,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 ## 7. Documentation Index
 
 | Document | Status | What it covers |
-|----------|--------|----------------|
+|---|---|---|
 | [Design spec](docs/superpowers/specs/2026-06-25-rag-showcase-design.md) | Historical | The approved design: six approaches, architecture, corpus, phasing (predates implementation — see its deviations note) |
 | [Implementation plan](docs/superpowers/plans/2026-06-25-rag-showcase.md) | Historical | The task-by-task implementation plan (Tasks 0–19, as-built) |
 | [Approach flavors plan](docs/superpowers/plans/2026-07-02-approach-flavors.md) | Historical | Follow-on plan that added the tunable flavor alias system |
