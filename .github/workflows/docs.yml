@@ -60,11 +60,11 @@ jobs:
           uv sync --group docs --dev
           make docs-check
       - name: Run Python tests
-        run: uv run pytest tests backend_plugins/rag/tests -q
+        run: make test
       - name: Lint (ruff)
-        run: uv run ruff check .
+        run: make lint
       - name: Run sortable-table interaction tests
-        run: node --test tests/docs/test_sortable_tables.cjs
+        run: make sortable-tables-test
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

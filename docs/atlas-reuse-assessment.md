@@ -35,14 +35,13 @@ documented downstream-routes extension point (symmetric to the `_user/` compose
 overlay).
 
 > **Resolved upstream.** Atlas `cd7aab7` (#162; documented in #164, `6fd482b`)
-> upstreamed this exact seam (`services/backend/app/app/plugin_seam.py`,
-> #162/#164) — same `BACKEND_PLUGINS_DIR`
-> contract: load each immediate package exposing a module-level `router`,
-> pip-install its `requirements.txt`, no-op when the dir is absent. The showcase no
-> longer needs a fork-side seam; the plugin loads through Atlas's **native** seam via
-> the unchanged compose overlay (`BACKEND_PLUGINS_DIR=/app/plugins` + the
-> `backend_plugins/` mount). The override mechanism is identical — only the seam's
-> provider moved from the fork to upstream.
+> upstreamed this exact seam (`services/backend/app/app/plugin_seam.py`, #162/#164) —
+> same `BACKEND_PLUGINS_DIR` contract: load each immediate package exposing a
+> module-level `router`, pip-install its `requirements.txt`, no-op when the dir is
+> absent. The showcase no longer needs a fork-side seam; the plugin loads through
+> Atlas's **native** seam via the unchanged compose overlay
+> (`BACKEND_PLUGINS_DIR=/app/plugins` + the `backend_plugins/` mount). The override
+> mechanism is identical — only the seam's provider moved from the fork to upstream.
 >
 > The RAG package now also ships Atlas's optional `plugin.yml` contract. Its seven
 > approach routes share `/rag`, with `/rag/health`, inherited Kong auth, typed

@@ -558,7 +558,7 @@ class AtlasEvaluationClient:
                     "embeddings_model": payload.get("embeddings_model"),
                     "metadata": payload.get("metadata", {}),
                 }
-            except Exception as exc:  # noqa: BLE001 - preserve remote evaluator failures.
+            except Exception as exc:  # deliberately broad: preserve remote evaluator failures.
                 last_error = exc
         assert last_error is not None
         return {
@@ -679,7 +679,7 @@ def _run_cell(
             payload = invoke(approach.model, question.query, manifest.run.timeout_s)
             last_error = None
             break
-        except Exception as exc:  # noqa: BLE001 - every failed cell is durable evidence.
+        except Exception as exc:  # deliberately broad: every failed cell is durable evidence.
             last_error = exc
     latency_ms = round((time.perf_counter() - started) * 1000)
     if last_error is not None:
@@ -690,7 +690,7 @@ def _run_cell(
 
     try:
         evidence = completion_evidence(payload)
-    except Exception as exc:  # noqa: BLE001 - malformed provider response is a cell error.
+    except Exception as exc:  # deliberately broad: malformed provider response is a cell error.
         return _error_row(base, exc, latency_ms, attempts, judge_status)
     if approach.evidence == "answer_only":
         evidence["contexts"] = []

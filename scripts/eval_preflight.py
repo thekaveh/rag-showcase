@@ -173,7 +173,7 @@ results = {}
 def record(name, fn):
     try:
         results[name] = {"ok": True, "detail": fn()}
-    except Exception as exc:  # noqa: BLE001 - report, never abort siblings
+    except Exception as exc:  # deliberately broad: report, never abort siblings
         results[name] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"[:200]}
 
 
