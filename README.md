@@ -319,7 +319,7 @@ uv run pytest                 # unit suite (mocked I/O) + integration tests (ski
 uv run pytest backend_plugins # unit tests only
 make test                     # same unit + integration suite as CI (uv run pytest tests backend_plugins/rag/tests)
 make lint                     # ruff check . — the lint gate CI runs on every docs-affecting push
-make docs-check                        # regenerate + validate the generated documentation (needs: uv sync --group docs --dev)
+make docs-check               # regenerate + validate the generated documentation (needs: uv sync --group docs --dev)
 make sortable-tables-test     # sortable-table interaction tests (needs Node)
 make eval-check               # read-only preflight: are the eval's Atlas-infra deps up? (needs a started stack)
 ```

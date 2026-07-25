@@ -176,11 +176,14 @@ def test_docs_workflow_runs_leaderboard_python_and_browser_contract_tests() -> N
 
     assert workflow.count('"compare/**"') == 2
     assert workflow.count('"tests/**"') == 2
-    # CI runs these through `make test`/`make sortable-tables-test` (single source
-    # of truth shared with local dev, per README §8) rather than duplicating the
-    # raw commands — assert both that CI invokes the targets and that the targets
-    # still run the real commands, so a Makefile edit can't silently drop coverage.
+    # CI runs these through `make test`/`make lint`/`make sortable-tables-test`
+    # (single source of truth shared with local dev, per README §8) rather than
+    # duplicating the raw commands — assert both that CI invokes the targets and
+    # that the targets still run the real commands, so a Makefile edit can't
+    # silently drop coverage.
     assert "run: make test" in workflow
+    assert "run: make lint" in workflow
     assert "run: make sortable-tables-test" in workflow
     assert "uv run pytest tests backend_plugins/rag/tests -q" in makefile
+    assert "uv run ruff check ." in makefile
     assert "node --test tests/docs/test_sortable_tables.cjs" in makefile
