@@ -88,14 +88,19 @@ def parse_args() -> argparse.Namespace:
 
 # A last-resort circuit breaker, not a tight bound: these commands (start-all.sh,
 # a full ingestion job, the evaluation matrix, the judge panel) legitimately run
-# for a long time by design. ingest.atlas_job's own internal poll deadline is
-# 7200s (with its submission call given 7200+60s), so this outer bound needs
-# real margin above that — not an equal value, which could fire first and
-# suppress atlas_job's own specific, actionable TimeoutError/RuntimeError message
-# with a generic subprocess.TimeoutExpired instead. Short enough that a wedged
-# Docker daemon or hung docker exec still doesn't hang this orchestrator forever
-# with no diagnostic at all.
-_SUBPROCESS_TIMEOUT = 7200.0 + 300.0
+# for a long time by design. ingest.atlas_job's submission call and its poll loop
+# are SEQUENTIAL budgets, not overlapping ones: the submission POST gets its own
+# timeout_seconds+60 (Atlas may process it synchronously in-request), and only
+# once that returns does the poll deadline (a further timeout_seconds) start —
+# so the child's true worst case is roughly 2x timeout_seconds+60, not
+# timeout_seconds+60. This outer bound must exceed THAT full additive total, not
+# just one leg of it, or it can fire first and suppress atlas_job's own specific,
+# actionable TimeoutError/RuntimeError message with a generic
+# subprocess.TimeoutExpired instead. Still short enough that a wedged Docker
+# daemon or hung docker exec doesn't hang this orchestrator forever with no
+# diagnostic at all.
+_ATLAS_JOB_TIMEOUT_SECONDS = 7200.0  # must match ingest/atlas_job.py's own default
+_SUBPROCESS_TIMEOUT = 2 * _ATLAS_JOB_TIMEOUT_SECONDS + 60.0 + 300.0
 
 
 def run(cmd: list[str], *, env: dict[str, str] | None = None) -> None:
