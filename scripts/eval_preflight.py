@@ -146,7 +146,7 @@ def check_ollama_version_skew() -> str | None:
 def envval(key: str, env_path: Path | None = None) -> str | None:
     """Read a key from Atlas's generated infra/.env (last assignment wins)."""
     env_path = env_path or (ROOT / "infra" / ".env")
-    if not env_path.exists():
+    if not env_path.is_file():
         return None
     value: str | None = None
     for line in env_path.read_text(encoding="utf-8").splitlines():

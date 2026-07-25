@@ -274,6 +274,11 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Cyber threat dataset plan](docs/superpowers/plans/2026-07-03-cyber-threat-dataset.md) | Historical | Follow-on plan that added the bounded MITRE ATT&CK cyber-threat corpus rung |
 | [Sortable leaderboards design](docs/superpowers/specs/2026-07-17-sortable-evaluation-leaderboards-design.md) | Historical | Design for the sortable, filterable evaluation leaderboards |
 | [Sortable leaderboards plan](docs/superpowers/plans/2026-07-17-sortable-evaluation-leaderboards.md) | Historical | Implementation plan for the sortable leaderboards |
+| [Consumer evaluation matrix plan](docs/superpowers/plans/2026-07-13-consumer-evaluation-matrix.md) | Historical | Implementation plan for the consumer-owned, resumable RAG evaluation matrix and canonical-row store |
+| [Approach lifecycle design](docs/superpowers/specs/2026-07-16-approach-lifecycle-and-renewed-evaluation-design.md) | Historical | Design distinguishing deployed vs. researched approach families and scoping a fresh evaluation to only what rag-showcase deploys |
+| [Atlas current-integration + comprehensive rerun plan](docs/superpowers/plans/2026-07-16-atlas-current-lifecycle-and-comprehensive-rerun.md) | Historical | Plan to pin the latest Atlas `main`, finish local roadmap work, and produce a provenance-complete rerun of every approach and flavor |
+| [Per-approach data-flow diagrams design](docs/superpowers/specs/2026-07-17-per-approach-data-flow-diagrams-design.md) | Historical | Design for the seven per-approach, service-aware data-flow diagrams (implemented — see [Approach internals](docs/approaches.md)) |
+| [Per-approach data-flow diagrams plan](docs/superpowers/plans/2026-07-17-per-approach-data-flow-diagrams.md) | Historical | Implementation plan for publishing the per-approach diagrams across all three documentation surfaces |
 | [Overview](docs/guide/overview.md) | Living | Concepts — how the seven approaches run under identical conditions, flavor aliases, and the fair-comparison guarantees |
 | [Quick Start](docs/guide/quickstart.md) | Living | One-command bring-up, prerequisites, and driving the multi-model comparison in Open WebUI |
 | [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and seven-approach parallel flow diagrams |

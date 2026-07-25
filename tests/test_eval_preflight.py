@@ -129,6 +129,14 @@ def test_envval_reads_last_assignment(tmp_path: Path) -> None:
     assert ep.envval("MISSING", env_path=env) is None
 
 
+def test_envval_returns_none_when_path_is_a_directory(tmp_path: Path) -> None:
+    # .is_file(), not .exists(): a bind-mount target auto-created as a directory
+    # before infra/.env is materialized must degrade to None, not IsADirectoryError.
+    directory = tmp_path / ".env"
+    directory.mkdir()
+    assert ep.envval("PROJECT_NAME", env_path=directory) is None
+
+
 def test_overall_ok_requires_config_and_every_probe() -> None:
     green = {s: {"ok": True, "detail": ""} for s in ep.DECLARED_SERVICES}
     assert ep.overall_ok({"ok": True, "detail": ""}, green) is True
