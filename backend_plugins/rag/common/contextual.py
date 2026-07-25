@@ -38,4 +38,11 @@ async def contextualize(doc_text: str, chunk_text: str) -> str:
     )
     choices = resp.get("choices") or []
     content = ((choices[0].get("message") or {}).get("content") if choices else None) or ""
+    # Unlike pipeline.answer_from_context (whose non-string content is coerced
+    # downstream by build_response), this return value goes straight into the
+    # ingest batch's f"{blurb}\n\n{chunk.text}" concatenation with no such net —
+    # a structured content-part list here would AttributeError on .strip() and
+    # abort the whole `python -m ingest.contextual` run over one malformed reply.
+    if not isinstance(content, str):
+        content = ""
     return content.strip()
