@@ -502,7 +502,8 @@ if __name__ == "__main__":
         epilog="Configured via env vars: MATRIX_MANIFEST_FILE, MATRIX_DATASET_ID, "
                "MATRIX_RUN_ID, MATRIX_QUERIES_FILE, MATRIX_RESULTS_FILE, "
                "MATRIX_CANONICAL_FILE, MATRIX_SUMMARY_FILE, MATRIX_MODELS, MATRIX_FLAVORS, "
-               "MATRIX_FLAVORS_FILE, MATRIX_EVALUATOR_URL, and MATRIX_INGESTION_* "
-               "provenance fields.",
+               "MATRIX_FLAVORS_FILE, MATRIX_EVALUATOR_URL, MATRIX_EVALUATOR_API_KEY, "
+               "MATRIX_EVALUATOR_API_KEY_HEADER, JUDGE_MODELS, JUDGE_ENDPOINT, JUDGE_THINK, "
+               "and MATRIX_INGESTION_* provenance fields.",
     ).parse_args()
     main()

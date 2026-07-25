@@ -4,7 +4,6 @@ import re
 from pathlib import Path
 
 import pytest
-from PIL import Image
 
 from scripts.docs.build_docs import render_mkdocs_yml, render_site, render_wiki
 from scripts.docs.check_docs import check_local_links
@@ -70,6 +69,12 @@ def test_generated_surfaces_publish_all_result_artifacts_and_have_valid_local_li
 
 
 def test_generated_surfaces_publish_nested_approach_diagrams(tmp_path) -> None:
+    # Pillow is only a transitive dependency of the `docs` group (via cairosvg);
+    # a plain `uv sync` (no --group docs) — what `make test`/README's documented
+    # `uv run pytest` command actually run — never installs it, so this import
+    # must be deferred and skippable rather than a module-level `from PIL import
+    # Image`, which would fail collection for the whole file on a fresh clone.
+    Image = pytest.importorskip("PIL.Image")
     manifest = load_manifest()
     pages = iter_pages(manifest)
     site_dir = tmp_path / "site"

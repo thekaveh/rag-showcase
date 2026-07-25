@@ -731,7 +731,8 @@ def main() -> None:
             "corpus/adapters/README.md for candidate exports); "
             "refusing to touch the running stack")
     if args.no_cold_reset and len(datasets) > 1:
-        # ingest.run() swaps the Weaviate collections per dataset but LightRAG only
+        # Per dataset, start_service_only() below points RAG_BASE_COLLECTION /
+        # RAG_CONTEXTUAL_COLLECTION at that dataset's profile, but LightRAG only
         # accumulates — without a cold reset, graph-rag/agentic-rag would answer from
         # the union of all previously ingested corpora while the chunk approaches see
         # only the latest, silently skewing the comparison.

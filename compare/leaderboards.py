@@ -182,8 +182,9 @@ def _metric(summary: dict[str, Any], name: str) -> dict[str, Any]:
     required = (
         "mean", "evaluated", "total", "not_evaluable", "errors", "timeouts", "coverage"
     )
-    if any(key not in metric for key in required):
-        raise ValueError(f"Ragas metric {name!r} is missing coverage counters")
+    missing = [key for key in required if key not in metric]
+    if missing:
+        raise ValueError(f"Ragas metric {name!r} is missing field(s): {', '.join(missing)}")
     evaluated = _counter(metric["evaluated"], f"Ragas {name} evaluated")
     total = _counter(metric["total"], f"Ragas {name} total")
     not_evaluable = _counter(metric["not_evaluable"], f"Ragas {name} not_evaluable")

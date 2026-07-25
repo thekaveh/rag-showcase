@@ -320,6 +320,9 @@ below expands that operator contract with adjacent Atlas and startup settings.
 ```bash
 uv run pytest                 # unit suite (mocked I/O) + integration tests (skip without the stack)
 uv run pytest backend_plugins # unit tests only
+uv run ruff check .           # lint gate (CI runs this on every docs-affecting push)
+make docs-check                        # regenerate + validate the generated documentation (needs: uv sync --group docs --dev)
+node --test tests/docs/test_sortable_tables.cjs  # sortable-table interaction tests (needs Node)
 make eval-check               # read-only preflight: are the eval's Atlas-infra deps up? (needs a started stack)
 ```
 

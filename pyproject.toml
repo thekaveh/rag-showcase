@@ -31,7 +31,12 @@ extend-exclude = ["infra"]
 "**/tests/*.py" = ["E702"]
 
 [dependency-groups]
-dev = ["pytest>=8", "pytest-asyncio>=0.23", "respx>=0.21", "httpx>=0.27", "pyyaml>=6", "fastapi>=0.110,<0.137", "pydantic>=2"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "respx>=0.21", "httpx>=0.27", "pyyaml>=6", "fastapi>=0.110,<0.137", "pydantic>=2", "ruff==0.9.10"]
+# ruff is exact-pinned (unlike the floor-only pins above): every prior maintenance
+# pass validated the tree clean against 0.9.10's default rule set specifically: a
+# newer default (0.16.0 expands the default select, e.g. picking up I/isort) would
+# fail CI on this same tree with 150+ new findings that are a real, separate cleanup
+# effort, not a config bug. Bump deliberately, with the resulting diff reviewed.
 # Docs surfaces (repo markdown -> generated MkDocs site + generated GitHub wiki).
 # Build/check locally with: make docs-check
 docs = ["mkdocs-material>=9.5,<10", "mkdocs-include-markdown-plugin>=6,<8", "pyyaml>=6", "cairosvg>=2.7"]

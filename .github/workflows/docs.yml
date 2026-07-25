@@ -61,6 +61,8 @@ jobs:
           make docs-check
       - name: Run Python tests
         run: uv run pytest tests backend_plugins/rag/tests -q
+      - name: Lint (ruff)
+        run: uv run ruff check .
       - name: Run sortable-table interaction tests
         run: node --test tests/docs/test_sortable_tables.cjs
       - uses: actions/upload-pages-artifact@v3
