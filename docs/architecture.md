@@ -164,10 +164,10 @@ sequenceDiagram
 ```
 
 `vanilla-rag` skips the rerank leg; `contextual-rag` is identical but queries the
-selected `RagContextual_<profile>` collection; `graph-rag` and `agentic-rag` delegate the middle to
-LightRAG / a ReAct tool loop; `n8n-adaptive-rag` inserts the n8n workflow between
-the endpoint and a routed approach; `lazy-graph-rag` adds deterministic concept
-expansion between hybrid seeding and generation.
+selected `RagContextual_<profile>` collection; `graph-rag` and `agentic-rag`
+delegate the middle to LightRAG / a ReAct tool loop; `n8n-adaptive-rag` inserts
+the n8n workflow between the endpoint and a routed approach; `lazy-graph-rag`
+adds deterministic concept expansion between hybrid seeding and generation.
 
 ## 5. Deployment Topology (Containers and Mounts)
 
