@@ -158,6 +158,13 @@ Operators can choose different models or provider sources without editing Atlas
 or the Compose overlay by selecting a local `atlas.consumer.yml` copy whose
 `env.file` points at a customized ignored env file.
 
+Note this deploys `qwen3.6:latest` for KEYWORD rather than the
+`mistral-small3.2:24b` shown in §3/§5's minimum-supported example: live
+validation found Mistral on the KEYWORD role produced thousands of tokens of
+free-form output instead of the requested compact keyword list (see
+[`docs/approaches.md`](../approaches.md) §6.5), so KEYWORD was moved onto the
+same thinking-disabled `qwen3.6:latest` binding QUERY already uses.
+
 The rag-showcase graph wrapper also sends these `/query` defaults:
 
 ```dotenv

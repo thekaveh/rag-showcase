@@ -17,7 +17,8 @@ sortable-tables-test:
 
 # Read-only preflight: confirm the evaluation's Atlas-infra dependencies are up
 # and in order (LiteLLM aliases, Weaviate + collections, LightRAG, TEI reranker,
-# n8n) WITHOUT running ingestion, any approach, or the LLM judge. Needs a running
-# stack for the live probes; the Atlas doctor phase is static.
+# n8n, and the required Ollama models) WITHOUT running ingestion, any approach,
+# or the LLM judge. Needs a running stack for the live probes; the Atlas doctor
+# phase is static.
 eval-check:
 	uv run python -m scripts.eval_preflight

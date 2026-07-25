@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import argparse
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 from corpus.adapters import cyber_threat_intel
 
@@ -75,3 +78,28 @@ def test_adapter_slugs_normalize_identically() -> None:
     for text in ["Hello World!", "A--B  c", "Café au lait", "x" * 100, "MITRE ATT&CK"]:
         slugs = {m._slug(text) for m in modules}
         assert len(slugs) == 1, f"slug drift for {text!r}: {slugs}"
+
+
+@pytest.mark.parametrize("limit", [0, -1, -200])
+def test_adapter_limit_rejects_non_positive_values(limit) -> None:
+    # A non-positive --limit passes a bare type=int but then misbehaves
+    # downstream: list[:limit] with a negative limit silently keeps all-but-
+    # |limit| items instead of exporting nothing. _positive_int is deliberately
+    # quadruplicated across the four adapters (same rationale as _slug above);
+    # this drift guard keeps all four rejecting the same bad inputs.
+    from corpus.adapters import (cyber_threat_intel, gdelt_events,
+                                 openalex_scholarly, stark_export)
+
+    modules = (cyber_threat_intel, gdelt_events, openalex_scholarly, stark_export)
+    for module in modules:
+        with pytest.raises(argparse.ArgumentTypeError):
+            module._positive_int(str(limit))
+
+
+def test_adapter_limit_accepts_positive_values() -> None:
+    from corpus.adapters import (cyber_threat_intel, gdelt_events,
+                                 openalex_scholarly, stark_export)
+
+    modules = (cyber_threat_intel, gdelt_events, openalex_scholarly, stark_export)
+    for module in modules:
+        assert module._positive_int("5") == 5

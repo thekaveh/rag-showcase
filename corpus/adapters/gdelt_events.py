@@ -12,6 +12,16 @@ import httpx
 API = "https://api.gdeltproject.org/api/v2/doc/doc"
 
 
+def _positive_int(raw: str) -> int:
+    # A non-positive --limit passes type=int but then misbehaves downstream
+    # (mirrors the same guard in the other three corpus adapters —
+    # stark_export.py, openalex_scholarly.py, cyber_threat_intel.py).
+    value = int(raw)
+    if value <= 0:
+        raise argparse.ArgumentTypeError(f"--limit must be a positive integer, got {value}")
+    return value
+
+
 def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:72] or "event"
 
@@ -85,7 +95,7 @@ def main() -> None:
     parser.add_argument("--query", required=True)
     parser.add_argument("--start", required=True, help="YYYYMMDDHHMMSS")
     parser.add_argument("--end", required=True, help="YYYYMMDDHHMMSS")
-    parser.add_argument("--limit", type=int, default=150)
+    parser.add_argument("--limit", type=_positive_int, default=150)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     count = export(args.query, args.start, args.end, args.output, args.limit)

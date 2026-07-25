@@ -12,7 +12,8 @@ Two phases:
   2. Live    — read-only probes of each running dependency the RAG plugin
      declares in ``backend_plugins/rag/plugin.yml``: LiteLLM aliases, Weaviate
      readiness + the ingested collections, LightRAG (health + knowledge-graph
-     population), the TEI reranker, and n8n.
+     population), the TEI reranker, n8n, and the required Ollama models
+     (pulled, not just declared — including a version-skew check).
      The probes run *inside* the backend container so they use the exact
      in-network endpoints and credentials the evaluation itself uses.
 
