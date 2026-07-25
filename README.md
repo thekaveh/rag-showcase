@@ -251,9 +251,16 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | `config/atlas.env.user` |
 | `LIGHTRAG_KEYWORD_LLM_MODEL` | `qwen3.6:latest` | LightRAG KEYWORD role | `config/atlas.env.user`; Atlas applies model-scoped `think:false` |
 | `LIGHTRAG_QUERY_LLM_MODEL` | `qwen3.6:latest` | LightRAG QUERY role | `config/atlas.env.user`; Atlas applies model-scoped `think:false` |
+| `LIGHTRAG_KEYWORD_LLM_BINDING` | `openai` | LightRAG KEYWORD role provider | `config/atlas.env.user`; kept behind LiteLLM so qwen3.6's catalog `think:false` default still applies |
+| `LIGHTRAG_KEYWORD_LLM_BINDING_HOST` | `http://litellm:4000/v1` | LightRAG KEYWORD role endpoint | `config/atlas.env.user` |
+| `LIGHTRAG_QUERY_LLM_BINDING` | `openai` | LightRAG QUERY role provider | `config/atlas.env.user`; same LiteLLM-passthrough reasoning as the KEYWORD role |
+| `LIGHTRAG_QUERY_LLM_BINDING_HOST` | `http://litellm:4000/v1` | LightRAG QUERY role endpoint | `config/atlas.env.user` |
 | `LIGHTRAG_EMBEDDING_MODEL` | `nomic-embed-text` | LightRAG embedding model | `config/atlas.env.user` |
 | `LIGHTRAG_EXTRACT_MAX_ASYNC_LLM` | `1` | LightRAG EXTRACT concurrency | `config/atlas.env.user` |
 | `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | `900` | LightRAG EXTRACT timeout seconds | `config/atlas.env.user` |
+| `LIGHTRAG_RERANK_ADAPTER_ENABLED` | `true` | LightRAG-to-TEI rerank adapter | `config/atlas.env.user`; see Troubleshooting below |
+| `RAGAS_EVALUATOR_MODEL` | `mistral-small3.2:24b` | Ragas evaluator role | `config/atlas.env.user`; see [Evaluation Methodology](docs/evaluation-methodology.md) |
+| `RAGAS_EMBEDDINGS_MODEL` | `nomic-embed-text` | Ragas embeddings role | `config/atlas.env.user`; see [Evaluation Methodology](docs/evaluation-methodology.md) |
 | `OLLAMA_CUSTOM_MODELS` | includes `mistral-small3.2:24b` | local Ollama model activation | compiled from `atlas.consumer.yml` `model_sidecars.ollama` |
 | `LIGHTRAG_QUERY_ENABLE_RERANK` | `false` | LightRAG service fallback | Atlas query profile owns each alias; overlay supplies the service fallback |
 | `LIGHTRAG_QUERY_TOP_K` | `10` | LightRAG service fallback | Atlas query profile owns each alias; overlay supplies the service fallback |

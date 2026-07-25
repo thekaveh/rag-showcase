@@ -226,6 +226,50 @@ def test_run_evaluation_concurrent_path_collects_all_cells(tmp_path: Path) -> No
     assert all(row["status"] == "ok" for row in rows)
 
 
+def test_run_evaluation_concurrent_worker_exception_still_persists_siblings(
+    tmp_path: Path,
+) -> None:
+    # Documented contract (compare/evaluation.py's concurrency>1 branch): on a
+    # worker exception, the ThreadPoolExecutor context manager's
+    # shutdown(wait=True) lets in-flight siblings finish and durably append
+    # their rows before the first failure propagates out of run_evaluation.
+    # Verify this actually holds instead of trusting the comment.
+    manifest, dataset = _manifest(tmp_path, concurrency=2)
+    questions = [QuestionSpec(id="q1", query="one")]
+    approaches = [
+        SelectedApproach(model="vanilla-rag", base_model="vanilla-rag", flavor="default",
+                         evidence="answer_with_contexts"),
+        SelectedApproach(model="graph-rag", base_model="graph-rag", flavor="default",
+                         evidence="answer_only"),
+    ]
+    store = JsonlStore(tmp_path / "rows.jsonl")
+    real_append = store.append
+
+    def flaky_append(row: dict) -> None:
+        if row["approach"]["model"] == "graph-rag":
+            raise RuntimeError("simulated durable-store failure")
+        real_append(row)
+
+    store.append = flaky_append  # type: ignore[method-assign]
+
+    with pytest.raises(RuntimeError, match="simulated durable-store failure"):
+        run_evaluation(
+            manifest=manifest, run_id="run-x", dataset=dataset, questions=questions,
+            approaches=approaches, invoke=lambda m, q, t: _completion(m, f"{m}: {q}"),
+            evaluator=_Evaluator(), store=store,
+            runtime_provenance={"project": "rag-showcase", "base_port": 22000},
+        )
+
+    persisted = [
+        json.loads(line)
+        for line in (tmp_path / "rows.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert any(
+        row["approach"]["model"] == "vanilla-rag" and row["status"] == "ok"
+        for row in persisted
+    )
+
+
 def test_run_evaluation_resume_skips_completed_rows_without_duplicates(tmp_path: Path) -> None:
     manifest, dataset = _manifest(tmp_path)
     questions = [QuestionSpec(id="q1", query="one"), QuestionSpec(id="q2", query="two")]

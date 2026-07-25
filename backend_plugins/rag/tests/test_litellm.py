@@ -104,3 +104,45 @@ async def test_embed_orders_by_index(monkeypatch):
         ]}))
     out = await litellm.embed(["a", "b"], model="nomic-embed-text")
     assert out == [[0.0], [1.0]]  # reordered by index, not raw response order
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_embed_raises_clear_error_on_non_json_200(monkeypatch):
+    # A 200 with a non-JSON body (upstream Ollama/proxy blip) must not surface as
+    # a raw JSONDecodeError, nor silently degrade to []: every caller indexes the
+    # result positionally (embed([q])[0]), so a silent [] would surface as a
+    # confusing downstream IndexError instead of a diagnosable failure here.
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    respx.post("http://litellm:4000/v1/embeddings").mock(
+        return_value=httpx.Response(200, content=b"<html>bad gateway</html>",
+                                     headers={"content-type": "text/html"}))
+    with pytest.raises(RuntimeError, match="malformed response"):
+        await litellm.embed(["a"], model="nomic-embed-text")
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_embed_raises_clear_error_when_data_key_missing(monkeypatch):
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    respx.post("http://litellm:4000/v1/embeddings").mock(
+        return_value=httpx.Response(200, json={"error": "model not found"}))
+    with pytest.raises(RuntimeError, match="malformed response"):
+        await litellm.embed(["a"], model="nomic-embed-text")
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_chat_degrades_to_empty_dict_on_non_json_200(monkeypatch):
+    # a 200 with a non-JSON body must degrade to {} so callers' existing
+    # `resp.get("choices") or []` fallback kicks in, instead of raising
+    # JSONDecodeError and 500ing every text-generating approach.
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    respx.post("http://litellm:4000/v1/chat/completions").mock(
+        return_value=httpx.Response(200, content=b"<html>bad gateway</html>",
+                                     headers={"content-type": "text/html"}))
+    out = await litellm.chat("m", [{"role": "user", "content": "q"}])
+    assert out == {}
