@@ -136,6 +136,11 @@ async def query(
                                  json=_query_payload(question, mode, options, profile))
         resp.raise_for_status()
         data = resp.json()
+        # A valid-JSON-but-non-object body ([], null, a bare string) must not
+        # AttributeError on .get() — mirror the shape guards every other client
+        # in this module uses (n8n.py, atlas_job.py, vectors.py rerank).
+        if not isinstance(data, dict):
+            data = {}
         answer = data.get("response") or data.get("data") or ""
         if not answer:
             _log.warning(

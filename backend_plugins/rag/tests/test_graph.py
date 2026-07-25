@@ -153,6 +153,20 @@ async def test_lightrag_query_empty_answer_returns_empty_string(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_lightrag_query_degrades_on_non_dict_body(monkeypatch):
+    # A valid-JSON-but-non-object body ([], null, a bare string) must not
+    # AttributeError on data.get(...) — degrade to "" like the empty-answer case,
+    # matching every other client's shape guard in this module (n8n, atlas_job,
+    # vectors.rerank).
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    with respx.mock:
+        respx.post("http://lightrag:9621/query").mock(
+            return_value=httpx.Response(200, json=["not", "an", "object"]))
+        out = await lightrag.query("a real graph question")
+        assert out == ""
+
+
+@pytest.mark.asyncio
 async def test_lightrag_query_reads_data_field_fallback(monkeypatch):
     # query() recognizes the answer under either `response` or `data`
     # (data.get("response") or data.get("data")). When LightRAG answers under the
