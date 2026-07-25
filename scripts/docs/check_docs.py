@@ -73,7 +73,10 @@ def main() -> None:
     check_local_links(WIKI_SRC)
     check_readme()
     check_determinism()
-    subprocess.run([sys.executable, "-m", "mkdocs", "build", "--clean", "--strict", "--site-dir", "site"], check=True)
+    subprocess.run(
+        [sys.executable, "-m", "mkdocs", "build", "--clean", "--strict", "--site-dir", "site"],
+        check=True, timeout=300,
+    )
 
 
 if __name__ == "__main__":

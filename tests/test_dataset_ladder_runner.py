@@ -364,6 +364,30 @@ def test_ladder_runner_rejects_judgments_without_valid_verdicts() -> None:
             expected_approaches={"vanilla-rag"}, expected_judges=["judge-a", "judge-b"],
         )
 
+    wrong_approach = json.loads(json.dumps(good))
+    wrong_approach["queries"][0]["mean_by_approach"] = {"other-approach": 4.0}
+    with pytest.raises(RuntimeError, match=r"a.*\['other-approach'\].*\['vanilla-rag'\]"):
+        module.validate_judgments(
+            wrong_approach, dataset_id="example", expected_queries={"a"},
+            expected_approaches={"vanilla-rag"}, expected_judges=["judge-a", "judge-b"],
+        )
+
+    judge_error = json.loads(json.dumps(good))
+    judge_error["queries"][0]["per_judge"]["judge-a"] = {"error": "no valid verdict"}
+    with pytest.raises(RuntimeError, match=r"judge-a: error='no valid verdict'"):
+        module.validate_judgments(
+            judge_error, dataset_id="example", expected_queries={"a"},
+            expected_approaches={"vanilla-rag"}, expected_judges=["judge-a", "judge-b"],
+        )
+
+    judge_scores_mismatch = json.loads(json.dumps(good))
+    judge_scores_mismatch["queries"][0]["per_judge"]["judge-a"] = {"scores": {}}
+    with pytest.raises(RuntimeError, match=r"judge-a: \[\].*\['vanilla-rag'\]"):
+        module.validate_judgments(
+            judge_scores_mismatch, dataset_id="example", expected_queries={"a"},
+            expected_approaches={"vanilla-rag"}, expected_judges=["judge-a", "judge-b"],
+        )
+
 
 def test_ladder_validates_canonical_rows_and_summary() -> None:
     module = _load_ladder_module()
@@ -442,6 +466,16 @@ def test_ladder_validates_canonical_rows_and_summary() -> None:
             expected_ragas={"answer_relevancy"},
         )
 
+    missing_hash = json.loads(json.dumps(rows))
+    for row in missing_hash:
+        del row["reproducibility"]["config_hashes"]["lightrag_query_profiles"]
+    with pytest.raises(RuntimeError, match=r"provenance hashes.*lightrag_query_profiles"):
+        module.validate_canonical_rows(
+            missing_hash, dataset_id="example", expected_cells=2,
+            expected_queries={"q1"}, expected_approaches={"a", "b"},
+            expected_ragas={"answer_relevancy"},
+        )
+
     summary = {
         "schema_version": 1,
         "datasets": {"example": {"coverage": {
@@ -461,6 +495,28 @@ def test_ladder_validates_canonical_rows_and_summary() -> None:
         module.validate_evaluation_summary(
             summary, dataset_id="example", expected_cells=2,
             expected_status_counts={"ok": 2, "errors": 0, "timeouts": 0},
+        )
+
+    summary_with_judges = json.loads(json.dumps(summary))
+    summary_with_judges["datasets"]["example"]["judge_panel"] = {
+        "models": ["judge-a"], "evaluated_queries": 1, "total_queries": 1,
+    }
+    module.validate_evaluation_summary(
+        summary_with_judges, dataset_id="example", expected_cells=2,
+        expected_status_counts={"ok": 1, "errors": 1, "timeouts": 0},
+        expected_judges=["judge-a"], expected_query_count=1,
+    )
+    with pytest.raises(RuntimeError, match=r"unexpected judge models.*\['judge-a'\].*\['judge-a', 'judge-b'\]"):
+        module.validate_evaluation_summary(
+            summary_with_judges, dataset_id="example", expected_cells=2,
+            expected_status_counts={"ok": 1, "errors": 1, "timeouts": 0},
+            expected_judges=["judge-a", "judge-b"], expected_query_count=1,
+        )
+    with pytest.raises(RuntimeError, match=r"incomplete judge coverage.*evaluated=1.*total=1.*expected=2"):
+        module.validate_evaluation_summary(
+            summary_with_judges, dataset_id="example", expected_cells=2,
+            expected_status_counts={"ok": 1, "errors": 1, "timeouts": 0},
+            expected_judges=["judge-a"], expected_query_count=2,
         )
 
 
@@ -636,6 +692,18 @@ def test_snapshot_manifest_keeps_base_and_flavor_tiers_separate(monkeypatch, tmp
     assert row["matrix_snapshot"] == "base-matrix"
     assert row["flavor_matrix_snapshot"] == "flavor-matrix"
     assert row["flavor_evaluation_snapshot"] == "flavor-evaluation"
+
+
+def test_snapshot_manifest_raises_on_unknown_dataset_id(monkeypatch, tmp_path) -> None:
+    module = _load_ladder_module()
+    manifest = {"datasets": [{"id": "ds", "status": "measured"}]}
+    monkeypatch.setattr(module, "ROOT", tmp_path)
+    monkeypatch.setattr(module, "load_manifest", lambda: manifest)
+    monkeypatch.setattr(module, "write_manifest", lambda value: None)
+    paths = [tmp_path / f"base-{kind}" for kind in ("matrix", "judgments", "evidence", "evaluation")]
+
+    with pytest.raises(KeyError, match="unknown-dataset.*datasets.yaml"):
+        module.update_dataset_snapshots("unknown-dataset", *paths, flavor_paths=())
 
 
 def test_cold_ingestion_discards_stale_working_evidence_before_matrix(

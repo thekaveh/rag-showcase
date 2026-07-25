@@ -48,8 +48,7 @@ committed three-dataset quality and latency evaluation; see the
 
 ![RAG Showcase detailed architecture](docs/diagrams/img/architecture-detailed.png)
 
-*Atlas stack, LiteLLM gateway, mounted backend plugin seam, seven RAG endpoints,
-retrieval stores, workflow services, and Atlas-managed model routing. Source:
+*Interactive version:
 [`docs/diagrams/architecture-detailed.html`](docs/diagrams/architecture-detailed.html). Full explanation:
 [`docs/architecture.md`](docs/architecture.md).*
 
@@ -61,8 +60,7 @@ invoke them through LiteLLM's OpenAI-compatible `/v1/chat/completions` surface.
 
 ![RAG Showcase seven approach flow phases](docs/diagrams/img/approach-flows.png)
 
-*Parallel lane view of all seven approaches from shared corpus preparation through
-retrieval, augmentation, generation, output shaping, and observed tradeoffs. Source:
+*For comparing where the seven approaches diverge. Interactive version:
 [`docs/diagrams/approach-flows.html`](docs/diagrams/approach-flows.html). Full explanation:
 [`docs/architecture.md`](docs/architecture.md); approach-by-approach internals:
 [`docs/approaches.md`](docs/approaches.md).*

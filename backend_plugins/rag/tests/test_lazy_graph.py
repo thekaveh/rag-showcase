@@ -1,9 +1,12 @@
 import json
+import threading
+import time
 
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from rag.common import lazy_graph
 from rag.approaches import lazy
 from rag.common import flavors
 from rag.common.lazy_graph import build_index, extract_concepts, load_or_build, retrieve
@@ -58,6 +61,48 @@ def test_disk_cache_is_reused_and_invalidated_by_chunk_content(tmp_path):
     assert fourth.fingerprint != third.fingerprint
     stored = json.loads((tmp_path / "test.json").read_text(encoding="utf-8"))
     assert stored["fingerprint"] == fourth.fingerprint
+
+
+def test_concurrent_cold_cache_requests_build_only_once(tmp_path, monkeypatch):
+    # A burst of concurrent requests on a cold cache (first request, or right after
+    # a corpus change) must not each redundantly run build_index() — the first
+    # caller builds while the rest wait on the per-namespace lock, then see the
+    # fresh cache file.
+    real_build_index = lazy_graph.build_index
+    calls = {"n": 0}
+
+    def slow_build_index(*args, **kwargs):
+        calls["n"] += 1
+        time.sleep(0.1)  # widen the race window so a lock bug would reliably show
+        return real_build_index(*args, **kwargs)
+
+    monkeypatch.setattr(lazy_graph, "build_index", slow_build_index)
+
+    results = []
+    errors = []
+    start = threading.Barrier(6)  # 5 workers + this thread, so all 5 race together
+
+    def worker():
+        try:
+            start.wait(timeout=5)
+            results.append(
+                load_or_build(_chunks(), cache_dir=tmp_path, namespace="concurrent")
+            )
+        except Exception as exc:  # pragma: no cover - surfaced via `errors` assertion
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker) for _ in range(5)]
+    for thread in threads:
+        thread.start()
+    start.wait(timeout=5)
+    for thread in threads:
+        thread.join(timeout=10)
+
+    assert not errors
+    assert len(results) == 5
+    assert calls["n"] == 1  # only the lock winner actually built
+    fingerprints = {index.fingerprint for index, _ in results}
+    assert len(fingerprints) == 1  # every caller got the same, correctly-built index
 
 
 def test_structurally_corrupt_cache_is_rebuilt(tmp_path):

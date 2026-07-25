@@ -1,6 +1,6 @@
 # 4.2 System Diagram (interactive)
 
-A full-resolution rendering of the deployment topology.
+An interactive, zoomable version of the deployment diagram embedded below.
 
 <iframe class="diagram" src="architecture-detailed.html" title="RAG Showcase — detailed system architecture" height="860" loading="lazy"></iframe>
 

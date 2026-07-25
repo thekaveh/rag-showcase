@@ -86,9 +86,18 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+# A last-resort circuit breaker, not a tight bound: these commands (start-all.sh,
+# a full ingestion job, the evaluation matrix, the judge panel) legitimately run
+# for a long time by design. 2 hours mirrors ingest.atlas_job's own internal
+# polling deadline — long enough for any real run, short enough that a wedged
+# Docker daemon or hung docker exec doesn't hang this orchestrator forever with
+# no diagnostic.
+_SUBPROCESS_TIMEOUT = 7200.0
+
+
 def run(cmd: list[str], *, env: dict[str, str] | None = None) -> None:
     print(f"$ {' '.join(cmd)}", flush=True)
-    subprocess.run(cmd, cwd=ROOT, env=env, check=True)
+    subprocess.run(cmd, cwd=ROOT, env=env, check=True, timeout=_SUBPROCESS_TIMEOUT)
 
 
 def capture_json(
@@ -101,6 +110,7 @@ def capture_json(
         text=True,
         capture_output=True,
         check=False,
+        timeout=_SUBPROCESS_TIMEOUT,
     )
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip() or "no child output"
@@ -156,6 +166,7 @@ def cold_reset() -> None:
         ["./scripts/stop-all.sh", "--cold"],
         cwd=ROOT,
         check=True,
+        timeout=_SUBPROCESS_TIMEOUT,
     )
 
 
@@ -294,10 +305,13 @@ def validate_judgments(
             )
         for judge in expected_judges:
             verdict = per_judge[judge]
-            if verdict.get("error") or set((verdict.get("scores") or {}).keys()) != expected_approaches:
+            error = verdict.get("error")
+            scores = set((verdict.get("scores") or {}).keys())
+            if error or scores != expected_approaches:
+                reason = f"error={error!r}" if error else f"{sorted(scores)} != {sorted(expected_approaches)}"
                 raise RuntimeError(
                     f"Judgments for {dataset_id}/{query_id} have incomplete judge coverage "
-                    f"for {judge}"
+                    f"for {judge}: {reason}"
                 )
     runtime = judgments.get("runtime")
     if not isinstance(runtime, dict) or not runtime.get("backend") or not runtime.get("endpoint"):
