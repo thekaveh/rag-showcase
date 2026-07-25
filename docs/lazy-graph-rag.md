@@ -201,6 +201,7 @@ so the implementation remains available for explicit selection.
 **Decision:** retain the prototype as an experimental seventh approach, keep it
 excluded from `default`, and continue measuring it. It beat existing approaches
 on graph-native tasks and remained competitive on the cyber aggregate without
-added index-time LLM cost, so removal is not warranted. Promotion to a canonical default would require
-more datasets, objective evaluator coverage, stronger concept/entity resolution,
-and explicit typed-relation or community semantics.
+added index-time LLM cost, so removal is not warranted. Promotion to a
+canonical default would require more datasets, objective evaluator coverage,
+stronger concept/entity resolution, and explicit typed-relation or community
+semantics.

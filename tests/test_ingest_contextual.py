@@ -26,10 +26,15 @@ def test_document_text_falls_back_to_joined_chunks_for_other_extensions(tmp_path
 def test_document_text_falls_back_when_source_escapes_corpus_root(tmp_path: Path) -> None:
     # A source path that resolves outside corpus_root (e.g. "../../etc/passwd" from
     # a corrupted Atlas chunk record) must not be read — fall back to chunk text.
-    outside = tmp_path.parent / "outside.md"
-    outside.write_text("should never be read", encoding="utf-8")
+    # The escape target must sit at the path (corpus_root / source).resolve()
+    # actually lands on (one level ABOVE corpus_root here), not merely somewhere
+    # outside corpus_root — otherwise the file is simply absent and read_text()
+    # raises FileNotFoundError regardless of whether the containment guard exists,
+    # so removing the guard would not make this test fail.
     corpus_root = tmp_path / "corpus"
     corpus_root.mkdir()
+    outside = tmp_path / "outside.md"  # (corpus_root / "../outside.md").resolve()
+    outside.write_text("should never be read", encoding="utf-8")
     chunks = [IngestedChunk(source="../outside.md", text="safe chunk", index=0)]
     assert ic._document_text(corpus_root, "../outside.md", chunks) == "safe chunk"
 
