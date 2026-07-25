@@ -379,7 +379,9 @@ def write_summary(
         try:
             loaded = json.loads(judgments_path.read_text(encoding="utf-8"))
             if not isinstance(loaded, dict):
-                raise TypeError("judgment artifact root must be an object")
+                raise TypeError(
+                    f"judgment artifact root must be an object, got {type(loaded).__name__}"
+                )
             judgments = loaded
         except (OSError, json.JSONDecodeError, TypeError) as exc:
             judgments = {

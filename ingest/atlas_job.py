@@ -90,7 +90,10 @@ def run_ingestion(
                 if status == "completed":
                     return record
                 if status in _TERMINAL:
-                    raise RuntimeError(_failure_detail(record))
+                    raise RuntimeError(
+                        f"Atlas ingestion {ingestion_id} for profile {profile!r} failed: "
+                        f"{_failure_detail(record)}"
+                    )
             else:
                 status = "unknown"
             if time.monotonic() >= deadline:

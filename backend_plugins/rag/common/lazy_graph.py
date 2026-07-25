@@ -116,7 +116,10 @@ class GraphIndex:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "GraphIndex":
         if data.get("version") != INDEX_VERSION:
-            raise ValueError("unsupported lazy graph index version")
+            raise ValueError(
+                f"unsupported lazy graph index version: got {data.get('version')!r}, "
+                f"expected {INDEX_VERSION!r}"
+            )
         chunks = {
             key: GraphChunk(
                 id=str(row["id"]),

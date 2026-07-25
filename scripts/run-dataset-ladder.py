@@ -284,11 +284,13 @@ def validate_judgments(
         per_judge = query.get("per_judge") or {}
         if means != expected_approaches:
             raise RuntimeError(
-                f"Judgments for {dataset_id}/{query_id} have incomplete approach coverage"
+                f"Judgments for {dataset_id}/{query_id} have incomplete approach coverage: "
+                f"{sorted(means)} != {sorted(expected_approaches)}"
             )
         if list(per_judge) != expected_judges:
             raise RuntimeError(
-                f"Judgments for {dataset_id}/{query_id} have incomplete judge coverage"
+                f"Judgments for {dataset_id}/{query_id} have incomplete judge coverage: "
+                f"{list(per_judge)} != {expected_judges}"
             )
         for judge in expected_judges:
             verdict = per_judge[judge]
@@ -360,7 +362,8 @@ def validate_canonical_rows(
         runtime = reproducibility.get("runtime") or {}
         if not required_hashes <= set(hashes):
             raise RuntimeError(
-                f"Canonical rows for {dataset_id} are missing required provenance hashes"
+                f"Canonical rows for {dataset_id} are missing required provenance hashes: "
+                f"{sorted(required_hashes - set(hashes))}"
             )
         runtime_files = runtime.get("runtime_files") or {}
         judge_panel = runtime.get("judge_panel") or {}
@@ -451,14 +454,17 @@ def validate_evaluation_summary(
         judge = dataset.get("judge_panel") or {}
         if judge.get("models") != expected_judges:
             raise RuntimeError(
-                f"Evaluation summary for {dataset_id} has unexpected judge models"
+                f"Evaluation summary for {dataset_id} has unexpected judge models: "
+                f"{judge.get('models')} != {expected_judges}"
             )
         if expected_query_count is not None and (
             judge.get("evaluated_queries") != expected_query_count
             or judge.get("total_queries") != expected_query_count
         ):
             raise RuntimeError(
-                f"Evaluation summary for {dataset_id} has incomplete judge coverage"
+                f"Evaluation summary for {dataset_id} has incomplete judge coverage: "
+                f"evaluated={judge.get('evaluated_queries')}, "
+                f"total={judge.get('total_queries')}, expected={expected_query_count}"
             )
 
 
@@ -639,7 +645,7 @@ def update_dataset_snapshots(
             dataset["status"] = "measured"
             break
     else:
-        raise KeyError(dataset_id)
+        raise KeyError(f"dataset {dataset_id!r} not found in datasets.yaml manifest")
     write_manifest(manifest)
 
 
