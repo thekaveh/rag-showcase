@@ -60,6 +60,12 @@ env:
     type: int
     default: "12000"
     description: Default LightRAG query context token budget.
+  - name: LIGHTRAG_QUERY_PROFILES_FILE
+    required: true
+    description: >-
+      Path to the compiled LightRAG query profile registry. Auto-generated and
+      bind-mounted by Atlas's consumer LightRAG query profile overlay (#414);
+      required because graph-rag and agentic-rag always resolve a named profile.
   - name: N8N_ADAPTIVE_WEBHOOK_URL
     default: http://n8n:5678/webhook/adaptive-rag
     description: Adaptive-RAG production webhook invoked by the n8n approach.

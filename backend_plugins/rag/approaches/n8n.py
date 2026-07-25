@@ -31,7 +31,14 @@ async def n8n_adaptive_rag(req: ChatRequest):
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.post(url, json={"query": req.last_user()})
         resp.raise_for_status()
-        data = resp.json()
+        try:
+            data = resp.json()
+        except ValueError:
+            # A 200 with a non-JSON body (e.g. a misconfigured "Respond to Webhook"
+            # node, or an HTML page from a proxy in front of n8n) degrades to the
+            # same route="unknown" shape as every other malformed-body case below,
+            # instead of a raw JSONDecodeError.
+            data = {}
     # the n8n workflow is operator-built; its Respond-to-Webhook node may return a
     # single object or a list of items ("All Incoming Items") — normalize to a
     # dict so .get() is safe instead of raising AttributeError on a list/scalar.

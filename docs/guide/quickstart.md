@@ -121,7 +121,7 @@ python3 -m pip install datasets
 ```
 
 Without it, ingestion uses only the bundled keyword docs, so the thematic / multi-hop
-demo queries have little to work with. See the [Corpus Overview](../components/corpus.md).
+demo queries have little to work with. See [`corpus/README.md`](../../corpus/README.md).
 
 The dataset ladder selects the matching manifest profile (`baseline_curated`,
 `graph_native`, and so on) before the stack starts. Atlas owns discover, parse,
@@ -135,7 +135,7 @@ The `n8n-adaptive-rag` workflow is checked in and declared in
 `atlas.consumer.yml`. Atlas validates, namespaces, imports, activates, and probes it
 — including activation with no `N8N_API_KEY` (Atlas #720), so the wrapper does no
 manual publish or n8n restart; it only verifies the real production webhook before
-reporting readiness. See the [n8n Adaptive Workflow](../components/n8n.md) page for
+reporting readiness. See [`n8n/README.md`](../../n8n/README.md) for
 ownership, lifecycle, workflow shape, and tuning knobs.
 
 ## 5. Development and Testing

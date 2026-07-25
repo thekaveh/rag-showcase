@@ -234,11 +234,13 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | `LITELLM_MASTER_KEY` | — | External LiteLLM gateway authentication | Atlas `.env`; mapped to `LITELLM_API_KEY` in the backend |
 | `WEAVIATE_URL` | `http://weaviate:8080` | vectors | Atlas backend env |
 | `RAG_WEAVIATE_GRPC_PORT` | `50051` | vectors (in-network gRPC port; distinct from Atlas's host-published `WEAVIATE_GRPC_PORT`) | plugin manifest + overlay |
+| `RAG_WEAVIATE_INIT_TIMEOUT_S` | `30` | vectors (Weaviate client init; covers transient gRPC readiness delay) | plugin manifest + overlay |
 | `TEI_RERANKER_ENDPOINT` | `http://tei-reranker:80` | vectors (rerank) | overlay |
 | `TEI_RERANKER_MAX_BATCH` | `32` | vectors (rerank request batch cap) | plugin manifest + overlay |
 | `LIGHTRAG_ENDPOINT` | `http://lightrag:9621` | lightrag client | Atlas backend env |
 | `LIGHTRAG_API_KEY` | — | lightrag client | Atlas backend env |
 | `N8N_ADAPTIVE_WEBHOOK_URL` | `http://n8n:5678/webhook/adaptive-rag` | n8n approach | overlay |
+| `LAZY_GRAPH_CACHE_DIR` | `/data/lazy-graph-rag` | lazy-graph-rag (persistent concept-graph cache, keyed by corpus digest) | plugin manifest + overlay |
 | `RAG_ROLES_FILE` | `/app/plugins/rag/roles.yaml` | config | plugin manifest; supplied by `config/atlas.env.user` and overlay |
 | `RAG_FLAVORS_FILE` | `/app/plugins/rag/flavors.yaml` | runtime flavor parameter loader | plugin manifest; supplied by `config/atlas.env.user` and overlay; aliases are declared in `atlas.consumer.yml` and drift-tested against this file |
 | `RAG_INGESTION_PROFILE` | `showcase_default` | startup, Atlas ingestion job, collection selection | host env + overlay; dataset ladder sets the selected dataset id |
@@ -257,6 +259,7 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | `LIGHTRAG_QUERY_TOP_K` | `10` | LightRAG service fallback | Atlas query profile owns each alias; overlay supplies the service fallback |
 | `LIGHTRAG_QUERY_CHUNK_TOP_K` | `5` | LightRAG service fallback | Atlas query profile owns each alias; overlay supplies the service fallback |
 | `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS` | `12000` | LightRAG service fallback | Atlas query profile owns each alias; overlay supplies the service fallback |
+| `LIGHTRAG_QUERY_PROFILES_FILE` | — (required) | lightrag client (`_load_profiles()`; graph-rag and agentic-rag always resolve a named profile) | plugin manifest; auto-generated and bind-mounted by Atlas's consumer LightRAG query profile overlay (#414) |
 | `LIGHTRAG_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG base Ollama context cap (used only when a LightRAG role is bound directly to Ollama) | overlay |
 | `LIGHTRAG_EXTRACT_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG EXTRACT-role Ollama context cap | overlay |
 | `LIGHTRAG_KEYWORD_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG KEYWORD-role Ollama context cap | overlay |

@@ -28,7 +28,7 @@ flowchart LR
     R --> A[agentic-rag]
     R --> N[n8n-adaptive-rag]
     R --> LG[lazy-graph-rag]
-    V & H & C & A --> W[(Weaviate<br/>+ TEI rerank)]
+    V & H & C & A & LG --> W[(Weaviate<br/>+ TEI rerank)]
     G & A --> LR[(LightRAG<br/>knowledge graph)]
     LG --> LC[(Persistent lazy<br/>concept-graph cache)]
     N --> WF[n8n workflow<br/>classify → route]

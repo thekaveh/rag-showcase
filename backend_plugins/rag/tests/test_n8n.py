@@ -130,3 +130,22 @@ async def test_n8n_wrapper_degrades_on_non_object_body(monkeypatch, body):
                                 "messages": [{"role": "user", "content": "q"}]})
     assert r.status_code == 200
     assert r.json()["rag_showcase"]["adaptive"]["route"] == "unknown"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_n8n_wrapper_degrades_on_non_json_200_body(monkeypatch):
+    # a 200 with a non-JSON body (misconfigured "Respond to Webhook" node, or an
+    # HTML page from a proxy in front of n8n) must degrade to the route fallback,
+    # not raise JSONDecodeError -> 500.
+    monkeypatch.setenv("N8N_ADAPTIVE_WEBHOOK_URL", "http://n8n:5678/webhook/adaptive-rag")
+    respx.post("http://n8n:5678/webhook/adaptive-rag").mock(
+        return_value=httpx.Response(200, content=b"<html>not json</html>",
+                                     headers={"content-type": "text/html"}))
+    app = FastAPI(); app.include_router(n8n.router)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+        r = await ac.post("/n8n-adaptive-rag/v1/chat/completions",
+                          json={"model": "n8n-adaptive-rag",
+                                "messages": [{"role": "user", "content": "q"}]})
+    assert r.status_code == 200
+    assert r.json()["rag_showcase"]["adaptive"]["route"] == "unknown"

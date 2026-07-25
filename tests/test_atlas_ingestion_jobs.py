@@ -275,3 +275,39 @@ def test_headless_job_client_surfaces_phase_failures() -> None:
                 poll_seconds=0,
                 client=client,
             )
+
+
+def test_headless_job_client_raises_timeout_error_when_deadline_exceeded(
+    monkeypatch,
+) -> None:
+    # The poll-deadline guard bounds a multi-hour ingestion wait; a status that
+    # never reaches a terminal state must raise TimeoutError, not hang forever.
+    from ingest import atlas_job
+    from ingest.atlas_job import run_ingestion
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(202, json={"ingestion_id": "job-1", "status": "pending"})
+        return httpx.Response(200, json={"id": "job-1", "status": "running"})
+
+    fake_clock = {"t": 0.0}
+
+    def fake_monotonic() -> float:
+        fake_clock["t"] += 1.0
+        return fake_clock["t"]
+
+    monkeypatch.setattr(atlas_job.time, "monotonic", fake_monotonic)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(
+            TimeoutError, match=r"job-1.*'graph_native'.*did not finish within 2s"
+        ):
+            run_ingestion(
+                "graph_native",
+                base_url="http://atlas.test",
+                api_token="test-internal-token",
+                timeout_seconds=2,
+                poll_seconds=0,
+                client=client,
+                sleep=lambda _seconds: None,
+            )

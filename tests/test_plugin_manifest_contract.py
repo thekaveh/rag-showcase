@@ -80,6 +80,7 @@ def test_rag_plugin_manifest_declares_required_files_and_typed_knobs() -> None:
     assert "LIGHTRAG_UPLOAD_RETRIES" not in env
     assert "LIGHTRAG_UPLOAD_RETRY_DELAY" not in env
     assert env["LAZY_GRAPH_CACHE_DIR"]["default"] == "/data/lazy-graph-rag"
+    assert env["LIGHTRAG_QUERY_PROFILES_FILE"]["required"] is True
 
 
 def test_manifest_required_files_are_supplied_to_backend_by_consumer_env() -> None:
