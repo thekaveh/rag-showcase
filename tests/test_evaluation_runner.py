@@ -20,7 +20,13 @@ from compare.evaluation import (
 )
 
 
-def test_evaluation_module_imports_without_posix_fcntl() -> None:
+def test_evaluation_module_defers_fcntl_import_to_lock_use_not_module_import() -> None:
+    # fcntl only exists on POSIX; importing it at MODULE scope would break this
+    # module on Windows entirely, even for code paths that never touch locking.
+    # `import compare.evaluation` must succeed with fcntl unavailable (proving the
+    # import is deferred into _exclusive_file_lock, not hoisted to module scope) —
+    # but actually taking a lock must still fail loudly (not silently no-op) once
+    # fcntl is genuinely needed, so a real cross-platform gap isn't masked.
     script = """
 import builtins
 
@@ -33,6 +39,20 @@ def guarded_import(name, *args, **kwargs):
 
 builtins.__import__ = guarded_import
 import compare.evaluation
+print("import-ok")
+
+import os
+if os.name != "nt":
+    import tempfile
+    from pathlib import Path
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            with compare.evaluation._exclusive_path_lock(Path(tmp) / "lock"):
+                pass
+        except ImportError:
+            print("lock-raised-import-error")
+        else:
+            print("lock-did-not-raise")
 """
     result = subprocess.run(
         [sys.executable, "-c", script],
@@ -43,9 +63,15 @@ import compare.evaluation
     )
 
     assert result.returncode == 0, result.stderr
+    assert "import-ok" in result.stdout
+    if "lock-raised-import-error" in result.stdout or "lock-did-not-raise" in result.stdout:
+        # Only asserted on POSIX (os.name == "nt" skips the lock probe above).
+        assert "lock-raised-import-error" in result.stdout, (
+            "taking a lock with fcntl unavailable must raise, not silently succeed"
+        )
 
 
-def _manifest(tmp_path: Path, *, retries: int = 0) -> tuple[object, object]:
+def _manifest(tmp_path: Path, *, retries: int = 0, concurrency: int = 1) -> tuple[object, object]:
     (tmp_path / "questions").mkdir()
     (tmp_path / "corpus" / "a").mkdir(parents=True)
     (tmp_path / "datasets.yaml").write_text(
@@ -80,7 +106,7 @@ run:
   retries: {retries}
   timeout_s: 10
   evaluator_timeout_s: 20
-  concurrency: 1
+  concurrency: {concurrency}
   seed: test-seed
 """,
         encoding="utf-8",
@@ -175,6 +201,99 @@ def test_run_evaluation_persists_every_2x2_cell_and_isolates_timeout(tmp_path: P
     assert graph_ok["metrics"]["ragas"]["status"] == "ok"  # fake evaluator result preserved
     graph_call = next(call for call in evaluator.calls if call["metadata"]["row_id"] == graph_ok["row_id"])
     assert graph_call["contexts"] == []
+
+
+def test_run_evaluation_treats_none_completion_as_cell_error(tmp_path: Path) -> None:
+    # invoke returning None without raising (gateway 200 with a null body, or a
+    # custom callable) must become a per-cell error row via completion_evidence,
+    # NOT an AssertionError that aborts the whole matrix run (the old
+    # `assert last_error is not None` on the payload-None path did that).
+    manifest, dataset = _manifest(tmp_path)
+    questions = [QuestionSpec(id="q1", query="one")]
+    approaches = [
+        SelectedApproach(model="vanilla-rag", base_model="vanilla-rag", flavor="default",
+                         evidence="answer_with_contexts"),
+    ]
+
+    def invoke(model: str, query: str, timeout_s: float):
+        return None  # success-shaped (no raise) but a None payload
+
+    rows = run_evaluation(
+        manifest=manifest, run_id="run-1", dataset=dataset, questions=questions,
+        approaches=approaches, invoke=invoke, evaluator=_Evaluator(),
+        store=JsonlStore(tmp_path / "rows.jsonl"),
+        runtime_provenance={"project": "rag-showcase", "base_port": 22000},
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["status"] != "ok"  # per-cell error row, run did not abort
+
+
+def test_run_evaluation_concurrent_path_collects_all_cells(tmp_path: Path) -> None:
+    # concurrency > 1 exercises the ThreadPoolExecutor branch (as_completed + the
+    # documented shutdown(wait=True) sibling-durability contract); all cells must
+    # still be collected and persisted, with none lost to the thread pool.
+    manifest, dataset = _manifest(tmp_path, concurrency=2)
+    questions = [QuestionSpec(id="q1", query="one"), QuestionSpec(id="q2", query="two")]
+    approaches = [
+        SelectedApproach(model="vanilla-rag", base_model="vanilla-rag", flavor="default",
+                         evidence="answer_with_contexts"),
+        SelectedApproach(model="graph-rag", base_model="graph-rag", flavor="default",
+                         evidence="answer_only"),
+    ]
+    rows = run_evaluation(
+        manifest=manifest, run_id="run-c", dataset=dataset, questions=questions,
+        approaches=approaches, invoke=lambda m, q, t: _completion(m, f"{m}: {q}"),
+        evaluator=_Evaluator(), store=JsonlStore(tmp_path / "rows.jsonl"),
+        runtime_provenance={"project": "rag-showcase", "base_port": 22000},
+    )
+    assert len(rows) == 4
+    assert len({row["row_id"] for row in rows}) == 4
+    assert all(row["status"] == "ok" for row in rows)
+
+
+def test_run_evaluation_concurrent_worker_exception_still_persists_siblings(
+    tmp_path: Path,
+) -> None:
+    # Documented contract (compare/evaluation.py's concurrency>1 branch): on a
+    # worker exception, the ThreadPoolExecutor context manager's
+    # shutdown(wait=True) lets in-flight siblings finish and durably append
+    # their rows before the first failure propagates out of run_evaluation.
+    # Verify this actually holds instead of trusting the comment.
+    manifest, dataset = _manifest(tmp_path, concurrency=2)
+    questions = [QuestionSpec(id="q1", query="one")]
+    approaches = [
+        SelectedApproach(model="vanilla-rag", base_model="vanilla-rag", flavor="default",
+                         evidence="answer_with_contexts"),
+        SelectedApproach(model="graph-rag", base_model="graph-rag", flavor="default",
+                         evidence="answer_only"),
+    ]
+    store = JsonlStore(tmp_path / "rows.jsonl")
+    real_append = store.append
+
+    def flaky_append(row: dict) -> None:
+        if row["approach"]["model"] == "graph-rag":
+            raise RuntimeError("simulated durable-store failure")
+        real_append(row)
+
+    store.append = flaky_append  # type: ignore[method-assign]
+
+    with pytest.raises(RuntimeError, match="simulated durable-store failure"):
+        run_evaluation(
+            manifest=manifest, run_id="run-x", dataset=dataset, questions=questions,
+            approaches=approaches, invoke=lambda m, q, t: _completion(m, f"{m}: {q}"),
+            evaluator=_Evaluator(), store=store,
+            runtime_provenance={"project": "rag-showcase", "base_port": 22000},
+        )
+
+    persisted = [
+        json.loads(line)
+        for line in (tmp_path / "rows.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert any(
+        row["approach"]["model"] == "vanilla-rag" and row["status"] == "ok"
+        for row in persisted
+    )
 
 
 def test_run_evaluation_resume_skips_completed_rows_without_duplicates(tmp_path: Path) -> None:
@@ -396,3 +515,28 @@ def test_atlas_evaluator_records_null_scores_as_metric_errors() -> None:
     assert result["status"] == "error"
     assert result["scores"] == {}
     assert result["metric_errors"] == {"faithfulness": "score_missing_or_null"}
+
+
+@respx.mock
+def test_atlas_evaluator_records_bool_scores_as_metric_errors() -> None:
+    # a bool score is an int subclass; it must be rejected as non-numeric, not
+    # coerced to 1.0/0.0 (mirrors the leaderboards _finite guard).
+    respx.post("http://atlas.test/api/rag/evaluate").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "evaluator_model": "eval-model",
+                "embeddings_model": "embed-model",
+                "results": [{"scores": {"faithfulness": True}}],
+            },
+        )
+    )
+    client = AtlasEvaluationClient("http://atlas.test/api/rag/evaluate", timeout_s=2)
+    result = client.evaluate(
+        question="q", answer="a", contexts=["c"], reference=None,
+        metrics=["faithfulness"], metadata={},
+    )
+    client.close()
+
+    assert result["status"] == "error"
+    assert result["metric_errors"] == {"faithfulness": "score_not_numeric"}

@@ -12,7 +12,8 @@ Two phases:
   2. Live    — read-only probes of each running dependency the RAG plugin
      declares in ``backend_plugins/rag/plugin.yml``: LiteLLM aliases, Weaviate
      readiness + the ingested collections, LightRAG (health + knowledge-graph
-     population), the TEI reranker, and n8n.
+     population), the TEI reranker, n8n, and the required Ollama models
+     (pulled, not just declared — including a version-skew check).
      The probes run *inside* the backend container so they use the exact
      in-network endpoints and credentials the evaluation itself uses.
 
@@ -33,7 +34,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # The services the evaluation reaches through the backend, in the order the
 # report lists them. Kept aligned with backend_plugins/rag/plugin.yml (see
-# tests/test_eval_preflight.py::test_probe_covers_every_declared_dependency).
+# tests/test_eval_preflight.py::test_probe_covers_every_declared_plugin_endpoint).
 DECLARED_SERVICES = ("litellm", "weaviate", "lightrag", "tei-reranker", "n8n", "ollama")
 
 # Approaches whose retrieval depends on the LightRAG knowledge graph. When the
@@ -42,6 +43,11 @@ DECLARED_SERVICES = ("litellm", "weaviate", "lightrag", "tei-reranker", "n8n", "
 # ``eval-check`` exists to catch). On a vector-only run (none declared) an
 # unpopulated graph is expected and fine.
 GRAPH_APPROACHES = ("graph-rag", "lazy-graph-rag", "agentic-rag")
+
+# Ceiling for the Docker CLI readiness calls (docker version / docker inspect) so
+# a hung daemon can't hang the preflight; the in-container probe exec has its own
+# (larger) timeout in run_live_probes.
+_DOCKER_CLI_TIMEOUT = 30.0
 
 
 def load_expected_aliases(manifest: Path | None = None) -> list[str]:
@@ -83,6 +89,9 @@ def load_expected_models(env_user: Path | None = None) -> list[str]:
         if line.startswith("#") or "=" not in line:
             continue
         key, _, val = line.partition("=")
+        # Strip an inline comment (KEY=model  # note) so it isn't folded into the
+        # tag and silently fail the Ollama presence check.
+        val = val.split(" #", 1)[0].strip()
         if key.endswith("_MODEL") and val:
             models.add(val)
     return sorted(models)
@@ -138,7 +147,7 @@ def check_ollama_version_skew() -> str | None:
 def envval(key: str, env_path: Path | None = None) -> str | None:
     """Read a key from Atlas's generated infra/.env (last assignment wins)."""
     env_path = env_path or (ROOT / "infra" / ".env")
-    if not env_path.exists():
+    if not env_path.is_file():
         return None
     value: str | None = None
     for line in env_path.read_text(encoding="utf-8").splitlines():
@@ -155,14 +164,17 @@ PROBE_SOURCE = r"""
 import json, os, urllib.parse
 import httpx
 
-TIMEOUT = float(os.environ.get("PREFLIGHT_TIMEOUT", "10"))
+try:
+    TIMEOUT = float(os.environ.get("PREFLIGHT_TIMEOUT", "10"))
+except ValueError:
+    TIMEOUT = 10.0  # a malformed manual override degrades to the default, not a crash
 results = {}
 
 
 def record(name, fn):
     try:
         results[name] = {"ok": True, "detail": fn()}
-    except Exception as exc:  # noqa: BLE001 - report, never abort siblings
+    except Exception as exc:  # deliberately broad: report, never abort siblings
         results[name] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"[:200]}
 
 
@@ -301,13 +313,20 @@ def run_doctor(project: str, timeout: float) -> dict:
 
 
 def _backend_running(container: str) -> bool:
-    proc = subprocess.run(
-        ["docker", "inspect", "-f", "{{.State.Running}}", container],
-        capture_output=True, text=True,
-    )
+    try:
+        proc = subprocess.run(
+            ["docker", "inspect", "-f", "{{.State.Running}}", container],
+            capture_output=True, text=True, timeout=_DOCKER_CLI_TIMEOUT,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
     return proc.returncode == 0 and proc.stdout.strip() == "true"
 
 
+# Accepted complexity (overnight §3.30): gates each declared service's probe
+# behind its own docker/backend-availability precondition, so a down
+# dependency reports "unavailable" for exactly the services it blocks rather
+# than aborting the whole preflight — each guard is a distinct degrade path.
 def run_live_probes(
     project: str,
     expected_aliases: list[str],
@@ -318,26 +337,43 @@ def run_live_probes(
 ) -> dict:
     """Probe each running dependency read-only, from inside the backend."""
     container = f"{project}-backend"
-    if subprocess.run(["docker", "version"], capture_output=True).returncode != 0:
+    # Bound even the readiness CLI calls so a fully-hung Docker daemon reports
+    # failure instead of hanging the preflight before the bounded exec runs.
+    try:
+        docker_up = subprocess.run(
+            ["docker", "version"], capture_output=True, timeout=_DOCKER_CLI_TIMEOUT,
+        ).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        docker_up = False
+    if not docker_up:
         return {s: {"ok": False, "detail": "docker unavailable"} for s in DECLARED_SERVICES}
     if not _backend_running(container):
         return {
             s: {"ok": False, "detail": f"{container} is not running — start the stack first"}
             for s in DECLARED_SERVICES
         }
-    proc = subprocess.run(
-        [
-            "docker", "exec", "-i",
-            "-e", "PYTHONPATH=/app/plugins",
-            "-e", f"EXPECTED_ALIASES={json.dumps(expected_aliases)}",
-            "-e", f"EXPECTED_MODELS={json.dumps(expected_models)}",
-            "-e", f"OLLAMA_ENDPOINT={ollama_endpoint}",
-            "-e", f"GRAPH_ALIASES_DECLARED={'1' if graph_expected else '0'}",
-            "-e", f"PREFLIGHT_TIMEOUT={timeout}",
-            container, "python", "-",
-        ],
-        input=PROBE_SOURCE, capture_output=True, text=True,
-    )
+    # Bound the exec too, not only the in-container probes: a wedged container
+    # runtime (distinct from the self-bounded probe code) could otherwise hang
+    # the preflight forever. Generous multiple of the per-probe timeout.
+    exec_timeout = max(120.0, timeout * 12)
+    try:
+        proc = subprocess.run(
+            [
+                "docker", "exec", "-i",
+                "-e", "PYTHONPATH=/app/plugins",
+                "-e", f"EXPECTED_ALIASES={json.dumps(expected_aliases)}",
+                "-e", f"EXPECTED_MODELS={json.dumps(expected_models)}",
+                "-e", f"OLLAMA_ENDPOINT={ollama_endpoint}",
+                "-e", f"GRAPH_ALIASES_DECLARED={'1' if graph_expected else '0'}",
+                "-e", f"PREFLIGHT_TIMEOUT={timeout}",
+                container, "python", "-",
+            ],
+            input=PROBE_SOURCE, capture_output=True, text=True, timeout=exec_timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return {s: {"ok": False,
+                    "detail": f"docker exec probe timed out after {exec_timeout:.0f}s"}
+                for s in DECLARED_SERVICES}
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "probe failed").strip().splitlines()
         return {s: {"ok": False, "detail": detail[-1] if detail else "probe failed"}

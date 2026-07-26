@@ -7,6 +7,7 @@ metadata as retrieval evidence.
 """
 from __future__ import annotations
 
+import logging
 import os
 import time
 
@@ -16,6 +17,7 @@ from fastapi import APIRouter
 from ..common.openai_io import ChatRequest, Source, Metrics, resolve_flavor, respond
 
 router = APIRouter()
+_log = logging.getLogger("uvicorn.error")
 # 240s read budget: the workflow's own two HTTP nodes run sequentially and can take
 # up to Classify(60s) + Call Approach(175s) ≈ 235s before n8n returns its shaped
 # response (or fallback). The wrapper must wait at least that long — a shorter outer
@@ -23,6 +25,10 @@ router = APIRouter()
 _TIMEOUT = httpx.Timeout(240.0, connect=10.0)
 
 
+# Accepted complexity (overnight §3.30): degrades a single webhook call
+# through several distinct malformed-response shapes (non-JSON, non-dict,
+# missing fields) rather than dropping the request — each guard is a load-
+# bearing resilience branch, not accidental complexity.
 @router.post("/n8n-adaptive-rag/v1/chat/completions")
 async def n8n_adaptive_rag(req: ChatRequest):
     t0 = time.monotonic()
@@ -31,13 +37,27 @@ async def n8n_adaptive_rag(req: ChatRequest):
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.post(url, json={"query": req.last_user()})
         resp.raise_for_status()
-        data = resp.json()
+        try:
+            data = resp.json()
+        except ValueError:
+            # A 200 with a non-JSON body (e.g. a misconfigured "Respond to Webhook"
+            # node, or an HTML page from a proxy in front of n8n) degrades to the
+            # same route="unknown" shape as every other malformed-body case below,
+            # instead of a raw JSONDecodeError. Log it — an "unknown" route is
+            # indistinguishable from a workflow that legitimately never classified,
+            # so without a log line the two failure modes can't be told apart.
+            _log.warning("n8n webhook returned a non-JSON 200 body")
+            data = {}
     # the n8n workflow is operator-built; its Respond-to-Webhook node may return a
     # single object or a list of items ("All Incoming Items") — normalize to a
     # dict so .get() is safe instead of raising AttributeError on a list/scalar.
     if isinstance(data, list):
-        data = next((d for d in data if isinstance(d, dict)), {})
+        normalized = next((d for d in data if isinstance(d, dict)), None)
+        if normalized is None:
+            _log.warning("n8n webhook returned a list with no dict item")
+        data = normalized or {}
     elif not isinstance(data, dict):
+        _log.warning("n8n webhook returned a non-object 200 body (%s)", type(data).__name__)
         data = {}
     extension = data.get("rag_showcase")
     if not isinstance(extension, dict) or extension.get("schema_version") != 1:
@@ -58,17 +78,25 @@ async def n8n_adaptive_rag(req: ChatRequest):
             sources.append(Source(
                 title=str(raw.get("title") or ""),
                 snippet=raw["snippet"],
-                score=float(score) if isinstance(score, (int, float)) else None,
+                score=float(score) if isinstance(score, (int, float)) and not isinstance(score, bool) else None,
             ))
 
     downstream = extension.get("metrics")
     if not isinstance(downstream, dict):
         downstream = {}
+
+    def _count(value: object) -> int:
+        # mirrors the score guard above: an operator-built workflow could easily
+        # stringify a number (a "Set" node) or nest the wrong value here, and
+        # int() on that raises ValueError/TypeError uncaught -> a raw 500 instead
+        # of this file's degrade-on-malformed-field philosophy.
+        return int(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else 0
+
     metrics = Metrics(
         seconds=time.monotonic() - t0,
-        chunks=int(downstream.get("chunks") or 0),
-        llm_calls=int(downstream.get("llm_calls") or 0) + 1,
-        cloud_calls=int(downstream.get("cloud_calls") or 0),
+        chunks=_count(downstream.get("chunks")),
+        llm_calls=_count(downstream.get("llm_calls")) + 1,
+        cloud_calls=_count(downstream.get("cloud_calls")),
     )
     metadata = {"adaptive": {"route": str(route), "approach": str(approach)}}
     return respond(req, flavor.alias, answer, sources, metrics, metadata=metadata)

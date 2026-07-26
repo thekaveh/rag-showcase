@@ -67,13 +67,17 @@ async def test_rerank_empty_hits_short_circuits():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_rerank_falls_back_on_non_list_response(monkeypatch):
+async def test_rerank_falls_back_on_non_list_response(monkeypatch, caplog):
     monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
     hits = [Hit("A", "a", 0.1), Hit("B", "b", 0.2)]
     respx.post("http://tei-reranker:80/rerank").mock(
         return_value=httpx.Response(200, json={"detail": "unexpected"}))
-    out = await rerank("q", hits, top_n=1)
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        out = await rerank("q", hits, top_n=1)
     assert out == hits[:1]  # unexpected shape -> input order, no TypeError
+    # must log — same undebuggable-silent-degrade concern as the exception
+    # branch right above this one in rerank().
+    assert "unexpected shape" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -91,6 +95,82 @@ async def test_rerank_falls_back_when_all_indices_out_of_range(monkeypatch):
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_rerank_keeps_hits_a_partial_ranking_omits(monkeypatch, caplog):
+    # A structurally-valid `ranking` list that simply doesn't cover every input
+    # index (TEI returns fewer rows than texts sent, or skips one via a
+    # duplicate/out-of-range index) must not silently vanish those candidates —
+    # every hit sent to TEI must end up somewhere in the output, ranked or
+    # unranked, same contract the exception/bad-shape branches already uphold.
+    # This is a single, otherwise-successful batch (ordered ends up non-empty),
+    # so the whole-call `if not ordered` fallback never fires — the omitted hit
+    # has nowhere else to be rescued from except the per-batch remainder logic.
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    hits = [Hit("A", "a"), Hit("B", "b"), Hit("C", "c")]
+    respx.post("http://tei-reranker:80/rerank").mock(
+        return_value=httpx.Response(200, json=[
+            {"index": 0, "score": 0.9}, {"index": 1, "score": 0.5},
+        ]))  # index 2 ("C") never appears in the response
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        out = await rerank("q", hits, top_n=3)
+
+    assert {h.title for h in out} == {"A", "B", "C"}
+    c = next(h for h in out if h.title == "C")
+    assert c.score is None  # kept unranked (original pre-rerank score), not silently dropped
+    assert "omitted" in caplog.text
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_rerank_ignores_duplicate_index_instead_of_duplicating_and_crowding_out(monkeypatch):
+    # A repeated `index` in the TEI response must not be treated as "two
+    # candidates ranked" — that would both duplicate the referenced Hit in
+    # `ordered` AND (since the repeated index reads as "consumed") crowd a
+    # genuinely distinct, unranked candidate out of top_n even though top_n
+    # is large enough to fit every original hit.
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    hits = [Hit("A", "a"), Hit("B", "b")]
+    respx.post("http://tei-reranker:80/rerank").mock(
+        return_value=httpx.Response(200, json=[
+            {"index": 0, "score": 0.9}, {"index": 0, "score": 0.5},
+        ]))  # index 0 repeated; index 1 ("B") never appears
+
+    out = await rerank("q", hits, top_n=2)
+
+    titles = [h.title for h in out]
+    assert titles.count("A") == 1  # not duplicated
+    assert "B" in titles  # not crowded out by the duplicate
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_rerank_degrades_on_tei_http_failure(monkeypatch):
+    # A flaky/down reranker (5xx, connect error, timeout) must degrade to the
+    # pre-rerank candidate order instead of 500-ing the whole request — the
+    # candidates are usable on their own. Guards the hybrid/contextual path.
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    hits = [Hit("A", "a", 0.1), Hit("B", "b", 0.2)]
+    respx.post("http://tei-reranker:80/rerank").mock(
+        return_value=httpx.Response(503, text="upstream down"))
+    out = await rerank("q", hits, top_n=2)
+    assert out == hits[:2]  # unranked fallback, no exception propagated
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_rerank_degrades_on_non_json_200(monkeypatch):
+    # A 200 with a non-JSON body (e.g. an HTML error page from a sidecar) makes
+    # resp.json() raise JSONDecodeError (a ValueError); the degrade contract must
+    # catch it too, not just httpx.HTTPError.
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    hits = [Hit("A", "a"), Hit("B", "b")]
+    respx.post("http://tei-reranker:80/rerank").mock(
+        return_value=httpx.Response(200, text="<html>bad gateway</html>"))
+    out = await rerank("q", hits, top_n=2)
+    assert out == hits[:2]  # unranked fallback, no exception propagated
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_rerank_tolerates_null_score(monkeypatch):
     # a present-but-null score ("score": null) must not raise TypeError on
     # float(None); the row keeps its place, sorted as 0.0 like an unscored hit.
@@ -102,6 +182,48 @@ async def test_rerank_tolerates_null_score(monkeypatch):
     out = await rerank("q", hits, top_n=2)
     assert [h.title for h in out] == ["B", "A"]  # B (0.9) ranks above A (null -> 0.0)
     assert out[1].score is None  # null-score row retained, not dropped or 500
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_rerank_rejects_bool_score(monkeypatch):
+    # a bool score (True/False) is an int subclass; it must read as no score
+    # (None), not coerce to 1.0/0.0 — mirrors the leaderboards guard.
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    hits = [Hit("A", "a")]
+    respx.post("http://tei-reranker:80/rerank").mock(
+        return_value=httpx.Response(200, json=[{"index": 0, "score": True}]))
+    out = await rerank("q", hits, top_n=1)
+    assert out[0].score is None
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_rerank_keeps_earlier_scored_batches_when_a_later_batch_fails(monkeypatch):
+    # A later batch's HTTP failure used to `return hits[:top_n]` outright,
+    # discarding every hit an earlier, successful batch had already scored.
+    # The degrade contract is per-batch: only the failing batch (and anything
+    # not yet attempted) should drop to unranked order; already-scored work
+    # from earlier batches must still come out on top.
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    monkeypatch.setenv("TEI_RERANKER_MAX_BATCH", "2")
+    hits = [Hit("A", "a", 0.0), Hit("B", "b", 0.0), Hit("C", "c", 0.0), Hit("D", "d", 0.0)]
+    respx.post("http://tei-reranker:80/rerank").mock(
+        side_effect=[
+            httpx.Response(200, json=[{"index": 1, "score": 0.9}, {"index": 0, "score": 0.1}]),
+            httpx.Response(503, text="upstream down"),
+        ])
+
+    out = await rerank("q", hits, top_n=4)
+
+    # B/A came back scored from the first (successful) batch and must lead;
+    # C/D (the failing second batch) degrade to their original relative order
+    # and fill the remaining slots rather than vanishing.
+    assert [h.title for h in out] == ["B", "A", "C", "D"]
+    assert out[0].score == 0.9
+    assert out[1].score == 0.1
+    assert out[2].score == 0.0  # unranked fallback, original pre-rerank score kept
+    assert out[3].score == 0.0
 
 
 class _FakeBatchCtx:
@@ -186,6 +308,61 @@ class _FakeColls:
 class _FakeDelClient:
     def __init__(self, present): self.collections = _FakeColls(present); self.closed = False
     def close(self): self.closed = True
+
+
+class _FakeCreateColls:
+    def __init__(self, present): self.present = present; self.created = []
+    def exists(self, name): return self.present
+    def create(self, **kwargs): self.created.append(kwargs)
+
+
+class _FakeEnsureClient:
+    def __init__(self, present): self.collections = _FakeCreateColls(present); self.closed = False
+    def close(self): self.closed = True
+
+
+def _stub_weaviate_config_module(monkeypatch):
+    import sys
+    import types
+    # ensure_collection imports weaviate.classes.config lazily (the dev env
+    # deliberately omits weaviate-client); stub the module chain the same way
+    # test_search_hybrid_passes_alpha_k_and_requests_score does for .classes.query.
+    weaviate_mod = types.ModuleType("weaviate")
+    classes_mod = types.ModuleType("weaviate.classes")
+    config_mod = types.ModuleType("weaviate.classes.config")
+    config_mod.Configure = type(
+        "Configure", (), {"Vectorizer": type("Vectorizer", (), {"none": staticmethod(lambda: "none")})}
+    )
+    config_mod.Property = lambda name, data_type: ("Property", name, data_type)
+    config_mod.DataType = type("DataType", (), {"TEXT": "TEXT"})
+    weaviate_mod.classes = classes_mod
+    classes_mod.config = config_mod
+    monkeypatch.setitem(sys.modules, "weaviate", weaviate_mod)
+    monkeypatch.setitem(sys.modules, "weaviate.classes", classes_mod)
+    monkeypatch.setitem(sys.modules, "weaviate.classes.config", config_mod)
+
+
+def test_ensure_collection_creates_when_absent(monkeypatch):
+    from rag.common import vectors
+    _stub_weaviate_config_module(monkeypatch)
+    client = _FakeEnsureClient(present=False)
+    monkeypatch.setattr(vectors, "_weaviate", lambda: client)
+    vectors.ensure_collection("RagContextual")
+    assert len(client.collections.created) == 1
+    assert client.collections.created[0]["name"] == "RagContextual"
+    assert client.closed is True
+
+
+def test_ensure_collection_noop_when_present(monkeypatch):
+    # warm re-run: the collection already exists, so create() must not be called
+    # again (Weaviate errors on a duplicate collection name).
+    from rag.common import vectors
+    _stub_weaviate_config_module(monkeypatch)
+    client = _FakeEnsureClient(present=True)
+    monkeypatch.setattr(vectors, "_weaviate", lambda: client)
+    vectors.ensure_collection("RagContextual")
+    assert client.collections.created == []
+    assert client.closed is True
 
 
 def test_delete_collection_drops_when_present(monkeypatch):

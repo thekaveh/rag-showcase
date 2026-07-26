@@ -47,6 +47,10 @@ def _ranking(
     return result
 
 
+# Accepted complexity (overnight §3.30): fans out per-dataset judgment
+# snapshots into per-approach score aggregates in one pass — same
+# fan-out-over-metric-families shape as `_scope_summary`/`_judge_details`
+# above, not accidental branching.
 def _judge_scores(
     judgments: dict[str, Any] | None, dataset_ids: list[str]
 ) -> tuple[
@@ -106,6 +110,10 @@ def _judge_scores(
         if query_scores:
             evaluated_queries[dataset_id].add((dataset_id, str(query.get("query_id") or "")))
         for approach, value in query_scores.items():
+            if isinstance(value, bool):
+                return invalid(
+                    f"judgment query at index {index} has a non-numeric score"
+                )
             try:
                 scores[dataset_id][str(approach)].append(float(value))
             except (TypeError, ValueError):
@@ -120,6 +128,11 @@ def _judge_scores(
     )
 
 
+# Accepted complexity (overnight §3.30): classifies every row into the
+# evaluated/not_evaluable/error/timeout reconciliation across every metric
+# family in one pass — the branchiness is inherent to fan-out over metric
+# shapes (see the pass-42 fix to this exact function's final else-branch),
+# not accidental. Splitting risks re-introducing that class of silent-drop bug.
 def _scope_summary(
     rows: list[dict[str, Any]],
     *,
@@ -168,8 +181,15 @@ def _scope_summary(
                     continue
                 result = row.get("metrics", {}).get("ragas", {})
                 score = (result.get("scores") or {}).get(metric)
-                if score is not None:
+                if isinstance(score, (int, float)) and not isinstance(score, bool):
                     values.append(float(score))
+                elif isinstance(score, bool):
+                    # A bool score is a corrupted artifact, not a legitimate 1.0/0.0
+                    # (the same exclusion the writers already apply) — count it as a
+                    # metric error rather than silently dropping it from every
+                    # counter, which would break the evaluated+not_evaluable+errors+
+                    # timeouts == total reconciliation this summary depends on.
+                    metric_errors += 1
                 elif metric in (result.get("not_evaluable") or {}):
                     not_evaluable += 1
                 elif metric in (result.get("metric_errors") or {}) or result.get(
@@ -180,6 +200,13 @@ def _scope_summary(
                         metric_timeouts += 1
                     else:
                         metric_errors += 1
+                else:
+                    # An absent score with no not_evaluable/metric_errors/error-status
+                    # explanation at all — an unclassifiable artifact shape rather
+                    # than a documented degrade path. Count it as an error (not a
+                    # silent drop) so evaluated+not_evaluable+errors+timeouts==total
+                    # still reconciles against len(approach_rows) below.
+                    metric_errors += 1
             total = len(approach_rows)
             ragas[metric] = {
                 "mean": _mean(values),
@@ -285,6 +312,9 @@ def _scope_summary(
     }
 
 
+# Accepted complexity (overnight §3.30): the top-level summary builder fans
+# out into per-dataset/per-scope aggregation, mirroring the fan-out shape of
+# _scope_summary/_judge_scores above — not accidental branching.
 def build_summary(
     rows: list[dict[str, Any]], judgments: dict[str, Any] | None = None
 ) -> dict[str, Any]:
@@ -368,7 +398,9 @@ def write_summary(
         try:
             loaded = json.loads(judgments_path.read_text(encoding="utf-8"))
             if not isinstance(loaded, dict):
-                raise TypeError("judgment artifact root must be an object")
+                raise TypeError(
+                    f"judgment artifact root must be an object, got {type(loaded).__name__}"
+                )
             judgments = loaded
         except (OSError, json.JSONDecodeError, TypeError) as exc:
             judgments = {

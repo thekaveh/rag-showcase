@@ -20,6 +20,16 @@ TYPE_ORDER = [
 ]
 
 
+def _positive_int(raw: str) -> int:
+    # A non-positive --limit passes type=int but then misbehaves downstream
+    # (mirrors the same guard in the other three corpus adapters —
+    # stark_export.py, gdelt_events.py, openalex_scholarly.py).
+    value = int(raw)
+    if value <= 0:
+        raise argparse.ArgumentTypeError(f"--limit must be a positive integer, got {value}")
+    return value
+
+
 def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:72] or "attack"
 
@@ -41,6 +51,9 @@ def _display(obj_id: str, objects_by_id: dict[str, dict]) -> str:
     return name or obj_id
 
 
+# Accepted complexity (overnight §3.30): one rendering branch per STIX object
+# field/relationship kind — naturally branchy per-field markdown writer,
+# mirrors the accepted openalex_scholarly._write_work shape.
 def _write_object(
     out: Path,
     idx: int,
@@ -79,6 +92,10 @@ def _write_object(
     (out / f"{idx:03d}-{_slug(ext or name)}.md").write_text(text, encoding="utf-8")
 
 
+# Accepted complexity (overnight §3.30): STIX object selection interleaves
+# revoked/deprecated filtering, per-type quota allocation, and a related-object
+# backfill pass — each is a distinct, load-bearing rule for producing a
+# representative bounded slice, not incidental branching.
 def export(output: Path, limit: int) -> int:
     # Fetch and parse FIRST; purge only once replacement content is in hand, so a
     # failed fetch can't leave the output dir empty (mirrors stark_export's ordering —
@@ -125,7 +142,7 @@ def export(output: Path, limit: int) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--limit", type=int, default=200)
+    parser.add_argument("--limit", type=_positive_int, default=200)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     count = export(args.output, args.limit)

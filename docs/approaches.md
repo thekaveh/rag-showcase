@@ -23,8 +23,8 @@ that `/rag` root, `/rag/health`, inherited Kong auth, typed configuration, and
 the plugin's service dependencies. Atlas validates the manifest in consumer
 doctor and again before loading the plugin.
 
-The backend routes are declared as Atlas-managed LiteLLM model aliases, so Open WebUI and
-the comparison harness invoke every approach through LiteLLM's common
+The backend routes are declared as Atlas-managed LiteLLM model aliases, so Open
+WebUI and the comparison harness invoke every approach through LiteLLM's common
 `/v1/chat/completions` surface rather than calling the backend directly. Named
 flavors such as `graph-rag-wide` point at the same base route and are resolved
 from the incoming request model. See
@@ -580,8 +580,9 @@ content fingerprint. Fast, balanced, and wide flavors tune
 `relevance_budget`, `seed_k`, `max_context_chunks`, and graph density. It is
 excluded from the six canonical defaults but was selected explicitly in the
 2026-07-17 ladder. It tied for third on baseline, ranked first on graph-native,
-and tied for second on cyber-threat data. See [`lazy-graph-rag.md`](lazy-graph-rag.md) for its
-full design, phases, metadata contract, limitations, and measured results.
+and tied for second on cyber-threat data. See
+[`lazy-graph-rag.md`](lazy-graph-rag.md) for its full design, phases, metadata
+contract, limitations, and measured results.
 
 ### 9.2 Service and Data Flow
 

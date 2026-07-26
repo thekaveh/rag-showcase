@@ -39,6 +39,12 @@ async def lazy_graph_rag(req: ChatRequest):
     question = req.last_user()
 
     query_vector = (await litellm.embed([question]))[0]
+    # Two independent read-only calls run concurrently. If one raises the sibling
+    # may keep running to completion in the default executor (asyncio.gather
+    # cancels coroutine siblings, not already-submitted to_thread work); the
+    # wasted work is bounded (a single read) and the propagating exception aborts
+    # the request, so correctness is unaffected — accepted over return_exceptions
+    # churn for a two-element fan-out.
     seed_hits, chunks = await asyncio.gather(
         asyncio.to_thread(
             vectors.search_hybrid, COLLECTION, question, query_vector, seed_k, 0.5

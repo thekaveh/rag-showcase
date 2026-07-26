@@ -232,6 +232,10 @@ def _rendered_evidence(content: str) -> dict[str, Any]:
     }
 
 
+# Accepted complexity (overnight §3.30): normalizes a completion through two
+# possible evidence shapes (rendered markdown vs. the structured rag_showcase
+# extension) with a guard per malformed-field case — each guard prevents one
+# specific way an approach's response can silently corrupt evaluation evidence.
 def completion_evidence(payload: dict[str, Any]) -> dict[str, Any]:
     """Normalize one OpenAI-compatible completion into the evidence contract.
 
@@ -465,6 +469,11 @@ class AtlasEvaluationClient:
     def __exit__(self, *args: object) -> None:
         self.close()
 
+    # Accepted complexity (overnight §3.30): a single HTTP call site fans out
+    # into per-metric-family response-shape guards (malformed body, missing
+    # metric, non-numeric score) — each guard degrades one specific failure
+    # mode without dropping the whole evaluation, mirroring the mock-blindness
+    # concern in §3.31; not an algorithm worth splitting further.
     def evaluate(
         self,
         *,
@@ -531,6 +540,11 @@ class AtlasEvaluationClient:
                     if value is None:
                         metric_errors[metric] = "score_missing_or_null"
                         continue
+                    if isinstance(value, bool):
+                        # bool is an int subclass; reject it so a bool score can't
+                        # be coerced to 1.0/0.0 and bypass the leaderboards guard.
+                        metric_errors[metric] = "score_not_numeric"
+                        continue
                     try:
                         score = float(value)
                     except (TypeError, ValueError):
@@ -553,7 +567,7 @@ class AtlasEvaluationClient:
                     "embeddings_model": payload.get("embeddings_model"),
                     "metadata": payload.get("metadata", {}),
                 }
-            except Exception as exc:  # noqa: BLE001 - preserve remote evaluator failures.
+            except Exception as exc:  # deliberately broad: preserve remote evaluator failures.
                 last_error = exc
         assert last_error is not None
         return {
@@ -674,16 +688,18 @@ def _run_cell(
             payload = invoke(approach.model, question.query, manifest.run.timeout_s)
             last_error = None
             break
-        except Exception as exc:  # noqa: BLE001 - every failed cell is durable evidence.
+        except Exception as exc:  # deliberately broad: every failed cell is durable evidence.
             last_error = exc
     latency_ms = round((time.perf_counter() - started) * 1000)
-    if last_error is not None or payload is None:
-        assert last_error is not None
+    if last_error is not None:
         return _error_row(base, last_error, latency_ms, attempts, judge_status)
+    # A None payload (invoke returned None without raising) is a malformed
+    # completion — let it flow to completion_evidence, which raises and becomes a
+    # per-cell error row, never an AssertionError that aborts the whole run.
 
     try:
         evidence = completion_evidence(payload)
-    except Exception as exc:  # noqa: BLE001 - malformed provider response is a cell error.
+    except Exception as exc:  # deliberately broad: malformed provider response is a cell error.
         return _error_row(base, exc, latency_ms, attempts, judge_status)
     if approach.evidence == "answer_only":
         evidence["contexts"] = []
@@ -724,6 +740,12 @@ def _run_cell(
     }
 
 
+# Accepted complexity (overnight §3.30): the top-level evaluation-matrix
+# orchestrator — resolves the run's serial-vs-concurrent execution mode,
+# wires the claim-based resume path, and fans work out to _run_cell. The
+# branchiness is inherent to coordinating those concerns in one entry point,
+# not accidental; a param-object extraction was considered (11 params) but
+# would just move the same branching into a builder without reducing it.
 def run_evaluation(
     *,
     manifest: EvaluationManifest,
@@ -809,6 +831,11 @@ def run_evaluation(
             row = execute_claimed(question, approach)
             existing[row["row_id"]] = row
     else:
+        # concurrency>1: on a worker exception the context-manager exit calls
+        # shutdown(wait=True), so in-flight siblings finish (their results are
+        # still durable-appended) before the first failure propagates. That
+        # wait is deliberate — result durability outranks fast-fail here, and
+        # the default is concurrency=1 (which fast-fails immediately above).
         with ThreadPoolExecutor(max_workers=manifest.run.concurrency) as executor:
             futures = {
                 executor.submit(execute_claimed, question, approach): (question, approach)

@@ -87,6 +87,26 @@ def _load_ladder_module():
     return module
 
 
+def test_atlas_job_timeout_constant_matches_the_real_default() -> None:
+    # _ATLAS_JOB_TIMEOUT_SECONDS is a hand-duplicated copy of
+    # ingest.atlas_job.run_ingestion's own timeout_seconds default, used to size
+    # this script's outer subprocess circuit-breaker margin (passes 39-41's
+    # timeout-margin fixes all assumed the two stay in sync). Nothing else ties
+    # them together, so a future change to atlas_job's default without updating
+    # this constant would silently under-cover the child's real worst case again.
+    import inspect
+
+    from ingest.atlas_job import run_ingestion
+
+    module = _load_ladder_module()
+    real_default = inspect.signature(run_ingestion).parameters["timeout_seconds"].default
+
+    assert module._ATLAS_JOB_TIMEOUT_SECONDS == real_default
+    # The two legs (submission timeout_seconds+60, then a full poll timeout_seconds)
+    # are additive, not overlapping — the outer bound must clear that whole total.
+    assert module._SUBPROCESS_TIMEOUT > 2 * real_default + 60
+
+
 def test_evaluation_contract_requires_explicit_judge_models(monkeypatch) -> None:
     module = _load_ladder_module()
     monkeypatch.delenv("JUDGE_MODELS", raising=False)
@@ -153,7 +173,7 @@ def test_ladder_runner_exposes_measured_dataset_selection() -> None:
     assert "--include-candidates" in result.stdout
     normalized = " ".join(result.stdout.split())
     assert "Defaults to the canonical six approaches" in normalized
-    assert "all seven base approaches" in normalized
+    assert "seven supported approaches" in normalized
 
 
 def test_overlay_passes_lightrag_ollama_context_caps() -> None:
@@ -364,6 +384,30 @@ def test_ladder_runner_rejects_judgments_without_valid_verdicts() -> None:
             expected_approaches={"vanilla-rag"}, expected_judges=["judge-a", "judge-b"],
         )
 
+    wrong_approach = json.loads(json.dumps(good))
+    wrong_approach["queries"][0]["mean_by_approach"] = {"other-approach": 4.0}
+    with pytest.raises(RuntimeError, match=r"a.*\['other-approach'\].*\['vanilla-rag'\]"):
+        module.validate_judgments(
+            wrong_approach, dataset_id="example", expected_queries={"a"},
+            expected_approaches={"vanilla-rag"}, expected_judges=["judge-a", "judge-b"],
+        )
+
+    judge_error = json.loads(json.dumps(good))
+    judge_error["queries"][0]["per_judge"]["judge-a"] = {"error": "no valid verdict"}
+    with pytest.raises(RuntimeError, match=r"judge-a: error='no valid verdict'"):
+        module.validate_judgments(
+            judge_error, dataset_id="example", expected_queries={"a"},
+            expected_approaches={"vanilla-rag"}, expected_judges=["judge-a", "judge-b"],
+        )
+
+    judge_scores_mismatch = json.loads(json.dumps(good))
+    judge_scores_mismatch["queries"][0]["per_judge"]["judge-a"] = {"scores": {}}
+    with pytest.raises(RuntimeError, match=r"judge-a: \[\].*\['vanilla-rag'\]"):
+        module.validate_judgments(
+            judge_scores_mismatch, dataset_id="example", expected_queries={"a"},
+            expected_approaches={"vanilla-rag"}, expected_judges=["judge-a", "judge-b"],
+        )
+
 
 def test_ladder_validates_canonical_rows_and_summary() -> None:
     module = _load_ladder_module()
@@ -442,6 +486,16 @@ def test_ladder_validates_canonical_rows_and_summary() -> None:
             expected_ragas={"answer_relevancy"},
         )
 
+    missing_hash = json.loads(json.dumps(rows))
+    for row in missing_hash:
+        del row["reproducibility"]["config_hashes"]["lightrag_query_profiles"]
+    with pytest.raises(RuntimeError, match=r"provenance hashes.*lightrag_query_profiles"):
+        module.validate_canonical_rows(
+            missing_hash, dataset_id="example", expected_cells=2,
+            expected_queries={"q1"}, expected_approaches={"a", "b"},
+            expected_ragas={"answer_relevancy"},
+        )
+
     summary = {
         "schema_version": 1,
         "datasets": {"example": {"coverage": {
@@ -461,6 +515,28 @@ def test_ladder_validates_canonical_rows_and_summary() -> None:
         module.validate_evaluation_summary(
             summary, dataset_id="example", expected_cells=2,
             expected_status_counts={"ok": 2, "errors": 0, "timeouts": 0},
+        )
+
+    summary_with_judges = json.loads(json.dumps(summary))
+    summary_with_judges["datasets"]["example"]["judge_panel"] = {
+        "models": ["judge-a"], "evaluated_queries": 1, "total_queries": 1,
+    }
+    module.validate_evaluation_summary(
+        summary_with_judges, dataset_id="example", expected_cells=2,
+        expected_status_counts={"ok": 1, "errors": 1, "timeouts": 0},
+        expected_judges=["judge-a"], expected_query_count=1,
+    )
+    with pytest.raises(RuntimeError, match=r"unexpected judge models.*\['judge-a'\].*\['judge-a', 'judge-b'\]"):
+        module.validate_evaluation_summary(
+            summary_with_judges, dataset_id="example", expected_cells=2,
+            expected_status_counts={"ok": 1, "errors": 1, "timeouts": 0},
+            expected_judges=["judge-a", "judge-b"], expected_query_count=1,
+        )
+    with pytest.raises(RuntimeError, match=r"incomplete judge coverage.*evaluated=1.*total=1.*expected=2"):
+        module.validate_evaluation_summary(
+            summary_with_judges, dataset_id="example", expected_cells=2,
+            expected_status_counts={"ok": 1, "errors": 1, "timeouts": 0},
+            expected_judges=["judge-a"], expected_query_count=2,
         )
 
 
@@ -509,10 +585,21 @@ def test_flavor_tier_selects_every_non_base_alias() -> None:
 
     aliases = module.flavor_tier_models()
 
-    assert len(aliases) == 12
+    # Derive the expected flavor set from the flavors manifest independently of a
+    # hard-coded count: every declared alias that is not a supported approach, so
+    # adding a flavor doesn't false-alarm the test (same principle as the alias
+    # count removed from test_eval_preflight in the prior pass).
+    manifest = module.flavors_file()
+    manifest = manifest if manifest.is_absolute() else module.ROOT / manifest
+    profiles = module.flavor_config.load_flavors(manifest)
+    supported = set(module.flavor_config.SUPPORTED_APPROACHES)
+    expected = {p.alias for p in profiles.values() if p.alias not in supported}
+
+    assert set(aliases) == expected
+    assert aliases  # non-empty sanity
     assert "graph-rag-rerank" in aliases
     assert "lazy-graph-rag-wide" in aliases
-    assert not set(aliases) & set(module.flavor_config.SUPPORTED_APPROACHES)
+    assert not set(aliases) & supported
 
 
 def test_run_matrix_and_judge_ignores_exported_selection_env(monkeypatch, tmp_path) -> None:
@@ -625,6 +712,18 @@ def test_snapshot_manifest_keeps_base_and_flavor_tiers_separate(monkeypatch, tmp
     assert row["matrix_snapshot"] == "base-matrix"
     assert row["flavor_matrix_snapshot"] == "flavor-matrix"
     assert row["flavor_evaluation_snapshot"] == "flavor-evaluation"
+
+
+def test_snapshot_manifest_raises_on_unknown_dataset_id(monkeypatch, tmp_path) -> None:
+    module = _load_ladder_module()
+    manifest = {"datasets": [{"id": "ds", "status": "measured"}]}
+    monkeypatch.setattr(module, "ROOT", tmp_path)
+    monkeypatch.setattr(module, "load_manifest", lambda: manifest)
+    monkeypatch.setattr(module, "write_manifest", lambda value: None)
+    paths = [tmp_path / f"base-{kind}" for kind in ("matrix", "judgments", "evidence", "evaluation")]
+
+    with pytest.raises(KeyError, match="unknown-dataset.*datasets.yaml"):
+        module.update_dataset_snapshots("unknown-dataset", *paths, flavor_paths=())
 
 
 def test_cold_ingestion_discards_stale_working_evidence_before_matrix(

@@ -38,7 +38,6 @@
       <path class="observe" d="M1570 430V480"/><path class="observe" d="M1660 520H1700V605H830V240"/>
       <path class="final" d="M790 160V120H1560V160"/>
 
-      <g><circle class="step" cx="200" cy="200" r="11"/><text class="step-text" x="200" y="200">1</text><text class="label" x="200" y="178">request</text></g><g><circle class="step" cx="420" cy="200" r="11"/><text class="step-text" x="420" y="200">2</text><text class="label" x="420" y="178">dispatch</text></g><g><circle class="step" cx="655" cy="200" r="11"/><text class="step-text" x="655" y="200">3</text><text class="label" x="655" y="178">tools + prompt</text></g>
       <text class="label" x="900" y="112" fill="#34d399">7 · finish → final answer + trace</text><text class="label" x="1200" y="598" fill="#c4b5fd">6 · tool observations append to current request history; repeat until finish or MAX_STEPS=4</text>
 
       <rect class="node external" x="20" y="160" width="160" height="80"/><text class="title" x="100" y="190">Caller</text><text class="sub" x="100" y="212">Open WebUI / API</text>
@@ -46,6 +45,10 @@
       <rect class="node backend" x="440" y="160" width="190" height="80"/><text class="title" x="535" y="190">Agentic plugin</text><text class="sub" x="535" y="212">schemas · loop · trace</text>
       <rect class="node model" x="680" y="160" width="220" height="80"/><text class="title" x="790" y="190">ReAct controller LLM</text><text class="sub" x="790" y="212">choose tool or finish</text>
       <rect class="node external" x="1560" y="160" width="175" height="80"/><text class="title" x="1647" y="190">OpenAI response</text><text class="sub" x="1647" y="212">answer · sources · trace</text>
+
+      <!-- Step labels render after the node rects so they paint on top instead of
+           being clipped by an overlapping node box. -->
+      <g><circle class="step" cx="200" cy="200" r="11"/><text class="step-text" x="200" y="200">1</text><text class="label" x="200" y="178">request</text></g><g><circle class="step" cx="420" cy="200" r="11"/><text class="step-text" x="420" y="200">2</text><text class="label" x="420" y="178">dispatch</text></g><g><circle class="step" cx="655" cy="200" r="11"/><text class="step-text" x="655" y="200">3</text><text class="label" x="655" y="178">tools + prompt</text></g>
 
       <rect class="node workflow" x="1020" y="350" width="180" height="80"/><text class="title" x="1110" y="380">search_vectors</text><text class="sub" x="1110" y="402">query · vector_top_k</text>
       <rect class="node model" x="1250" y="350" width="180" height="80"/><text class="title" x="1340" y="380">Embedding model</text><text class="sub" x="1340" y="402">nomic-embed-text</text>

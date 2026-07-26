@@ -19,7 +19,7 @@ An empty graph while the manifest declares graph aliases is a hard failure (the
 false-green this check exists to catch). `0 processed` or `N failed` means
 extraction did not complete — work through the sections below.
 
-## Known blocker: extract runaway (upstream)
+## 1. Known blocker: extract runaway (upstream)
 
 LightRAG entity extraction runs native to Ollama with no output cap, so a chunk
 that trips the extract model into non-terminating generation blocks the drain until
@@ -37,7 +37,7 @@ reliable consumer-side fix until it lands (a per-call `num_predict` cap / enforc
 timeout). Until then, watch `eval-check`'s graph counts rather than assuming a green
 service means a populated graph.
 
-## Host Ollama: version parity
+## 2. Host Ollama: version parity
 
 A skew between the Ollama **CLI** and the running **server** (for example, the
 desktop app auto-updates while a Homebrew CLI stays behind) can wedge a run. Check
@@ -52,7 +52,7 @@ ollama --version
 `make eval-check` surfaces this as an advisory. To fix, update the CLI to match the
 server and restart the Ollama app so both agree.
 
-## Host Ollama: keep models resident during ingest
+## 3. Host Ollama: keep models resident during ingest
 
 A graph ingest churns three host models — `mistral-small3.2:24b` (extract),
 `nomic-embed-text` (embed), and `qwen3.6:latest` (keyword). Under Ollama defaults
@@ -82,11 +82,16 @@ done so idle models unload normally. See
 [thekaveh/atlas#798](https://github.com/thekaveh/atlas/issues/798) for the upstream
 request to size `keep_alive` automatically for host-Ollama ingest.
 
-## After a run: restore the infra pin
+## 4. After a run: the infra pin
 
 Starting the stack can check the vendored `infra/` submodule out to a newer Atlas
-commit and stage that drift in your working tree — so a later `git commit -am` would
-silently bump the pin. Restore it after any run:
+commit and stage that drift in your working tree — so a later `git commit -am`
+could silently bump the pin. `scripts/start-all.sh` restores the pinned SHA
+automatically on every exit (success or failure) via an EXIT trap
+([rag-showcase#96](https://github.com/thekaveh/rag-showcase/issues/96)), so a
+wrapper-driven run leaves the repo clean with no manual step. The commands below
+are only needed if you launched Atlas directly (`infra/start.sh …`, bypassing the
+wrapper) or want to verify the tree is clean:
 
 ```bash
 git restore --staged infra
@@ -94,11 +99,10 @@ git -C infra checkout "$(git ls-tree HEAD infra | awk '{print $3}')"
 git status   # clean, infra back at the pinned SHA
 ```
 
-This is tracked upstream as
-[thekaveh/atlas#797](https://github.com/thekaveh/atlas/issues/797); the consumer-side
-guard is [rag-showcase#96](https://github.com/thekaveh/rag-showcase/issues/96).
+The underlying launcher behavior is tracked upstream as
+[thekaveh/atlas#797](https://github.com/thekaveh/atlas/issues/797).
 
-## See also
+## 5. See also
 
 - [Quick Start](quickstart.md) — the one-command bring-up.
 - [Hardware Sizing](../hardware.md) — minimum and recommended local profiles.

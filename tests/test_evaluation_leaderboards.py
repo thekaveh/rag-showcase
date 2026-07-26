@@ -364,6 +364,65 @@ def test_aggregates_counters_models_disagreement_and_weighted_metrics(
     assert row["error_rate"] == 0.2
 
 
+def test_maturity_is_derived_from_experimental_approaches_config(tmp_path: Path, monkeypatch) -> None:
+    # maturity must come from compare.flavors.EXPERIMENTAL_APPROACHES, not a
+    # hardcoded "lazy-graph-rag" == base_family check — monkeypatch the config to
+    # a DIFFERENT approach so a hardcoded check (which would keep marking
+    # lazy-graph-rag experimental and vanilla-rag canonical regardless of config)
+    # fails this test, while the real config-driven check flips both labels.
+    from compare import flavors as flavor_config
+
+    monkeypatch.setattr(flavor_config, "EXPERIMENTAL_APPROACHES", ["vanilla-rag"])
+    approaches = {
+        "vanilla-rag": _approach_summary(4.0, 1, 1),
+        "lazy-graph-rag": _approach_summary(4.0, 1, 1),
+    }
+    queries = [
+        _query(
+            "q1",
+            {"vanilla-rag": 4.0, "lazy-graph-rag": 4.0},
+            per_judge={
+                "judge-a": {"vanilla-rag": 4.0, "lazy-graph-rag": 4.0},
+                "judge-b": {"vanilla-rag": 4.0, "lazy-graph-rag": 4.0},
+            },
+            winner="vanilla-rag",
+        )
+    ]
+    evaluation, judgments = _write_snapshot(
+        tmp_path, "ds", tier="base", approaches=approaches, queries=queries
+    )
+    flavor_approaches = {"vanilla-rag-wide": _approach_summary(4.0, 1, 1)}
+    flavor_queries = [
+        _query(
+            "q1", {"vanilla-rag-wide": 4.0},
+            per_judge={
+                "judge-a": {"vanilla-rag-wide": 4.0},
+                "judge-b": {"vanilla-rag-wide": 4.0},
+            },
+            winner="vanilla-rag-wide",
+        )
+    ]
+    flavor_evaluation, flavor_judgments = _write_snapshot(
+        tmp_path, "ds", tier="flavor", approaches=flavor_approaches, queries=flavor_queries
+    )
+    _write_manifests(
+        tmp_path,
+        base_approaches=["vanilla-rag", "lazy-graph-rag"],
+        flavors=[{"alias": "vanilla-rag-wide", "base": "vanilla-rag"}],
+    )
+    datasets = [{
+        "id": "ds", "complexity_level": 1, "status": "measured",
+        "evaluation_snapshot": evaluation, "judgment_snapshot": judgments,
+        "flavor_evaluation_snapshot": flavor_evaluation,
+        "flavor_judgment_snapshot": flavor_judgments,
+    }]
+
+    rows = {row["approach"]: row for row in build_leaderboards(datasets, root=tmp_path)["base"]["overall"]}
+
+    assert rows["vanilla-rag"]["maturity"] == "experimental"
+    assert rows["lazy-graph-rag"]["maturity"] == "canonical"
+
+
 def test_missing_faithfulness_is_not_coerced_to_zero(tmp_path: Path) -> None:
     datasets = _write_graph_ineligible_fixture(tmp_path)
     row = build_leaderboards(datasets, root=tmp_path)["base"]["overall"][0]

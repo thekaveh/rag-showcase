@@ -1,3 +1,5 @@
+import json
+import subprocess
 import sys
 import types
 from pathlib import Path
@@ -16,7 +18,7 @@ def test_expected_aliases_match_consumer_manifest() -> None:
     declared = sorted(row["name"] for row in manifest["litellm_models"]["models"])
 
     assert ep.load_expected_aliases() == declared
-    assert len(declared) == 19
+    assert declared  # non-empty sanity; the set-equality above is the real contract
 
 
 def test_probe_source_compiles() -> None:
@@ -59,9 +61,34 @@ def test_probe_is_read_only() -> None:
 
 def test_expected_models_from_env_user() -> None:
     # The Ollama model-presence check must use the eval's real required models —
-    # the *_MODEL role vars in the consumer env file.
-    models = ep.load_expected_models()
-    assert set(models) == {"nomic-embed-text", "mistral-small3.2:24b", "qwen3.6:latest"}
+    # the *_MODEL role vars in the consumer env file. Derive the expected set
+    # independently from that file so a model bump doesn't false-alarm the test
+    # (it verifies load_expected_models reads the right file/keys, not today's tags).
+    env_user = ROOT / "config" / "atlas.env.user"
+    expected: set[str] = set()
+    for line in env_user.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        val = val.split(" #", 1)[0].strip()  # mirror load_expected_models
+        if key.endswith("_MODEL") and val:
+            expected.add(val)
+    assert set(ep.load_expected_models()) == expected
+
+
+def test_load_expected_models_strips_inline_comments(tmp_path: Path) -> None:
+    # A hand-edited env file may carry an inline comment on a *_MODEL line; the
+    # comment must not be folded into the model tag (it would never match
+    # /api/tags and turn eval-check red with a misleading "missing model").
+    env = tmp_path / "atlas.env.user"
+    env.write_text(
+        "LIGHTRAG_QUERY_LLM_MODEL=qwen3.6:latest  # keyword role\n"
+        "LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b\n"
+        "# a comment line, ignored\n",
+        encoding="utf-8",
+    )
+    assert set(ep.load_expected_models(env)) == {"qwen3.6:latest", "mistral-small3.2:24b"}
 
 
 def test_probe_checks_ollama_models() -> None:
@@ -100,6 +127,14 @@ def test_envval_reads_last_assignment(tmp_path: Path) -> None:
     env.write_text("PROJECT_NAME=old\nOTHER=x\nPROJECT_NAME=rag-showcase\n", encoding="utf-8")
     assert ep.envval("PROJECT_NAME", env_path=env) == "rag-showcase"
     assert ep.envval("MISSING", env_path=env) is None
+
+
+def test_envval_returns_none_when_path_is_a_directory(tmp_path: Path) -> None:
+    # .is_file(), not .exists(): a bind-mount target auto-created as a directory
+    # before infra/.env is materialized must degrade to None, not IsADirectoryError.
+    directory = tmp_path / ".env"
+    directory.mkdir()
+    assert ep.envval("PROJECT_NAME", env_path=directory) is None
 
 
 def test_overall_ok_requires_config_and_every_probe() -> None:
@@ -250,3 +285,163 @@ def test_format_report_shows_version_skew_warning() -> None:
     assert "ollama skew: fix it" in report
     # An advisory must not flip the overall result.
     assert "all dependencies ready" in report
+
+
+def test_probe_lightrag_fails_when_extraction_in_flight(monkeypatch) -> None:
+    # The fourth graph-population branch: processed>0 but pending/processing docs
+    # remain → extraction is not done, so the eval must not be gated green.
+    res = _probe_lightrag(
+        monkeypatch,
+        statuses={"processed": [1, 2], "pending": [3, 4]},
+        graph_declared=True,
+    )
+    assert res["ok"] is False
+    assert "in progress" in res["detail"]
+
+
+def _probe_ollama(monkeypatch, *, tags, expected_models):
+    """Exec PROBE_SOURCE with httpx.get mocked for /api/tags; return the ollama
+    result. record() isolates each probe, so sibling probes failing on unset env
+    does not affect the ollama verdict."""
+
+    class _Resp:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    def _get(url, *args, **kwargs):
+        if url.endswith("/api/tags"):
+            return _Resp({"models": [{"name": t} for t in tags]})
+        return _Resp({})
+
+    monkeypatch.setitem(sys.modules, "httpx", types.SimpleNamespace(get=_get))
+    monkeypatch.setenv("OLLAMA_ENDPOINT", "http://ollama:11434")
+    monkeypatch.setenv("EXPECTED_MODELS", json.dumps(expected_models))
+    ns: dict = {}
+    exec(compile(ep.PROBE_SOURCE, "<probe>", "exec"), ns)
+    return ns["results"]["ollama"]
+
+
+def test_probe_ollama_matches_exact_tag_and_latest(monkeypatch) -> None:
+    # present() strategy 1 (exact) and 2 (model:latest fallback).
+    res = _probe_ollama(
+        monkeypatch,
+        tags={"mistral-small3.2:24b", "qwen3.6:latest"},
+        expected_models=["mistral-small3.2:24b", "qwen3.6"],
+    )
+    assert res["ok"] is True
+
+
+def test_probe_ollama_matches_tagless_base_name(monkeypatch) -> None:
+    # present() strategy 3: wanting "qwen3.6" against a differently-tagged pull.
+    res = _probe_ollama(monkeypatch, tags={"qwen3.6:32b"}, expected_models=["qwen3.6"])
+    assert res["ok"] is True
+
+
+def test_probe_ollama_fails_on_missing_model(monkeypatch) -> None:
+    res = _probe_ollama(
+        monkeypatch, tags={"qwen3.6:latest"}, expected_models=["gemma:7b"]
+    )
+    assert res["ok"] is False
+    assert "not pulled" in res["detail"]
+
+
+def test_probe_env_var_contract_round_trips() -> None:
+    # Every showcase-computed value the in-container probe reads must be passed in
+    # by run_live_probes (via `-e`), and vice versa — a rename on either side
+    # otherwise silently breaks eval-check with no test to catch it.
+    import inspect
+    import re
+
+    rlp = inspect.getsource(ep.run_live_probes)
+    passed = set(re.findall(r'"-e",\s*f?"([A-Z_][A-Z0-9_]*)=', rlp))
+    read = set()
+    for m in re.finditer(r'os\.environ\.get\(\s*"([A-Z_][A-Z0-9_]*)"', ep.PROBE_SOURCE):
+        read.add(m.group(1))
+    for m in re.finditer(r'os\.environ\[\s*"([A-Z_][A-Z0-9_]*)"', ep.PROBE_SOURCE):
+        read.add(m.group(1))
+
+    showcase_computed = {
+        "EXPECTED_ALIASES", "EXPECTED_MODELS", "OLLAMA_ENDPOINT",
+        "GRAPH_ALIASES_DECLARED", "PREFLIGHT_TIMEOUT",
+    }
+    assert showcase_computed <= passed, f"not passed via -e: {showcase_computed - passed}"
+    assert showcase_computed <= read, f"not read in PROBE_SOURCE: {showcase_computed - read}"
+
+
+def test_run_doctor_probes_the_stacks_resolved_base_port(monkeypatch, tmp_path: Path) -> None:
+    # doctor must validate the SAME durable BASE_PORT the stack uses (resolved in
+    # infra/.env), not a fresh `--base-port auto` that could re-resolve elsewhere.
+    # Captures the assembled cmd so a refactor that drops the envval('BASE_PORT')
+    # fallback is caught.
+    captured: dict = {}
+
+    def _fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        return types.SimpleNamespace(returncode=0, stdout="{}", stderr="")
+
+    def _fake_envval(key, env_path=None):
+        return {"BASE_PORT": "22000"}.get(key)
+
+    monkeypatch.setattr(ep.subprocess, "run", _fake_run)
+    monkeypatch.setattr(ep, "envval", _fake_envval)
+    monkeypatch.delenv("RAG_SHOWCASE_BASE_PORT", raising=False)
+
+    ep.run_doctor("rag-showcase", timeout=60.0)
+
+    assert "--base-port" in captured["cmd"]
+    assert "22000" in captured["cmd"]
+
+    # An explicit RAG_SHOWCASE_BASE_PORT override wins over the resolved block.
+    monkeypatch.setenv("RAG_SHOWCASE_BASE_PORT", "9999")
+    ep.run_doctor("rag-showcase", timeout=60.0)
+    assert "9999" in captured["cmd"]
+
+
+def test_run_live_probes_bounds_a_wedged_exec(monkeypatch) -> None:
+    # A wedged `docker exec` (runtime stall, distinct from the self-bounded probe
+    # code) must hit the exec timeout and report every service failed, not hang.
+    def _fake_run(cmd, *args, **kwargs):
+        if cmd[:2] == ["docker", "version"]:
+            return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+        if cmd[:2] == ["docker", "inspect"]:
+            return types.SimpleNamespace(returncode=0, stdout="true\n", stderr="")
+        if cmd[1] == "exec":
+            raise subprocess.TimeoutExpired(cmd, 123)
+        raise AssertionError(f"unexpected cmd: {cmd!r}")
+
+    monkeypatch.setattr(ep.subprocess, "run", _fake_run)
+    result = ep.run_live_probes(
+        "rag-showcase", ["vanilla-rag"], ["nomic-embed-text"],
+        "http://ollama:11434", True, timeout=10.0,
+    )
+    assert set(result) == set(ep.DECLARED_SERVICES)
+    assert all(not r["ok"] for r in result.values())
+    assert all("timed out" in r["detail"] for r in result.values())
+
+
+def test_run_live_probes_degrades_when_docker_binary_is_missing(monkeypatch) -> None:
+    # `docker version` raising FileNotFoundError (the CLI itself isn't on PATH)
+    # must degrade to "docker unavailable" like the already-handled timeout
+    # case, not propagate an uncaught OSError through the whole preflight —
+    # mirrors check_ollama_version_skew's and run_doctor's existing OSError
+    # tolerance in this same file.
+    def _fake_run(cmd, *args, **kwargs):
+        if cmd[:2] == ["docker", "version"]:
+            raise FileNotFoundError("docker: command not found")
+        raise AssertionError(f"unexpected cmd: {cmd!r}")
+
+    monkeypatch.setattr(ep.subprocess, "run", _fake_run)
+    result = ep.run_live_probes(
+        "rag-showcase", ["vanilla-rag"], ["nomic-embed-text"],
+        "http://ollama:11434", True, timeout=10.0,
+    )
+    assert set(result) == set(ep.DECLARED_SERVICES)
+    assert all(not r["ok"] for r in result.values())
+    assert all("docker unavailable" in r["detail"] for r in result.values())
+

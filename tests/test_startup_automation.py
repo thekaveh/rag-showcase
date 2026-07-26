@@ -142,8 +142,14 @@ def test_stop_is_project_scoped_and_preserves_shared_managed_hosts() -> None:
 
     assert "docker compose" not in script
     assert 'PROJECT_NAME="${RAG_SHOWCASE_PROJECT_NAME:-rag-showcase}"' in script
-    assert 'ATLAS_CONSUMER_MANIFEST=' in script
-    assert './stop.sh --project "$PROJECT_NAME"' in script
+    # stop.sh's teardown is project-scoped via --project; it takes no --consumer,
+    # so stop-all must not carry a dead ATLAS_CONSUMER_MANIFEST assignment.
+    assert "ATLAS_CONSUMER_MANIFEST" not in script
+    # Project-scoping is carried by stop_args, which begins with --project <name>;
+    # the whole array is passed once (no brittle ${stop_args[@]:2} slice that
+    # would silently drop a future prepended flag).
+    assert 'stop_args=(--project "$PROJECT_NAME")' in script
+    assert './stop.sh "${stop_args[@]}"' in script
     assert 'stop_args+=(--cold)' in script
     assert "--stop-managed-hosts" not in script
     assert "Atlas #655" not in script
@@ -245,6 +251,42 @@ def _runtime_snapshot(module, llm_source="ollama-container-cpu"):
     return snapshot
 
 
+def test_docker_snapshot_tolerates_inspect_called_process_error(monkeypatch) -> None:
+    # A container from the `ps` snapshot can be removed/recycled before `inspect`
+    # runs (TOCTOU) — likely exactly while one-shot init containers are exiting/
+    # being pruned during Atlas convergence. Must degrade like the timeout case
+    # (retry next poll), not crash with an uncaught CalledProcessError.
+    module = _load_runtime_module()
+    calls = {"n": 0}
+
+    def fake_run(cmd, **kwargs):
+        calls["n"] += 1
+        if cmd[:2] == ["docker", "ps"]:
+            return type("R", (), {"stdout": "abc123\n"})()
+        raise module.subprocess.CalledProcessError(1, cmd)
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    assert module.docker_snapshot("rag-showcase") == {}
+    assert calls["n"] == 2
+
+
+def test_docker_snapshot_tolerates_ps_called_process_error(monkeypatch) -> None:
+    # `docker ps` itself can fail on a transient daemon error (restarting,
+    # permission blip) during Atlas convergence — the sibling `inspect` call
+    # already tolerates this failure mode; `ps` (check=True, same shape) must
+    # degrade the same way instead of propagating an uncaught
+    # CalledProcessError through the poll loop.
+    module = _load_runtime_module()
+
+    def fake_run(cmd, **kwargs):
+        raise module.subprocess.CalledProcessError(1, cmd)
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    assert module.docker_snapshot("rag-showcase") == {}
+
+
 def test_runtime_verifier_requires_exact_atlas_exited_zero_signature() -> None:
     module = _load_runtime_module()
 
@@ -299,6 +341,79 @@ def test_runtime_verifier_rejects_genuine_failures() -> None:
     assert pending == []
     assert "backend: unhealthy" in failures
     assert "n8n-init: exited 17" in failures
+
+
+def test_runtime_verifier_flags_missing_long_lived_service() -> None:
+    # A service dropped from the docker snapshot entirely (never started, or a
+    # transient docker-state-read gap) must not be silently treated as
+    # converged — it must show up as pending so wait_for_runtime keeps polling
+    # instead of reporting false convergence.
+    module = _load_runtime_module()
+    snapshot = _runtime_snapshot(module)
+    del snapshot["backend"]
+
+    pending, failures = module.evaluate(snapshot, "ollama-container-cpu")
+
+    assert "backend: missing" in pending
+    assert failures == []
+
+
+def test_runtime_verifier_waits_for_created_or_restarting_long_lived_service() -> None:
+    module = _load_runtime_module()
+    snapshot = _runtime_snapshot(module)
+    snapshot["backend"] = {"Status": "created"}
+
+    pending, failures = module.evaluate(snapshot, "ollama-container-cpu")
+
+    assert "backend: created" in pending
+    assert failures == []
+
+
+def test_runtime_verifier_flags_unrecognized_long_lived_status_as_failure() -> None:
+    # A docker Status this classifier doesn't recognize (not running/created/
+    # restarting) and no Health block must fall through to the catch-all
+    # failure branch, not be silently dropped.
+    module = _load_runtime_module()
+    snapshot = _runtime_snapshot(module)
+    snapshot["backend"] = {"Status": "dead"}
+
+    pending, failures = module.evaluate(snapshot, "ollama-container-cpu")
+
+    assert pending == []
+    assert "backend: dead" in failures
+
+
+def test_runtime_verifier_flags_missing_one_shot_service() -> None:
+    module = _load_runtime_module()
+    snapshot = _runtime_snapshot(module)
+    del snapshot["n8n-init"]
+
+    pending, failures = module.evaluate(snapshot, "ollama-container-cpu")
+
+    assert "n8n-init: missing" in pending
+    assert failures == []
+
+
+def test_runtime_verifier_waits_for_still_running_one_shot_service() -> None:
+    module = _load_runtime_module()
+    snapshot = _runtime_snapshot(module)
+    snapshot["n8n-init"] = {"Status": "running"}
+
+    pending, failures = module.evaluate(snapshot, "ollama-container-cpu")
+
+    assert "n8n-init: running" in pending
+    assert failures == []
+
+
+def test_runtime_verifier_flags_unrecognized_one_shot_status_as_failure() -> None:
+    module = _load_runtime_module()
+    snapshot = _runtime_snapshot(module)
+    snapshot["n8n-init"] = {"Status": "dead"}
+
+    pending, failures = module.evaluate(snapshot, "ollama-container-cpu")
+
+    assert pending == []
+    assert "n8n-init: dead" in failures
 
 
 def test_start_all_guards_the_infra_pin() -> None:

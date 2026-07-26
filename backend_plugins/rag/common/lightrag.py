@@ -12,6 +12,12 @@ import httpx
 _TIMEOUT = httpx.Timeout(180.0, connect=10.0)
 _log = logging.getLogger("uvicorn.error")
 _PROFILE_CACHE: dict[str, dict[str, Any]] = {}
+# A valid-but-empty profiles list yields an empty _PROFILE_CACHE, which is falsy
+# — gating on truthiness (as config._load used to) would treat that as a
+# permanent miss and re-open + re-parse the profiles file on every request that
+# passes profile= (graph.py always does), blocking the event loop each time
+# instead of loading once. Mirror config._LOADED: cache the loaded state itself.
+_PROFILES_LOADED = False
 _PROFILE_FIELDS = {
     "mode",
     "enable_rerank",
@@ -57,8 +63,12 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+# Accepted complexity (overnight §3.30): one validation branch per profile-
+# registry integrity concern (file readable, version tag, list shape, per-row
+# name, duplicate names) — a load-time fail-fast gate, not an algorithm.
 def _load_profiles() -> dict[str, dict[str, Any]]:
-    if _PROFILE_CACHE:
+    global _PROFILES_LOADED
+    if _PROFILES_LOADED:
         return _PROFILE_CACHE
     raw_path = os.environ.get("LIGHTRAG_QUERY_PROFILES_FILE", "").strip()
     if not raw_path:
@@ -82,6 +92,7 @@ def _load_profiles() -> dict[str, dict[str, Any]]:
             raise ValueError(f"{path}: duplicate LightRAG query profile {name!r}")
         table[name] = {key: row[key] for key in _PROFILE_FIELDS if key in row}
     _PROFILE_CACHE.update(table)
+    _PROFILES_LOADED = True
     return _PROFILE_CACHE
 
 
@@ -127,7 +138,19 @@ async def query(
         resp = await client.post(f"{_base()}/query", headers=_headers(),
                                  json=_query_payload(question, mode, options, profile))
         resp.raise_for_status()
-        data = resp.json()
+        try:
+            data = resp.json()
+        except ValueError:
+            # A 200 with a non-JSON body (an HTML error page from a proxy/sidecar
+            # in front of LightRAG) must not raise JSONDecodeError — mirror the
+            # decode guards every other client in this module uses (n8n.py,
+            # atlas_job.py, vectors.py rerank, litellm.py chat/embed).
+            data = {}
+        # A valid-JSON-but-non-object body ([], null, a bare string) must not
+        # AttributeError on .get() — mirror the shape guards every other client
+        # in this module uses (n8n.py, atlas_job.py, vectors.py rerank).
+        if not isinstance(data, dict):
+            data = {}
         answer = data.get("response") or data.get("data") or ""
         if not answer:
             _log.warning(

@@ -30,6 +30,7 @@ permissions:
 jobs:
   endpoint-contract:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:

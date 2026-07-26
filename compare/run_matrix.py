@@ -39,8 +39,8 @@ from compare.evaluation import (  # noqa: E402
 from compare.evaluation_summary import write_summary  # noqa: E402
 
 RESULTS = ROOT / "compare" / "results"
-# The six base approaches ("models" because that is the OpenAI-API field name at the
-# gateway boundary). Derived, not copied — compare/flavors.py owns the display order.
+# The six canonical approaches ("models" because that is the OpenAI-API field name
+# at the gateway boundary). Derived, not copied — compare/flavors.py owns the order.
 ALL_MODELS = list(flavor_config.BASE_APPROACHES)
 
 DEFAULT_EVALUATION_MANIFEST = ROOT / "compare" / "evaluation.yaml"
@@ -143,7 +143,6 @@ def _config_hashes(query_path: Path) -> dict[str, str]:
         "dataset_questions": query_path,
         "flavors": ROOT / flavors_file(),
         "roles": ROOT / "backend_plugins" / "rag" / "roles.yaml",
-        "models": ROOT / "backend_plugins" / "rag" / "models.yaml",
         "consumer_manifest": ROOT / "atlas.consumer.yml",
         "atlas_env_user": ROOT / "config" / "atlas.env.user",
         "runtime_model_inventory": ROOT / "infra" / "volumes" / "litellm" / "consumer-models.yaml",
@@ -156,9 +155,13 @@ def _config_hashes(query_path: Path) -> dict[str, str]:
     }
 
 
+_GIT_CLI_TIMEOUT = 30.0
+
+
 def _git_state(path: Path) -> dict[str, str | bool]:
     commit = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=path, text=True, capture_output=True, check=True
+        ["git", "rev-parse", "HEAD"], cwd=path, text=True, capture_output=True,
+        check=True, timeout=_GIT_CLI_TIMEOUT,
     ).stdout.strip()
     tree = subprocess.run(
         ["git", "rev-parse", "HEAD^{tree}"],
@@ -166,24 +169,28 @@ def _git_state(path: Path) -> dict[str, str | bool]:
         text=True,
         capture_output=True,
         check=True,
+        timeout=_GIT_CLI_TIMEOUT,
     ).stdout.strip()
     status = subprocess.run(
         ["git", "status", "--porcelain", "--untracked-files=all"],
         cwd=path,
         capture_output=True,
         check=True,
+        timeout=_GIT_CLI_TIMEOUT,
     ).stdout
     tracked_patch = subprocess.run(
         ["git", "diff", "--binary", "HEAD", "--", "."],
         cwd=path,
         capture_output=True,
         check=True,
+        timeout=_GIT_CLI_TIMEOUT,
     ).stdout
     untracked = subprocess.run(
         ["git", "ls-files", "--others", "--exclude-standard", "-z"],
         cwd=path,
         capture_output=True,
         check=True,
+        timeout=_GIT_CLI_TIMEOUT,
     ).stdout.split(b"\0")
 
     digest = hashlib.sha256()
@@ -194,11 +201,14 @@ def _git_state(path: Path) -> dict[str, str | bool]:
     for relative_bytes in sorted(item for item in untracked if item):
         relative = Path(os.fsdecode(relative_bytes))
         absolute = path / relative
-        content = (
-            os.fsencode(os.readlink(absolute))
-            if absolute.is_symlink()
-            else absolute.read_bytes()
-        )
+        try:
+            content = (
+                os.fsencode(os.readlink(absolute))
+                if absolute.is_symlink()
+                else absolute.read_bytes()
+            )
+        except FileNotFoundError:
+            continue  # untracked file removed between ls-files and read (TOCTOU)
         digest.update(len(relative_bytes).to_bytes(8, "big"))
         digest.update(relative_bytes)
         digest.update(len(content).to_bytes(8, "big"))
@@ -219,10 +229,15 @@ def _runtime_file(path: Path, *, kind: str) -> dict[str, Any]:
         raise RuntimeError(f"required generated runtime file is missing: {path}")
     if kind == "models":
         payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        entries = [row.get("model_name") for row in payload.get("model_list", [])]
+        rows = payload.get("model_list", [])
+        key = "model_name"
     else:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        entries = [row.get("name") for row in payload.get("profiles", [])]
+        rows = payload.get("profiles", [])
+        key = "name"
+    if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+        raise RuntimeError(f"{path}: expected a list of {kind} entry objects")
+    entries = [row.get(key) for row in rows]
     return {
         "path": str(path.relative_to(ROOT)),
         "sha256": digest,
@@ -230,6 +245,10 @@ def _runtime_file(path: Path, *, kind: str) -> dict[str, Any]:
     }
 
 
+# Accepted complexity (overnight §3.30): resolves run-provenance fields
+# (judge models/endpoint/temperature, config hashes, ingestion metadata) from
+# several independently-optional config/env sources — each branch is a
+# distinct precedence rule feeding the committed provenance record.
 def _runtime_provenance(manifest=None) -> dict[str, Any]:
     manifest = manifest or load_manifest(evaluation_manifest_file())
     panel = manifest.metrics.judge_panel
@@ -252,10 +271,20 @@ def _runtime_provenance(manifest=None) -> dict[str, Any]:
     base_port = envval("BASE_PORT")
     if not base_port:
         litellm_port = envval("LITELLM_PORT")
-        base_port = str(int(litellm_port) - 40) if litellm_port else "0"
+        if litellm_port:
+            try:
+                base_port = str(int(litellm_port) - 40)
+            except ValueError:
+                raise RuntimeError(f"LITELLM_PORT={litellm_port!r} must be an integer")
+        else:
+            base_port = "0"
+    try:
+        base_port_int = int(base_port)
+    except ValueError:
+        raise RuntimeError(f"BASE_PORT={base_port!r} must be an integer")
     return {
         "project": envval("PROJECT_NAME", "rag-showcase"),
-        "base_port": int(base_port),
+        "base_port": base_port_int,
         "provider_sources": {
             "llm": envval("LLM_PROVIDER_SOURCE", "unspecified"),
             "comfyui": envval("COMFYUI_SOURCE", "unspecified"),
@@ -287,6 +316,12 @@ def _dataset_for(manifest, query_path: Path) -> DatasetSpec:
     matches = [dataset for dataset in datasets(manifest) if dataset.questions_file == resolved]
     if len(matches) == 1:
         return matches[0]
+    if len(matches) > 1:
+        ids = ", ".join(sorted(dataset.id for dataset in matches))
+        raise ValueError(
+            f"{resolved} is ambiguous: matched {len(matches)} configured datasets "
+            f"({ids}) sharing the same queries_file — set MATRIX_DATASET_ID"
+        )
     return DatasetSpec(
         id=query_path.stem,
         label=f"Ad hoc dataset ({query_path.name})",
@@ -343,6 +378,10 @@ def _legacy_cell(row: dict) -> dict:
     return cell
 
 
+# Accepted complexity (overnight §3.30): CLI entrypoint orchestrating
+# arg-parsing, environment resolution, and dispatch to the matrix run — the
+# branchiness is inherent to a top-level `main()` wiring together options, not
+# a single reusable algorithm worth extracting on its own.
 def main() -> None:
     port, key = envval("LITELLM_PORT"), envval("LITELLM_MASTER_KEY")
     if not port or not key:
@@ -490,7 +529,8 @@ if __name__ == "__main__":
         epilog="Configured via env vars: MATRIX_MANIFEST_FILE, MATRIX_DATASET_ID, "
                "MATRIX_RUN_ID, MATRIX_QUERIES_FILE, MATRIX_RESULTS_FILE, "
                "MATRIX_CANONICAL_FILE, MATRIX_SUMMARY_FILE, MATRIX_MODELS, MATRIX_FLAVORS, "
-               "MATRIX_FLAVORS_FILE, MATRIX_EVALUATOR_URL, and MATRIX_INGESTION_* "
-               "provenance fields.",
+               "MATRIX_FLAVORS_FILE, MATRIX_EVALUATOR_URL, MATRIX_EVALUATOR_API_KEY, "
+               "MATRIX_EVALUATOR_API_KEY_HEADER, JUDGE_MODELS, JUDGE_ENDPOINT, JUDGE_THINK, "
+               "and MATRIX_INGESTION_* provenance fields.",
     ).parse_args()
     main()

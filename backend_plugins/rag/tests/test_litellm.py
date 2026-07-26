@@ -60,16 +60,13 @@ async def test_chat_forwards_tools_and_omits_when_absent(monkeypatch):
 @pytest.mark.asyncio
 @respx.mock
 async def test_chat_delegates_model_request_defaults_to_litellm(monkeypatch):
-    # Atlas owns per-model request defaults in its catalog. The plugin must send
-    # only approach-level arguments and must not consult a local override layer.
+    # Atlas owns per-model request defaults in its catalog (e.g. qwen3.6:latest's
+    # think:false). backend_plugins/rag/common/config.py has no per-model request-
+    # param function of its own (confirmed: only role()/litellm_base()/litellm_key()
+    # exist) — the plugin must send only approach-level arguments (temperature) and
+    # never inject an Atlas-owned knob like "think" itself.
     monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
     monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
-    monkeypatch.setattr(
-        litellm.config,
-        "model_params",
-        lambda _model: (_ for _ in ()).throw(AssertionError("local model params used")),
-        raising=False,
-    )
     route = respx.post("http://litellm:4000/v1/chat/completions").mock(
         return_value=httpx.Response(200, json={"choices": [{"message": {"content": "x"}}]}))
     await litellm.chat("qwen3.6:latest", [{"role": "user", "content": "q"}])
@@ -104,3 +101,82 @@ async def test_embed_orders_by_index(monkeypatch):
         ]}))
     out = await litellm.embed(["a", "b"], model="nomic-embed-text")
     assert out == [[0.0], [1.0]]  # reordered by index, not raw response order
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_embed_raises_clear_error_on_non_json_200(monkeypatch):
+    # A 200 with a non-JSON body (upstream Ollama/proxy blip) must not surface as
+    # a raw JSONDecodeError, nor silently degrade to []: every caller indexes the
+    # result positionally (embed([q])[0]), so a silent [] would surface as a
+    # confusing downstream IndexError instead of a diagnosable failure here.
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    respx.post("http://litellm:4000/v1/embeddings").mock(
+        return_value=httpx.Response(200, content=b"<html>bad gateway</html>",
+                                     headers={"content-type": "text/html"}))
+    with pytest.raises(RuntimeError, match="malformed response"):
+        await litellm.embed(["a"], model="nomic-embed-text")
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_embed_raises_clear_error_when_data_key_missing(monkeypatch):
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    respx.post("http://litellm:4000/v1/embeddings").mock(
+        return_value=httpx.Response(200, json={"error": "model not found"}))
+    with pytest.raises(RuntimeError, match="malformed response"):
+        await litellm.embed(["a"], model="nomic-embed-text")
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_embed_raises_clear_error_on_malformed_row(monkeypatch):
+    # A "data" list with a valid shape overall but a row that isn't a
+    # {"embedding": [...]} object must raise the same clear RuntimeError, not a
+    # raw AttributeError/KeyError from indexing a malformed row.
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    respx.post("http://litellm:4000/v1/embeddings").mock(
+        return_value=httpx.Response(200, json={"data": ["not-an-object"]}))
+    with pytest.raises(RuntimeError, match="malformed response"):
+        await litellm.embed(["a"], model="nomic-embed-text")
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_chat_degrades_to_empty_dict_on_non_json_200(monkeypatch, caplog):
+    # a 200 with a non-JSON body must degrade to {} so callers' existing
+    # `resp.get("choices") or []` fallback kicks in, instead of raising
+    # JSONDecodeError and 500ing every text-generating approach. It must also
+    # log a warning: the degraded content ends up as a legitimately-typed but
+    # empty "" answer, which never trips build_response's non-string-answer
+    # warning, so this is the only diagnostic trail for the symptom.
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    respx.post("http://litellm:4000/v1/chat/completions").mock(
+        return_value=httpx.Response(200, content=b"<html>bad gateway</html>",
+                                     headers={"content-type": "text/html"}))
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        out = await litellm.chat("m", [{"role": "user", "content": "q"}])
+    assert out == {}
+    assert "non-JSON" in caplog.text
+    assert "'m'" in caplog.text
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_chat_degrades_to_empty_dict_on_non_dict_200(monkeypatch, caplog):
+    # a 200 with valid JSON that isn't an object (e.g. a bare list) must also
+    # degrade to {} rather than crash callers doing resp.get(...), and log a
+    # warning for the same undebuggable-empty-answer reason as the non-JSON case.
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    respx.post("http://litellm:4000/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=["unexpected", "list", "body"]))
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        out = await litellm.chat("m", [{"role": "user", "content": "q"}])
+    assert out == {}
+    assert "non-object" in caplog.text
+    assert "'m'" in caplog.text

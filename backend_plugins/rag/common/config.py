@@ -10,10 +10,16 @@ import yaml
 _log = logging.getLogger("uvicorn.error")
 
 _CACHE: dict[str, str] = {}
+# A missing/empty roles file yields an empty _CACHE, which is falsy — so gating
+# the cache on `_CACHE` truthiness would treat that as a miss and re-stat +
+# re-warn on every role lookup (2+ per request). Cache the *loaded* state itself
+# so the negative result is remembered and the warning fires exactly once.
+_LOADED = False
 
 
 def _load() -> dict[str, str]:
-    if _CACHE:
+    global _LOADED
+    if _LOADED:
         return _CACHE
     path = Path(os.environ.get("RAG_ROLES_FILE", "/app/plugins/rag/roles.yaml"))
     if not path.is_file():
@@ -28,6 +34,7 @@ def _load() -> dict[str, str]:
         # Same operator-error class as flavors._load's ValueError style.
         raise ValueError(f"{path} must contain a mapping of role -> model")
     _CACHE.update({str(k): str(v) for k, v in (data or {}).items()})
+    _LOADED = True
     return _CACHE
 
 

@@ -67,6 +67,10 @@ def judge_models() -> list[str]:
     )
 
 
+# Accepted complexity (overnight §3.30): resolves judge-runtime provenance
+# (manifest path, temperature, think flag, per-model overrides) from several
+# independently-optional config sources — each branch is a distinct
+# precedence rule, not accidental complexity.
 def judge_runtime() -> tuple[
     str, float, bool | None, dict[str, str], bool, dict[str, Any]
 ]:
@@ -203,6 +207,10 @@ def build_prompt(query: str, rationale: str, labeled: list[tuple[str, str]]) -> 
     )
 
 
+# Accepted complexity (overnight §3.30): CLI entrypoint orchestrating
+# arg-parsing, panel resolution, and dispatch to the judge run — the
+# branchiness is inherent to a top-level `main()` wiring together options, not
+# a single reusable algorithm worth extracting on its own.
 def main() -> None:
     matrix = json.loads(matrix_file().read_text(encoding="utf-8"))
     panel = judge_models()

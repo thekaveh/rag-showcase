@@ -166,6 +166,67 @@ def test_headless_job_client_waits_for_phase_complete_record() -> None:
     assert calls["get"] == 2
 
 
+def test_headless_job_client_tolerates_transient_poll_error() -> None:
+    # A single transient 5xx mid-poll must NOT abort a long-running wait — the
+    # job keeps progressing server-side. One 502 then completed should return the
+    # completed record, not raise.
+    from ingest.atlas_job import run_ingestion
+
+    calls = {"get": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(202, json={"ingestion_id": "job-1", "status": "pending"})
+        calls["get"] += 1
+        if calls["get"] == 1:
+            return httpx.Response(502, text="bad gateway")
+        return httpx.Response(200, json={"id": "job-1", "status": "completed"})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        record = run_ingestion(
+            "graph_native",
+            base_url="http://atlas.test",
+            api_token="test-internal-token",
+            timeout_seconds=10,
+            poll_seconds=0,
+            client=client,
+        )
+
+    assert record["status"] == "completed"
+    assert calls["get"] == 2
+
+
+def test_headless_job_client_tolerates_malformed_poll_body() -> None:
+    # A 200 with a non-JSON body (or a non-object JSON value) must not abort a
+    # multi-hour wait on one bad poll — the loop tolerates it within the deadline.
+    from ingest.atlas_job import run_ingestion
+
+    calls = {"get": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(202, json={"ingestion_id": "job-1", "status": "pending"})
+        calls["get"] += 1
+        if calls["get"] == 1:
+            return httpx.Response(200, text="<html>upstream blip</html>")  # non-JSON 200
+        if calls["get"] == 2:
+            return httpx.Response(200, json=["not", "an", "object"])  # non-dict JSON
+        return httpx.Response(200, json={"id": "job-1", "status": "completed"})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        record = run_ingestion(
+            "graph_native",
+            base_url="http://atlas.test",
+            api_token="test-internal-token",
+            timeout_seconds=10,
+            poll_seconds=0,
+            client=client,
+        )
+
+    assert record["status"] == "completed"
+    assert calls["get"] == 3
+
+
 def test_headless_job_client_surfaces_phase_failures() -> None:
     from ingest.atlas_job import run_ingestion
 
@@ -214,3 +275,81 @@ def test_headless_job_client_surfaces_phase_failures() -> None:
                 poll_seconds=0,
                 client=client,
             )
+
+
+def test_headless_job_client_raises_timeout_error_when_deadline_exceeded(
+    monkeypatch,
+) -> None:
+    # The poll-deadline guard bounds a multi-hour ingestion wait; a status that
+    # never reaches a terminal state must raise TimeoutError, not hang forever.
+    from ingest import atlas_job
+    from ingest.atlas_job import run_ingestion
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(202, json={"ingestion_id": "job-1", "status": "pending"})
+        return httpx.Response(200, json={"id": "job-1", "status": "running"})
+
+    fake_clock = {"t": 0.0}
+
+    def fake_monotonic() -> float:
+        fake_clock["t"] += 1.0
+        return fake_clock["t"]
+
+    monkeypatch.setattr(atlas_job.time, "monotonic", fake_monotonic)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(
+            TimeoutError, match=r"job-1.*'graph_native'.*did not finish within 2s"
+        ):
+            run_ingestion(
+                "graph_native",
+                base_url="http://atlas.test",
+                api_token="test-internal-token",
+                timeout_seconds=2,
+                poll_seconds=0,
+                client=client,
+                sleep=lambda _seconds: None,
+            )
+
+
+def test_headless_job_client_caps_poll_get_timeout_to_remaining_deadline(monkeypatch) -> None:
+    # Without a per-call cap, a poll GET falls back to the client's own default
+    # timeout (up to 120s read + 10s connect) and can overshoot the deadline
+    # check below by that much before the loop ever notices. Each GET must be
+    # capped to (at most) what's actually left before the deadline.
+    from ingest import atlas_job
+    from ingest.atlas_job import run_ingestion
+
+    seen_timeouts: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(202, json={"ingestion_id": "job-1", "status": "pending"})
+        seen_timeouts.append(request.extensions["timeout"]["read"])
+        return httpx.Response(200, json={"id": "job-1", "status": "running"})
+
+    fake_clock = {"t": 0.0}
+
+    def fake_monotonic() -> float:
+        fake_clock["t"] += 1.0
+        return fake_clock["t"]
+
+    monkeypatch.setattr(atlas_job.time, "monotonic", fake_monotonic)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(TimeoutError):
+            run_ingestion(
+                "graph_native",
+                base_url="http://atlas.test",
+                api_token="test-internal-token",
+                timeout_seconds=5,
+                poll_seconds=0,
+                client=client,
+                sleep=lambda _seconds: None,
+            )
+
+    assert seen_timeouts  # at least one poll happened
+    assert all(t <= 5.0 for t in seen_timeouts)  # never exceeds the overall deadline budget
+    assert seen_timeouts[-1] <= seen_timeouts[0]  # shrinks as the deadline approaches
+    assert seen_timeouts[-1] == 1.0  # floored, not zero/negative, on the final near-expired poll

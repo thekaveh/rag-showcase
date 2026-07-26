@@ -12,6 +12,16 @@ import httpx
 API = "https://api.openalex.org/works"
 
 
+def _positive_int(raw: str) -> int:
+    # A non-positive --limit passes type=int but then misbehaves downstream
+    # (mirrors the same guard in the other three corpus adapters —
+    # stark_export.py, gdelt_events.py, cyber_threat_intel.py).
+    value = int(raw)
+    if value <= 0:
+        raise argparse.ArgumentTypeError(f"--limit must be a positive integer, got {value}")
+    return value
+
+
 def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:72] or "work"
 
@@ -26,6 +36,10 @@ def _abstract(index: dict | None) -> str:
     return " ".join(word for _, word in sorted(words))
 
 
+# Accepted complexity (overnight §3.30): one extraction branch per optional
+# OpenAlex work field (authors, topics/concepts, institutions, abstract,
+# references, venue) — naturally branchy per-field markdown rendering, not an
+# algorithm worth splitting.
 def _write_work(out: Path, idx: int, work: dict) -> None:
     title = work.get("title") or work.get("display_name") or work.get("id") or "Untitled work"
     authors = [a.get("author", {}).get("display_name") for a in work.get("authorships", [])]
@@ -95,7 +109,7 @@ def export(search: str, output: Path, limit: int) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--search", required=True)
-    parser.add_argument("--limit", type=int, default=150)
+    parser.add_argument("--limit", type=_positive_int, default=150)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     count = export(args.search, args.output, args.limit)

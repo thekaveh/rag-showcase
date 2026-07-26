@@ -7,7 +7,11 @@ cap against text that doesn't contain it.
 """
 from __future__ import annotations
 
+import logging
+
 from . import config, litellm
+
+_log = logging.getLogger("uvicorn.error")
 
 _PROMPT = (
     "<document>\n{doc}\n</document>\n\n"
@@ -37,5 +41,18 @@ async def contextualize(doc_text: str, chunk_text: str) -> str:
             doc=_doc_window(doc_text, chunk_text), chunk=chunk_text)}],
     )
     choices = resp.get("choices") or []
-    content = (choices[0].get("message", {}).get("content") if choices else None) or ""
+    content = ((choices[0].get("message") or {}).get("content") if choices else None) or ""
+    # Unlike pipeline.answer_from_context (whose non-string content is coerced
+    # downstream by build_response), this return value goes straight into the
+    # ingest batch's f"{blurb}\n\n{chunk.text}" concatenation with no such net —
+    # a structured content-part list here would AttributeError on .strip() and
+    # abort the whole `python -m ingest.contextual` run over one malformed reply.
+    if not isinstance(content, str):
+        # Log it — the caller has no other signal that a chunk's contextual blurb
+        # was silently dropped (going straight into an f-string concatenation
+        # with no downstream coercion warning like build_response's).
+        _log.warning(
+            "contextualize: blurb model returned non-string content (%s); "
+            "chunk gets no contextual blurb", type(content).__name__)
+        content = ""
     return content.strip()

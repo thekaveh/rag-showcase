@@ -134,7 +134,7 @@ Atlas should add a focused integration test or smoke script that:
 
 The most reliable assertion is request-level observation through LiteLLM logs, an Ollama proxy, or a mocked OpenAI-compatible endpoint that records the requested `model` field.
 
-## 7. Rag-Showcase Configuration
+## 7. RAG Showcase Configuration
 
 Rag-showcase now declares Atlas's public inputs in `config/atlas.env.user`, which
 `atlas.consumer.yml` imports through its `env.file` declaration:
@@ -142,8 +142,14 @@ Rag-showcase now declares Atlas's public inputs in `config/atlas.env.user`, whic
 ```dotenv
 LIGHTRAG_EMBEDDING_MODEL=nomic-embed-text
 LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b
-LIGHTRAG_KEYWORD_LLM_MODEL=mistral-small3.2:24b
-LIGHTRAG_QUERY_LLM_MODEL=mistral-small3.2:24b
+LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.6:latest
+LIGHTRAG_QUERY_LLM_MODEL=qwen3.6:latest
+# KEYWORD/QUERY stay behind LiteLLM (not a native Ollama role call) so the
+# catalog-scoped think:false request default for qwen3.6 still applies.
+LIGHTRAG_KEYWORD_LLM_BINDING=openai
+LIGHTRAG_KEYWORD_LLM_BINDING_HOST=http://litellm:4000/v1
+LIGHTRAG_QUERY_LLM_BINDING=openai
+LIGHTRAG_QUERY_LLM_BINDING_HOST=http://litellm:4000/v1
 LIGHTRAG_EXTRACT_MAX_ASYNC_LLM=1
 LIGHTRAG_EXTRACT_LLM_TIMEOUT=900
 ```
@@ -151,6 +157,13 @@ LIGHTRAG_EXTRACT_LLM_TIMEOUT=900
 Operators can choose different models or provider sources without editing Atlas
 or the Compose overlay by selecting a local `atlas.consumer.yml` copy whose
 `env.file` points at a customized ignored env file.
+
+Note this deploys `qwen3.6:latest` for KEYWORD rather than the
+`mistral-small3.2:24b` shown in §3/§5's minimum-supported example: live
+validation found Mistral on the KEYWORD role produced thousands of tokens of
+free-form output instead of the requested compact keyword list (see
+[`docs/approaches.md`](approaches.md) §6.5), so KEYWORD was moved onto the
+same thinking-disabled `qwen3.6:latest` binding QUERY already uses.
 
 The rag-showcase graph wrapper also sends these `/query` defaults:
 

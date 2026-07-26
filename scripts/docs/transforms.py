@@ -7,9 +7,14 @@ from .links import MD_LINK_RE, strip_forbidden_links
 from .manifest import DOCS
 
 INCLUDE_RE = re.compile(r"\{%\s*include-markdown\s+\"([^\"]+)\"\s*%\}", re.MULTILINE)
+# Interactive diagrams embed their HTML via <iframe src="...">; that src is an HTML
+# attribute, not a markdown link, so MD_LINK_RE skips it — rewrite it separately so
+# the iframe resolves on each generated surface (the HTML lives under assets/ on
+# the site, beside the page on the wiki).
+IFRAME_SRC_RE = re.compile(r'(<iframe\b[^>]*?\bsrc=")([^"]+)(")')
 SOURCE_DIRS = {
     "backend_plugins", "compare", "compose", "corpus", "demo", "ingest",
-    "n8n", "register", "scripts",
+    "n8n", "scripts",
 }
 
 
@@ -90,6 +95,15 @@ def _diagram_html_target(source: Path, clean_target: str, surface: str) -> str |
     return _relative(PurePosixPath(source.as_posix()), f"assets/diagrams/{name}")
 
 
+def _rewrite_iframe_srcs(markdown: str, source: Path, surface: str) -> str:
+    def repl(match: re.Match[str]) -> str:
+        prefix, target, suffix = match.groups()
+        diagram_html = _diagram_html_target(source, target.split("#", 1)[0], surface)
+        return f"{prefix}{diagram_html}{suffix}" if diagram_html else match.group(0)
+
+    return IFRAME_SRC_RE.sub(repl, markdown)
+
+
 def rewrite_for_surface(
     markdown: str,
     source: Path,
@@ -134,4 +148,6 @@ def rewrite_for_surface(
         return match.group(0)
 
     markdown = MD_LINK_RE.sub(replace, markdown)
+    if surface in {"site", "wiki"}:
+        markdown = _rewrite_iframe_srcs(markdown, source, surface)
     return strip_forbidden_links(markdown, surface)

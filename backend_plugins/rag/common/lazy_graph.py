@@ -6,6 +6,7 @@ import heapq
 import json
 import os
 import re
+import threading
 import time
 import uuid
 from collections import Counter
@@ -116,7 +117,10 @@ class GraphIndex:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "GraphIndex":
         if data.get("version") != INDEX_VERSION:
-            raise ValueError("unsupported lazy graph index version")
+            raise ValueError(
+                f"unsupported lazy graph index version: got {data.get('version')!r}, "
+                f"expected {INDEX_VERSION!r}"
+            )
         chunks = {
             key: GraphChunk(
                 id=str(row["id"]),
@@ -192,6 +196,19 @@ def _stats(index: GraphIndex, *, cache_hit: bool, started: float) -> BuildStats:
     )
 
 
+_BUILD_LOCKS: dict[str, threading.Lock] = {}
+_BUILD_LOCKS_GUARD = threading.Lock()
+
+
+def _build_lock(key: str) -> threading.Lock:
+    with _BUILD_LOCKS_GUARD:
+        lock = _BUILD_LOCKS.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _BUILD_LOCKS[key] = lock
+        return lock
+
+
 def load_or_build(
     chunks: list[Hit], *, cache_dir: str | Path, namespace: str,
     max_concepts_per_chunk: int = 24,
@@ -205,11 +222,12 @@ def load_or_build(
     fingerprint = corpus_fingerprint(
         chunks, max_concepts_per_chunk=max_concepts_per_chunk
     )
-    if path.is_file():
+
+    def cached_index() -> GraphIndex | None:
+        if not path.is_file():
+            return None
         try:
             cached = GraphIndex.from_dict(json.loads(path.read_text(encoding="utf-8")))
-            if cached.fingerprint == fingerprint:
-                return cached, _stats(cached, cache_hit=True, started=started)
         except (
             OSError,
             ValueError,
@@ -218,16 +236,34 @@ def load_or_build(
             AttributeError,
             json.JSONDecodeError,
         ):
-            pass
+            return None
+        return cached if cached.fingerprint == fingerprint else None
 
-    index = build_index(chunks, max_concepts_per_chunk=max_concepts_per_chunk)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
-    temporary.write_text(
-        json.dumps(index.to_dict(), sort_keys=True, separators=(",", ":")),
-        encoding="utf-8",
-    )
-    temporary.replace(path)
-    return index, _stats(index, cache_hit=False, started=started)
+    hit = cached_index()
+    if hit is not None:
+        return hit, _stats(hit, cache_hit=True, started=started)
+
+    # Serialize the expensive build+replace per namespace: on a cold cache, a burst
+    # of concurrent requests (each via asyncio.to_thread, sharing the process's
+    # thread pool) would otherwise each independently run build_index() instead of
+    # one building while the rest wait and then see the fresh cache file below.
+    with _build_lock(safe_namespace):
+        hit = cached_index()
+        if hit is not None:
+            return hit, _stats(hit, cache_hit=True, started=started)
+
+        index = build_index(chunks, max_concepts_per_chunk=max_concepts_per_chunk)
+        temporary = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+        try:
+            temporary.write_text(
+                json.dumps(index.to_dict(), sort_keys=True, separators=(",", ":")),
+                encoding="utf-8",
+            )
+        except BaseException:
+            temporary.unlink(missing_ok=True)  # don't orphan a partial temp on failure
+            raise
+        temporary.replace(path)
+        return index, _stats(index, cache_hit=False, started=started)
 
 
 def retrieve(

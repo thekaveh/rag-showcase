@@ -2,17 +2,17 @@
 
 `lazy-graph-rag` is an **experimental** seventh approach inspired by the public
 LazyGraphRAG design direction. It is a repo-native approximation, not Microsoft
-GraphRAG code and not a claim of implementation parity. It is registered for
-explicit testing but excluded from the six-approach default comparison. Its
-concept indexing and graph traversal are LLM-free.
+GraphRAG code and not a claim of implementation parity. It is off by default but
+registered for explicit testing and measured in the committed dataset ladder
+(see below). Its concept indexing and graph traversal are LLM-free.
 
 The prototype is now measured in the committed 2026-07-17 dataset ladder. It
 participated beside all six canonical approaches on baseline, graph-native, and
 MITRE ATT&CK cyber-threat corpora. All 20 lazy-graph cells succeeded. The result
 supports keeping the approach: it tied for third on baseline, won graph-native,
-and tied for second on cyber while retaining low latency. It remains experimental and off by default
-because its untyped co-occurrence graph is a useful approximation, not a
-general-purpose knowledge graph.
+and tied for second on cyber while retaining low latency. It remains
+experimental and off by default because its untyped co-occurrence graph is a
+useful approximation, not a general-purpose knowledge graph.
 
 ## 1. Why It Is a Separate Approach
 
@@ -195,12 +195,15 @@ so the implementation remains available for explicit selection.
   claim-synthesis stage.
 - The steady path still scans all chunk text to verify the content fingerprint.
 - Results cover three bounded corpora and two local judges, not a broad benchmark.
-- Objective Ragas coverage is unavailable until Atlas #596/#597 are fixed and
-  this exact run is repeated.
+- Faithfulness coverage is incomplete on every rung (83% baseline, 63%
+  graph-native, 50% cyber-threat), though answer relevancy is fully covered
+  everywhere. See [`docs/results/`](results/) for the recorded Ragas scores
+  (objective evaluator coverage is otherwise in place across all three rungs
+  and every lazy-graph flavor, resolving the prior Atlas #596/#597 blocker).
 
 **Decision:** retain the prototype as an experimental seventh approach, keep it
 excluded from `default`, and continue measuring it. It beat existing approaches
-on graph-native tasks and led the cyber aggregate without added index-time LLM
-cost, so removal is not warranted. Promotion to a canonical default would require
-more datasets, objective evaluator coverage, stronger concept/entity resolution,
-and explicit typed-relation or community semantics.
+on graph-native tasks and remained competitive on the cyber aggregate without
+added index-time LLM cost, so removal is not warranted. Promotion to a
+canonical default would require more datasets, stronger concept/entity
+resolution, and explicit typed-relation or community semantics.

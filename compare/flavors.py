@@ -48,6 +48,10 @@ def _default(alias: str) -> FlavorProfile:
     return FlavorProfile(alias=alias, base=alias)
 
 
+# Accepted complexity (overnight §3.30): one validation branch per flavor
+# field (alpha range, retrieve_k/top_n positivity, base-approach membership,
+# etc.) — each check is a distinct fail-fast guard against a malformed
+# flavors.yaml, not a single algorithm that would benefit from extraction.
 def load_flavors(manifest: Path = DEFAULT_MANIFEST) -> dict[str, FlavorProfile]:
     profiles = {base: _default(base) for base in SUPPORTED_APPROACHES}
     if not manifest.is_file():
@@ -84,6 +88,15 @@ def load_flavors(manifest: Path = DEFAULT_MANIFEST) -> dict[str, FlavorProfile]:
         for key, cast in _NUMERIC_PARAMS.items():
             if key not in params:
                 continue
+            # bool is an int subclass — int(True)==1/float(False)==0.0 would
+            # silently pass both the cast and the range check below (0.0/1.0
+            # are legitimate alpha values), turning a manifest typo like
+            # `retrieve_k: true` into a wrong-but-valid-looking parameter
+            # instead of the load-time ValueError this loader promises.
+            if isinstance(params[key], bool):
+                raise ValueError(
+                    f"flavor {alias!r} param {key!r} must be "
+                    f"{cast.__name__}-compatible, got {params[key]!r}")
             try:
                 params[key] = cast(params[key])
             except (TypeError, ValueError) as e:

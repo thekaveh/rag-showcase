@@ -3,7 +3,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 PROJECT_NAME="${RAG_SHOWCASE_PROJECT_NAME:-rag-showcase}"
-ATLAS_CONSUMER_MANIFEST="${ATLAS_CONSUMER_MANIFEST:-$ROOT/atlas.consumer.yml}"
 COLD=0
 case "${1:-}" in
   "") ;;
@@ -17,8 +16,11 @@ stop_args=(--project "$PROJECT_NAME")
 
 # Atlas project-scoped teardown is ownership-aware; host-global runtime
 # shutdown is intentionally omitted because those runtimes may be shared.
-( cd "$ROOT/infra" && ATLAS_CONSUMER_MANIFEST="$ATLAS_CONSUMER_MANIFEST" \
-    ./stop.sh --project "$PROJECT_NAME" "${stop_args[@]:2}" )
+# Pass the whole stop_args array once (it already begins with --project <name>);
+# the earlier `${stop_args[@]:2}` slice re-derived the same tail but hard-coded
+# the assumption that indices 0,1 were `--project <name>`, silently dropping any
+# flag a future maintainer prepended.
+( cd "$ROOT/infra" && ./stop.sh "${stop_args[@]}" )
 
 if docker ps -a --filter "label=com.docker.compose.project=$PROJECT_NAME" -q \
     | grep -q .; then

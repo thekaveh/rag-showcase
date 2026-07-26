@@ -17,7 +17,8 @@ async def health() -> dict[str, object]:
         "experimental_approaches": sorted(flavors.EXPERIMENTAL_APPROACHES),
     }
 
-# Include all six approach routers onto the aggregate router the seam loads.
+# Include all seven approach routers onto the aggregate router the seam loads
+# (the six canonical approaches plus the experimental lazy-graph-rag route).
 from .approaches import vanilla  # noqa: E402
 router.include_router(vanilla.router)
 from .approaches import hybrid  # noqa: E402

@@ -228,3 +228,68 @@ flavors:
     )
     flavors._CACHE.clear()
     assert flavors.get("hybrid-rag-str").params["retrieve_k"] == 40
+
+
+def test_bool_numeric_param_fails_at_load(tmp_path, monkeypatch):
+    # bool is an int subclass — int(True)==1/float(False)==0.0 would silently
+    # pass both the cast and the range check (0.0/1.0 are legitimate alpha
+    # values), turning a manifest typo like `retrieve_k: true` into a
+    # wrong-but-valid-looking parameter instead of the load-time ValueError
+    # this loader promises. Mirrors compare/flavors.py's own drift-guard test.
+    f = tmp_path / "flavors.yaml"
+    f.write_text(
+        """
+flavors:
+  - alias: hybrid-rag-bool
+    base: hybrid-rag
+    params:
+      retrieve_k: true
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
+    flavors._CACHE.clear()
+    with pytest.raises(ValueError, match="retrieve_k"):
+        flavors.get("hybrid-rag-bool")
+
+
+@pytest.mark.parametrize("alpha", [1.5, -0.1])
+def test_alpha_out_of_range_fails_at_load(tmp_path, monkeypatch, alpha):
+    # alpha passes the float() type gate but is meaningless outside [0, 1] —
+    # must fail loud at load, not become a per-request 500 downstream.
+    f = tmp_path / "flavors.yaml"
+    f.write_text(
+        f"""
+flavors:
+  - alias: hybrid-rag-bad-alpha
+    base: hybrid-rag
+    params:
+      alpha: {alpha}
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
+    flavors._CACHE.clear()
+    with pytest.raises(ValueError, match=r"alpha.*within \[0, 1\]"):
+        flavors.get("hybrid-rag-bad-alpha")
+
+
+@pytest.mark.parametrize("retrieve_k", [0, -5])
+def test_non_alpha_numeric_param_below_one_fails_at_load(tmp_path, monkeypatch, retrieve_k):
+    # A zero/negative retrieve_k (or any non-alpha numeric param) passes the
+    # int() type gate but is meaningless — must fail loud at load.
+    f = tmp_path / "flavors.yaml"
+    f.write_text(
+        f"""
+flavors:
+  - alias: hybrid-rag-bad-k
+    base: hybrid-rag
+    params:
+      retrieve_k: {retrieve_k}
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
+    flavors._CACHE.clear()
+    with pytest.raises(ValueError, match=r"retrieve_k.*must be >= 1"):
+        flavors.get("hybrid-rag-bad-k")

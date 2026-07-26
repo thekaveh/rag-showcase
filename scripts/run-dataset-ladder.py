@@ -63,8 +63,8 @@ def parse_args() -> argparse.Namespace:
         "--approaches",
         default="",
         help="Comma-separated approach or flavor alias list (sets MATRIX_MODELS). "
-             "Defaults to the canonical six approaches; --include-flavor-tier "
-             "adds the experimental lazy-graph family.",
+             "Defaults to the canonical six approaches; mutually exclusive with "
+             "--include-flavor-tier (see that flag for its own, broader scope).",
     )
     parser.add_argument(
         "--flavors",
@@ -79,15 +79,33 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--include-flavor-tier",
         action="store_true",
-        help="Run all seven base approaches, then every non-base flavor alias against "
-             "the same ingestion using separate result artifacts.",
+        help="Run all seven supported approaches (six canonical + lazy-graph-rag), then "
+             "every non-base flavor alias against the same ingestion using separate "
+             "result artifacts.",
     )
     return parser.parse_args()
 
 
+# A last-resort circuit breaker, not a tight bound: these commands (start-all.sh,
+# a full ingestion job, the evaluation matrix, the judge panel) legitimately run
+# for a long time by design. ingest.atlas_job's submission call and its poll loop
+# are SEQUENTIAL budgets, not overlapping ones: the submission POST gets its own
+# timeout_seconds+60 (Atlas may process it synchronously in-request), and only
+# once that returns does the poll deadline (a further timeout_seconds) start —
+# so the child's true worst case is roughly 2x timeout_seconds+60, not
+# timeout_seconds+60. This outer bound must exceed THAT full additive total, not
+# just one leg of it, or it can fire first and suppress atlas_job's own specific,
+# actionable TimeoutError/RuntimeError message with a generic
+# subprocess.TimeoutExpired instead. Still short enough that a wedged Docker
+# daemon or hung docker exec doesn't hang this orchestrator forever with no
+# diagnostic at all.
+_ATLAS_JOB_TIMEOUT_SECONDS = 7200.0  # must match ingest/atlas_job.py's own default
+_SUBPROCESS_TIMEOUT = 2 * _ATLAS_JOB_TIMEOUT_SECONDS + 60.0 + 300.0
+
+
 def run(cmd: list[str], *, env: dict[str, str] | None = None) -> None:
     print(f"$ {' '.join(cmd)}", flush=True)
-    subprocess.run(cmd, cwd=ROOT, env=env, check=True)
+    subprocess.run(cmd, cwd=ROOT, env=env, check=True, timeout=_SUBPROCESS_TIMEOUT)
 
 
 def capture_json(
@@ -100,6 +118,7 @@ def capture_json(
         text=True,
         capture_output=True,
         check=False,
+        timeout=_SUBPROCESS_TIMEOUT,
     )
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip() or "no child output"
@@ -155,6 +174,7 @@ def cold_reset() -> None:
         ["./scripts/stop-all.sh", "--cold"],
         cwd=ROOT,
         check=True,
+        timeout=_SUBPROCESS_TIMEOUT,
     )
 
 
@@ -236,6 +256,9 @@ def validate_matrix_cells(matrix: dict[str, Any], *, dataset_id: str) -> None:
     )
 
 
+# Accepted complexity (overnight §3.30): same shape as validate_canonical_rows
+# below — one rule branch per judgment-shape integrity concern (query
+# coverage, approach coverage, per-judge score range, runtime provenance).
 def validate_judgments(
     judgments: dict[str, Any],
     *,
@@ -283,24 +306,34 @@ def validate_judgments(
         per_judge = query.get("per_judge") or {}
         if means != expected_approaches:
             raise RuntimeError(
-                f"Judgments for {dataset_id}/{query_id} have incomplete approach coverage"
+                f"Judgments for {dataset_id}/{query_id} have incomplete approach coverage: "
+                f"{sorted(means)} != {sorted(expected_approaches)}"
             )
         if list(per_judge) != expected_judges:
             raise RuntimeError(
-                f"Judgments for {dataset_id}/{query_id} have incomplete judge coverage"
+                f"Judgments for {dataset_id}/{query_id} have incomplete judge coverage: "
+                f"{list(per_judge)} != {expected_judges}"
             )
         for judge in expected_judges:
             verdict = per_judge[judge]
-            if verdict.get("error") or set((verdict.get("scores") or {}).keys()) != expected_approaches:
+            error = verdict.get("error")
+            scores = set((verdict.get("scores") or {}).keys())
+            if error or scores != expected_approaches:
+                reason = f"error={error!r}" if error else f"{sorted(scores)} != {sorted(expected_approaches)}"
                 raise RuntimeError(
                     f"Judgments for {dataset_id}/{query_id} have incomplete judge coverage "
-                    f"for {judge}"
+                    f"for {judge}: {reason}"
                 )
     runtime = judgments.get("runtime")
     if not isinstance(runtime, dict) or not runtime.get("backend") or not runtime.get("endpoint"):
         raise RuntimeError(f"Judgments for {dataset_id} are missing judge runtime provenance")
 
 
+# Accepted complexity (overnight §3.30): this is the canonical-results integrity
+# gate — one rule branch per validation concern (row shape, per-metric range,
+# count reconciliation), each early-returning. Splitting into focused validators
+# is a reasonable refactor but belongs in its own change; the per-rule structure
+# here is already linear and readable.
 def validate_canonical_rows(
     rows: list[dict[str, Any]],
     *,
@@ -354,7 +387,8 @@ def validate_canonical_rows(
         runtime = reproducibility.get("runtime") or {}
         if not required_hashes <= set(hashes):
             raise RuntimeError(
-                f"Canonical rows for {dataset_id} are missing required provenance hashes"
+                f"Canonical rows for {dataset_id} are missing required provenance hashes: "
+                f"{sorted(required_hashes - set(hashes))}"
             )
         runtime_files = runtime.get("runtime_files") or {}
         judge_panel = runtime.get("judge_panel") or {}
@@ -445,14 +479,17 @@ def validate_evaluation_summary(
         judge = dataset.get("judge_panel") or {}
         if judge.get("models") != expected_judges:
             raise RuntimeError(
-                f"Evaluation summary for {dataset_id} has unexpected judge models"
+                f"Evaluation summary for {dataset_id} has unexpected judge models: "
+                f"{judge.get('models')} != {expected_judges}"
             )
         if expected_query_count is not None and (
             judge.get("evaluated_queries") != expected_query_count
             or judge.get("total_queries") != expected_query_count
         ):
             raise RuntimeError(
-                f"Evaluation summary for {dataset_id} has incomplete judge coverage"
+                f"Evaluation summary for {dataset_id} has incomplete judge coverage: "
+                f"evaluated={judge.get('evaluated_queries')}, "
+                f"total={judge.get('total_queries')}, expected={expected_query_count}"
             )
 
 
@@ -468,6 +505,10 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+# Accepted complexity (overnight §3.30): orchestrates the matrix-then-judge
+# subprocess pipeline for one dataset — snapshot naming, subprocess dispatch,
+# and output-file validation are each a distinct step in a linear pipeline,
+# not accidental branching.
 def run_matrix_and_judge(
     dataset: dict[str, Any],
     ingestion: dict[str, Any],
@@ -633,7 +674,7 @@ def update_dataset_snapshots(
             dataset["status"] = "measured"
             break
     else:
-        raise KeyError(dataset_id)
+        raise KeyError(f"dataset {dataset_id!r} not found in datasets.yaml manifest")
     write_manifest(manifest)
 
 
@@ -697,6 +738,10 @@ def flavor_tier_models() -> list[str]:
     return [profile.alias for profile in profiles.values() if profile.alias not in bases]
 
 
+# Accepted complexity (overnight §3.30): CLI entrypoint orchestrating
+# arg-parsing, mutual-exclusion validation, and dispatch across the ladder
+# run — the branchiness is inherent to a top-level `main()` wiring together
+# options, not a single reusable algorithm worth extracting on its own.
 def main() -> None:
     args = parse_args()
     if args.approaches and args.flavors:
@@ -725,7 +770,8 @@ def main() -> None:
             "corpus/adapters/README.md for candidate exports); "
             "refusing to touch the running stack")
     if args.no_cold_reset and len(datasets) > 1:
-        # ingest.run() swaps the Weaviate collections per dataset but LightRAG only
+        # Per dataset, start_service_only() below points RAG_BASE_COLLECTION /
+        # RAG_CONTEXTUAL_COLLECTION at that dataset's profile, but LightRAG only
         # accumulates — without a cold reset, graph-rag/agentic-rag would answer from
         # the union of all previously ingested corpora while the chunk approaches see
         # only the latest, silently skewing the comparison.

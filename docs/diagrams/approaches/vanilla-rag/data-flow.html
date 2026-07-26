@@ -60,13 +60,6 @@
       <path class="flow" d="M190 430H260"/><path class="flow" d="M440 430H520"/><path class="flow" d="M720 430H800"/>
       <path class="flow" d="M980 430H1060"/><path class="flow" d="M1260 430H1340"/><path class="flow" d="M1520 430H1590"/>
 
-      <g><circle class="step" cx="225" cy="430" r="12"/><text class="step-text" x="225" y="430">1</text><text class="label" x="225" y="408">chat request</text></g>
-      <g><circle class="step" cx="480" cy="430" r="12"/><text class="step-text" x="480" y="430">2</text><text class="label" x="480" y="408">alias dispatch</text></g>
-      <g><circle class="step" cx="760" cy="430" r="12"/><text class="step-text" x="760" y="430">3</text><text class="label" x="760" y="408">question</text></g>
-      <g><circle class="step" cx="1020" cy="430" r="12"/><text class="step-text" x="1020" y="430">4</text><text class="label" x="1020" y="408">nearVector · k=5</text></g>
-      <g><circle class="step" cx="1300" cy="430" r="12"/><text class="step-text" x="1300" y="430">5</text><text class="label" x="1300" y="408">ranked chunks</text></g>
-      <g><circle class="step" cx="1555" cy="430" r="12"/><text class="step-text" x="1555" y="430">6</text><text class="label" x="1555" y="408">answer + evidence</text></g>
-
       <rect class="node external" x="270" y="150" width="200" height="80"/><text class="title" x="370" y="180">Corpus documents</text><text class="sub" x="370" y="202">selected dataset/profile</text>
       <rect class="node backend" x="560" y="150" width="200" height="80"/><text class="title" x="660" y="180">Atlas ingestion</text><text class="sub" x="660" y="202">parse · chunk · metadata</text>
       <rect class="node model" x="850" y="150" width="200" height="80"/><text class="title" x="950" y="180">Embedding model</text><text class="sub" x="950" y="202">nomic-embed-text</text>
@@ -79,6 +72,16 @@
       <rect class="node data" x="1060" y="390" width="200" height="80"/><text class="title" x="1160" y="420">Weaviate · RagBase</text><text class="sub" x="1160" y="442">dense cosine search</text>
       <rect class="node model" x="1340" y="390" width="180" height="80"/><text class="title" x="1430" y="420">light_gen</text><text class="sub" x="1430" y="442">LiteLLM → configured LLM</text>
       <rect class="node external" x="1590" y="390" width="160" height="80"/><text class="title" x="1670" y="420">OpenAI response</text><text class="sub" x="1670" y="442">answer · sources · metrics</text>
+
+      <!-- Step labels render after the node rects (not before, like the prep-lane
+           labels above) so they paint on top instead of being clipped by an
+           overlapping node box in this denser six-step query-path row. -->
+      <g><circle class="step" cx="225" cy="430" r="12"/><text class="step-text" x="225" y="430">1</text><text class="label" x="225" y="408">chat request</text></g>
+      <g><circle class="step" cx="480" cy="430" r="12"/><text class="step-text" x="480" y="430">2</text><text class="label" x="480" y="408">alias dispatch</text></g>
+      <g><circle class="step" cx="760" cy="430" r="12"/><text class="step-text" x="760" y="430">3</text><text class="label" x="760" y="408">question</text></g>
+      <g><circle class="step" cx="1020" cy="430" r="12"/><text class="step-text" x="1020" y="430">4</text><text class="label" x="1020" y="408">nearVector · k=5</text></g>
+      <g><circle class="step" cx="1300" cy="430" r="12"/><text class="step-text" x="1300" y="430">5</text><text class="label" x="1300" y="408">ranked chunks</text></g>
+      <g><circle class="step" cx="1555" cy="430" r="12"/><text class="step-text" x="1555" y="430">6</text><text class="label" x="1555" y="408">answer + evidence</text></g>
 
       <rect class="ledger" x="45" y="650" width="1710" height="170" rx="8"/>
       <text class="ledger-title" x="70" y="680">MESSAGE CONTRACT AND EXECUTION PHASES</text>
