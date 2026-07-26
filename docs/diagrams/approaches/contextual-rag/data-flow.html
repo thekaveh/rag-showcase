@@ -34,10 +34,6 @@
       <path class="prep" d="M375 185H415"/><path class="prep" d="M585 185H625"/><path class="prep" d="M795 185H835"/><path class="prep" d="M1005 185H1045"/><path class="prep" d="M1215 185H1255"/><path class="prep" d="M1425 185H1465"/>
       <path class="flow" d="M175 435H215"/><path class="flow" d="M390 435H430"/><path class="flow" d="M605 435H645"/><path class="flow" d="M820 435H860"/><path class="flow" d="M1050 435H1090"/><path class="flow" d="M1280 435H1320"/><path class="flow" d="M1510 435H1550"/>
 
-      <g><circle class="step" cx="195" cy="435" r="11"/><text class="step-text" x="195" y="435">1</text><text class="label" x="195" y="413">request</text></g><g><circle class="step" cx="410" cy="435" r="11"/><text class="step-text" x="410" y="435">2</text><text class="label" x="410" y="413">dispatch</text></g>
-      <g><circle class="step" cx="625" cy="435" r="11"/><text class="step-text" x="625" y="435">3</text><text class="label" x="625" y="413">embed</text></g><g><circle class="step" cx="840" cy="435" r="11"/><text class="step-text" x="840" y="435">4</text><text class="label" x="840" y="413">vector</text></g>
-      <g><circle class="step" cx="1070" cy="435" r="11"/><text class="step-text" x="1070" y="435">5</text><text class="label" x="1070" y="413">candidates</text></g><g><circle class="step" cx="1300" cy="435" r="11"/><text class="step-text" x="1300" y="435">6</text><text class="label" x="1300" y="413">top context</text></g><g><circle class="step" cx="1530" cy="435" r="11"/><text class="step-text" x="1530" y="435">7</text><text class="label" x="1530" y="413">answer</text></g>
-
       <rect class="node external" x="205" y="145" width="170" height="80"/><text class="title" x="290" y="176">Corpus documents</text><text class="sub" x="290" y="198">source files</text>
       <rect class="node backend" x="415" y="145" width="170" height="80"/><text class="title" x="500" y="176">Atlas ingestion</text><text class="sub" x="500" y="198">parse · chunk · metadata</text>
       <rect class="node data" x="625" y="145" width="170" height="80"/><text class="title" x="710" y="176">Weaviate · RagBase</text><text class="sub" x="710" y="198">completed plain chunks</text>
@@ -54,6 +50,12 @@
       <rect class="node model" x="1090" y="395" width="190" height="80"/><text class="title" x="1185" y="425">TEI reranker</text><text class="sub" x="1185" y="447">optional cross-encoder</text>
       <rect class="node model" x="1320" y="395" width="190" height="80"/><text class="title" x="1415" y="425">light_gen</text><text class="sub" x="1415" y="447">enriched evidence + question</text>
       <rect class="node external" x="1550" y="395" width="175" height="80"/><text class="title" x="1637" y="425">OpenAI response</text><text class="sub" x="1637" y="447">answer · sources · metrics</text>
+
+      <!-- Step labels render after the node rects so they paint on top instead of
+           being clipped by an overlapping node box. -->
+      <g><circle class="step" cx="195" cy="435" r="11"/><text class="step-text" x="195" y="435">1</text><text class="label" x="195" y="413">request</text></g><g><circle class="step" cx="410" cy="435" r="11"/><text class="step-text" x="410" y="435">2</text><text class="label" x="410" y="413">dispatch</text></g>
+      <g><circle class="step" cx="625" cy="435" r="11"/><text class="step-text" x="625" y="435">3</text><text class="label" x="625" y="413">embed</text></g><g><circle class="step" cx="840" cy="435" r="11"/><text class="step-text" x="840" y="435">4</text><text class="label" x="840" y="413">vector</text></g>
+      <g><circle class="step" cx="1070" cy="435" r="11"/><text class="step-text" x="1070" y="435">5</text><text class="label" x="1070" y="413">candidates</text></g><g><circle class="step" cx="1300" cy="435" r="11"/><text class="step-text" x="1300" y="435">6</text><text class="label" x="1300" y="413">top context</text></g><g><circle class="step" cx="1530" cy="435" r="11"/><text class="step-text" x="1530" y="435">7</text><text class="label" x="1530" y="413">answer</text></g>
 
       <rect class="ledger" x="45" y="650" width="1710" height="170" rx="8"/><text class="ledger-title" x="70" y="680">MESSAGE CONTRACT AND EXECUTION PHASES</text>
       <line x1="470" y1="695" x2="470" y2="800" stroke="#334155"/><line x1="900" y1="695" x2="900" y2="800" stroke="#334155"/><line x1="1330" y1="695" x2="1330" y2="800" stroke="#334155"/>

@@ -92,37 +92,37 @@ requirements apply:
 This selects the parent-owned `atlas.consumer.yml`, runs Atlas's native headless env
 backfill, manifest-aware Compose validation, and consumer doctor, then starts Atlas
 with `--no-tui --detach`. The manifest sets durable `BASE_PORT: auto`, so Atlas
-resolves a completely free 110-port block below the OS dynamic/private range once
-and keeps it **stable across restarts** (persisted to `infra/.env`); set
+resolves a completely free 110-port block below the OS dynamic/private range once and
+keeps it **stable across restarts** (persisted to `infra/.env`); set
 `RAG_SHOWCASE_BASE_PORT` to pin a specific block instead (Atlas fails before startup
-if it is occupied). The run prints the live Open WebUI URL when it finishes, and
-every port can be re-derived from `infra/.env`. It passes project name
-`rag-showcase`. The manifest registers the project identity, branding,
-`config/atlas.env.user`, external Compose overlay, backend plugin root, Ollama model
-sidecar, and dataset-specific RAG ingestion profiles without tracked Atlas
-modifications or a `_user` symlink. Atlas applies the showcase project and brand
-metadata (`rag-showcase-*` resources), waits on Compose health, and returns before
-the script continues with the `gen-ai-rag` services (LightRAG, TEI reranker,
+if it is occupied). The run prints the live Open WebUI URL when it finishes, and every
+port can be re-derived from `infra/.env`. It passes project name `rag-showcase`
+(override with `RAG_SHOWCASE_PROJECT_NAME`). The manifest registers the project
+identity, branding, `config/atlas.env.user`, external Compose overlay, backend plugin
+root, Ollama model sidecar, and dataset-specific RAG ingestion profiles without
+tracked Atlas modifications or a `_user` symlink. Atlas applies the showcase project
+and brand metadata (`rag-showcase-*` resources), waits on Compose health, and returns
+before the script continues with the `gen-ai-rag` services (LightRAG, TEI reranker,
 Weaviate, Neo4j, n8n, Open WebUI, and LiteLLM). The wrapper disables the
 hardware-dependent Docling source; Atlas therefore falls through to its plain-text
 parser and uses the profile's Chonkie recursive chunker. Atlas derives dependency
 enablement from service manifests, targets only enabled services, and returns its
-detached health summary before the wrapper continues, assembles the corpus on the
-host (`corpus/fetch_corpus.py`), waits for model readiness (embed + chat), submits
-the `showcase_default` Atlas ingestion job, builds only the approach-specific
-contextual index from Atlas-written chunks, and prints the Open WebUI URL. Atlas
-compiles the consumer-declared LiteLLM aliases into `config.yaml` before the proxy
-boots, so they are discoverable in `/v1/models` at startup with no consumer-side
-reconcile or proxy restart. On a fresh checkout, Atlas renders its initial bootstrap
-banner before applying the consumer manifest, so that first banner can retain Atlas
-artwork; subsequent starts use the configured RAG-SHOWCASE logo. Atlas classifies a
-fully converged successful one-shot race. If Compose returns while other services
-are still starting, the wrapper accepts only that exact exited-zero signature and
-waits for the same strict state; missing, unhealthy, or nonzero-exit services still
-fail. If you use local models, the first run may download several GB, so it takes a
-while. Then open the printed URL, start a multi-model chat, and select:
-`vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
-`n8n-adaptive-rag`, `lazy-graph-rag`. Stop everything with `./scripts/stop-all.sh`.
+detached health summary before the wrapper continues, assembles the corpus on the host
+(`corpus/fetch_corpus.py`), waits for model readiness (embed + chat), submits the
+`showcase_default` Atlas ingestion job, builds only the approach-specific contextual
+index from Atlas-written chunks, and prints the Open WebUI URL. Atlas compiles the
+consumer-declared LiteLLM aliases into `config.yaml` before the proxy boots, so they
+are discoverable in `/v1/models` at startup with no consumer-side reconcile or proxy
+restart. On a fresh checkout, Atlas renders its initial bootstrap banner before
+applying the consumer manifest, so that first banner can retain Atlas artwork;
+subsequent starts use the configured RAG-SHOWCASE logo. Atlas classifies a fully
+converged successful one-shot race. If Compose returns while other services are still
+starting, the wrapper accepts only that exact exited-zero signature and waits for the
+same strict state; missing, unhealthy, or nonzero-exit services still fail. If you use
+local models, the first run may download several GB, so it takes a while. Then open
+the printed URL, start a multi-model chat, and select: `vanilla-rag`, `hybrid-rag`,
+`contextual-rag`, `graph-rag`, `agentic-rag`, `n8n-adaptive-rag`, `lazy-graph-rag`.
+Stop everything with `./scripts/stop-all.sh`.
 
 The explicitly selected experimental aliases are `lazy-graph-rag`,
 `lazy-graph-rag-fast`, `lazy-graph-rag-balanced`, and `lazy-graph-rag-wide`.

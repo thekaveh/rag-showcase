@@ -35,19 +35,22 @@
       <path class="branch" d="M1545 200H1570V295H1595"/><path class="branch" d="M1545 440H1570V335H1595"/>
       <path class="return" d="M1675 380V585H95V320"/>
 
-      <g><circle class="step" cx="195" cy="280" r="11"/><text class="step-text" x="195" y="280">1</text><text class="label" x="195" y="258">request</text></g><g><circle class="step" cx="415" cy="280" r="11"/><text class="step-text" x="415" y="280">2</text><text class="label" x="415" y="258">dispatch</text></g><g><circle class="step" cx="650" cy="280" r="11"/><text class="step-text" x="650" y="280">3</text><text class="label" x="650" y="258">POST {query}</text></g>
-      <g><circle class="step" cx="885" cy="280" r="11"/><text class="step-text" x="885" y="280">4</text><text class="label" x="885" y="258">classify</text></g><g><circle class="step" cx="1125" cy="280" r="11"/><text class="step-text" x="1125" y="280">5</text><text class="label" x="1125" y="258">simple | complex</text></g>
       <text class="label" x="1460" y="173" fill="#fdba74">6A · simple</text><text class="label" x="1460" y="468" fill="#fdba74">6B · complex</text><text class="label" x="885" y="570" fill="#34d399">8 · normalized answer + downstream sources/trace + adaptive route metadata</text>
 
       <rect class="node external" x="20" y="240" width="155" height="80"/><text class="title" x="97" y="270">Caller</text><text class="sub" x="97" y="292">Open WebUI / API</text>
       <rect class="node backend" x="215" y="240" width="180" height="80"/><text class="title" x="305" y="270">LiteLLM</text><text class="sub" x="305" y="292">model: n8n-adaptive-rag</text>
       <rect class="node backend" x="435" y="240" width="180" height="80"/><text class="title" x="525" y="270">Adaptive adapter</text><text class="sub" x="525" y="292">timeout · normalize · metrics</text>
       <rect class="node workflow" x="685" y="240" width="170" height="80"/><text class="title" x="770" y="270">Webhook</text><text class="sub" x="770" y="292">input: {query}</text>
-      <rect class="node model" x="915" y="240" width="180" height="80"/><text class="title" x="1005" y="270">HTTP Classify</text><text class="sub" x="1005" y="292">LiteLLM → simple | complex</text>
-      <rect class="node workflow" x="1155" y="240" width="160" height="80"/><text class="title" x="1235" y="270">Code Route</text><text class="sub" x="1235" y="292">select target alias</text>
+      <rect class="node model" x="915" y="240" width="180" height="80"/><text class="title" x="1005" y="270">Classify</text><text class="sub" x="1005" y="292">LiteLLM → simple | complex</text>
+      <rect class="node workflow" x="1155" y="240" width="160" height="80"/><text class="title" x="1235" y="270">Route</text><text class="sub" x="1235" y="292">select target alias</text>
       <rect class="node backend" x="1375" y="160" width="170" height="80"/><text class="title" x="1460" y="190">vanilla-rag</text><text class="sub" x="1460" y="212">dense retrieval endpoint</text>
       <rect class="node backend" x="1375" y="400" width="170" height="80"/><text class="title" x="1460" y="430">agentic-rag</text><text class="sub" x="1460" y="452">tool-selection endpoint</text>
-      <rect class="node workflow" x="1595" y="255" width="160" height="125"/><text class="title" x="1675" y="290">Shape response</text><text class="sub" x="1675" y="314">preserve answer</text><text class="sub" x="1675" y="332">sources · trace</text><text class="sub" x="1675" y="350">route metadata</text>
+      <rect class="node workflow" x="1595" y="255" width="160" height="125"/><text class="title" x="1675" y="290">Shape</text><text class="sub" x="1675" y="314">preserve answer</text><text class="sub" x="1675" y="332">sources · trace</text><text class="sub" x="1675" y="350">route metadata</text>
+
+      <!-- Step labels render after the node rects so they paint on top instead of
+           being clipped by an overlapping node box. -->
+      <g><circle class="step" cx="195" cy="280" r="11"/><text class="step-text" x="195" y="280">1</text><text class="label" x="195" y="258">request</text></g><g><circle class="step" cx="415" cy="280" r="11"/><text class="step-text" x="415" y="280">2</text><text class="label" x="415" y="258">dispatch</text></g><g><circle class="step" cx="650" cy="280" r="11"/><text class="step-text" x="650" y="280">3</text><text class="label" x="650" y="258">POST {query}</text></g>
+      <g><circle class="step" cx="885" cy="280" r="11"/><text class="step-text" x="885" y="280">4</text><text class="label" x="885" y="258">classify</text></g><g><circle class="step" cx="1125" cy="280" r="11"/><text class="step-text" x="1125" y="280">5</text><text class="label" x="1125" y="258">simple | complex</text></g>
 
       <rect class="ledger" x="45" y="650" width="1710" height="170" rx="8"/><text class="ledger-title" x="70" y="680">MESSAGE CONTRACT, ROUTING, AND STATE</text>
       <line x1="470" y1="695" x2="470" y2="800" stroke="#334155"/><line x1="900" y1="695" x2="900" y2="800" stroke="#334155"/><line x1="1330" y1="695" x2="1330" y2="800" stroke="#334155"/>
