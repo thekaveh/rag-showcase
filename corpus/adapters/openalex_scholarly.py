@@ -36,6 +36,10 @@ def _abstract(index: dict | None) -> str:
     return " ".join(word for _, word in sorted(words))
 
 
+# Accepted complexity (overnight §3.30): one extraction branch per optional
+# OpenAlex work field (authors, topics/concepts, institutions, abstract,
+# references, venue) — naturally branchy per-field markdown rendering, not an
+# algorithm worth splitting.
 def _write_work(out: Path, idx: int, work: dict) -> None:
     title = work.get("title") or work.get("display_name") or work.get("id") or "Untitled work"
     authors = [a.get("author", {}).get("display_name") for a in work.get("authorships", [])]

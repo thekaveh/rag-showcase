@@ -48,6 +48,10 @@ def _default(alias: str) -> FlavorProfile:
     return FlavorProfile(alias=alias, base=alias)
 
 
+# Accepted complexity (overnight §3.30): one validation branch per flavor
+# field (alpha range, retrieve_k/top_n positivity, base-approach membership,
+# etc.) — each check is a distinct fail-fast guard against a malformed
+# flavors.yaml, not a single algorithm that would benefit from extraction.
 def load_flavors(manifest: Path = DEFAULT_MANIFEST) -> dict[str, FlavorProfile]:
     profiles = {base: _default(base) for base in SUPPORTED_APPROACHES}
     if not manifest.is_file():

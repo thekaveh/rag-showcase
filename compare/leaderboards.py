@@ -507,6 +507,10 @@ def _records_for_dataset(
     return records, models, approach_names
 
 
+# Accepted complexity (overnight §3.30): same fan-out-over-metric-families shape
+# as `_judge_details` above — aggregates every per-approach metric across all
+# rows into one overall record. Splitting it risks the same reshape-the-harness-
+# result-path cost noted on `_judge_details`; not attempted as drive-by churn.
 def _overall_records(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     by_approach: dict[str, list[dict[str, Any]]] = {}
     for row in rows:

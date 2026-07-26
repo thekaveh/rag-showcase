@@ -465,6 +465,11 @@ class AtlasEvaluationClient:
     def __exit__(self, *args: object) -> None:
         self.close()
 
+    # Accepted complexity (overnight §3.30): a single HTTP call site fans out
+    # into per-metric-family response-shape guards (malformed body, missing
+    # metric, non-numeric score) — each guard degrades one specific failure
+    # mode without dropping the whole evaluation, mirroring the mock-blindness
+    # concern in §3.31; not an algorithm worth splitting further.
     def evaluate(
         self,
         *,

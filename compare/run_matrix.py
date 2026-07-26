@@ -374,6 +374,10 @@ def _legacy_cell(row: dict) -> dict:
     return cell
 
 
+# Accepted complexity (overnight §3.30): CLI entrypoint orchestrating
+# arg-parsing, environment resolution, and dispatch to the matrix run — the
+# branchiness is inherent to a top-level `main()` wiring together options, not
+# a single reusable algorithm worth extracting on its own.
 def main() -> None:
     port, key = envval("LITELLM_PORT"), envval("LITELLM_MASTER_KEY")
     if not port or not key:

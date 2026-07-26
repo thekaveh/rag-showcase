@@ -70,6 +70,11 @@ async def _run_tool(name: str, args: dict, params: dict) -> tuple[str, int]:
     return f"(unknown tool {name})", 0
 
 
+# Accepted complexity (overnight §3.30): the ReAct tool-call loop (parse tool
+# call, dispatch, guard malformed args/ids/names, accumulate observations,
+# bound by max_steps) is inherently branchy state-machine logic; a state-
+# pattern extraction was considered but would add indirection without
+# reducing the actual decision count for a 4-step-bounded loop.
 @router.post("/agentic-rag/v1/chat/completions")
 async def agentic_rag(req: ChatRequest):
     t0 = time.monotonic()

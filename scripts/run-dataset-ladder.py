@@ -256,6 +256,9 @@ def validate_matrix_cells(matrix: dict[str, Any], *, dataset_id: str) -> None:
     )
 
 
+# Accepted complexity (overnight §3.30): same shape as validate_canonical_rows
+# below — one rule branch per judgment-shape integrity concern (query
+# coverage, approach coverage, per-judge score range, runtime provenance).
 def validate_judgments(
     judgments: dict[str, Any],
     *,

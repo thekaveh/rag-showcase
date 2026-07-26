@@ -71,6 +71,9 @@ def _default(alias: str) -> FlavorProfile:
     return FlavorProfile(alias=alias, base=alias)
 
 
+# Accepted complexity (overnight §3.30): mirrors compare/flavors.py's
+# load_flavors — one validation branch per flavor field, each a distinct
+# fail-fast guard against a malformed flavors.yaml, not a single algorithm.
 def _load() -> dict[str, FlavorProfile]:
     if _CACHE:
         return _CACHE

@@ -47,6 +47,10 @@ def _ranking(
     return result
 
 
+# Accepted complexity (overnight §3.30): fans out per-dataset judgment
+# snapshots into per-approach score aggregates in one pass — same
+# fan-out-over-metric-families shape as `_scope_summary`/`_judge_details`
+# above, not accidental branching.
 def _judge_scores(
     judgments: dict[str, Any] | None, dataset_ids: list[str]
 ) -> tuple[
@@ -124,6 +128,11 @@ def _judge_scores(
     )
 
 
+# Accepted complexity (overnight §3.30): classifies every row into the
+# evaluated/not_evaluable/error/timeout reconciliation across every metric
+# family in one pass — the branchiness is inherent to fan-out over metric
+# shapes (see the pass-42 fix to this exact function's final else-branch),
+# not accidental. Splitting risks re-introducing that class of silent-drop bug.
 def _scope_summary(
     rows: list[dict[str, Any]],
     *,

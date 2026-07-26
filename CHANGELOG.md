@@ -41,6 +41,8 @@ releases yet; this section tracks the unreleased work toward `0.1.0`.
 - Standardized the project description on "seven approaches" (six canonical
   plus the experimental `lazy-graph-rag`) across the manifest, plugin, CLI help,
   and documentation.
+- `make lint` (ruff) and `make sortable-tables-test` are now part of the
+  Makefile/CI validation gate, alongside `make test` and `make docs-check`.
 
 ### Fixed
 
@@ -48,3 +50,36 @@ releases yet; this section tracks the unreleased work toward `0.1.0`.
   `LLM_PROVIDER_SOURCE` rather than a never-written `OLLAMA_ENDPOINT`.
 - `start-all.sh` tolerates Atlas's exited-zero one-shot race only on the
   exact log signature, with a strict provider-aware readiness check.
+- The TEI cross-encoder reranker discarded every already-scored batch when a
+  later batch failed on requests spanning more than one rerank batch (as
+  `hybrid-rag-high-recall` and `contextual-rag-high-recall` do by default);
+  now only the failing batch degrades to unranked order, and prior batches'
+  scores are preserved.
+- `lightrag.query()` no longer raises on a non-dict `/query` response body
+  from LightRAG; degrades to an empty/error response instead of crashing
+  the request.
+- `contextualize()` no longer raises when an ingestion chunk's LLM
+  completion content is non-string; guards before calling `.strip()`.
+- Answer/blurb response paths no longer raise `AttributeError` on a `None`
+  message from a malformed LLM completion.
+- LiteLLM and n8n-adapter response parsing now guard malformed/non-JSON
+  response bodies instead of raising or silently miscoercing metrics.
+- Evaluation runs no longer abort the entire matrix on a single `None`
+  judge completion.
+- Reranker/evaluator scores of `True`/`False` (a Python `bool`, an `int`
+  subclass) are no longer coerced to `1.0`/`0.0`; they are treated as an
+  absent score, matching the intended numeric-score contract.
+- `run-dataset-ladder.py`'s outer subprocess timeout now covers
+  `atlas_job.py`'s full sequential ingest-then-poll budget, and the poll
+  loop's own HTTP timeout is capped to the remaining deadline, eliminating
+  a class of ingest-timeout overshoot.
+- `lazy_graph`'s cold-cache index build is now guarded by a per-cache-key
+  lock, preventing duplicate concurrent builds of the same graph.
+- `evaluation_summary.py` no longer silently drops a metric with no
+  recognized degrade shape from the evaluated/not_evaluable/error/timeout
+  reconciliation.
+- The four corpus adapter CLIs (`stark_export.py`, `gdelt_events.py`,
+  `openalex_scholarly.py`, `cyber_threat_intel.py`) now reject a
+  non-positive `--limit` instead of silently exporting the wrong slice.
+- `eval-check` correctly detects a present-but-empty env value instead of
+  treating it as set.

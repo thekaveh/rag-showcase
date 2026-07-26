@@ -89,6 +89,10 @@ def _write_object(
     (out / f"{idx:03d}-{_slug(ext or name)}.md").write_text(text, encoding="utf-8")
 
 
+# Accepted complexity (overnight §3.30): STIX object selection interleaves
+# revoked/deprecated filtering, per-type quota allocation, and a related-object
+# backfill pass — each is a distinct, load-bearing rule for producing a
+# representative bounded slice, not incidental branching.
 def export(output: Path, limit: int) -> int:
     # Fetch and parse FIRST; purge only once replacement content is in hand, so a
     # failed fetch can't leave the output dir empty (mirrors stark_export's ordering —

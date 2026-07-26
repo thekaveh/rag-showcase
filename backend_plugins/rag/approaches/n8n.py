@@ -23,6 +23,10 @@ router = APIRouter()
 _TIMEOUT = httpx.Timeout(240.0, connect=10.0)
 
 
+# Accepted complexity (overnight §3.30): degrades a single webhook call
+# through several distinct malformed-response shapes (non-JSON, non-dict,
+# missing fields) rather than dropping the request — each guard is a load-
+# bearing resilience branch, not accidental complexity.
 @router.post("/n8n-adaptive-rag/v1/chat/completions")
 async def n8n_adaptive_rag(req: ChatRequest):
     t0 = time.monotonic()

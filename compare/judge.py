@@ -203,6 +203,10 @@ def build_prompt(query: str, rationale: str, labeled: list[tuple[str, str]]) -> 
     )
 
 
+# Accepted complexity (overnight §3.30): CLI entrypoint orchestrating
+# arg-parsing, panel resolution, and dispatch to the judge run — the
+# branchiness is inherent to a top-level `main()` wiring together options, not
+# a single reusable algorithm worth extracting on its own.
 def main() -> None:
     matrix = json.loads(matrix_file().read_text(encoding="utf-8"))
     panel = judge_models()
