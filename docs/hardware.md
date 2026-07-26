@@ -19,11 +19,15 @@ quantization, context length, concurrent requests, and selected corpora can move
 the real requirement up or down.
 
 Sizing tiers above describe the six canonical approaches
-(`scripts/run-dataset-ladder.py`'s default `--approaches` selection). Adding the
-experimental `lazy-graph-rag` seventh approach (`--include-flavor-tier`) adds its
-own on-first-query concept-graph build, which is lighter than LightRAG's
+(`scripts/run-dataset-ladder.py`'s default `--approaches` selection). Passing
+`--include-flavor-tier` runs two full matrix/judge passes instead of one: all
+seven base approaches (the canonical six plus the experimental `lazy-graph-rag`),
+then all twelve flavor tuning aliases (nine flavors of the canonical approaches
+plus three `lazy-graph-rag` flavors). The seventh base approach adds its own
+on-first-query concept-graph build, which is lighter than LightRAG's
 per-document extraction but still additional local inference load — size toward
-the heavier tiers above if running it alongside the canonical six.
+the heavier tiers above, and expect roughly double the run time, when using
+`--include-flavor-tier`.
 
 ## 2. What Uses Resources
 

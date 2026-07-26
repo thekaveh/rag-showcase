@@ -126,9 +126,12 @@ while. Then open the printed URL, start a multi-model chat, and select:
 
 The explicitly selected experimental aliases are `lazy-graph-rag`,
 `lazy-graph-rag-fast`, `lazy-graph-rag-balanced`, and `lazy-graph-rag-wide`.
-They build an LLM-free concept graph from `RagBase` chunks. The base and its
-flavors join the measured ladder with `--include-flavor-tier`; the ad hoc default
-matrix remains the canonical six for backward compatibility.
+They build an LLM-free concept graph from `RagBase` chunks. `--include-flavor-tier`
+runs two full matrix/judge passes: the base matrix expands from the canonical six
+to all seven base approaches (adding `lazy-graph-rag`), and a second pass runs
+all twelve flavor tuning aliases — the three `lazy-graph-rag` flavors above plus
+the nine flavors of the other six approaches. The ad hoc default matrix (no flag)
+remains the canonical six for backward compatibility.
 
 The detached startup is the authoritative effective-config check: Atlas applies
 the wrapper's fixed LightRAG container, TEI CPU, and Docling-disabled source flags,
