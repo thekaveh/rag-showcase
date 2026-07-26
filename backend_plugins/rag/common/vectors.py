@@ -258,6 +258,10 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
             if not isinstance(ranking, list):
                 # unexpected reranker shape for this batch — same append-and-stop
                 # treatment as the exception path above.
+                logging.getLogger("uvicorn.error").warning(
+                    "TEI rerank returned an unexpected shape (%s) on batch starting "
+                    "at index %d; leaving %d of %d candidate(s) unranked",
+                    type(ranking).__name__, start, len(hits) - start, len(hits))
                 remainder.extend(hits[start:])
                 break
             for row in ranking:

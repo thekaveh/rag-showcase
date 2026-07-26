@@ -40,21 +40,34 @@ async def test_contextualize_calls_blurb_model(monkeypatch):
     {"choices": [{"message": {"content": None}}]},  # choice present, null content
     {"choices": [{"message": {}}]},                 # choice present, no content key
     {"choices": [{"message": None}]},               # choice present, null message object
-    {"choices": [{"message": {"content": [{"type": "text", "text": "x"}]}}]},  # structured content parts
 ])
 async def test_contextualize_degrades_to_empty_string(monkeypatch, resp):
     # the blurb reply is parsed with the same guard-and-degrade idiom as
     # answer_from_context: a malformed/empty gateway reply must yield "" — never
     # None, never an AttributeError at .strip(). Drop the guards and ingest.py's
     # f"{blurb}\n\n{text}" either embeds the literal "None" or crashes the whole
-    # corpus run, with no test failing. So pin the degrade explicitly. Unlike
-    # pipeline.answer_from_context, contextualize has no downstream build_response
-    # coercion — a non-string content (e.g. structured content-part list) must be
-    # caught here or ingest.contextual aborts the whole batch on one malformed reply.
+    # corpus run, with no test failing. So pin the degrade explicitly.
     async def fake_chat(model, messages, **kw): return resp
     monkeypatch.setattr(contextual.litellm, "chat", fake_chat)
     monkeypatch.setattr(contextual.config, "role", lambda r: "stub-blurb-model")
     assert await contextual.contextualize("doc", "chunk") == ""
+
+
+@pytest.mark.asyncio
+async def test_contextualize_logs_and_degrades_on_non_string_content(monkeypatch, caplog):
+    # Unlike pipeline.answer_from_context, contextualize has no downstream
+    # build_response coercion warning — a non-string content (e.g. a structured
+    # content-part list) must be caught and logged here, or a malformed reply
+    # silently drops a chunk's blurb with zero diagnostic trail during
+    # `python -m ingest.contextual`.
+    resp = {"choices": [{"message": {"content": [{"type": "text", "text": "x"}]}}]}
+    async def fake_chat(model, messages, **kw): return resp
+    monkeypatch.setattr(contextual.litellm, "chat", fake_chat)
+    monkeypatch.setattr(contextual.config, "role", lambda r: "stub-blurb-model")
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        out = await contextual.contextualize("doc", "chunk")
+    assert out == ""
+    assert "non-string" in caplog.text
 
 
 @pytest.mark.asyncio

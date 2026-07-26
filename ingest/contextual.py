@@ -3,11 +3,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
 from collections import defaultdict
 from pathlib import Path
 
 from rag.common import litellm, vectors
 from rag.common.contextual import contextualize
+
+_log = logging.getLogger(__name__)
 
 
 def _document_text(
@@ -21,8 +24,15 @@ def _document_text(
         if path.suffix.lower() in {".txt", ".md"}:
             try:
                 return path.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                pass
+            except OSError as exc:
+                # The chunk-join fallback below is lower quality (chunk
+                # boundaries stitched with "\n\n" can differ from the source
+                # text) and feeds directly into contextualize()'s blurb prompt
+                # — log so a transient read failure during ingest is
+                # diagnosable, not silently degraded.
+                _log.warning(
+                    "failed to read source document %s for %r; falling back "
+                    "to chunk reconstruction: %s", path, source, exc)
     return "\n\n".join(chunk.text for chunk in chunks)
 
 

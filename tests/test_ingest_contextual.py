@@ -39,7 +39,7 @@ def test_document_text_falls_back_when_source_escapes_corpus_root(tmp_path: Path
     assert ic._document_text(corpus_root, "../outside.md", chunks) == "safe chunk"
 
 
-def test_document_text_falls_back_on_read_failure(tmp_path: Path, monkeypatch) -> None:
+def test_document_text_falls_back_on_read_failure(tmp_path: Path, monkeypatch, caplog) -> None:
     doc = tmp_path / "doc.md"
     doc.write_text("body", encoding="utf-8")
     chunks = [IngestedChunk(source="doc.md", text="chunk fallback", index=0)]
@@ -48,7 +48,12 @@ def test_document_text_falls_back_on_read_failure(tmp_path: Path, monkeypatch) -
         raise OSError("simulated disk read failure")
 
     monkeypatch.setattr(Path, "read_text", raising_read_text)
-    assert ic._document_text(tmp_path, "doc.md", chunks) == "chunk fallback"
+    with caplog.at_level("WARNING", logger="ingest.contextual"):
+        result = ic._document_text(tmp_path, "doc.md", chunks)
+    assert result == "chunk fallback"
+    # Must log — the chunk-join fallback is lower quality than the raw source
+    # text, so a transient read failure needs a diagnostic trail, not silence.
+    assert "doc.md" in caplog.text
 
 
 @pytest.mark.asyncio

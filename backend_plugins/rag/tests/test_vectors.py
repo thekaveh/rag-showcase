@@ -67,13 +67,17 @@ async def test_rerank_empty_hits_short_circuits():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_rerank_falls_back_on_non_list_response(monkeypatch):
+async def test_rerank_falls_back_on_non_list_response(monkeypatch, caplog):
     monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
     hits = [Hit("A", "a", 0.1), Hit("B", "b", 0.2)]
     respx.post("http://tei-reranker:80/rerank").mock(
         return_value=httpx.Response(200, json={"detail": "unexpected"}))
-    out = await rerank("q", hits, top_n=1)
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        out = await rerank("q", hits, top_n=1)
     assert out == hits[:1]  # unexpected shape -> input order, no TypeError
+    # must log — same undebuggable-silent-degrade concern as the exception
+    # branch right above this one in rerank().
+    assert "unexpected shape" in caplog.text
 
 
 @pytest.mark.asyncio

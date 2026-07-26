@@ -7,6 +7,7 @@ metadata as retrieval evidence.
 """
 from __future__ import annotations
 
+import logging
 import os
 import time
 
@@ -16,6 +17,7 @@ from fastapi import APIRouter
 from ..common.openai_io import ChatRequest, Source, Metrics, resolve_flavor, respond
 
 router = APIRouter()
+_log = logging.getLogger("uvicorn.error")
 # 240s read budget: the workflow's own two HTTP nodes run sequentially and can take
 # up to Classify(60s) + Call Approach(175s) ≈ 235s before n8n returns its shaped
 # response (or fallback). The wrapper must wait at least that long — a shorter outer
@@ -41,14 +43,21 @@ async def n8n_adaptive_rag(req: ChatRequest):
             # A 200 with a non-JSON body (e.g. a misconfigured "Respond to Webhook"
             # node, or an HTML page from a proxy in front of n8n) degrades to the
             # same route="unknown" shape as every other malformed-body case below,
-            # instead of a raw JSONDecodeError.
+            # instead of a raw JSONDecodeError. Log it — an "unknown" route is
+            # indistinguishable from a workflow that legitimately never classified,
+            # so without a log line the two failure modes can't be told apart.
+            _log.warning("n8n webhook returned a non-JSON 200 body")
             data = {}
     # the n8n workflow is operator-built; its Respond-to-Webhook node may return a
     # single object or a list of items ("All Incoming Items") — normalize to a
     # dict so .get() is safe instead of raising AttributeError on a list/scalar.
     if isinstance(data, list):
-        data = next((d for d in data if isinstance(d, dict)), {})
+        normalized = next((d for d in data if isinstance(d, dict)), None)
+        if normalized is None:
+            _log.warning("n8n webhook returned a list with no dict item")
+        data = normalized or {}
     elif not isinstance(data, dict):
+        _log.warning("n8n webhook returned a non-object 200 body (%s)", type(data).__name__)
         data = {}
     extension = data.get("rag_showcase")
     if not isinstance(extension, dict) or extension.get("schema_version") != 1:
