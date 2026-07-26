@@ -65,7 +65,7 @@ releases yet; this section tracks the unreleased work toward `0.1.0`.
 - LiteLLM and n8n-adapter response parsing now guard malformed/non-JSON
   response bodies instead of raising or silently miscoercing metrics.
 - Evaluation runs no longer abort the entire matrix on a single `None`
-  judge completion.
+  completion from the approach under test (a gateway 200 with a null body).
 - Reranker/evaluator scores of `True`/`False` (a Python `bool`, an `int`
   subclass) are no longer coerced to `1.0`/`0.0`; they are treated as an
   absent score, matching the intended numeric-score contract.
@@ -81,5 +81,16 @@ releases yet; this section tracks the unreleased work toward `0.1.0`.
 - The four corpus adapter CLIs (`stark_export.py`, `gdelt_events.py`,
   `openalex_scholarly.py`, `cyber_threat_intel.py`) now reject a
   non-positive `--limit` instead of silently exporting the wrong slice.
-- `eval-check` correctly detects a present-but-empty env value instead of
-  treating it as set.
+- `eval_preflight.envval()` now checks `is_file()` instead of `exists()`, so
+  a directory auto-created at a bind-mount target before `infra/.env`
+  materializes degrades to a missing value instead of crashing with
+  `IsADirectoryError`.
+- LightRAG's query-profile cache was gated on dict truthiness
+  (`if _PROFILE_CACHE:`), so a valid-but-empty profiles file made the cache
+  permanently falsy and every graph-rag/agentic-rag request re-read and
+  re-parsed the profiles file synchronously instead of caching it once.
+- `compare/leaderboards.py` hardcoded `base_family == "lazy-graph-rag"` to
+  flag an approach experimental instead of checking the shared
+  `EXPERIMENTAL_APPROACHES` set that `run_matrix.py` already used; a second
+  experimental approach would have been silently mislabeled canonical in
+  the published leaderboard.
