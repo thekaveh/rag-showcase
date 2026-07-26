@@ -134,7 +134,7 @@ Atlas should add a focused integration test or smoke script that:
 
 The most reliable assertion is request-level observation through LiteLLM logs, an Ollama proxy, or a mocked OpenAI-compatible endpoint that records the requested `model` field.
 
-## 7. Rag-Showcase Configuration
+## 7. RAG Showcase Configuration
 
 Rag-showcase now declares Atlas's public inputs in `config/atlas.env.user`, which
 `atlas.consumer.yml` imports through its `env.file` declaration:
