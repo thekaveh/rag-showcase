@@ -119,6 +119,10 @@ def test_render_all_regenerates_a_missing_nested_approach_png(tmp_path, monkeypa
     written: list[Path] = []
 
     def _fake_svg_to_png(svg_path: Path, png_path: Path) -> None:
+        # png_path is the unique temp path _render_fallback_png renders into
+        # (then atomically publishes to the real target via os.replace), not
+        # the final target itself — assert against target_png's own content
+        # below, not against this callback's argument.
         written.append(png_path)
         png_path.parent.mkdir(parents=True, exist_ok=True)
         png_path.write_bytes(b"fake-png")
@@ -136,12 +140,22 @@ def test_render_all_regenerates_a_missing_nested_approach_png(tmp_path, monkeypa
     monkeypatch.setattr(render_diagrams, "DOCS", tmp_docs)
     render_diagrams.render_all()
 
-    assert target_png in written, "missing nested-approach PNG was never regenerated"
+    assert len(written) == 1, "missing nested-approach PNG was never regenerated"
+    # svg_to_png must render into a temp path distinct from the final target
+    # and then get atomically published via os.replace — not write straight
+    # into the shared final path, which two concurrent local `build()`
+    # invocations could otherwise interleave/truncate.
+    assert written[0] != target_png, (
+        "svg_to_png wrote directly to the shared final path instead of a "
+        "temp path meant to be published atomically")
     assert target_png.is_file()
+    assert target_png.read_bytes() == b"fake-png"
+    # The atomic-publish temp file must not survive the call.
+    leftover = list(target_png.parent.glob(".tmp-*"))
+    assert leftover == [], f"temp PNG not cleaned up: {leftover}"
     # The untouched sibling approach must survive byte-for-byte: the fallback
     # must only fill in what's missing, never overwrite an existing PNG.
     assert other_png.read_bytes() == other_bytes_before
-    assert other_png not in written
 
 
 def test_local_link_checker_rejects_missing_target(tmp_path) -> None:

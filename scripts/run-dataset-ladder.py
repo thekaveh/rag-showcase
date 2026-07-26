@@ -63,8 +63,8 @@ def parse_args() -> argparse.Namespace:
         "--approaches",
         default="",
         help="Comma-separated approach or flavor alias list (sets MATRIX_MODELS). "
-             "Defaults to the canonical six approaches; --include-flavor-tier "
-             "adds the experimental lazy-graph family.",
+             "Defaults to the canonical six approaches; mutually exclusive with "
+             "--include-flavor-tier (see that flag for its own, broader scope).",
     )
     parser.add_argument(
         "--flavors",

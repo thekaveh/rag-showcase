@@ -48,10 +48,24 @@ def _render_fallback_png(svg: str, png: Path) -> None:
     os.close(fd)
     tmp_svg = Path(tmp_name)
     tmp_svg.write_text(svg, encoding="utf-8")
+    # Render into a unique temp PNG (same directory as the final target, so the
+    # publish below is same-filesystem) and atomically publish via os.replace.
+    # cairosvg performs multiple internal writes; two concurrent local `build()`
+    # invocations both passing the `if png.exists()` check above and rendering
+    # straight into the shared final path could otherwise interleave/truncate
+    # each other's output — the same class of race pass-28 already fixed for
+    # the scratch SVG input above, just not yet closed for this output.
+    png.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_png_name = tempfile.mkstemp(
+        suffix=".png", dir=png.parent, prefix=f".tmp-{png.stem}-")
+    os.close(fd)
+    tmp_png = Path(tmp_png_name)
     try:
-        svg_to_png(tmp_svg, png)
+        svg_to_png(tmp_svg, tmp_png)
+        os.replace(tmp_png, png)
     finally:
         tmp_svg.unlink(missing_ok=True)
+        tmp_png.unlink(missing_ok=True)
 
 
 def render_all(site_dir: Path | None = None, wiki_dir: Path | None = None) -> None:
