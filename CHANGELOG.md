@@ -87,8 +87,9 @@ releases yet; this section tracks the unreleased work toward `0.1.0`.
   `IsADirectoryError`.
 - LightRAG's query-profile cache was gated on dict truthiness
   (`if _PROFILE_CACHE:`), so a valid-but-empty profiles file made the cache
-  permanently falsy and every graph-rag/agentic-rag request re-read and
-  re-parsed the profiles file synchronously instead of caching it once.
+  permanently falsy and every graph-rag request (the only caller that passes
+  `profile=` to `lightrag.query()`) re-read and re-parsed the profiles file
+  synchronously instead of caching it once.
 - `compare/leaderboards.py` hardcoded `base_family == "lazy-graph-rag"` to
   flag an approach experimental instead of checking the shared
   `EXPERIMENTAL_APPROACHES` set that `run_matrix.py` already used; a second

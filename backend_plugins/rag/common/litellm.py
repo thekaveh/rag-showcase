@@ -1,6 +1,7 @@
 """Thin async client for the LiteLLM gateway (OpenAI-compatible)."""
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import httpx
@@ -8,6 +9,7 @@ import httpx
 from . import config
 
 _TIMEOUT = httpx.Timeout(120.0, connect=10.0)
+_log = logging.getLogger("uvicorn.error")
 
 
 def _headers() -> dict[str, str]:
@@ -66,6 +68,17 @@ async def chat(model: str, messages: list[dict[str, Any]],
             # A 200 with a non-JSON body (upstream Ollama/proxy blip) degrades to an
             # empty dict; both callers already do `resp.get("choices") or []`, which
             # turns this into the same empty-answer path as a response with no
-            # choices, instead of an uncaught JSONDecodeError.
+            # choices, instead of an uncaught JSONDecodeError. Log it — an empty
+            # `""` answer content is a legitimately-typed str, so it never trips
+            # build_response's non-string-answer warning; without a log line here
+            # the symptom (bare answer, no text) is otherwise undebuggable.
+            _log.warning(
+                "litellm chat: gateway returned a non-JSON 200 body for model %r",
+                model)
             return {}
-        return body if isinstance(body, dict) else {}
+        if not isinstance(body, dict):
+            _log.warning(
+                "litellm chat: gateway returned a non-object 200 body for model %r",
+                model)
+            return {}
+        return body

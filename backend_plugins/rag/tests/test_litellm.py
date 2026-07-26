@@ -146,14 +146,37 @@ async def test_embed_raises_clear_error_on_malformed_row(monkeypatch):
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_chat_degrades_to_empty_dict_on_non_json_200(monkeypatch):
+async def test_chat_degrades_to_empty_dict_on_non_json_200(monkeypatch, caplog):
     # a 200 with a non-JSON body must degrade to {} so callers' existing
     # `resp.get("choices") or []` fallback kicks in, instead of raising
-    # JSONDecodeError and 500ing every text-generating approach.
+    # JSONDecodeError and 500ing every text-generating approach. It must also
+    # log a warning: the degraded content ends up as a legitimately-typed but
+    # empty "" answer, which never trips build_response's non-string-answer
+    # warning, so this is the only diagnostic trail for the symptom.
     monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
     monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
     respx.post("http://litellm:4000/v1/chat/completions").mock(
         return_value=httpx.Response(200, content=b"<html>bad gateway</html>",
                                      headers={"content-type": "text/html"}))
-    out = await litellm.chat("m", [{"role": "user", "content": "q"}])
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        out = await litellm.chat("m", [{"role": "user", "content": "q"}])
     assert out == {}
+    assert "non-JSON" in caplog.text
+    assert "'m'" in caplog.text
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_chat_degrades_to_empty_dict_on_non_dict_200(monkeypatch, caplog):
+    # a 200 with valid JSON that isn't an object (e.g. a bare list) must also
+    # degrade to {} rather than crash callers doing resp.get(...), and log a
+    # warning for the same undebuggable-empty-answer reason as the non-JSON case.
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://litellm:4000")
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
+    respx.post("http://litellm:4000/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=["unexpected", "list", "body"]))
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        out = await litellm.chat("m", [{"role": "user", "content": "q"}])
+    assert out == {}
+    assert "non-object" in caplog.text
+    assert "'m'" in caplog.text
