@@ -145,6 +145,35 @@ async def test_rerank_rejects_bool_score(monkeypatch):
     assert out[0].score is None
 
 
+@pytest.mark.asyncio
+@respx.mock
+async def test_rerank_keeps_earlier_scored_batches_when_a_later_batch_fails(monkeypatch):
+    # A later batch's HTTP failure used to `return hits[:top_n]` outright,
+    # discarding every hit an earlier, successful batch had already scored.
+    # The degrade contract is per-batch: only the failing batch (and anything
+    # not yet attempted) should drop to unranked order; already-scored work
+    # from earlier batches must still come out on top.
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    monkeypatch.setenv("TEI_RERANKER_MAX_BATCH", "2")
+    hits = [Hit("A", "a", 0.0), Hit("B", "b", 0.0), Hit("C", "c", 0.0), Hit("D", "d", 0.0)]
+    respx.post("http://tei-reranker:80/rerank").mock(
+        side_effect=[
+            httpx.Response(200, json=[{"index": 1, "score": 0.9}, {"index": 0, "score": 0.1}]),
+            httpx.Response(503, text="upstream down"),
+        ])
+
+    out = await rerank("q", hits, top_n=4)
+
+    # B/A came back scored from the first (successful) batch and must lead;
+    # C/D (the failing second batch) degrade to their original relative order
+    # and fill the remaining slots rather than vanishing.
+    assert [h.title for h in out] == ["B", "A", "C", "D"]
+    assert out[0].score == 0.9
+    assert out[1].score == 0.1
+    assert out[2].score == 0.0  # unranked fallback, original pre-rerank score kept
+    assert out[3].score == 0.0
+
+
 class _FakeBatchCtx:
     """Stand-in for the `coll.batch.dynamic()` context manager."""
     def __init__(self, parent):

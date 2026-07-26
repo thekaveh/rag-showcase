@@ -225,6 +225,12 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
             os.environ.get("TEI_RERANKER_MAX_BATCH"))
         max_batch = 32
     ordered: list[Hit] = []
+    # Batches that fail (or that a batch failure leaves untried) land here in
+    # their original pre-rerank order instead of `ordered`, so a later sort by
+    # TEI score never reshuffles them by some unrelated pre-existing score
+    # field — they keep the input's relative order, same as the whole-request
+    # degrade path below.
+    remainder: list[Hit] = []
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         for start in range(0, len(hits), max_batch):
             batch = hits[start:start + max_batch]
@@ -237,16 +243,23 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
                 ranking = resp.json()
             except (httpx.HTTPError, ValueError) as exc:
                 # A flaky/down reranker — or a 200 with a non-JSON body (HTML error
-                # page from a sidecar, JSONDecodeError is a ValueError) — degrades to
-                # the pre-rerank candidate order instead of 500-ing the request; the
-                # candidates are already usable (the rerank=False branch returns them
-                # directly), matching this function's degrade-on-bad-shape philosophy.
+                # page from a sidecar, JSONDecodeError is a ValueError) — degrades this
+                # batch (and any batches not yet attempted) to unranked order instead of
+                # 500-ing the request. Append to `remainder` rather than returning: an
+                # earlier batch in this same call may have already scored successfully,
+                # and a return here would discard that ranked work along with the
+                # failing batch's.
                 logging.getLogger("uvicorn.error").warning(
-                    "TEI rerank failed (%s); returning %d unranked candidate(s)",
-                    type(exc).__name__, len(hits))
-                return hits[:top_n]
+                    "TEI rerank failed (%s) on batch starting at index %d; "
+                    "leaving %d of %d candidate(s) unranked",
+                    type(exc).__name__, start, len(hits) - start, len(hits))
+                remainder.extend(hits[start:])
+                break
             if not isinstance(ranking, list):
-                return hits[:top_n]  # unexpected reranker shape — fall back to input order
+                # unexpected reranker shape for this batch — same append-and-stop
+                # treatment as the exception path above.
+                remainder.extend(hits[start:])
+                break
             for row in ranking:
                 if not isinstance(row, dict):
                     continue  # ignore non-object rows from a misbehaving reranker
@@ -268,4 +281,4 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
     if not ordered:
         return hits[:top_n]
     ordered.sort(key=lambda h: h.score if h.score is not None else 0.0, reverse=True)
-    return ordered[:top_n]
+    return (ordered + remainder)[:top_n]
