@@ -63,6 +63,9 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+# Accepted complexity (overnight §3.30): one validation branch per profile-
+# registry integrity concern (file readable, version tag, list shape, per-row
+# name, duplicate names) — a load-time fail-fast gate, not an algorithm.
 def _load_profiles() -> dict[str, dict[str, Any]]:
     global _PROFILES_LOADED
     if _PROFILES_LOADED:

@@ -414,6 +414,10 @@ def _validate_judge_summary(
         raise ValueError("judge mean does not match judgment scores")
 
 
+# Accepted complexity (overnight §3.30): builds one dataset's leaderboard
+# records from several independently-optional evidence sources (evaluation
+# summary, judgments, per-approach coverage) — same fan-out-over-metric-
+# families shape as _judge_details/_overall_records above.
 def _records_for_dataset(
     dataset: dict[str, Any],
     evaluation: dict[str, Any],

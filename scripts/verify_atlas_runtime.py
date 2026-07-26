@@ -131,6 +131,10 @@ def docker_snapshot(project: str) -> dict[str, dict[str, Any]]:
     return snapshot
 
 
+# Accepted complexity (overnight §3.30): classifies every long-lived and
+# one-shot service into pending/failed/converged from its raw docker state —
+# one branch per Status/Health combination, a state-machine classifier, not
+# accidental complexity.
 def evaluate(
     snapshot: dict[str, dict[str, Any]], llm_source: str
 ) -> tuple[list[str], list[str]]:

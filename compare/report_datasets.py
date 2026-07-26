@@ -393,6 +393,10 @@ def _interpretation_section(
     return lines
 
 
+# Accepted complexity (overnight §3.30): the remaining complexity after this
+# function's own pass-50 extraction (CC 62 -> 16) is loading each optional
+# snapshot kind once and threading it into the section helpers below — one
+# branch per optional snapshot, not an algorithm worth splitting further.
 def build_report() -> str:
     datasets = _load_manifest()
     # Load each measured judgments snapshot exactly once; every downstream section

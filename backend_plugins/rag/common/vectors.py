@@ -213,6 +213,10 @@ def read_chunks(collection: str) -> list[Hit]:
         client.close()
 
 
+# Accepted complexity (overnight §3.30): batches the TEI call, then degrades
+# each batch's failure/malformed-shape/out-of-range-index case independently
+# (see the pass-47/pass-53 fixes) so a later batch's failure never discards an
+# earlier batch's successfully-scored work — each guard is load-bearing.
 async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
     if not hits:
         return []

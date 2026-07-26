@@ -323,6 +323,10 @@ def _backend_running(container: str) -> bool:
     return proc.returncode == 0 and proc.stdout.strip() == "true"
 
 
+# Accepted complexity (overnight §3.30): gates each declared service's probe
+# behind its own docker/backend-availability precondition, so a down
+# dependency reports "unavailable" for exactly the services it blocks rather
+# than aborting the whole preflight — each guard is a distinct degrade path.
 def run_live_probes(
     project: str,
     expected_aliases: list[str],

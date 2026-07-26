@@ -245,6 +245,10 @@ def _runtime_file(path: Path, *, kind: str) -> dict[str, Any]:
     }
 
 
+# Accepted complexity (overnight §3.30): resolves run-provenance fields
+# (judge models/endpoint/temperature, config hashes, ingestion metadata) from
+# several independently-optional config/env sources — each branch is a
+# distinct precedence rule feeding the committed provenance record.
 def _runtime_provenance(manifest=None) -> dict[str, Any]:
     manifest = manifest or load_manifest(evaluation_manifest_file())
     panel = manifest.metrics.judge_panel

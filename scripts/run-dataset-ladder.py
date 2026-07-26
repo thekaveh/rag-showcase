@@ -505,6 +505,10 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+# Accepted complexity (overnight §3.30): orchestrates the matrix-then-judge
+# subprocess pipeline for one dataset — snapshot naming, subprocess dispatch,
+# and output-file validation are each a distinct step in a linear pipeline,
+# not accidental branching.
 def run_matrix_and_judge(
     dataset: dict[str, Any],
     ingestion: dict[str, Any],
@@ -734,6 +738,10 @@ def flavor_tier_models() -> list[str]:
     return [profile.alias for profile in profiles.values() if profile.alias not in bases]
 
 
+# Accepted complexity (overnight §3.30): CLI entrypoint orchestrating
+# arg-parsing, mutual-exclusion validation, and dispatch across the ladder
+# run — the branchiness is inherent to a top-level `main()` wiring together
+# options, not a single reusable algorithm worth extracting on its own.
 def main() -> None:
     args = parse_args()
     if args.approaches and args.flavors:

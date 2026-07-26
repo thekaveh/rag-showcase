@@ -230,6 +230,29 @@ flavors:
     assert flavors.get("hybrid-rag-str").params["retrieve_k"] == 40
 
 
+def test_bool_numeric_param_fails_at_load(tmp_path, monkeypatch):
+    # bool is an int subclass — int(True)==1/float(False)==0.0 would silently
+    # pass both the cast and the range check (0.0/1.0 are legitimate alpha
+    # values), turning a manifest typo like `retrieve_k: true` into a
+    # wrong-but-valid-looking parameter instead of the load-time ValueError
+    # this loader promises. Mirrors compare/flavors.py's own drift-guard test.
+    f = tmp_path / "flavors.yaml"
+    f.write_text(
+        """
+flavors:
+  - alias: hybrid-rag-bool
+    base: hybrid-rag
+    params:
+      retrieve_k: true
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("RAG_FLAVORS_FILE", str(f))
+    flavors._CACHE.clear()
+    with pytest.raises(ValueError, match="retrieve_k"):
+        flavors.get("hybrid-rag-bool")
+
+
 @pytest.mark.parametrize("alpha", [1.5, -0.1])
 def test_alpha_out_of_range_fails_at_load(tmp_path, monkeypatch, alpha):
     # alpha passes the float() type gate but is meaningless outside [0, 1] —

@@ -312,6 +312,9 @@ def _scope_summary(
     }
 
 
+# Accepted complexity (overnight §3.30): the top-level summary builder fans
+# out into per-dataset/per-scope aggregation, mirroring the fan-out shape of
+# _scope_summary/_judge_scores above — not accidental branching.
 def build_summary(
     rows: list[dict[str, Any]], judgments: dict[str, Any] | None = None
 ) -> dict[str, Any]:

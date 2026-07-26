@@ -232,6 +232,10 @@ def _rendered_evidence(content: str) -> dict[str, Any]:
     }
 
 
+# Accepted complexity (overnight §3.30): normalizes a completion through two
+# possible evidence shapes (rendered markdown vs. the structured rag_showcase
+# extension) with a guard per malformed-field case — each guard prevents one
+# specific way an approach's response can silently corrupt evaluation evidence.
 def completion_evidence(payload: dict[str, Any]) -> dict[str, Any]:
     """Normalize one OpenAI-compatible completion into the evidence contract.
 
@@ -736,6 +740,12 @@ def _run_cell(
     }
 
 
+# Accepted complexity (overnight §3.30): the top-level evaluation-matrix
+# orchestrator — resolves the run's serial-vs-concurrent execution mode,
+# wires the claim-based resume path, and fans work out to _run_cell. The
+# branchiness is inherent to coordinating those concerns in one entry point,
+# not accidental; a param-object extraction was considered (11 params) but
+# would just move the same branching into a builder without reducing it.
 def run_evaluation(
     *,
     manifest: EvaluationManifest,

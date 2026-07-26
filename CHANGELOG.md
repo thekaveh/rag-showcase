@@ -95,3 +95,15 @@ releases yet; this section tracks the unreleased work toward `0.1.0`.
   `EXPERIMENTAL_APPROACHES` set that `run_matrix.py` already used; a second
   experimental approach would have been silently mislabeled canonical in
   the published leaderboard.
+- `verify_atlas_runtime.py`'s startup convergence poll no longer crashes on a
+  transient `docker ps` daemon error; it now retries on the next poll,
+  matching the tolerance its sibling `docker inspect` call already had.
+- `eval_preflight.py`'s docker probes (`run_live_probes`, `_backend_running`)
+  no longer crash the whole `make eval-check` preflight when the `docker`
+  CLI is missing from `PATH`; they degrade to "docker unavailable" like the
+  already-handled timeout case.
+- `compare/flavors.py` and `backend_plugins/rag/common/flavors.py` now
+  reject a bare `true`/`false` for a numeric flavor param (`retrieve_k`,
+  `alpha`, etc.) instead of silently coercing it via `bool`'s `int`
+  subclass behavior (`retrieve_k: true` → `1`), raising the load-time
+  `ValueError` the loader's docstring promises.

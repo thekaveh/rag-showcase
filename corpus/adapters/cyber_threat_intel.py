@@ -51,6 +51,9 @@ def _display(obj_id: str, objects_by_id: dict[str, dict]) -> str:
     return name or obj_id
 
 
+# Accepted complexity (overnight §3.30): one rendering branch per STIX object
+# field/relationship kind — naturally branchy per-field markdown writer,
+# mirrors the accepted openalex_scholarly._write_work shape.
 def _write_object(
     out: Path,
     idx: int,
