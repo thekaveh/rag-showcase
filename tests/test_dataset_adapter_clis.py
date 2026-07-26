@@ -67,6 +67,96 @@ def test_cyber_adapter_writes_named_relationships(tmp_path) -> None:
     assert "attack-pattern--spearphishing" not in text
 
 
+def test_openalex_write_work_renders_authors_concepts_and_abstract(tmp_path) -> None:
+    work = {
+        "title": "A Study of Widgets",
+        "authorships": [
+            {"author": {"display_name": "A. Researcher"},
+             "institutions": [{"display_name": "Widget University"}]},
+        ],
+        "topics": [{"display_name": "Widget Engineering"}],
+        # keys deliberately out of position order, to prove the abstract is
+        # reconstructed by each word's inverted-index POSITION, not dict/insertion
+        # order — OpenAlex's inverted index has no guaranteed key ordering.
+        "abstract_inverted_index": {"useful": [2], "Widgets": [0], "are": [1]},
+        "referenced_works": ["https://openalex.org/W1"],
+        "primary_location": {"source": {"display_name": "Journal of Widgets"}},
+        "doi": "https://doi.org/10.1/widget",
+    }
+
+    openalex_scholarly._write_work(tmp_path, 1, work)
+
+    text = next(tmp_path.glob("*.md")).read_text(encoding="utf-8")
+    assert "# A Study of Widgets" in text
+    assert "Authors: A. Researcher" in text
+    assert "Concepts: Widget Engineering" in text
+    assert "Abstract:\nWidgets are useful" in text  # inverted index reconstructed in position order
+    assert "A Study of Widgets -> authored_by -> A. Researcher" in text
+    assert "A Study of Widgets -> affiliated_with -> Widget University" in text
+    assert "A Study of Widgets -> has_concept -> Widget Engineering" in text
+    assert "A Study of Widgets -> cites -> https://openalex.org/W1" in text
+
+
+def test_openalex_write_work_degrades_on_missing_optional_fields(tmp_path) -> None:
+    openalex_scholarly._write_work(tmp_path, 1, {"id": "https://openalex.org/W2"})
+
+    text = next(tmp_path.glob("*.md")).read_text(encoding="utf-8")
+    assert "# https://openalex.org/W2" in text  # title falls back to id
+    assert "Authors: unknown" in text
+    assert "Concepts: unknown" in text
+    assert "(no abstract in OpenAlex record)" in text
+
+
+def test_gdelt_write_article_renders_metadata_and_query(tmp_path) -> None:
+    article = {
+        "title": "Widget Factory Opens",
+        "url": "https://news.example/widgets",
+        "domain": "news.example",
+        "seendate": "20260101T000000Z",
+        "sourcecountry": "United States",
+        "language": "English",
+    }
+
+    gdelt_events._write_article(tmp_path, 1, article, "widget factory")
+
+    text = next(tmp_path.glob("*.md")).read_text(encoding="utf-8")
+    assert "# Widget Factory Opens" in text
+    assert "Dataset query: widget factory" in text
+    assert "Widget Factory Opens -> source_domain -> news.example" in text
+    assert "Widget Factory Opens -> matched_query -> widget factory" in text
+    assert "Record link: https://news.example/widgets" in text
+
+
+def test_gdelt_write_article_falls_back_to_url_title_and_none_link(tmp_path) -> None:
+    gdelt_events._write_article(tmp_path, 1, {}, "widget factory")
+
+    text = next(tmp_path.glob("*.md")).read_text(encoding="utf-8")
+    assert "# GDELT article 1" in text
+    assert "Record link: (none)" in text
+
+
+def test_stark_node_text_prefers_known_fields_over_raw_json() -> None:
+    node = {"title": "Widget", "description": "A small widget.", "irrelevant": "noise"}
+    assert stark_export._node_text(node) == "title: Widget\ndescription: A small widget."
+
+
+def test_stark_node_text_falls_back_to_json_dump_for_unknown_shape() -> None:
+    assert stark_export._node_text("plain string node") == "plain string node"
+    node = {"unmapped_field": "value"}
+    assert '"unmapped_field": "value"' in stark_export._node_text(node)
+
+
+def test_stark_write_doc_renders_dataset_and_node_id(tmp_path) -> None:
+    stark_export._write_doc(tmp_path, 1, "prime", "node-42", {"name": "Widget Node"})
+
+    text = next(tmp_path.glob("*.md")).read_text(encoding="utf-8")
+    assert "# prime:node-42" in text
+    assert "Dataset: prime" in text
+    assert "Node ID: node-42" in text
+    assert "name: Widget Node" in text
+    assert "prime:node-42 -> appears_in -> STaRK-prime" in text
+
+
 def test_adapter_slugs_normalize_identically() -> None:
     # _slug is deliberately quadruplicated (the adapters are standalone dual-mode
     # scripts); this drift guard keeps the four normalizations byte-identical for

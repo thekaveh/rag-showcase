@@ -322,3 +322,34 @@ def test_summarize_cli_help_runs_from_repo_root() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "--csv-output" in result.stdout
+
+
+def test_summarize_cli_writes_json_and_csv_outputs(tmp_path) -> None:
+    # main()'s own argument parsing and the args.csv_output branch were only
+    # ever exercised via --help; the underlying write_summary/write_summary_csv
+    # functions are well tested directly, but the CLI wiring that dispatches to
+    # them (in particular whether --csv-output is actually threaded through)
+    # was not.
+    root = Path(__file__).parents[1]
+    rows_path = tmp_path / "rows.jsonl"
+    rows_path.write_text(
+        json.dumps(_row("easy", 1, "q1", "a", latency=100, faithfulness=0.8)) + "\n",
+        encoding="utf-8",
+    )
+    output = tmp_path / "summary.json"
+    csv_output = tmp_path / "summary.csv"
+
+    result = subprocess.run(
+        [sys.executable, "compare/summarize.py",
+         "--rows", str(rows_path), "--output", str(output),
+         "--csv-output", str(csv_output)],
+        cwd=root, capture_output=True, text=True, check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert f"wrote {output}" in result.stdout
+    assert f"wrote {csv_output}" in result.stdout
+    assert output.is_file()
+    assert csv_output.is_file()
+    summary = json.loads(output.read_text(encoding="utf-8"))
+    assert "easy" in summary["datasets"]

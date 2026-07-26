@@ -31,6 +31,19 @@ def test_manifest_h1s_match_numbered_titles() -> None:
         assert first_h1((DOCS / page.source).read_text(encoding="utf-8")) == page.nav_label
 
 
+def test_first_h1_skips_hash_lines_inside_code_fences() -> None:
+    # No committed doc page happens to have a "# " line inside a code fence
+    # before its real title, so the in_fence tracking guard was previously
+    # unverified — a fenced example command/comment starting with "# " must
+    # not be mistaken for the page's H1.
+    text = "```\n# not a title\n```\n\n# Real Title\n\nbody\n"
+    assert first_h1(text) == "Real Title"
+
+
+def test_first_h1_returns_none_when_absent() -> None:
+    assert first_h1("no heading here, just prose\n") is None
+
+
 def test_generated_surfaces_have_no_self_surface_links(tmp_path) -> None:
     manifest = load_manifest()
     pages = iter_pages(manifest)
