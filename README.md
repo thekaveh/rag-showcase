@@ -271,6 +271,8 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | `LIGHTRAG_KEYWORD_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG KEYWORD-role Ollama context cap | overlay |
 | `LIGHTRAG_QUERY_OLLAMA_LLM_NUM_CTX` | `8192` | LightRAG QUERY-role Ollama context cap | overlay |
 | `RAG_SHOWCASE_SKIP_DEFAULT_INGEST` | `0` | `start-all.sh` (skips corpus assembly + the default Atlas ingestion job; the dataset ladder sets it automatically) | host env |
+| `RAG_SHOWCASE_PROJECT_NAME` | `rag-showcase` | `start-all.sh`, `stop-all.sh`, `eval_preflight.py --project` (Atlas Compose project identity) | host env |
+| `RAG_SHOWCASE_BASE_PORT` | Atlas-resolved `BASE_PORT: auto` block | `start-all.sh` (pins a specific port block instead of the auto-resolved one) | host env |
 
 ## 7. Documentation Index
 

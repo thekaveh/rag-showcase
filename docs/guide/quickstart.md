@@ -34,8 +34,9 @@ This single script:
 1. Starts Atlas with durable `BASE_PORT: auto` in the manifest, so Atlas resolves a
    completely free 110-port block below the OS dynamic/private range once and keeps
    it stable across restarts (persisted to `infra/.env`).
-   The project name is `rag-showcase`. Set `RAG_SHOWCASE_BASE_PORT` to pin a
-   specific block; Atlas rejects it if any port is occupied.
+   The project name is `rag-showcase` (override with `RAG_SHOWCASE_PROJECT_NAME`).
+   Set `RAG_SHOWCASE_BASE_PORT` to pin a specific block; Atlas rejects it if any
+   port is occupied.
 2. Selects `atlas.consumer.yml` and runs Atlas's native headless env backfill,
    manifest-aware Compose validation, and consumer doctor. The manifest declares
    project/brand metadata, the env

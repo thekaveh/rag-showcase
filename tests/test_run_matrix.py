@@ -84,6 +84,64 @@ def test_runtime_provenance_binds_repo_atlas_provider_and_generated_registries(
     assert "graph-rag-rerank" in runtime["runtime_files"]["lightrag_query_profiles"]["entries"]
 
 
+def test_legacy_cell_converts_latency_ms_to_seconds() -> None:
+    # latency_ms is a harness-measured millisecond duration; the legacy cell
+    # exposes it as latency_s (seconds, 1 decimal) for older report consumers.
+    # A wrong divisor here silently corrupts every displayed latency by a
+    # constant factor with no test catching it.
+    row = {
+        "question": {"id": "q1"},
+        "approach": {
+            "model": "vanilla-rag", "base_model": "vanilla-rag",
+            "flavor": "default", "requires_reingest": False,
+        },
+        "status": "error",
+        "metrics": {"operational": {"latency_ms": 4321, "attempts": 1}},
+        "evidence": {},
+        "error": {"type": "TimeoutError", "message": "boom"},
+    }
+
+    cell = run_matrix._legacy_cell(row)
+
+    assert cell["latency_s"] == 4.3
+
+
+def _stub_provenance_deps(monkeypatch) -> None:
+    # Same mock shape as test_runtime_provenance_binds_repo_atlas_provider_and_
+    # generated_registries, factored out so JUDGE_THINK tests can reach the full
+    # return path (real _runtime_file/_git_state need infra/ artifacts this bare
+    # test env doesn't have).
+    monkeypatch.setattr(run_matrix, "envval", lambda key, default="": default)
+    monkeypatch.setattr(run_matrix, "_git_state", lambda path: {"commit": "x", "dirty": False})
+    monkeypatch.setattr(
+        run_matrix, "_runtime_file",
+        lambda path, kind: {"path": str(path), "sha256": "x", "entries": []},
+    )
+
+
+@pytest.mark.parametrize("raw, expected", [("true", True), ("false", False), ("omit", None)])
+def test_runtime_provenance_normalizes_judge_think(monkeypatch, raw, expected) -> None:
+    # compare/judge.py already parses JUDGE_THINK the same way and is tested for
+    # it — this is a second, independent implementation feeding the committed
+    # run-provenance record, and had no test of its own at all.
+    monkeypatch.setenv("JUDGE_MODELS", "judge-a")
+    monkeypatch.setenv("JUDGE_THINK", raw)
+    _stub_provenance_deps(monkeypatch)
+
+    runtime = run_matrix._runtime_provenance()
+
+    assert runtime["judge_panel"]["thinking"] == expected
+
+
+def test_runtime_provenance_rejects_invalid_judge_think(monkeypatch) -> None:
+    monkeypatch.setenv("JUDGE_MODELS", "judge-a")
+    monkeypatch.setenv("JUDGE_THINK", "maybe")
+    _stub_provenance_deps(monkeypatch)
+
+    with pytest.raises(ValueError, match="JUDGE_THINK must be true, false, or omit"):
+        run_matrix._runtime_provenance()
+
+
 def test_runtime_file_rejects_non_object_model_list_rows(tmp_path) -> None:
     path = tmp_path / "consumer-models.yaml"
     path.write_text("model_list:\n  - model_name: ok\n  - not-an-object\n", encoding="utf-8")

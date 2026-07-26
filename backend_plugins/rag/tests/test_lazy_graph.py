@@ -9,7 +9,9 @@ from httpx import ASGITransport, AsyncClient
 from rag.common import lazy_graph
 from rag.approaches import lazy
 from rag.common import flavors
-from rag.common.lazy_graph import build_index, extract_concepts, load_or_build, retrieve
+from rag.common.lazy_graph import (
+    GraphChunk, GraphIndex, build_index, chunk_id, extract_concepts, load_or_build, retrieve,
+)
 from rag.common.vectors import Hit
 
 
@@ -139,6 +141,48 @@ def test_retrieve_enforces_relevance_and_context_budgets():
     assert result.relevance_tests <= 1
     assert len(result.hits) <= 1
     assert result.hits[0].title == "Operation Honeybee"
+
+
+def test_retrieve_weights_neighbor_expansion_by_edge_strength():
+    # Score propagated to a neighbor's chunks must scale with that edge's weight
+    # relative to the strongest edge from the just-visited concept
+    # (score * 0.5 * (weight / max_weight)) — not just "reachable at all". Build
+    # an index by hand so edge weights are exact, and give the WEAKER neighbor's
+    # chunk an alphabetically-EARLIER title than the stronger neighbor's: if the
+    # weight factor were ever dropped, both neighbors would tie on raw score and
+    # the final ranking's title tie-break would flip weak ahead of strong — only
+    # genuine proportional weighting keeps strong ranked ahead of weak here.
+    seed_hit = Hit("Seed Chunk", "seed content")
+    strong_hit = Hit("ZZZ Strong Chunk", "strong content")
+    weak_hit = Hit("AAA Weak Chunk", "weak content")
+    seed_id, strong_id, weak_id = chunk_id(seed_hit), chunk_id(strong_hit), chunk_id(weak_hit)
+
+    index = GraphIndex(
+        fingerprint="test",
+        chunks={
+            seed_id: GraphChunk(seed_id, seed_hit.title, seed_hit.text, ("seed",)),
+            strong_id: GraphChunk(strong_id, strong_hit.title, strong_hit.text, ("strong",)),
+            weak_id: GraphChunk(weak_id, weak_hit.title, weak_hit.text, ("weak",)),
+        },
+        concept_chunks={"seed": (seed_id,), "strong": (strong_id,), "weak": (weak_id,)},
+        edges={
+            "seed": {"strong": 10, "weak": 1},
+            "strong": {"seed": 10},
+            "weak": {"seed": 1},
+        },
+    )
+
+    result = retrieve(
+        index,
+        "irrelevant question with no matching concepts",
+        seed_hits=[seed_hit],
+        relevance_budget=3,
+        max_context_chunks=3,
+    )
+
+    assert [hit.title for hit in result.hits] == [
+        "Seed Chunk", "ZZZ Strong Chunk", "AAA Weak Chunk",
+    ]
 
 
 def test_retrieve_falls_back_to_seed_hits_when_nothing_scores():
