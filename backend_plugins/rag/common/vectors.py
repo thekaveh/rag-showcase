@@ -268,12 +268,14 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
                     type(ranking).__name__, start, len(hits) - start, len(hits))
                 remainder.extend(hits[start:])
                 break
+            consumed: set[int] = set()
             for row in ranking:
                 if not isinstance(row, dict):
                     continue  # ignore non-object rows from a misbehaving reranker
                 idx = row.get("index")
                 if not isinstance(idx, int) or not (0 <= idx < len(batch)):
                     continue  # ignore out-of-range indices from a misbehaving reranker
+                consumed.add(idx)
                 h = batch[idx]
                 # row.get("score", 0.0) only defaults when the key is ABSENT; a
                 # present-but-null score ("score": null) returns None and
@@ -284,6 +286,18 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
                 # coerce True→1.0 and bypass the leaderboards' score-type guard.
                 score = float(raw) if isinstance(raw, (int, float)) and not isinstance(raw, bool) else None
                 ordered.append(Hit(title=h.title, text=h.text, score=score))
+            # A structurally-valid `ranking` list that simply omits some indices
+            # (fewer rows than texts sent, duplicate/out-of-range indices, or
+            # non-dict rows) must not silently drop those candidates — every hit
+            # sent to TEI ends up somewhere in the output, ranked or unranked,
+            # matching the same contract the exception/bad-shape branches above
+            # already uphold.
+            missing = [batch[i] for i in range(len(batch)) if i not in consumed]
+            if missing:
+                logging.getLogger("uvicorn.error").warning(
+                    "TEI rerank omitted %d/%d candidate(s) from batch starting "
+                    "at index %d; leaving them unranked", len(missing), len(batch), start)
+                remainder.extend(missing)
     # if every ranked index was out of range (or the list was empty), fall back
     # to input order rather than dropping all sources
     if not ordered:

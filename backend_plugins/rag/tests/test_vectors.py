@@ -95,6 +95,32 @@ async def test_rerank_falls_back_when_all_indices_out_of_range(monkeypatch):
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_rerank_keeps_hits_a_partial_ranking_omits(monkeypatch, caplog):
+    # A structurally-valid `ranking` list that simply doesn't cover every input
+    # index (TEI returns fewer rows than texts sent, or skips one via a
+    # duplicate/out-of-range index) must not silently vanish those candidates —
+    # every hit sent to TEI must end up somewhere in the output, ranked or
+    # unranked, same contract the exception/bad-shape branches already uphold.
+    # This is a single, otherwise-successful batch (ordered ends up non-empty),
+    # so the whole-call `if not ordered` fallback never fires — the omitted hit
+    # has nowhere else to be rescued from except the per-batch remainder logic.
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    hits = [Hit("A", "a"), Hit("B", "b"), Hit("C", "c")]
+    respx.post("http://tei-reranker:80/rerank").mock(
+        return_value=httpx.Response(200, json=[
+            {"index": 0, "score": 0.9}, {"index": 1, "score": 0.5},
+        ]))  # index 2 ("C") never appears in the response
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        out = await rerank("q", hits, top_n=3)
+
+    assert {h.title for h in out} == {"A", "B", "C"}
+    c = next(h for h in out if h.title == "C")
+    assert c.score is None  # kept unranked (original pre-rerank score), not silently dropped
+    assert "omitted" in caplog.text
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_rerank_degrades_on_tei_http_failure(monkeypatch):
     # A flaky/down reranker (5xx, connect error, timeout) must degrade to the
     # pre-rerank candidate order instead of 500-ing the whole request — the
