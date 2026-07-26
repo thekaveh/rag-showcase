@@ -34,14 +34,15 @@ contains no RAG-specific logic and is a **strong candidate to upstream** as a
 documented downstream-routes extension point (symmetric to the `_user/` compose
 overlay).
 
-> **Resolved upstream.** Atlas `cd7aab7` (#162; documented in #164, `6fd482b`) upstreamed this exact seam
-> (`services/backend/app/app/plugin_seam.py`, #162/#164) — same `BACKEND_PLUGINS_DIR`
-> contract: load each immediate package exposing a module-level `router`,
-> pip-install its `requirements.txt`, no-op when the dir is absent. The showcase no
-> longer needs a fork-side seam; the plugin loads through Atlas's **native** seam via
-> the unchanged compose overlay (`BACKEND_PLUGINS_DIR=/app/plugins` + the
-> `backend_plugins/` mount). The override mechanism is identical — only the seam's
-> provider moved from the fork to upstream.
+> **Resolved upstream.** Atlas `cd7aab7` (#162; documented in #164, `6fd482b`)
+> upstreamed this exact seam (`services/backend/app/app/plugin_seam.py`,
+> #162/#164) — same `BACKEND_PLUGINS_DIR` contract: load each immediate package
+> exposing a module-level `router`, pip-install its `requirements.txt`, no-op when
+> the dir is absent. The showcase no longer needs a fork-side seam; the plugin
+> loads through Atlas's **native** seam via the unchanged compose overlay
+> (`BACKEND_PLUGINS_DIR=/app/plugins` + the `backend_plugins/` mount). The
+> override mechanism is identical — only the seam's provider moved from the fork
+> to upstream.
 >
 > The RAG package now also ships Atlas's optional `plugin.yml` contract. Its seven
 > approach routes share `/rag`, with `/rag/health`, inherited Kong auth, typed
@@ -65,10 +66,10 @@ API because Atlas had no consumer-owned alias contract. That made ownership
 implicit and left persisted duplicates during migration. Atlas #411 resolved the
 gap with versioned `litellm_models` declarations, approved endpoint templates,
 derived ownership metadata, collision checks, secret references, and generated
-startup configuration. Rag-showcase now uses that contract exclusively. Atlas compiles the declared
-`litellm_models` into `config.yaml` before the proxy boots, so the aliases are
-discoverable in `/v1/models` at startup with no consumer-side reconciliation or
-proxy restart.
+startup configuration. Rag-showcase now uses that contract exclusively. Atlas
+compiles the declared `litellm_models` into `config.yaml` before the proxy
+boots, so the aliases are discoverable in `/v1/models` at startup with no
+consumer-side reconciliation or proxy restart.
 
 ### 2.4 In-container path mismatch
 
@@ -247,8 +248,9 @@ manifest validation and therefore needed real ingestion evidence.
 
 > **Resolved upstream.** Atlas #602 creates `/home/appuser` in the backend image,
 > sends `file_source`, and records bounded upstream response bodies on failures.
-> Rag-showcase pinned Atlas `3c33250b` for that validation and removed its temporary cache environment
-> override. Live job `7127dcc3-7a45-40ad-ae28-5b547cf0bc8b` then completed all
+> Rag-showcase pinned Atlas `3c33250b` for that validation and removed its
+> temporary cache environment override. Live job
+> `7127dcc3-7a45-40ad-ae28-5b547cf0bc8b` then completed all
 > discover/parse/chunk/embed/vector-write/upload/drain/finalize phases.
 
 ### 2.20 LightRAG drain polling failed on transient status timeouts

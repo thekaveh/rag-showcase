@@ -14,6 +14,18 @@ from pathlib import Path
 from typing import Any
 
 
+def _positive_int(raw: str) -> int:
+    # A non-positive --limit passes type=int but then misbehaves downstream:
+    # list[:limit] with a negative limit silently keeps all-but-|limit| items
+    # instead of exporting nothing (mirrors the same guard in the other three
+    # corpus adapters — gdelt_events.py, openalex_scholarly.py,
+    # cyber_threat_intel.py).
+    value = int(raw)
+    if value <= 0:
+        raise argparse.ArgumentTypeError(f"--limit must be a positive integer, got {value}")
+    return value
+
+
 def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:72] or "item"
 
@@ -72,7 +84,7 @@ def export(dataset: str, output: Path, limit: int) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", choices=["prime", "mag", "amazon"], required=True)
-    parser.add_argument("--limit", type=int, default=200)
+    parser.add_argument("--limit", type=_positive_int, default=200)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 

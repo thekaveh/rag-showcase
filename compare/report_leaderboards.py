@@ -224,7 +224,7 @@ def _by_dataset_columns(models: list[str], *, flavors: bool) -> list[Column]:
     return columns
 
 
-def _metric_values(row: dict[str, Any], prefix: str, metric: dict[str, Any], *, rank: Any = None) -> dict[str, Any]:
+def _metric_values(prefix: str, metric: dict[str, Any], *, rank: Any = None) -> dict[str, Any]:
     coverage = _ragas_coverage(metric)
     values = {
         f"{prefix}-mean": (metric["mean"], _number(metric["mean"], 3)),
@@ -234,7 +234,7 @@ def _metric_values(row: dict[str, Any], prefix: str, metric: dict[str, Any], *, 
         f"{prefix}-errors": int(metric["errors"]),
         f"{prefix}-timeouts": int(metric["timeouts"]),
     }
-    if rank is not None or f"{prefix}-rank" in row:
+    if rank is not None:
         values[f"{prefix}-rank"] = rank
     return values
 
@@ -280,12 +280,12 @@ def _overall_rows(rows: list[dict[str, Any]], models: list[str]) -> list[dict[st
     rendered = []
     for row in rows:
         values = _common_values(row, models, overall=True)
-        values.update(_metric_values(row, "answer-relevancy", {
+        values.update(_metric_values("answer-relevancy", {
             "mean": row["answer_relevancy_mean"], "evaluated": row["answer_relevancy_evaluated"],
             "total": row["answer_relevancy_total"], "not_evaluable": row["answer_relevancy_not_evaluable"],
             "errors": row["answer_relevancy_errors"], "timeouts": row["answer_relevancy_timeouts"],
         }))
-        values.update(_metric_values(row, "faithfulness", {
+        values.update(_metric_values("faithfulness", {
             "mean": row["faithfulness_mean"], "evaluated": row["faithfulness_evaluated"],
             "total": row["faithfulness_total"], "not_evaluable": row["faithfulness_not_evaluable"],
             "errors": row["faithfulness_errors"], "timeouts": row["faithfulness_timeouts"],
@@ -299,8 +299,8 @@ def _by_dataset_rows(rows: list[dict[str, Any]], models: list[str]) -> list[dict
     rendered = []
     for row in rows:
         values = _common_values(row, models, overall=False)
-        values.update(_metric_values(row, "answer-relevancy", row["answer_relevancy"], rank=row["answer_relevancy_rank"]))
-        values.update(_metric_values(row, "faithfulness", row["faithfulness"], rank=row["faithfulness_rank"]))
+        values.update(_metric_values("answer-relevancy", row["answer_relevancy"], rank=row["answer_relevancy_rank"]))
+        values.update(_metric_values("faithfulness", row["faithfulness"], rank=row["faithfulness_rank"]))
         operational = row["operational"]
         values.update(_operational_values(
             operational["mean_latency_ms"], operational["successful"], operational["attempted"],

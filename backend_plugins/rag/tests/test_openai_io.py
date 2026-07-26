@@ -35,6 +35,16 @@ def test_build_response_handles_empty_sources():
     assert "ans" in content
 
 
+def test_build_response_footer_renders_cloud_calls():
+    # Every other Metrics fixture in this suite uses cloud_calls=0, which a
+    # hardcoded "0 cloud" in _render_footer would also satisfy — pin a nonzero
+    # value (n8n.py populates real nonzero cloud_calls from downstream data in
+    # production) so the footer's interpolation is actually exercised.
+    resp = build_response("m", "ans", [], Metrics(seconds=0.5, chunks=0, llm_calls=1, cloud_calls=2))
+    content = resp["choices"][0]["message"]["content"]
+    assert "2 cloud" in content
+
+
 def test_build_response_source_without_score():
     resp = build_response("m", "ans", [Source("T", "snip")], Metrics(0.5, 1, 1, 0))
     content = resp["choices"][0]["message"]["content"]

@@ -10,22 +10,11 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 
 
-class _ComposeLoader(yaml.SafeLoader):
-    pass
-
-
-def _construct_reset(loader: yaml.SafeLoader, node: yaml.Node) -> None:
-    loader.construct_scalar(node)
-    return None
-
-
-_ComposeLoader.add_constructor("!reset", _construct_reset)
-
-
 def _load_overlay() -> dict:
-    return yaml.load(
+    # compose/rag-overlay.yml no longer uses Compose's !reset/!override tags (the
+    # disabled-service overlay was removed), so a plain safe_load suffices.
+    return yaml.safe_load(
         (ROOT / "compose/rag-overlay.yml").read_text(encoding="utf-8"),
-        Loader=_ComposeLoader,
     )
 
 

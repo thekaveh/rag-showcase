@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import time
 from collections.abc import Callable
@@ -10,6 +11,8 @@ from typing import Any
 
 import httpx
 
+
+_log = logging.getLogger(__name__)
 
 _TERMINAL = frozenset({"completed", "failed", "cancelled"})
 
@@ -65,21 +68,44 @@ def run_ingestion(
         ingestion_id = str(queued["ingestion_id"])
         deadline = time.monotonic() + timeout_seconds
         while True:
-            status_response = http.get(
-                f"{base_url.rstrip('/')}/api/rag/ingestions/{ingestion_id}",
-                headers=headers,
-            )
-            status_response.raise_for_status()
-            record = status_response.json()
-            status = str(record.get("status") or "")
-            if status == "completed":
-                return record
-            if status in _TERMINAL:
-                raise RuntimeError(_failure_detail(record))
+            record: dict[str, Any] | None = None
+            try:
+                status_response = http.get(
+                    f"{base_url.rstrip('/')}/api/rag/ingestions/{ingestion_id}",
+                    headers=headers,
+                    # Cap this call to what's left before the deadline (floored so a
+                    # near-expired deadline still gets one real attempt) — otherwise
+                    # the client's own default timeout (up to 120s read + 10s
+                    # connect) lets one poll overshoot the deadline check below by
+                    # that much before this loop ever notices.
+                    timeout=max(1.0, deadline - time.monotonic()),
+                )
+                status_response.raise_for_status()
+                parsed = status_response.json()
+                if isinstance(parsed, dict):
+                    record = parsed
+            except (httpx.HTTPError, ValueError) as exc:
+                # Tolerate a transient error (Atlas restart, a 502/503 blip) AND a
+                # malformed 200 body (non-JSON, or a non-object JSON value) within
+                # the deadline rather than aborting a multi-hour wait on one bad
+                # poll. A persistent outage is still bounded by the deadline below.
+                _log.warning("transient error polling ingestion %s (%s); continuing",
+                             ingestion_id, type(exc).__name__)
+            if record is not None:
+                status = str(record.get("status") or "")
+                if status == "completed":
+                    return record
+                if status in _TERMINAL:
+                    raise RuntimeError(
+                        f"Atlas ingestion {ingestion_id} for profile {profile!r} failed: "
+                        f"{_failure_detail(record)}"
+                    )
+            else:
+                status = "unknown"
             if time.monotonic() >= deadline:
                 raise TimeoutError(
                     f"Atlas ingestion {ingestion_id} for profile {profile!r} did not "
-                    f"finish within {timeout_seconds:g}s (last status: {status or 'unknown'})"
+                    f"finish within {timeout_seconds:g}s (last status: {status})"
                 )
             sleep(poll_seconds)
     finally:

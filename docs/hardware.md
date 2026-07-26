@@ -11,12 +11,23 @@ inference is local and how large the selected models are.
 |---|---:|---:|---:|---|---|
 | Development and unit tests | 4+ cores | 16 GB | 20 GB free | none required | Code/test work, no live stack |
 | Stack smoke with remote/cloud LLMs | 8+ cores | 32 GB | 50 GB free | remote/cloud or small local | Bring up Atlas `gen-ai-rag`, ingest a small corpus, try all seven routes |
-| Recommended local all-six comparison | 12+ cores | 64 GB+ | 100 GB free | accelerated local inference or remote/cloud | Curated corpus, graph-native corpus, judge runs, repeated matrices |
+| Recommended local canonical-six comparison | 12+ cores | 64 GB+ | 100 GB free | accelerated local inference or remote/cloud | Curated corpus, graph-native corpus, judge runs, repeated matrices |
 | Heavy local graph/full-corpus runs | 16+ cores | 96-128 GB+ | 150 GB free | accelerated local inference strongly recommended | Larger corpora, bigger local models, repeated LightRAG rebuilds |
 
 These are practical recommendations, not hard-coded checks. Docker, model
 quantization, context length, concurrent requests, and selected corpora can move
 the real requirement up or down.
+
+Sizing tiers above describe the six canonical approaches
+(`scripts/run-dataset-ladder.py`'s default `--approaches` selection). Passing
+`--include-flavor-tier` runs two full matrix/judge passes instead of one: all
+seven base approaches (the canonical six plus the experimental `lazy-graph-rag`),
+then all twelve flavor tuning aliases (nine flavors of the canonical approaches
+plus three `lazy-graph-rag` flavors). The seventh base approach adds its own
+on-first-query concept-graph build, which is lighter than LightRAG's
+per-document extraction but still additional local inference load — size toward
+the heavier tiers above, and expect roughly double the run time, when using
+`--include-flavor-tier`.
 
 ## 2. What Uses Resources
 
@@ -59,8 +70,8 @@ answer. For local runs:
 
 - Prefer a non-reasoning or thinking-disabled model for extraction.
 - Prefer accelerated inference for 20B+ local models.
-- Avoid CPU-only large-model runs for full six-way matrices unless long runtimes
-  are acceptable.
+- Avoid CPU-only large-model runs for full six-way canonical matrices unless long
+  runtimes are acceptable.
 - If memory is tight, reduce model size before increasing timeouts.
 - If graph extraction stalls, lower concurrency first; then switch to a smaller
   extraction model.
@@ -71,7 +82,7 @@ For Docker Desktop or similar VM-backed runtimes, assign resources to Docker, no
 just to the host OS:
 
 - **Minimum live-stack allocation:** 8 CPU cores and 24-32 GB memory.
-- **Recommended all-six allocation:** 12+ CPU cores and 48-64 GB memory.
+- **Recommended canonical-six allocation:** 12+ CPU cores and 48-64 GB memory.
 - **Leave host headroom:** keep enough memory for the OS and, if used, host-side
   model inference.
 

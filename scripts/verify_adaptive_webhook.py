@@ -28,6 +28,9 @@ def is_valid_payload(payload: Any) -> bool:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", required=True, help="Adaptive RAG production webhook URL")
+    # Default ≥ the 240s workflow budget the n8n adaptive approach allows
+    # (backend_plugins/rag/approaches/n8n.py _TIMEOUT) so verification doesn't
+    # time out before a legitimately-slow classification completes.
     parser.add_argument("--timeout", type=float, default=240.0)
     return parser.parse_args()
 
@@ -40,7 +43,13 @@ def main() -> int:
         timeout=args.timeout,
     )
     response.raise_for_status()
-    payload = response.json()
+    try:
+        payload = response.json()
+    except ValueError:
+        # A 200 with a non-JSON body (e.g. an HTML error page from a sidecar
+        # reverse proxy) is an invalid adaptive-rag response, not a traceback.
+        print("Invalid adaptive-rag response: non-JSON body", file=sys.stderr)
+        return 1
     if is_valid_payload(payload):
         return 0
     print(f"Invalid adaptive-rag response: {payload!r}", file=sys.stderr)

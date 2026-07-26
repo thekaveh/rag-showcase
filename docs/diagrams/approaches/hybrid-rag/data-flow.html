@@ -39,15 +39,6 @@
       <path class="flow" d="M185 430H225"/><path class="flow" d="M400 430H440"/><path class="flow" d="M615 430H655"/><path class="flow" d="M830 430H870"/><path class="flow" d="M1060 430H1100"/><path class="flow" d="M1290 430H1330"/><path class="flow" d="M1520 430H1560"/>
       <path class="bypass" d="M965 470V535H1425V470"/>
 
-      <g><circle class="step" cx="205" cy="430" r="11"/><text class="step-text" x="205" y="430">1</text><text class="label" x="205" y="408">request</text></g>
-      <g><circle class="step" cx="420" cy="430" r="11"/><text class="step-text" x="420" y="430">2</text><text class="label" x="420" y="408">dispatch</text></g>
-      <g><circle class="step" cx="635" cy="430" r="11"/><text class="step-text" x="635" y="430">3</text><text class="label" x="635" y="408">embed</text></g>
-      <g><circle class="step" cx="850" cy="430" r="11"/><text class="step-text" x="850" y="430">4</text><text class="label" x="850" y="408">vector</text></g>
-      <g><circle class="step" cx="1080" cy="430" r="11"/><text class="step-text" x="1080" y="430">5</text><text class="label" x="1080" y="408">20 candidates</text></g>
-      <g><circle class="step" cx="1310" cy="430" r="11"/><text class="step-text" x="1310" y="430">6</text><text class="label" x="1310" y="408">top 5</text></g>
-      <g><circle class="step" cx="1540" cy="430" r="11"/><text class="step-text" x="1540" y="430">7</text><text class="label" x="1540" y="408">answer</text></g>
-      <text class="label" x="1195" y="558" fill="#fbbf24">rerank=false · bypass TEI and preserve fused order</text>
-
       <rect class="node external" x="275" y="145" width="200" height="80"/><text class="title" x="375" y="176">Corpus documents</text><text class="sub" x="375" y="198">selected dataset/profile</text>
       <rect class="node backend" x="565" y="145" width="200" height="80"/><text class="title" x="665" y="176">Atlas ingestion</text><text class="sub" x="665" y="198">parse · chunk · metadata</text>
       <rect class="node model" x="855" y="145" width="200" height="80"/><text class="title" x="955" y="176">Embedding model</text><text class="sub" x="955" y="198">nomic-embed-text</text>
@@ -61,6 +52,17 @@
       <rect class="node model" x="1100" y="390" width="190" height="80"/><text class="title" x="1195" y="420">TEI reranker</text><text class="sub" x="1195" y="442">cross-encoder · optional</text>
       <rect class="node model" x="1330" y="390" width="190" height="80"/><text class="title" x="1425" y="420">light_gen</text><text class="sub" x="1425" y="442">question + top context</text>
       <rect class="node external" x="1560" y="390" width="175" height="80"/><text class="title" x="1647" y="420">OpenAI response</text><text class="sub" x="1647" y="442">answer · sources · metrics</text>
+
+      <!-- Step labels render after the node rects so they paint on top instead of
+           being clipped by an overlapping node box. -->
+      <g><circle class="step" cx="205" cy="430" r="11"/><text class="step-text" x="205" y="430">1</text><text class="label" x="205" y="408">request</text></g>
+      <g><circle class="step" cx="420" cy="430" r="11"/><text class="step-text" x="420" y="430">2</text><text class="label" x="420" y="408">dispatch</text></g>
+      <g><circle class="step" cx="635" cy="430" r="11"/><text class="step-text" x="635" y="430">3</text><text class="label" x="635" y="408">embed</text></g>
+      <g><circle class="step" cx="850" cy="430" r="11"/><text class="step-text" x="850" y="430">4</text><text class="label" x="850" y="408">vector</text></g>
+      <g><circle class="step" cx="1080" cy="430" r="11"/><text class="step-text" x="1080" y="430">5</text><text class="label" x="1080" y="408">20 candidates</text></g>
+      <g><circle class="step" cx="1310" cy="430" r="11"/><text class="step-text" x="1310" y="430">6</text><text class="label" x="1310" y="408">top 5</text></g>
+      <g><circle class="step" cx="1540" cy="430" r="11"/><text class="step-text" x="1540" y="430">7</text><text class="label" x="1540" y="408">answer</text></g>
+      <text class="label" x="1195" y="558" fill="#fbbf24">rerank=false · bypass TEI and preserve fused order</text>
 
       <rect class="ledger" x="45" y="650" width="1710" height="170" rx="8"/><text class="ledger-title" x="70" y="680">MESSAGE CONTRACT AND TUNING SURFACES</text>
       <line x1="470" y1="695" x2="470" y2="800" stroke="#334155"/><line x1="900" y1="695" x2="900" y2="800" stroke="#334155"/><line x1="1330" y1="695" x2="1330" y2="800" stroke="#334155"/>

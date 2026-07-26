@@ -3,11 +3,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
 from collections import defaultdict
 from pathlib import Path
 
 from rag.common import litellm, vectors
 from rag.common.contextual import contextualize
+
+_log = logging.getLogger(__name__)
 
 
 def _document_text(
@@ -21,8 +24,15 @@ def _document_text(
         if path.suffix.lower() in {".txt", ".md"}:
             try:
                 return path.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                pass
+            except OSError as exc:
+                # The chunk-join fallback below is lower quality (chunk
+                # boundaries stitched with "\n\n" can differ from the source
+                # text) and feeds directly into contextualize()'s blurb prompt
+                # — log so a transient read failure during ingest is
+                # diagnosable, not silently degraded.
+                _log.warning(
+                    "failed to read source document %s for %r; falling back "
+                    "to chunk reconstruction: %s", path, source, exc)
     return "\n\n".join(chunk.text for chunk in chunks)
 
 
@@ -48,6 +58,10 @@ async def run(
     for source in sorted(grouped):
         source_chunks = sorted(grouped[source], key=lambda chunk: chunk.index)
         document = _document_text(root, source, source_chunks)
+        # Serialized deliberately: concurrent contextualize calls would stack
+        # qwen3.6 requests on host Ollama and reintroduce the model-eviction
+        # thrash documented in the local-graph-run runbook. The curated corpora
+        # are small, so the latency cost is acceptable.
         for chunk in source_chunks:
             blurb = await contextualize(document, chunk.text)
             rows.append({"title": source, "text": f"{blurb}\n\n{chunk.text}"})
@@ -60,9 +74,22 @@ async def run(
         )
     indexed = [{**row, "vector": vector} for row, vector in zip(rows, embeddings)]
 
+    # Idempotent rebuild: wipe + recreate + repopulate. Non-atomic by design —
+    # Weaviate has no multi-call transaction; a mid-build failure leaves the
+    # collection empty until the next start-all re-runs this step (contextual-rag
+    # then degrades to no hits, not a 500). BASE_COLLECTION is untouched, so the
+    # vector approaches keep serving throughout.
     await asyncio.to_thread(vectors.delete_collection, contextual_collection)
     await asyncio.to_thread(vectors.ensure_collection, contextual_collection)
     count = await asyncio.to_thread(vectors.add_chunks, contextual_collection, indexed)
+    if count != len(indexed):
+        # add_chunks returns the count actually inserted (Weaviate v4 absorbs
+        # per-object errors); a partial write would leave the contextual
+        # collection with silent gaps that skew the contextual-vs-hybrid contrast.
+        raise RuntimeError(
+            f"contextual ingest partial write: {count}/{len(indexed)} chunks "
+            f"inserted into {contextual_collection}"
+        )
     return {
         "base_collection": base_collection,
         "source_chunks": len(chunks),

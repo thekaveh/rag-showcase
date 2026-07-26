@@ -37,9 +37,6 @@
       <path class="flow" d="M170 445H210"/><path class="flow" d="M385 445H425"/><path class="flow" d="M605 445H645"/><path class="flow" d="M845 445H885"/><path class="flow" d="M1065 445H1115"/><path class="flow" d="M1310 445H1365"/><path class="flow" d="M1515 445H1555"/>
       <path class="bypass" d="M1310 470H1335V545H1645V485"/><path class="return" d="M1645 490V585H95V490"/>
 
-      <g><circle class="step" cx="190" cy="445" r="11"/><text class="step-text" x="190" y="445">1</text><text class="label" x="190" y="423">request</text></g><g><circle class="step" cx="405" cy="445" r="11"/><text class="step-text" x="405" y="445">2</text><text class="label" x="405" y="423">profile alias</text></g>
-      <g><circle class="step" cx="625" cy="445" r="11"/><text class="step-text" x="625" y="445">3</text><text class="label" x="625" y="423">profile params</text></g><g><circle class="step" cx="865" cy="445" r="11"/><text class="step-text" x="865" y="445">4</text><text class="label" x="865" y="423">/query</text></g>
-      <g><circle class="step" cx="1090" cy="445" r="11"/><text class="step-text" x="1090" y="445">5</text><text class="label" x="1090" y="423">keywords</text></g><g><circle class="step" cx="1337" cy="445" r="11"/><text class="step-text" x="1337" y="445">6</text><text class="label" x="1337" y="423">contexts</text></g><g><circle class="step" cx="1535" cy="445" r="11"/><text class="step-text" x="1535" y="445">7</text><text class="label" x="1535" y="423">ranked</text></g>
       <text class="label" x="1425" y="566" fill="#fbbf24">optional TEI adapter bypass</text><text class="label" x="865" y="604" fill="#34d399">8 · answer-only OpenAI response returns through plugin and LiteLLM</text>
 
       <rect class="node external" x="235" y="150" width="190" height="80"/><text class="title" x="330" y="180">Full documents</text><text class="sub" x="330" y="202">Atlas ingestion job</text>
@@ -58,6 +55,12 @@
       <rect class="node model" x="885" y="405" width="180" height="80"/><text class="title" x="975" y="435">KEYWORD role</text><text class="sub" x="975" y="457">query decomposition</text>
       <rect class="node model" x="1365" y="405" width="150" height="80"/><text class="title" x="1440" y="435">TEI adapter</text><text class="sub" x="1440" y="457">optional rerank</text>
       <rect class="node model" x="1555" y="405" width="180" height="80"/><text class="title" x="1645" y="435">QUERY model role</text><text class="sub" x="1645" y="457">evidence → answer</text>
+
+      <!-- Step labels render after the node rects so they paint on top instead of
+           being clipped by an overlapping node box. -->
+      <g><circle class="step" cx="190" cy="445" r="11"/><text class="step-text" x="190" y="445">1</text><text class="label" x="190" y="423">request</text></g><g><circle class="step" cx="405" cy="445" r="11"/><text class="step-text" x="405" y="445">2</text><text class="label" x="405" y="423">profile alias</text></g>
+      <g><circle class="step" cx="625" cy="445" r="11"/><text class="step-text" x="625" y="445">3</text><text class="label" x="625" y="423">profile params</text></g><g><circle class="step" cx="865" cy="445" r="11"/><text class="step-text" x="865" y="445">4</text><text class="label" x="865" y="423">/query</text></g>
+      <g><circle class="step" cx="1090" cy="445" r="11"/><text class="step-text" x="1090" y="445">5</text><text class="label" x="1090" y="423">keywords</text></g><g><circle class="step" cx="1337" cy="445" r="11"/><text class="step-text" x="1337" y="445">6</text><text class="label" x="1337" y="423">contexts</text></g><g><circle class="step" cx="1535" cy="445" r="11"/><text class="step-text" x="1535" y="445">7</text><text class="label" x="1535" y="423">ranked</text></g>
 
       <rect class="ledger" x="45" y="650" width="1710" height="170" rx="8"/><text class="ledger-title" x="70" y="680">MESSAGE CONTRACT, STATE, AND TUNING</text>
       <line x1="470" y1="695" x2="470" y2="800" stroke="#334155"/><line x1="900" y1="695" x2="900" y2="800" stroke="#334155"/><line x1="1330" y1="695" x2="1330" y2="800" stroke="#334155"/>

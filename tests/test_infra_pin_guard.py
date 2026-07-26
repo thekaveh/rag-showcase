@@ -47,6 +47,15 @@ def _drift_and_stage(super_path, infra, pin):
     return drifted
 
 
+def _drift_only(infra, pin):
+    """Advance the submodule HEAD WITHOUT staging the gitlink in the super-repo
+    (working-tree-only drift: `now != pin` but `staged == pin`)."""
+    (infra / "f").write_text("v2b", encoding="utf-8")
+    _git(infra, "add", "-A")
+    _git(infra, "commit", "-qm", "v2b")
+    return _git(infra, "rev-parse", "HEAD").stdout.strip()
+
+
 def test_guard_restores_drifted_and_staged_pin(tmp_path):
     infra, pin = _make_super_with_infra_pin(tmp_path)
     _drift_and_stage(tmp_path, infra, pin)
@@ -77,3 +86,21 @@ def test_guard_noop_outside_git_repo(tmp_path):
         ["bash", str(GUARD), str(tmp_path), "0" * 40], capture_output=True, text=True
     )
     assert res.returncode == 0
+
+
+def test_guard_restores_working_tree_only_drift(tmp_path):
+    # HEAD advanced but the gitlink was NOT staged (now != pin, staged == pin):
+    # restore --staged is a no-op and only the checkout runs. This path is
+    # untested by the both-drift harness above, so a regression that guarded the
+    # checkout behind a staged-only condition would leave infra off-pin silently.
+    infra, pin = _make_super_with_infra_pin(tmp_path)
+    _drift_only(infra, pin)
+    # Working tree drifted, index still at the pin (nothing staged).
+    assert _git(infra, "rev-parse", "HEAD").stdout.strip() != pin
+    assert _git(tmp_path, "status", "--porcelain", "--", "infra").stdout.strip() != ""
+
+    res = subprocess.run(["bash", str(GUARD), str(tmp_path), pin], capture_output=True, text=True)
+    assert res.returncode == 0, res.stderr
+    assert "WARNING" in res.stderr
+    assert _git(infra, "rev-parse", "HEAD").stdout.strip() == pin
+    assert _git(tmp_path, "status", "--porcelain", "--", "infra").stdout.strip() == ""

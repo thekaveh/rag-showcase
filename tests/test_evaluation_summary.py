@@ -218,6 +218,57 @@ def test_write_summary_preserves_metrics_when_judgments_artifact_is_invalid(
         ]["mean"] == 0.8
 
 
+def test_judge_scores_reject_bool_as_non_numeric() -> None:
+    # A bool `mean_by_approach` value must not silently coerce to 1.0/0.0 via
+    # float(True) — the same exclusion the writers (evaluation.py, judge.py)
+    # already apply. Treat it as the same invalid-artifact case as a real
+    # non-numeric value.
+    rows = [_row("easy", 1, "q1", "a", faithfulness=0.8)]
+    judgments = {
+        "dataset_id": "easy",
+        "judges": ["judge-a"],
+        "queries": [{"query_id": "q1", "mean_by_approach": {"a": True}}],
+    }
+
+    summary = build_summary(rows, judgments=judgments)
+
+    judge = summary["datasets"]["easy"]["judge_panel"]
+    assert judge["status"] == "error"
+    assert judge["error"]
+
+
+def test_ragas_metric_bool_score_counts_as_metric_error_not_1_0() -> None:
+    # A bool ragas score is a corrupted artifact, not a legitimate 1.0/0.0 —
+    # must not be silently averaged in, and must still reconcile against total.
+    rows = [_row("easy", 1, "q1", "a", faithfulness=True)]
+
+    summary = build_summary(rows, judgments=None)
+
+    faithfulness = summary["datasets"]["easy"]["approaches"]["a"]["ragas"]["faithfulness"]
+    assert faithfulness["mean"] is None
+    assert faithfulness["evaluated"] == 0
+    assert faithfulness["errors"] == 1
+    assert faithfulness["total"] == 1
+
+
+def test_ragas_metric_unclassifiable_absence_counts_as_error_not_silent_drop() -> None:
+    # A row with status="ok", ragas.status="ok", but no score for the metric and
+    # no not_evaluable/metric_errors entry explaining why — an artifact shape none
+    # of the documented degrade paths recognize. Must still land in one of the
+    # counters (as an error) rather than vanishing from the evaluated+
+    # not_evaluable+errors+timeouts==total reconciliation entirely.
+    rows = [_row("easy", 1, "q1", "a", faithfulness=None, ragas_status="ok")]
+
+    summary = build_summary(rows, judgments=None)
+
+    faithfulness = summary["datasets"]["easy"]["approaches"]["a"]["ragas"]["faithfulness"]
+    assert faithfulness["evaluated"] == 0
+    assert faithfulness["not_evaluable"] == 0
+    assert faithfulness["errors"] == 1
+    assert faithfulness["timeouts"] == 0
+    assert faithfulness["total"] == 1
+
+
 def test_summary_separates_metric_timeouts_from_errors(tmp_path: Path) -> None:
     summary = build_summary(
         [_row("easy", 1, "q1", "a", status="timeout", faithfulness=None)],
@@ -271,3 +322,34 @@ def test_summarize_cli_help_runs_from_repo_root() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "--csv-output" in result.stdout
+
+
+def test_summarize_cli_writes_json_and_csv_outputs(tmp_path) -> None:
+    # main()'s own argument parsing and the args.csv_output branch were only
+    # ever exercised via --help; the underlying write_summary/write_summary_csv
+    # functions are well tested directly, but the CLI wiring that dispatches to
+    # them (in particular whether --csv-output is actually threaded through)
+    # was not.
+    root = Path(__file__).parents[1]
+    rows_path = tmp_path / "rows.jsonl"
+    rows_path.write_text(
+        json.dumps(_row("easy", 1, "q1", "a", latency=100, faithfulness=0.8)) + "\n",
+        encoding="utf-8",
+    )
+    output = tmp_path / "summary.json"
+    csv_output = tmp_path / "summary.csv"
+
+    result = subprocess.run(
+        [sys.executable, "compare/summarize.py",
+         "--rows", str(rows_path), "--output", str(output),
+         "--csv-output", str(csv_output)],
+        cwd=root, capture_output=True, text=True, check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert f"wrote {output}" in result.stdout
+    assert f"wrote {csv_output}" in result.stdout
+    assert output.is_file()
+    assert csv_output.is_file()
+    summary = json.loads(output.read_text(encoding="utf-8"))
+    assert "easy" in summary["datasets"]

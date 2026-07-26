@@ -105,7 +105,7 @@ as `atlas-consumer-adaptive-rag` and activates it even with no `N8N_API_KEY`
 
 ### 2.5 Lazy graph lane
 
-`lazy-graph-rag` takes dense seed chunks, derives lexical concepts, expands a
+`lazy-graph-rag` takes hybrid seed chunks, derives lexical concepts, expands a
 deterministic co-occurrence graph within depth/node/token budgets, and generates
 one answer from the selected chunks. The graph is built on the first query for a
 new corpus fingerprint and then reused; query observations are not written back.
@@ -164,10 +164,10 @@ sequenceDiagram
 ```
 
 `vanilla-rag` skips the rerank leg; `contextual-rag` is identical but queries the
-selected `RagContextual_<profile>` collection; `graph-rag` and `agentic-rag` delegate the middle to
-LightRAG / a ReAct tool loop; `n8n-adaptive-rag` inserts the n8n workflow between
-the endpoint and a routed approach; `lazy-graph-rag` adds deterministic concept
-expansion between dense seeding and generation.
+selected `RagContextual_<profile>` collection; `graph-rag` and `agentic-rag`
+delegate the middle to LightRAG / a ReAct tool loop; `n8n-adaptive-rag` inserts
+the n8n workflow between the endpoint and a routed approach; `lazy-graph-rag`
+adds deterministic concept expansion between hybrid seeding and generation.
 
 ## 5. Deployment Topology (Containers and Mounts)
 

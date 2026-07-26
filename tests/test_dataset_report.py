@@ -86,18 +86,27 @@ def test_dataset_report_write_mode_accepts_absolute_out_of_repo_path(tmp_path) -
 
 
 def test_base_approach_ranked_last_is_not_framed_as_a_flavor_result(monkeypatch) -> None:
-    # A canonical approach landing last in a flavorless regeneration must get the
-    # neutral wording — the "flavor tuning result" framing is reserved for flavor
-    # aliases. Current committed data takes the flavor branch, so drive this one
-    # with synthetic snapshots.
+    # A canonical approach landing last must get the neutral wording — the
+    # "flavor tuning result" framing is reserved for flavor aliases. This must
+    # hold in BOTH _base_family_last_place_note (measured_scores) and
+    # _flavor_last_place_note (flavor_scores): give each dataset a
+    # flavor_judgment_snapshot too, so flavor_scores is non-empty and
+    # _flavor_last_place_note's own `worst in BASE_APPROACHES` branch is
+    # actually exercised, not just the base-snapshot branch. Without this,
+    # flavor_scores stays {} and _flavor_last_place_note early-exits before
+    # reaching that branch at all — the assertions below would then only be
+    # satisfied by the unrelated base-snapshot note, leaving the flavor
+    # branch's neutral-vs-tuning framing completely uncovered.
     import compare.report_datasets as rd
 
     manifest = [{"id": "ds_a", "status": "measured", "complexity_level": 1,
                  "graph_nature": "none", "queries_file": "demo/queries.yaml",
-                 "judgment_snapshot": "unused-a.json"},
+                 "judgment_snapshot": "unused-a.json",
+                 "flavor_judgment_snapshot": "unused-a-flavors.json"},
                 {"id": "ds_b", "status": "measured", "complexity_level": 2,
                  "graph_nature": "none", "queries_file": "demo/queries.yaml",
-                 "judgment_snapshot": "unused-b.json"}]
+                 "judgment_snapshot": "unused-b.json",
+                 "flavor_judgment_snapshot": "unused-b-flavors.json"}]
     synthetic = {
         "unused-a.json": {"queries": [{"query_id": "q1", "observed_winner": "vanilla-rag",
                                        "mean_by_approach": {"vanilla-rag": 4.0,
@@ -105,6 +114,12 @@ def test_base_approach_ranked_last_is_not_framed_as_a_flavor_result(monkeypatch)
         "unused-b.json": {"queries": [{"query_id": "q2", "observed_winner": "vanilla-rag",
                                        "mean_by_approach": {"vanilla-rag": 3.5,
                                                             "n8n-adaptive-rag": 1.5}}]},
+        "unused-a-flavors.json": {"queries": [{"query_id": "q1", "observed_winner": "hybrid-rag-fast",
+                                               "mean_by_approach": {"hybrid-rag-fast": 4.0,
+                                                                    "n8n-adaptive-rag": 1.0}}]},
+        "unused-b-flavors.json": {"queries": [{"query_id": "q2", "observed_winner": "hybrid-rag-fast",
+                                               "mean_by_approach": {"hybrid-rag-fast": 3.5,
+                                                                    "n8n-adaptive-rag": 0.5}}]},
     }
     monkeypatch.setattr(rd, "_load_manifest", lambda: manifest)
     monkeypatch.setattr(rd, "_load_judgments", lambda p: synthetic[p.name])
@@ -238,3 +253,35 @@ def test_dataset_report_keeps_flavor_ranking_separate(monkeypatch) -> None:
     )[0]
     assert "graph-rag-rerank 4.50" in flavor_section
     assert "vanilla-rag" not in flavor_section
+
+
+def test_mean_scores_excludes_bool_values() -> None:
+    # A bool `mean_by_approach` value must not silently coerce to 1.0/0.0 via
+    # float(True/False) — same exclusion the writers (evaluation.py, judge.py)
+    # already apply. A corrupted judgment artifact must not skew the mean.
+    import compare.report_datasets as rd
+
+    judgments = {"queries": [
+        {"mean_by_approach": {"vanilla-rag": 4.0, "graph-rag": True}},
+        {"mean_by_approach": {"vanilla-rag": 2.0, "graph-rag": False}},
+    ]}
+
+    scores = rd._mean_scores(judgments)
+
+    assert scores["vanilla-rag"] == 3.0
+    assert "graph-rag" not in scores  # every graph-rag score was a bool -> excluded
+
+
+def test_query_rows_excludes_bool_scores_from_ranking() -> None:
+    import compare.report_datasets as rd
+
+    judgments = {"queries": [
+        {"query_id": "q1", "mean_by_approach": {"vanilla-rag": 4.0, "graph-rag": True}},
+    ]}
+
+    rows = rd._query_rows(judgments)
+
+    assert len(rows) == 1
+    _, winner, ranking = rows[0]
+    assert winner == "vanilla-rag"
+    assert "graph-rag" not in ranking

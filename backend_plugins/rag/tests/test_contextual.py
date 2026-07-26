@@ -39,6 +39,7 @@ async def test_contextualize_calls_blurb_model(monkeypatch):
     {},                                             # malformed: no choices key at all
     {"choices": [{"message": {"content": None}}]},  # choice present, null content
     {"choices": [{"message": {}}]},                 # choice present, no content key
+    {"choices": [{"message": None}]},               # choice present, null message object
 ])
 async def test_contextualize_degrades_to_empty_string(monkeypatch, resp):
     # the blurb reply is parsed with the same guard-and-degrade idiom as
@@ -50,6 +51,23 @@ async def test_contextualize_degrades_to_empty_string(monkeypatch, resp):
     monkeypatch.setattr(contextual.litellm, "chat", fake_chat)
     monkeypatch.setattr(contextual.config, "role", lambda r: "stub-blurb-model")
     assert await contextual.contextualize("doc", "chunk") == ""
+
+
+@pytest.mark.asyncio
+async def test_contextualize_logs_and_degrades_on_non_string_content(monkeypatch, caplog):
+    # Unlike pipeline.answer_from_context, contextualize has no downstream
+    # build_response coercion warning — a non-string content (e.g. a structured
+    # content-part list) must be caught and logged here, or a malformed reply
+    # silently drops a chunk's blurb with zero diagnostic trail during
+    # `python -m ingest.contextual`.
+    resp = {"choices": [{"message": {"content": [{"type": "text", "text": "x"}]}}]}
+    async def fake_chat(model, messages, **kw): return resp
+    monkeypatch.setattr(contextual.litellm, "chat", fake_chat)
+    monkeypatch.setattr(contextual.config, "role", lambda r: "stub-blurb-model")
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        out = await contextual.contextualize("doc", "chunk")
+    assert out == ""
+    assert "non-string" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -136,3 +154,34 @@ flavors:
     assert r.status_code == 200
     assert calls["hybrid"] == ("RagContextual", 7, 0.9)  # flavor params reach retrieval
     assert [h.title for h in seen["hits"]] == ["A", "B"]  # top_n slice, no rerank
+
+
+def test_doc_window_returns_full_doc_under_the_cap():
+    doc = "x" * 100
+    assert contextual._doc_window(doc, "x" * 5) == doc
+
+
+def test_doc_window_centers_on_the_chunk_when_over_the_cap():
+    # The chunk must land in the returned window (not just anywhere in doc_text),
+    # and the window must be exactly _DOC_WINDOW chars — the function's entire
+    # documented purpose ("a window CENTERED on the chunk").
+    prefix = "a" * 10_000
+    chunk = "THE-CHUNK-MARKER"
+    suffix = "b" * 10_000
+    doc = prefix + chunk + suffix
+    window = contextual._doc_window(doc, chunk)
+    assert len(window) == contextual._DOC_WINDOW
+    assert chunk in window
+    # roughly centered: similar amount of prefix/suffix context on each side
+    idx = window.index(chunk)
+    before, after = idx, len(window) - idx - len(chunk)
+    assert abs(before - after) <= 1
+
+
+def test_doc_window_falls_back_to_prefix_when_chunk_not_found_verbatim():
+    # e.g. a chunk that was re-whitespaced/normalized after extraction no longer
+    # appears verbatim in doc_text — must not crash or return an empty/wrong
+    # window, just fall back to a plain prefix cut.
+    doc = "y" * 20_000
+    window = contextual._doc_window(doc, "not present anywhere in doc")
+    assert window == doc[: contextual._DOC_WINDOW]

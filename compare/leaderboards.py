@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from compare import flavors as flavor_config
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -182,8 +183,9 @@ def _metric(summary: dict[str, Any], name: str) -> dict[str, Any]:
     required = (
         "mean", "evaluated", "total", "not_evaluable", "errors", "timeouts", "coverage"
     )
-    if any(key not in metric for key in required):
-        raise ValueError(f"Ragas metric {name!r} is missing coverage counters")
+    missing = [key for key in required if key not in metric]
+    if missing:
+        raise ValueError(f"Ragas metric {name!r} is missing field(s): {', '.join(missing)}")
     evaluated = _counter(metric["evaluated"], f"Ragas {name} evaluated")
     total = _counter(metric["total"], f"Ragas {name} total")
     not_evaluable = _counter(metric["not_evaluable"], f"Ragas {name} not_evaluable")
@@ -245,6 +247,12 @@ def _rankings(approaches: dict[str, dict[str, Any]]) -> dict[str, dict[str, int 
     }
 
 
+# Accepted complexity (overnight §3.30): aggregates every per-approach metric
+# from the judged results in one pass; the branchiness is inherent to fan-out
+# over metric families, not accidental. Returning a typed dataclass instead of
+# this positional tuple is a worthwhile follow-up, but it must land as its own
+# reviewed+tested change (it reshapes the harness result path that feeds the
+# committed leaderboards), not as drive-by churn here.
 def _judge_details(
     judgments: dict[str, Any], approaches: set[str], dataset_id: str
 ) -> tuple[
@@ -406,6 +414,10 @@ def _validate_judge_summary(
         raise ValueError("judge mean does not match judgment scores")
 
 
+# Accepted complexity (overnight §3.30): builds one dataset's leaderboard
+# records from several independently-optional evidence sources (evaluation
+# summary, judgments, per-approach coverage) — same fan-out-over-metric-
+# families shape as _judge_details/_overall_records above.
 def _records_for_dataset(
     dataset: dict[str, Any],
     evaluation: dict[str, Any],
@@ -474,7 +486,10 @@ def _records_for_dataset(
                 ),
                 "approach": approach,
                 "base_family": base_family,
-                "maturity": "experimental" if base_family == "lazy-graph-rag" else "canonical",
+                "maturity": (
+                    "experimental" if base_family in flavor_config.EXPERIMENTAL_APPROACHES
+                    else "canonical"
+                ),
                 "judge_rank": ranks["judge"][approach],
                 "judge_mean": summary["judge_panel"]["mean"],
                 "judge_evaluated": int(summary["judge_panel"]["evaluated"]),
@@ -496,6 +511,10 @@ def _records_for_dataset(
     return records, models, approach_names
 
 
+# Accepted complexity (overnight §3.30): same fan-out-over-metric-families shape
+# as `_judge_details` above — aggregates every per-approach metric across all
+# rows into one overall record. Splitting it risks the same reshape-the-harness-
+# result-path cost noted on `_judge_details`; not attempted as drive-by churn.
 def _overall_records(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     by_approach: dict[str, list[dict[str, Any]]] = {}
     for row in rows:

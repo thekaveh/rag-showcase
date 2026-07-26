@@ -138,6 +138,9 @@ def test_unknown_model_raises_key_error(tmp_path) -> None:
      "duplicate"),                                                    # duplicate alias
     ("flavors:\n  - alias: h-x\n    base: hybrid-rag\n    params:\n      retrieve_k: \"4o\"\n",
      "retrieve_k"),                                                   # non-numeric numeric param
+    ("flavors:\n  - alias: h-b\n    base: hybrid-rag\n    params:\n      retrieve_k: true\n",
+     "retrieve_k"),                     # bare bool: int(True)==1 would silently pass unnoticed
+
     ("flavors:\n  - alias: h-y\n    base: hybrid-rag\n    params:\n      rerank: \"false\"\n",
      "rerank"),                                                       # quoted bool would invert intent
     ("flavors:\n  - alias: h-a\n    base: hybrid-rag\n    params:\n      alpha: 1.5\n",

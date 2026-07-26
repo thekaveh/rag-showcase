@@ -70,6 +70,11 @@ async def _run_tool(name: str, args: dict, params: dict) -> tuple[str, int]:
     return f"(unknown tool {name})", 0
 
 
+# Accepted complexity (overnight §3.30): the ReAct tool-call loop (parse tool
+# call, dispatch, guard malformed args/ids/names, accumulate observations,
+# bound by max_steps) is inherently branchy state-machine logic; a state-
+# pattern extraction was considered but would add indirection without
+# reducing the actual decision count for a 4-step-bounded loop.
 @router.post("/agentic-rag/v1/chat/completions")
 async def agentic_rag(req: ChatRequest):
     t0 = time.monotonic()
@@ -105,6 +110,10 @@ async def agentic_rag(req: ChatRequest):
             break
         messages.append(msg)
         thought = content.strip()
+        # Tool calls within a turn are awaited sequentially on purpose: gathering
+        # them would stack concurrent LightRAG/embed requests on host Ollama and
+        # reintroduce the model-eviction thrash noted in the local-graph-run
+        # runbook. ReAct turns are few, so the latency cost is acceptable.
         for j, call in enumerate(tool_calls):
             # Local models sometimes emit a tool call with a null/absent id. The
             # OpenAI contract requires each tool reply's tool_call_id to match an

@@ -99,7 +99,7 @@ def delete_collection(name: str) -> None:
 
     Used to make ingest idempotent: a warm re-run of start-all.sh rebuilds the
     corpus from scratch instead of appending duplicate chunks (add_chunks inserts
-    with fresh UUIDs and never dedups), mirroring register's delete-then-add.
+    with fresh UUIDs and never dedups), using the same delete-then-add pattern.
     """
     client = _weaviate()
     try:
@@ -120,9 +120,12 @@ def add_chunks(name: str, chunks: list[dict[str, Any]]) -> int:
                     properties={"title": c["title"], "text": c["text"]},
                     vector=c["vector"],
                 )
-        # Weaviate v4 batches absorb per-object errors instead of raising;
-        # surface them and return the count actually inserted (not the input
-        # count) so callers don't over-report a partially failed ingest.
+        # Weaviate v4 (weaviate-client >=4.9,<5, pinned in requirements.txt)
+        # absorbs per-object insert errors instead of raising and exposes them as
+        # `coll.batch.failed_objects` once the dynamic batch closes. Surface them
+        # and return the count actually inserted (not the input count) so callers
+        # don't over-report a partially failed ingest. A weaviate-client bump that
+        # renames this attribute would silently drop the guard — re-verify on bump.
         failed = getattr(coll.batch, "failed_objects", None) or []
         if failed:
             logging.getLogger("uvicorn.error").warning(
@@ -156,7 +159,7 @@ def read_ingested_chunks(collection: str) -> list[IngestedChunk]:
             source = str(properties.get("source") or properties.get("title") or "")
             text = str(properties.get("content") or properties.get("text") or "")
             raw_index = properties.get("chunkIndex", 0)
-            index = raw_index if isinstance(raw_index, int) else 0
+            index = raw_index if isinstance(raw_index, int) and not isinstance(raw_index, bool) else 0
             if source and text:
                 chunks.append(IngestedChunk(source=source, text=text, index=index))
         return sorted(chunks, key=lambda chunk: (chunk.source, chunk.index))
@@ -210,6 +213,11 @@ def read_chunks(collection: str) -> list[Hit]:
         client.close()
 
 
+# Accepted complexity (overnight §3.30): batches the TEI call, then degrades
+# each batch's failure/malformed-shape/out-of-range-index/duplicate-index/
+# partial-omission case independently (see the pass-47/pass-53/pass-67/
+# pass-68 fixes) so a later batch's failure never discards an earlier
+# batch's successfully-scored work — each guard is load-bearing.
 async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
     if not hits:
         return []
@@ -222,34 +230,85 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
             os.environ.get("TEI_RERANKER_MAX_BATCH"))
         max_batch = 32
     ordered: list[Hit] = []
+    # Batches that fail (or that a batch failure leaves untried) land here in
+    # their original pre-rerank order instead of `ordered`, so a later sort by
+    # TEI score never reshuffles them by some unrelated pre-existing score
+    # field — they keep the input's relative order, same as the whole-request
+    # degrade path below.
+    remainder: list[Hit] = []
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         for start in range(0, len(hits), max_batch):
             batch = hits[start:start + max_batch]
-            resp = await client.post(
-                f"{endpoint}/rerank",
-                json={"query": query, "texts": [h.text for h in batch]},
-            )
-            resp.raise_for_status()
-            ranking = resp.json()
+            try:
+                resp = await client.post(
+                    f"{endpoint}/rerank",
+                    json={"query": query, "texts": [h.text for h in batch]},
+                )
+                resp.raise_for_status()
+                ranking = resp.json()
+            except (httpx.HTTPError, ValueError) as exc:
+                # A flaky/down reranker — or a 200 with a non-JSON body (HTML error
+                # page from a sidecar, JSONDecodeError is a ValueError) — degrades this
+                # batch (and any batches not yet attempted) to unranked order instead of
+                # 500-ing the request. Append to `remainder` rather than returning: an
+                # earlier batch in this same call may have already scored successfully,
+                # and a return here would discard that ranked work along with the
+                # failing batch's.
+                logging.getLogger("uvicorn.error").warning(
+                    "TEI rerank failed (%s) on batch starting at index %d; "
+                    "leaving %d of %d candidate(s) unranked",
+                    type(exc).__name__, start, len(hits) - start, len(hits))
+                remainder.extend(hits[start:])
+                break
             if not isinstance(ranking, list):
-                return hits[:top_n]  # unexpected reranker shape — fall back to input order
+                # unexpected reranker shape for this batch — same append-and-stop
+                # treatment as the exception path above.
+                logging.getLogger("uvicorn.error").warning(
+                    "TEI rerank returned an unexpected shape (%s) on batch starting "
+                    "at index %d; leaving %d of %d candidate(s) unranked",
+                    type(ranking).__name__, start, len(hits) - start, len(hits))
+                remainder.extend(hits[start:])
+                break
+            consumed: set[int] = set()
             for row in ranking:
                 if not isinstance(row, dict):
                     continue  # ignore non-object rows from a misbehaving reranker
                 idx = row.get("index")
                 if not isinstance(idx, int) or not (0 <= idx < len(batch)):
                     continue  # ignore out-of-range indices from a misbehaving reranker
+                if idx in consumed:
+                    # a repeated index from a misbehaving reranker — keep the
+                    # first-seen score for this hit rather than appending a
+                    # duplicate Hit, which would both double-count this
+                    # candidate AND (via the missing-index accounting below)
+                    # silently crowd a genuinely distinct hit out of top_n.
+                    continue
+                consumed.add(idx)
                 h = batch[idx]
                 # row.get("score", 0.0) only defaults when the key is ABSENT; a
                 # present-but-null score ("score": null) returns None and
                 # float(None) raises TypeError, so guard the value like the sibling
                 # score parse in _hits_from_objects (score=None is sorted as 0.0).
                 raw = row.get("score")
-                score = float(raw) if isinstance(raw, (int, float)) else None
+                # Exclude bool (an int subclass) so a misbehaving reranker can't
+                # coerce True→1.0 and bypass the leaderboards' score-type guard.
+                score = float(raw) if isinstance(raw, (int, float)) and not isinstance(raw, bool) else None
                 ordered.append(Hit(title=h.title, text=h.text, score=score))
+            # A structurally-valid `ranking` list that simply omits some indices
+            # (fewer rows than texts sent, duplicate/out-of-range indices, or
+            # non-dict rows) must not silently drop those candidates — every hit
+            # sent to TEI ends up somewhere in the output, ranked or unranked,
+            # matching the same contract the exception/bad-shape branches above
+            # already uphold.
+            missing = [batch[i] for i in range(len(batch)) if i not in consumed]
+            if missing:
+                logging.getLogger("uvicorn.error").warning(
+                    "TEI rerank omitted %d/%d candidate(s) from batch starting "
+                    "at index %d; leaving them unranked", len(missing), len(batch), start)
+                remainder.extend(missing)
     # if every ranked index was out of range (or the list was empty), fall back
     # to input order rather than dropping all sources
     if not ordered:
         return hits[:top_n]
     ordered.sort(key=lambda h: h.score if h.score is not None else 0.0, reverse=True)
-    return ordered[:top_n]
+    return (ordered + remainder)[:top_n]

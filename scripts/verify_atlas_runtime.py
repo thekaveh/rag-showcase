@@ -14,6 +14,11 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Ceiling for the Docker CLI snapshot calls so a wedged daemon can't hang the
+# convergence poll (the outer wait_for_runtime deadline is only re-checked
+# between iterations); mirrors eval_preflight._DOCKER_CLI_TIMEOUT.
+_DOCKER_CLI_TIMEOUT = 30.0
+
 LONG_LIVED_SERVICES = {
     "backend",
     "kong-api-gateway",
@@ -54,6 +59,8 @@ FAILED_START_SUMMARY = "[ERROR] Failed to start some services"
 def env_value(name: str) -> str:
     value = ""
     env_file = ROOT / "infra" / ".env"
+    if not env_file.is_file():
+        return value  # a missing .env (cold checkout) must not crash argparse defaults
     for raw_line in env_file.read_text(encoding="utf-8").splitlines():
         if raw_line.startswith(f"{name}="):
             value = raw_line.split("=", 1)[1].strip()
@@ -75,27 +82,46 @@ def required_services(llm_source: str) -> tuple[set[str], set[str]]:
 
 
 def docker_snapshot(project: str) -> dict[str, dict[str, Any]]:
-    ids = subprocess.run(
-        [
-            "docker",
-            "ps",
-            "-aq",
-            "--filter",
-            f"label=com.docker.compose.project={project}",
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.split()
+    try:
+        ids = subprocess.run(
+            [
+                "docker",
+                "ps",
+                "-aq",
+                "--filter",
+                f"label=com.docker.compose.project={project}",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=_DOCKER_CLI_TIMEOUT,
+        ).stdout.split()
+    except subprocess.TimeoutExpired:
+        return {}  # wedged daemon — report no snapshot; the outer deadline bounds the wait
+    except subprocess.CalledProcessError:
+        # A transient daemon error (restarting, permission blip) during Atlas
+        # convergence — same treatment as the inspect call below: no snapshot
+        # this poll, retry on the next one instead of crashing the poller.
+        return {}
     if not ids:
         return {}
 
-    inspected = subprocess.run(
-        ["docker", "inspect", *ids],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        inspected = subprocess.run(
+            ["docker", "inspect", *ids],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=_DOCKER_CLI_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return {}
+    except subprocess.CalledProcessError:
+        # A container from the `ps` snapshot above can be removed/recycled before
+        # `inspect` runs — likely exactly while one-shot init containers are
+        # exiting/being pruned during Atlas convergence. Treat like the timeout
+        # case: no snapshot this poll, retry on the next one instead of crashing.
+        return {}
     snapshot: dict[str, dict[str, Any]] = {}
     for item in json.loads(inspected.stdout):
         labels = item.get("Config", {}).get("Labels", {}) or {}
@@ -105,6 +131,10 @@ def docker_snapshot(project: str) -> dict[str, dict[str, Any]]:
     return snapshot
 
 
+# Accepted complexity (overnight §3.30): classifies every long-lived and
+# one-shot service into pending/failed/converged from its raw docker state —
+# one branch per Status/Health combination, a state-machine classifier, not
+# accidental complexity.
 def evaluate(
     snapshot: dict[str, dict[str, Any]], llm_source: str
 ) -> tuple[list[str], list[str]]:
@@ -171,7 +201,7 @@ def wait_for_runtime(project: str, llm_source: str, timeout: float = 300.0) -> b
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", default=env_value("PROJECT_NAME"))
     parser.add_argument("--llm-source", default=env_value("LLM_PROVIDER_SOURCE"))
     parser.add_argument("--atlas-log", type=Path, required=True)

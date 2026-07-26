@@ -42,6 +42,8 @@ def _mean_scores(judgments: dict) -> dict[str, float]:
     buckets: dict[str, list[float]] = {}
     for query in judgments["queries"]:
         for approach, score in query.get("mean_by_approach", {}).items():
+            if isinstance(score, bool):
+                continue
             buckets.setdefault(approach, []).append(float(score))
     return {approach: round(sum(scores) / len(scores), 2)
             for approach, scores in buckets.items() if scores}
@@ -77,6 +79,7 @@ def _query_rows(judgments: dict) -> list[tuple[str, str, str]]:
         scores = {
             approach: float(score)
             for approach, score in query.get("mean_by_approach", {}).items()
+            if not isinstance(score, bool)
         }
         query_id = query.get("query_id") or query.get("id") or query.get("query", "")
         winner = str(query.get("observed_winner") or _winner(scores))
@@ -99,34 +102,8 @@ def _canonical_ranking_text(ranking: list[dict], *, latency: bool = False) -> st
     return " > ".join(rendered)
 
 
-def build_report() -> str:
-    datasets = _load_manifest()
-    # Load each measured judgments snapshot exactly once; every downstream section
-    # (rankings, per-query winners, interpretation) derives from these.
-    measured_judgments = {
-        dataset["id"]: _load_judgments(ROOT / dataset["judgment_snapshot"])
-        for dataset in datasets
-        if dataset["status"] == "measured"
-    }
-    measured_scores = {d_id: _mean_scores(j) for d_id, j in measured_judgments.items()}
-    measured_rows = {d_id: (_winner(s), _ranking_text(s))
-                     for d_id, s in measured_scores.items()}
-    flavor_judgments = {
-        dataset["id"]: _load_judgments(ROOT / dataset["flavor_judgment_snapshot"])
-        for dataset in datasets
-        if dataset["status"] == "measured" and dataset.get("flavor_judgment_snapshot")
-    }
-    flavor_scores = {d_id: _mean_scores(j) for d_id, j in flavor_judgments.items()}
-    flavor_rows = {
-        d_id: (_winner(scores), _ranking_text(scores))
-        for d_id, scores in flavor_scores.items()
-    }
-    measured_evaluations = {
-        dataset["id"]: _load_evaluation_summary(ROOT / dataset["evaluation_snapshot"])
-        for dataset in datasets
-        if dataset["status"] == "measured" and dataset.get("evaluation_snapshot")
-    }
-    lines = [
+def _intro_lines() -> list[str]:
+    return [
         _report_h1(),
         "",
         "This generated report is the dataset-ladder and per-query view, not the",
@@ -148,6 +125,11 @@ def build_report() -> str:
         "[`results/README.md`](results/README.md).",
         "For approach-by-approach internals and tuning surfaces, see",
         "[`approaches.md`](approaches.md).",
+    ]
+
+
+def _dataset_ladder_section(datasets: list[dict]) -> list[str]:
+    lines = [
         "",
         "## 1. Dataset Complexity Ladder",
         "",
@@ -161,14 +143,17 @@ def build_report() -> str:
             f"{dataset['graph_nature']} | [`{dataset['queries_file']}`](../{dataset['queries_file']}) | "
             f"{dataset.get('source_url', '')} |"
         )
+    return lines
 
-    lines.extend([
+
+def _judge_panel_ranking_section(datasets: list[dict], measured_rows: dict) -> list[str]:
+    lines = [
         "",
         "## 2. Judge-Panel Ranking Drift by Input Dataset",
         "",
         "| Dataset | Complexity | Status | Winner | Ranking |",
         "|---|---:|---|---|---|",
-    ])
+    ]
     for dataset in datasets:
         winner, ranking = measured_rows.get(
             dataset["id"], ("pending live run", "pending live run")
@@ -177,8 +162,13 @@ def build_report() -> str:
             f"| `{dataset['id']}` | {dataset['complexity_level']} | {dataset['status']} | "
             f"{winner} | {ranking} |"
         )
+    return lines
 
-    lines.extend([
+
+def _flavor_tier_section(
+    datasets: list[dict], flavor_rows: dict, flavor_judgments: dict
+) -> list[str]:
+    lines = [
         "",
         "## 3. Flavor-Tier Tuning Results",
         "",
@@ -189,7 +179,7 @@ def build_report() -> str:
         "",
         "| Dataset | Status | Flavor winner | Flavor ranking |",
         "|---|---|---|---|",
-    ])
+    ]
     for dataset in datasets:
         winner, ranking = flavor_rows.get(
             dataset["id"], ("pending fresh flavor run", "pending fresh flavor run")
@@ -213,8 +203,11 @@ def build_report() -> str:
             continue
         for query_id, winner, top3 in _query_rows(judgments):
             lines.append(f"| `{dataset['id']}` | `{query_id}` | {winner} | {top3} |")
+    return lines
 
-    lines.extend([
+
+def _canonical_metrics_section(datasets: list[dict], measured_evaluations: dict) -> list[str]:
+    lines = [
         "",
         "## 4. Canonical Evaluation Metrics",
         "",
@@ -225,7 +218,7 @@ def build_report() -> str:
         "",
         "| Dataset | Faithfulness ranking | Answer relevancy ranking | Latency ranking | Row coverage | Failures |",
         "|---|---|---|---|---|---|",
-    ])
+    ]
     for dataset in datasets:
         evaluation = measured_evaluations.get(dataset["id"])
         if not evaluation:
@@ -257,7 +250,96 @@ def build_report() -> str:
             f"{ok}/{total} successful | {errors} {'error' if errors == 1 else 'errors'}, "
             f"{timeouts} {'timeout' if timeouts == 1 else 'timeouts'} |"
         )
+    return lines
 
+
+def _graph_status_note(measured_scores: dict) -> str:
+    if not measured_scores:
+        return ""
+    graph_leads = sorted(d_id for d_id, s in measured_scores.items()
+                         if _winner(s).startswith("graph-rag"))
+    if graph_leads:
+        ids = ", ".join(f"`{d}`" for d in graph_leads)
+        return f" `graph-rag` leads on {ids}."
+    if all(any(alias.startswith("graph-rag") for alias in scores)
+           for scores in measured_scores.values()):
+        # "across the live rungs" is a per-rung claim: require graph-rag in
+        # EVERY measured snapshot, not just one of them.
+        return (" `graph-rag` is measured end to end across the live rungs "
+               "but does not lead any of them.")
+    # else: graph-rag absent from at least one snapshot (e.g. an --approaches run
+    # that excluded it) — say nothing rather than claim a measurement that didn't
+    # happen on every rung.
+    return ""
+
+
+def _base_family_last_place_note(measured_scores: dict) -> str:
+    base_rankings = [_ranking(scores) for scores in measured_scores.values() if scores]
+    if not (base_rankings and len(base_rankings) == len(measured_scores)):
+        return ""
+    base_last = {ranking[-1][0] for ranking in base_rankings}
+    if len(base_last) != 1:
+        return ""
+    worst = next(iter(base_last))
+    return f"Across the current snapshots, `{worst}` ranked last on every measured dataset."
+
+
+def _flavor_last_place_note(flavor_scores: dict, flavor_winner_counts: dict[str, int]) -> str:
+    rankings = [_ranking(s) for s in flavor_scores.values() if s]
+    if not (rankings and len(rankings) == len(flavor_scores)):
+        return ""
+    last_aliases = {ranking[-1][0] for ranking in rankings}
+    if len(last_aliases) != 1:
+        return ""
+    worst = next(iter(last_aliases))
+    if worst in BASE_APPROACHES:
+        # A canonical approach landing last is not a flavor-tuning result — keep
+        # the framing honest for flavorless regenerations.
+        note = f"Across the current snapshots, `{worst}` ranked last on every measured dataset."
+    else:
+        note = (f"The live flavor snapshots show one clear tuning result: "
+               f"`{worst}` ranked last on every measured dataset.")
+    if worst == "graph-rag-wide":
+        # Qualitative context that only applies while the derived fact holds.
+        note += (
+            " Its committed answers are frequently truncated one-token or "
+            "heading-only output — the wide retrieval envelope overflows the "
+            "current LightRAG query setup.")
+        fast_wins = flavor_winner_counts.get("graph-rag-fast", 0)
+        if fast_wins:
+            note += (
+                f" `graph-rag-fast` was the stronger graph flavor, winning "
+                f"{fast_wins} individual "
+                f"{'query' if fast_wins == 1 else 'queries'} across the measured "
+                "datasets while reducing latency.")
+    return note
+
+
+def _base_family_per_query_section(datasets: list[dict], measured_judgments: dict) -> list[str]:
+    lines = [
+        "",
+        "## 5. Base-Family Per-Query Winners",
+        "",
+        "The **Winner** column is the judge panel's `observed_winner`: the approach with the",
+        "highest mean score, breaking ties by best-answer votes. The **Top 3 mean scores**",
+        "column ranks by mean only (ties ordered by name), so when several approaches tie on",
+        "mean the vote-decided winner can fall outside the listed top three.",
+        "",
+        "| Dataset | Query | Winner | Top 3 mean scores |",
+        "|---|---|---|---|",
+    ]
+    for dataset in datasets:
+        judgments = measured_judgments.get(dataset["id"])
+        if not judgments:
+            continue
+        for query_id, winner, top3 in _query_rows(judgments):
+            lines.append(f"| `{dataset['id']}` | `{query_id}` | {winner} | {top3} |")
+    return lines
+
+
+def _interpretation_section(
+    datasets: list[dict], measured_rows: dict, base_note: str, flavor_note: str, graph_status: str
+) -> list[str]:
     # The interpretation below is DERIVED from the loaded snapshots. This file is
     # regenerated after every ladder run, so baked-in conclusions would silently be
     # republished the first time the data stopped supporting them.
@@ -269,86 +351,6 @@ def build_report() -> str:
         measured_summaries.append(
             f"{prefix} `{dataset['id']}`, `{measured_rows[dataset['id']][0]}` leads"
         )
-    flavor_winner_counts: dict[str, int] = {}
-    for judgments in flavor_judgments.values():
-        for query in judgments["queries"]:
-            observed = query.get("observed_winner")
-            if observed:
-                flavor_winner_counts[observed] = flavor_winner_counts.get(observed, 0) + 1
-    graph_status = ""
-    if measured_scores:
-        graph_leads = sorted(d_id for d_id, s in measured_scores.items()
-                             if _winner(s).startswith("graph-rag"))
-        if graph_leads:
-            ids = ", ".join(f"`{d}`" for d in graph_leads)
-            graph_status = f" `graph-rag` leads on {ids}."
-        elif all(any(alias.startswith("graph-rag") for alias in scores)
-                 for scores in measured_scores.values()):
-            # "across the live rungs" is a per-rung claim: require graph-rag in
-            # EVERY measured snapshot, not just one of them.
-            graph_status = (" `graph-rag` is measured end to end across the live rungs "
-                            "but does not lead any of them.")
-        # else: graph-rag absent from at least one snapshot (e.g. an --approaches run
-        # that excluded it) — say nothing rather than claim a measurement that didn't
-        # happen on every rung.
-    base_note = ""
-    base_rankings = [_ranking(scores) for scores in measured_scores.values() if scores]
-    if base_rankings and len(base_rankings) == len(measured_scores):
-        base_last = {ranking[-1][0] for ranking in base_rankings}
-        if len(base_last) == 1:
-            worst = next(iter(base_last))
-            base_note = (
-                f"Across the current snapshots, `{worst}` ranked last on every "
-                "measured dataset."
-            )
-
-    flavor_note = ""
-    rankings = [_ranking(s) for s in flavor_scores.values() if s]
-    if rankings and len(rankings) == len(flavor_scores):
-        last_aliases = {ranking[-1][0] for ranking in rankings}
-        if len(last_aliases) == 1:
-            worst = next(iter(last_aliases))
-            if worst in BASE_APPROACHES:
-                # A canonical approach landing last is not a flavor-tuning result —
-                # keep the framing honest for flavorless regenerations.
-                flavor_note = (f"Across the current snapshots, `{worst}` ranked last "
-                               "on every measured dataset.")
-            else:
-                flavor_note = (f"The live flavor snapshots show one clear tuning result: "
-                               f"`{worst}` ranked last on every measured dataset.")
-            if worst == "graph-rag-wide":
-                # Qualitative context that only applies while the derived fact holds.
-                flavor_note += (
-                    " Its committed answers are frequently truncated one-token or "
-                    "heading-only output — the wide retrieval envelope overflows the "
-                    "current LightRAG query setup.")
-                fast_wins = flavor_winner_counts.get("graph-rag-fast", 0)
-                if fast_wins:
-                    flavor_note += (
-                        f" `graph-rag-fast` was the stronger graph flavor, winning "
-                        f"{fast_wins} individual "
-                        f"{'query' if fast_wins == 1 else 'queries'} across the measured "
-                        "datasets while reducing latency.")
-
-    lines.extend([
-        "",
-        "## 5. Base-Family Per-Query Winners",
-        "",
-        "The **Winner** column is the judge panel's `observed_winner`: the approach with the",
-        "highest mean score, breaking ties by best-answer votes. The **Top 3 mean scores**",
-        "column ranks by mean only (ties ordered by name), so when several approaches tie on",
-        "mean the vote-decided winner can fall outside the listed top three.",
-        "",
-        "| Dataset | Query | Winner | Top 3 mean scores |",
-        "|---|---|---|---|",
-    ])
-    for dataset in datasets:
-        judgments = measured_judgments.get(dataset["id"])
-        if not judgments:
-            continue
-        for query_id, winner, top3 in _query_rows(judgments):
-            lines.append(f"| `{dataset['id']}` | `{query_id}` | {winner} | {top3} |")
-
     rung_sentence = (
         f"The current measured ladder has {len(measured_rows)} "
         f"{'rung' if len(measured_rows) == 1 else 'rungs'}"
@@ -356,7 +358,7 @@ def build_report() -> str:
            else "; scores appear after the first live ladder run.")
         + graph_status
     )
-    lines.extend([
+    lines = [
         "",
         "## 6. Interpretation",
         "",
@@ -365,7 +367,7 @@ def build_report() -> str:
         "That tells us the next step is not simply adding more documents; it is adding",
         "datasets whose native task requires relational retrieval, temporal event",
         "reasoning, and multi-hop graph paths.",
-    ])
+    ]
     if flavor_note:
         lines.extend(["", flavor_note])
     if base_note:
@@ -388,6 +390,59 @@ def build_report() -> str:
         "- MITRE ATT&CK: measured bounded cyber graph over intrusion groups, campaigns, software, techniques, and mitigations.",
         "",
     ])
+    return lines
+
+
+# Accepted complexity (overnight §3.30): the remaining complexity after this
+# function's own pass-50 extraction (CC 62 -> 16) is loading each optional
+# snapshot kind once and threading it into the section helpers below — one
+# branch per optional snapshot, not an algorithm worth splitting further.
+def build_report() -> str:
+    datasets = _load_manifest()
+    # Load each measured judgments snapshot exactly once; every downstream section
+    # (rankings, per-query winners, interpretation) derives from these.
+    measured_judgments = {
+        dataset["id"]: _load_judgments(ROOT / dataset["judgment_snapshot"])
+        for dataset in datasets
+        if dataset["status"] == "measured"
+    }
+    measured_scores = {d_id: _mean_scores(j) for d_id, j in measured_judgments.items()}
+    measured_rows = {d_id: (_winner(s), _ranking_text(s))
+                     for d_id, s in measured_scores.items()}
+    flavor_judgments = {
+        dataset["id"]: _load_judgments(ROOT / dataset["flavor_judgment_snapshot"])
+        for dataset in datasets
+        if dataset["status"] == "measured" and dataset.get("flavor_judgment_snapshot")
+    }
+    flavor_scores = {d_id: _mean_scores(j) for d_id, j in flavor_judgments.items()}
+    flavor_rows = {
+        d_id: (_winner(scores), _ranking_text(scores))
+        for d_id, scores in flavor_scores.items()
+    }
+    measured_evaluations = {
+        dataset["id"]: _load_evaluation_summary(ROOT / dataset["evaluation_snapshot"])
+        for dataset in datasets
+        if dataset["status"] == "measured" and dataset.get("evaluation_snapshot")
+    }
+    flavor_winner_counts: dict[str, int] = {}
+    for judgments in flavor_judgments.values():
+        for query in judgments["queries"]:
+            observed = query.get("observed_winner")
+            if observed:
+                flavor_winner_counts[observed] = flavor_winner_counts.get(observed, 0) + 1
+
+    lines = _intro_lines()
+    lines.extend(_dataset_ladder_section(datasets))
+    lines.extend(_judge_panel_ranking_section(datasets, measured_rows))
+    lines.extend(_flavor_tier_section(datasets, flavor_rows, flavor_judgments))
+    lines.extend(_canonical_metrics_section(datasets, measured_evaluations))
+    lines.extend(_base_family_per_query_section(datasets, measured_judgments))
+    lines.extend(_interpretation_section(
+        datasets, measured_rows,
+        base_note=_base_family_last_place_note(measured_scores),
+        flavor_note=_flavor_last_place_note(flavor_scores, flavor_winner_counts),
+        graph_status=_graph_status_note(measured_scores),
+    ))
     return "\n".join(lines)
 
 

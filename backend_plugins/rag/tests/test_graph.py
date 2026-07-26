@@ -13,11 +13,16 @@ from rag.common import lightrag
 def _clear_flavor_cache():
     # A per-test flavors.yaml override loads into the module-global cache; clear
     # before AND after so a tmp table can't leak across tests (mirrors test_flavors.py).
+    # lightrag._PROFILES_LOADED must be reset alongside the cache dict: it's a
+    # separate loaded-sentinel (mirrors config._LOADED) so an empty profiles list
+    # still counts as "loaded" and isn't cleared by emptying the dict alone.
     flavors._CACHE.clear()
     lightrag._PROFILE_CACHE.clear()
+    lightrag._PROFILES_LOADED = False
     yield
     flavors._CACHE.clear()
     lightrag._PROFILE_CACHE.clear()
+    lightrag._PROFILES_LOADED = False
 
 
 def _profiles_file(tmp_path, monkeypatch, *profiles):
@@ -143,6 +148,35 @@ async def test_lightrag_query_empty_answer_returns_empty_string(monkeypatch):
     with respx.mock:
         respx.post("http://lightrag:9621/query").mock(
             return_value=httpx.Response(200, json={}))
+        out = await lightrag.query("a real graph question")
+        assert out == ""
+
+
+@pytest.mark.asyncio
+async def test_lightrag_query_degrades_on_non_dict_body(monkeypatch):
+    # A valid-JSON-but-non-object body ([], null, a bare string) must not
+    # AttributeError on data.get(...) — degrade to "" like the empty-answer case,
+    # matching every other client's shape guard in this module (n8n, atlas_job,
+    # vectors.rerank).
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    with respx.mock:
+        respx.post("http://lightrag:9621/query").mock(
+            return_value=httpx.Response(200, json=["not", "an", "object"]))
+        out = await lightrag.query("a real graph question")
+        assert out == ""
+
+
+@pytest.mark.asyncio
+async def test_lightrag_query_degrades_on_non_json_body(monkeypatch):
+    # A 200 with a non-JSON body (an HTML error page from a proxy/sidecar in
+    # front of LightRAG) must not raise JSONDecodeError — degrade to "" like the
+    # non-dict-body case, matching every other client's decode guard in this
+    # module (n8n, atlas_job, vectors.rerank, litellm chat/embed).
+    monkeypatch.setenv("LIGHTRAG_ENDPOINT", "http://lightrag:9621")
+    with respx.mock:
+        respx.post("http://lightrag:9621/query").mock(
+            return_value=httpx.Response(200, content=b"<html>bad gateway</html>",
+                                         headers={"content-type": "text/html"}))
         out = await lightrag.query("a real graph question")
         assert out == ""
 
