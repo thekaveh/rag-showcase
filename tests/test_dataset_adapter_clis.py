@@ -309,3 +309,130 @@ def test_stark_export_fetches_before_purging_output_dir(tmp_path, monkeypatch) -
         stark_export.export("prime", output, 5)
 
     assert sentinel.is_file(), "stark_export purged output/ despite load_skb failing"
+
+
+class _FakeJsonResponse:
+    def __init__(self, payload) -> None:
+        self._payload = payload
+
+    def raise_for_status(self) -> None:
+        pass
+
+    def json(self):
+        return self._payload
+
+
+class _SucceedingHttpxClient:
+    """Returns a fixed payload from .get(), regardless of URL/params."""
+
+    def __init__(self, payload) -> None:
+        self._payload = payload
+
+    def __call__(self, *args, **kwargs):
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info) -> None:
+        return None
+
+    def get(self, *args, **kwargs):
+        return _FakeJsonResponse(self._payload)
+
+
+def test_cyber_export_purges_after_fetch_succeeds_not_before(tmp_path, monkeypatch) -> None:
+    # Same silent-data-loss risk pass-64 found and fixed for gdelt_events: if
+    # the purge loop ever ran after the write loop instead of before, it would
+    # delete the very files this run just wrote (both act on the same *.md
+    # glob), and export() would still report a nonzero count while leaving
+    # output/ empty.
+    source = {
+        "id": "intrusion-set--alpha", "type": "intrusion-set", "name": "Alpha Group",
+        "description": "An example intrusion set.",
+        "external_references": [{"external_id": "G0001"}],
+    }
+    target = {
+        "id": "attack-pattern--spearphishing", "type": "attack-pattern",
+        "name": "Spearphishing Attachment", "description": "An example technique.",
+        "external_references": [{"external_id": "T1566.001"}],
+    }
+    rel = {
+        "type": "relationship", "source_ref": source["id"], "target_ref": target["id"],
+        "relationship_type": "uses",
+    }
+    monkeypatch.setattr(
+        cyber_threat_intel.httpx, "Client",
+        _SucceedingHttpxClient({"objects": [source, target, rel]}),
+    )
+    output = tmp_path / "cyber"
+    output.mkdir()
+    stale = output / "999-stale.md"
+    stale.write_text("stale content from a prior run\n", encoding="utf-8")
+
+    count = cyber_threat_intel.export(output, 5)
+
+    assert count == 2  # intrusion-set + attack-pattern; the relationship isn't a doc
+    remaining = sorted(p.name for p in output.glob("*.md"))
+    assert stale.name not in remaining
+    assert len(remaining) == 2
+
+
+def test_openalex_export_purges_after_fetch_succeeds_not_before(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        openalex_scholarly.httpx, "Client",
+        _SucceedingHttpxClient({"results": [
+            {"id": "https://openalex.org/W1", "title": "First Work"},
+            {"id": "https://openalex.org/W2", "title": "Second Work"},
+        ]}),
+    )
+    output = tmp_path / "openalex"
+    output.mkdir()
+    stale = output / "999-stale.md"
+    stale.write_text("stale content from a prior run\n", encoding="utf-8")
+
+    count = openalex_scholarly.export("test", output, 5)
+
+    assert count == 2
+    remaining = sorted(p.name for p in output.glob("*.md"))
+    assert stale.name not in remaining
+    assert len(remaining) == 2
+
+
+def test_stark_export_purges_after_fetch_succeeds_not_before(tmp_path, monkeypatch) -> None:
+    class _SucceedingStarkQa:
+        @staticmethod
+        def load_skb(*args, **kwargs):
+            return type("Skb", (), {
+                "node_info": {"n1": {"title": "Node One"}, "n2": {"title": "Node Two"}},
+            })()
+
+    monkeypatch.setitem(sys.modules, "stark_qa", _SucceedingStarkQa)
+    output = tmp_path / "stark"
+    output.mkdir()
+    stale = output / "999-stale.md"
+    stale.write_text("stale content from a prior run\n", encoding="utf-8")
+
+    count = stark_export.export("prime", output, 5)
+
+    assert count == 2
+    remaining = sorted(p.name for p in output.glob("*.md"))
+    assert stale.name not in remaining
+    assert len(remaining) == 2
+
+
+def test_stark_export_falls_back_to_candidate_ids_when_node_info_absent(tmp_path, monkeypatch) -> None:
+    # node_info is the primary source; candidate_ids is a fallback for SKB
+    # shapes that only expose it — currently unreached by any other test.
+    class _CandidateOnlyStarkQa:
+        @staticmethod
+        def load_skb(*args, **kwargs):
+            return type("Skb", (), {"candidate_ids": ["c1", "c2", "c3"]})()
+
+    monkeypatch.setitem(sys.modules, "stark_qa", _CandidateOnlyStarkQa)
+    output = tmp_path / "stark"
+    output.mkdir()
+
+    count = stark_export.export("prime", output, 2)
+
+    assert count == 2  # limit applied to the fallback path too
