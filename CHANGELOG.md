@@ -56,10 +56,15 @@ releases yet; this section tracks the unreleased work toward `0.1.0`.
   now only the failing batch degrades to unranked order, and prior batches'
   scores are preserved.
 - The TEI reranker also silently dropped candidates from a structurally-valid
-  but incomplete ranking response (fewer rows than texts sent, or a
-  duplicate/out-of-range `index`) — those hits vanished from the result
-  entirely instead of falling back to unranked order like every other
-  malformed-response shape. Now tracked and kept.
+  but incomplete ranking response (fewer rows than texts sent, or an
+  out-of-range `index`) — those hits vanished from the result entirely
+  instead of falling back to unranked order like every other malformed-
+  response shape. Now tracked and kept.
+- A repeated (duplicate) `index` in a TEI reranker response was read as "two
+  candidates ranked": it duplicated the referenced hit in the output and, via
+  the fix above's own missing-index accounting, crowded a genuinely distinct
+  unranked candidate out of `top_n` — even when `top_n` was large enough to
+  fit every original hit. Repeated indices are now ignored after the first.
 - `lightrag.query()` no longer raises on a non-dict `/query` response body
   from LightRAG; degrades to an empty/error response instead of crashing
   the request.

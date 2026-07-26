@@ -121,6 +121,28 @@ async def test_rerank_keeps_hits_a_partial_ranking_omits(monkeypatch, caplog):
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_rerank_ignores_duplicate_index_instead_of_duplicating_and_crowding_out(monkeypatch):
+    # A repeated `index` in the TEI response must not be treated as "two
+    # candidates ranked" — that would both duplicate the referenced Hit in
+    # `ordered` AND (since the repeated index reads as "consumed") crowd a
+    # genuinely distinct, unranked candidate out of top_n even though top_n
+    # is large enough to fit every original hit.
+    monkeypatch.setenv("TEI_RERANKER_ENDPOINT", "http://tei-reranker:80")
+    hits = [Hit("A", "a"), Hit("B", "b")]
+    respx.post("http://tei-reranker:80/rerank").mock(
+        return_value=httpx.Response(200, json=[
+            {"index": 0, "score": 0.9}, {"index": 0, "score": 0.5},
+        ]))  # index 0 repeated; index 1 ("B") never appears
+
+    out = await rerank("q", hits, top_n=2)
+
+    titles = [h.title for h in out]
+    assert titles.count("A") == 1  # not duplicated
+    assert "B" in titles  # not crowded out by the duplicate
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_rerank_degrades_on_tei_http_failure(monkeypatch):
     # A flaky/down reranker (5xx, connect error, timeout) must degrade to the
     # pre-rerank candidate order instead of 500-ing the whole request — the

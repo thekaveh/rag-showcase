@@ -214,9 +214,10 @@ def read_chunks(collection: str) -> list[Hit]:
 
 
 # Accepted complexity (overnight §3.30): batches the TEI call, then degrades
-# each batch's failure/malformed-shape/out-of-range-index case independently
-# (see the pass-47/pass-53 fixes) so a later batch's failure never discards an
-# earlier batch's successfully-scored work — each guard is load-bearing.
+# each batch's failure/malformed-shape/out-of-range-index/duplicate-index/
+# partial-omission case independently (see the pass-47/pass-53/pass-67/
+# pass-68 fixes) so a later batch's failure never discards an earlier
+# batch's successfully-scored work — each guard is load-bearing.
 async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
     if not hits:
         return []
@@ -275,6 +276,13 @@ async def rerank(query: str, hits: list[Hit], top_n: int) -> list[Hit]:
                 idx = row.get("index")
                 if not isinstance(idx, int) or not (0 <= idx < len(batch)):
                     continue  # ignore out-of-range indices from a misbehaving reranker
+                if idx in consumed:
+                    # a repeated index from a misbehaving reranker — keep the
+                    # first-seen score for this hit rather than appending a
+                    # duplicate Hit, which would both double-count this
+                    # candidate AND (via the missing-index accounting below)
+                    # silently crowd a genuinely distinct hit out of top_n.
+                    continue
                 consumed.add(idx)
                 h = batch[idx]
                 # row.get("score", 0.0) only defaults when the key is ABSENT; a
