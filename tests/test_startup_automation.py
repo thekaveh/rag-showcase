@@ -343,6 +343,79 @@ def test_runtime_verifier_rejects_genuine_failures() -> None:
     assert "n8n-init: exited 17" in failures
 
 
+def test_runtime_verifier_flags_missing_long_lived_service() -> None:
+    # A service dropped from the docker snapshot entirely (never started, or a
+    # transient docker-state-read gap) must not be silently treated as
+    # converged — it must show up as pending so wait_for_runtime keeps polling
+    # instead of reporting false convergence.
+    module = _load_runtime_module()
+    snapshot = _runtime_snapshot(module)
+    del snapshot["backend"]
+
+    pending, failures = module.evaluate(snapshot, "ollama-container-cpu")
+
+    assert "backend: missing" in pending
+    assert failures == []
+
+
+def test_runtime_verifier_waits_for_created_or_restarting_long_lived_service() -> None:
+    module = _load_runtime_module()
+    snapshot = _runtime_snapshot(module)
+    snapshot["backend"] = {"Status": "created"}
+
+    pending, failures = module.evaluate(snapshot, "ollama-container-cpu")
+
+    assert "backend: created" in pending
+    assert failures == []
+
+
+def test_runtime_verifier_flags_unrecognized_long_lived_status_as_failure() -> None:
+    # A docker Status this classifier doesn't recognize (not running/created/
+    # restarting) and no Health block must fall through to the catch-all
+    # failure branch, not be silently dropped.
+    module = _load_runtime_module()
+    snapshot = _runtime_snapshot(module)
+    snapshot["backend"] = {"Status": "dead"}
+
+    pending, failures = module.evaluate(snapshot, "ollama-container-cpu")
+
+    assert pending == []
+    assert "backend: dead" in failures
+
+
+def test_runtime_verifier_flags_missing_one_shot_service() -> None:
+    module = _load_runtime_module()
+    snapshot = _runtime_snapshot(module)
+    del snapshot["n8n-init"]
+
+    pending, failures = module.evaluate(snapshot, "ollama-container-cpu")
+
+    assert "n8n-init: missing" in pending
+    assert failures == []
+
+
+def test_runtime_verifier_waits_for_still_running_one_shot_service() -> None:
+    module = _load_runtime_module()
+    snapshot = _runtime_snapshot(module)
+    snapshot["n8n-init"] = {"Status": "running"}
+
+    pending, failures = module.evaluate(snapshot, "ollama-container-cpu")
+
+    assert "n8n-init: running" in pending
+    assert failures == []
+
+
+def test_runtime_verifier_flags_unrecognized_one_shot_status_as_failure() -> None:
+    module = _load_runtime_module()
+    snapshot = _runtime_snapshot(module)
+    snapshot["n8n-init"] = {"Status": "dead"}
+
+    pending, failures = module.evaluate(snapshot, "ollama-container-cpu")
+
+    assert pending == []
+    assert "n8n-init: dead" in failures
+
+
 def test_start_all_guards_the_infra_pin() -> None:
     # atlas#797: start-all.sh must snapshot the infra pin and restore it on exit so a
     # run leaves the repo byte-clean at the pin (see scripts/restore-infra-pin.sh,

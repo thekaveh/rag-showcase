@@ -31,7 +31,14 @@ extend-exclude = ["infra"]
 "**/tests/*.py" = ["E702"]
 
 [dependency-groups]
-dev = ["pytest>=8", "pytest-asyncio>=0.24", "respx>=0.21", "httpx>=0.27", "pyyaml>=6", "fastapi>=0.110,<0.137", "pydantic>=2", "ruff==0.9.10"]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "respx>=0.21", "httpx>=0.27", "pyyaml>=6", "fastapi>=0.110,<0.137", "pydantic>=2", "ruff==0.9.10", "coverage>=7", "radon>=6"]
+# coverage and radon: not invoked by any make target (no CI/local command
+# depends on them), but the overnight-maintenance loop's §3.13/§3.30 sweeps
+# use both — undeclared, `uv run coverage`/`uv run radon` silently fell
+# through to whatever same-named binary happened to be on PATH (a stale
+# pyenv-global install here), producing a bogus collection-error/23% result
+# instead of the real ~90%. Declaring them makes `uv run` resolve the
+# project's locked venv copy deterministically.
 # ruff is exact-pinned (unlike the floor-only pins above): every prior maintenance
 # pass validated the tree clean against 0.9.10's default rule set specifically: a
 # newer default (0.16.0 expands the default select, e.g. picking up I/isort) would

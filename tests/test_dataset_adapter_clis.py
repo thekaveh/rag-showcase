@@ -241,6 +241,58 @@ def test_httpx_adapters_fetch_before_purging_output_dir(tmp_path, monkeypatch) -
         assert sentinel.is_file(), f"{name} purged output/ despite the fetch failing"
 
 
+class _FakeGdeltResponse:
+    def __init__(self, payload: dict) -> None:
+        self._payload = payload
+
+    def raise_for_status(self) -> None:
+        pass
+
+    def json(self) -> dict:
+        return self._payload
+
+
+class _SucceedingGdeltHttpxClient:
+    def __init__(self, *args, **kwargs) -> None:
+        pass
+
+    def __enter__(self) -> "_SucceedingGdeltHttpxClient":
+        return self
+
+    def __exit__(self, *exc_info) -> None:
+        return None
+
+    def get(self, *args, **kwargs):
+        return _FakeGdeltResponse({"articles": [
+            {"title": "First Article", "url": "https://example.com/1"},
+            {"title": "Second Article", "url": "https://example.com/2"},
+        ]})
+
+
+def test_gdelt_export_purges_after_fetch_succeeds_not_before(tmp_path, monkeypatch) -> None:
+    # export()'s purge loop (drop stale *.md before writing this run's docs) runs
+    # AFTER the fetch/parse, matching the fetch-before-purge invariant above — but
+    # that invariant alone doesn't prove the purge and write loops are correctly
+    # ordered RELATIVE TO EACH OTHER on a successful fetch. If purge ran after
+    # write instead of before, it would delete the very files this run just wrote
+    # (same *.md glob), since count is computed independently of what's left on
+    # disk — export() would report success while leaving output/ empty.
+    monkeypatch.setattr(gdelt_events.httpx, "Client", _SucceedingGdeltHttpxClient)
+    output = tmp_path / "gdelt"
+    output.mkdir()
+    stale = output / "999-stale.md"
+    stale.write_text("stale content from a prior run\n", encoding="utf-8")
+
+    count = gdelt_events.export(
+        "test query", "20260101000000", "20260102000000", output, 5
+    )
+
+    assert count == 2
+    remaining = sorted(p.name for p in output.glob("*.md"))
+    assert stale.name not in remaining  # purge did run
+    assert len(remaining) == 2  # and both newly-written articles survived it
+
+
 def test_stark_export_fetches_before_purging_output_dir(tmp_path, monkeypatch) -> None:
     class _FailingStarkQa:
         @staticmethod

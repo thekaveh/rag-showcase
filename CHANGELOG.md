@@ -107,3 +107,8 @@ releases yet; this section tracks the unreleased work toward `0.1.0`.
   `alpha`, etc.) instead of silently coercing it via `bool`'s `int`
   subclass behavior (`retrieve_k: true` → `1`), raising the load-time
   `ValueError` the loader's docstring promises.
+- `scripts/docs/render_diagrams.py`'s fallback PNG renderer wrote directly
+  into the shared final PNG path with only a check-then-act `png.exists()`
+  guard; two concurrent local `build()` invocations could interleave or
+  truncate each other's output into the same file. It now renders to a
+  unique temp file and atomically publishes it via `os.replace`.
