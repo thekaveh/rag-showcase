@@ -271,6 +271,22 @@ def test_docker_snapshot_tolerates_inspect_called_process_error(monkeypatch) -> 
     assert calls["n"] == 2
 
 
+def test_docker_snapshot_tolerates_ps_called_process_error(monkeypatch) -> None:
+    # `docker ps` itself can fail on a transient daemon error (restarting,
+    # permission blip) during Atlas convergence — the sibling `inspect` call
+    # already tolerates this failure mode; `ps` (check=True, same shape) must
+    # degrade the same way instead of propagating an uncaught
+    # CalledProcessError through the poll loop.
+    module = _load_runtime_module()
+
+    def fake_run(cmd, **kwargs):
+        raise module.subprocess.CalledProcessError(1, cmd)
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    assert module.docker_snapshot("rag-showcase") == {}
+
+
 def test_runtime_verifier_requires_exact_atlas_exited_zero_signature() -> None:
     module = _load_runtime_module()
 

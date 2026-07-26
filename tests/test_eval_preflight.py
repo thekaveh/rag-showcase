@@ -424,3 +424,24 @@ def test_run_live_probes_bounds_a_wedged_exec(monkeypatch) -> None:
     assert all(not r["ok"] for r in result.values())
     assert all("timed out" in r["detail"] for r in result.values())
 
+
+def test_run_live_probes_degrades_when_docker_binary_is_missing(monkeypatch) -> None:
+    # `docker version` raising FileNotFoundError (the CLI itself isn't on PATH)
+    # must degrade to "docker unavailable" like the already-handled timeout
+    # case, not propagate an uncaught OSError through the whole preflight —
+    # mirrors check_ollama_version_skew's and run_doctor's existing OSError
+    # tolerance in this same file.
+    def _fake_run(cmd, *args, **kwargs):
+        if cmd[:2] == ["docker", "version"]:
+            raise FileNotFoundError("docker: command not found")
+        raise AssertionError(f"unexpected cmd: {cmd!r}")
+
+    monkeypatch.setattr(ep.subprocess, "run", _fake_run)
+    result = ep.run_live_probes(
+        "rag-showcase", ["vanilla-rag"], ["nomic-embed-text"],
+        "http://ollama:11434", True, timeout=10.0,
+    )
+    assert set(result) == set(ep.DECLARED_SERVICES)
+    assert all(not r["ok"] for r in result.values())
+    assert all("docker unavailable" in r["detail"] for r in result.values())
+

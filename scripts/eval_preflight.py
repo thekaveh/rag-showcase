@@ -318,7 +318,7 @@ def _backend_running(container: str) -> bool:
             ["docker", "inspect", "-f", "{{.State.Running}}", container],
             capture_output=True, text=True, timeout=_DOCKER_CLI_TIMEOUT,
         )
-    except subprocess.TimeoutExpired:
+    except (OSError, subprocess.TimeoutExpired):
         return False
     return proc.returncode == 0 and proc.stdout.strip() == "true"
 
@@ -339,7 +339,7 @@ def run_live_probes(
         docker_up = subprocess.run(
             ["docker", "version"], capture_output=True, timeout=_DOCKER_CLI_TIMEOUT,
         ).returncode == 0
-    except subprocess.TimeoutExpired:
+    except (OSError, subprocess.TimeoutExpired):
         docker_up = False
     if not docker_up:
         return {s: {"ok": False, "detail": "docker unavailable"} for s in DECLARED_SERVICES}

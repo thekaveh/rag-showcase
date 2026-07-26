@@ -98,6 +98,11 @@ def docker_snapshot(project: str) -> dict[str, dict[str, Any]]:
         ).stdout.split()
     except subprocess.TimeoutExpired:
         return {}  # wedged daemon — report no snapshot; the outer deadline bounds the wait
+    except subprocess.CalledProcessError:
+        # A transient daemon error (restarting, permission blip) during Atlas
+        # convergence — same treatment as the inspect call below: no snapshot
+        # this poll, retry on the next one instead of crashing the poller.
+        return {}
     if not ids:
         return {}
 
