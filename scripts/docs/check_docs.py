@@ -9,9 +9,14 @@ from urllib.parse import unquote, urlparse
 from .build_docs import SITE_SRC, WIKI_SRC, build, check_determinism
 from .links import is_forbidden
 from .manifest import DOCS, first_h1, iter_pages, load_manifest
+from .opener import OpenerError, check_canonical_openers
 
 PLACEHOLDER_RE = re.compile(r"\b(TODO|TBD|FIXME|XXX)\b")
 EMPTY_FENCE_RE = re.compile(r"```[A-Za-z0-9_-]*\n```", re.MULTILINE)
+WIKI_MKDOCS_RE = re.compile(
+    r"\A---\s*\n|<div\b[^>]*\bmarkdown\b|\{\s*\.md-button",
+    re.MULTILINE,
+)
 
 
 def _fail(message: str) -> None:
@@ -36,9 +41,20 @@ def check_generated_content() -> None:
                 _fail(f"{path}: placeholder marker leaked into generated {surface}")
             if EMPTY_FENCE_RE.search(text):
                 _fail(f"{path}: empty fenced code block")
+            if surface == "wiki" and WIKI_MKDOCS_RE.search(text):
+                _fail(f"{path}: MkDocs-only syntax leaked into generated wiki")
             for match in re.finditer(r"\[[^\]]+\]\(([^)]+)\)", text):
-                if is_forbidden(match.group(1), surface):
-                    _fail(f"{path}: forbidden cross-surface link {match.group(1)}")
+                target = match.group(1)
+                if is_forbidden(target, surface):
+                    _fail(f"{path}: forbidden cross-surface link {target}")
+                parsed = urlparse(target)
+                if (
+                    surface == "wiki"
+                    and not parsed.scheme
+                    and not parsed.netloc
+                    and parsed.path.endswith(".md")
+                ):
+                    _fail(f"{path}: raw wiki page link {target}")
 
 
 def check_local_links(root: Path) -> None:
@@ -65,6 +81,13 @@ def check_readme() -> None:
         _fail("README.md leaks docs publishing mechanics")
 
 
+def check_openers() -> None:
+    try:
+        check_canonical_openers(DOCS.parent)
+    except OpenerError as exc:
+        _fail(str(exc))
+
+
 def main() -> None:
     build()
     check_manifest_h1()
@@ -72,6 +95,7 @@ def main() -> None:
     check_local_links(SITE_SRC)
     check_local_links(WIKI_SRC)
     check_readme()
+    check_openers()
     check_determinism()
     subprocess.run(
         [sys.executable, "-m", "mkdocs", "build", "--clean", "--strict", "--site-dir", "site"],

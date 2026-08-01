@@ -20,6 +20,14 @@ ENTITY_REPLACEMENTS = {
 def sanitize_svg(svg: str) -> str:
     for entity, value in ENTITY_REPLACEMENTS.items():
         svg = svg.replace(entity, value)
+    if not re.match(r"<svg\b[^>]*\bxmlns=", svg, re.IGNORECASE):
+        svg = re.sub(
+            r"<svg\b",
+            '<svg xmlns="http://www.w3.org/2000/svg"',
+            svg,
+            count=1,
+            flags=re.IGNORECASE,
+        )
     return svg
 
 

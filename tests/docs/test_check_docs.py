@@ -101,6 +101,37 @@ def test_check_generated_content_fails_on_forbidden_cross_surface_link(tmp_path,
         check_docs.check_generated_content()
 
 
+def test_check_generated_content_rejects_mkdocs_syntax_in_wiki(tmp_path, monkeypatch) -> None:
+    site = tmp_path / "site"
+    wiki = tmp_path / "wiki"
+    site.mkdir()
+    wiki.mkdir()
+    (wiki / "Home.md").write_text(
+        "---\nhide:\n  - navigation\n---\n\n<div markdown>\ntext\n</div>\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(check_docs, "SITE_SRC", site)
+    monkeypatch.setattr(check_docs, "WIKI_SRC", wiki)
+
+    with pytest.raises(SystemExit, match="MkDocs-only syntax"):
+        check_docs.check_generated_content()
+
+
+def test_check_generated_content_rejects_raw_wiki_page_links(tmp_path, monkeypatch) -> None:
+    site = tmp_path / "site"
+    wiki = tmp_path / "wiki"
+    site.mkdir()
+    wiki.mkdir()
+    (wiki / "Home.md").write_text(
+        "# Home\n\n[Quick Start](guide-quickstart.md)\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(check_docs, "SITE_SRC", site)
+    monkeypatch.setattr(check_docs, "WIKI_SRC", wiki)
+
+    with pytest.raises(SystemExit, match="raw wiki page link"):
+        check_docs.check_generated_content()
+
+
 def test_check_readme_passes_when_publishing_mechanics_are_not_leaked(tmp_path, monkeypatch) -> None:
     (tmp_path / "README.md").write_text(
         "# RAG Showcase\n\nA seven-approach RAG comparison.\n", encoding="utf-8",

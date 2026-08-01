@@ -65,6 +65,20 @@ def test_approach_diagram_labels_match_implementation_contracts() -> None:
             assert label in html
 
 
+def test_lazy_graph_docs_and_architecture_do_not_claim_lightrag_or_supabase_storage() -> None:
+    runbook = (ROOT / "docs" / "guide" / "local-graph-runs.md").read_text(
+        encoding="utf-8"
+    )
+    architecture = (
+        ROOT / "docs" / "diagrams" / "architecture-detailed.html"
+    ).read_text(encoding="utf-8")
+
+    normalized_runbook = " ".join(runbook.split())
+    assert "`lazy-graph-rag` is independent of LightRAG extraction" in normalized_runbook
+    assert "dedicated JSON cache volume" in architecture
+    assert "profile/revision concept graph + Supabase" not in architecture
+
+
 def test_main_docs_link_to_approach_internals() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     architecture = (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
