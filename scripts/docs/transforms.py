@@ -76,6 +76,16 @@ def _diagram_asset_target(source: Path, clean_target: str, surface: str, image: 
     return _relative(PurePosixPath(source.as_posix()), f"assets/img/{stem}{ext}")
 
 
+def _brand_asset_target(
+    link_source: PurePosixPath, clean_target: str, surface: str
+) -> str | None:
+    if not clean_target.startswith("brand/") or not clean_target.endswith(".png"):
+        return None
+    name = PurePosixPath(clean_target).name
+    destination = f"img/{name}" if surface == "wiki" else f"assets/brand/{name}"
+    return _relative(link_source, destination)
+
+
 def _nested_diagram_target(
     link_source: PurePosixPath, clean_target: str, surface: str
 ) -> str | None:
@@ -138,6 +148,9 @@ def rewrite_for_surface(
         clean_target = target.split("#", 1)[0]
         anchor = "#" + target.split("#", 1)[1] if "#" in target else ""
         if surface in {"site", "wiki"}:
+            brand_asset = _brand_asset_target(link_source, clean_target, surface)
+            if brand_asset:
+                return f"{'!' if bang else ''}[{text}]({brand_asset}{anchor})"
             nested_diagram = _nested_diagram_target(
                 link_source, clean_target, surface
             )

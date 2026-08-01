@@ -3,29 +3,49 @@ hide:
   - navigation
 ---
 
-# 1 RAG Showcase
+![Seven retrieval paths converging on one measured comparison](brand/rag-showcase-banner.png)
 
-![RAG Showcase comparison flow](diagrams/img/rag-showcase-poster.png)
+<!-- opener:title -->
+<h1 align="center">RAG Showcase</h1>
+<!-- /opener:title -->
 
-<div class="hero-tagline" markdown>
 <!-- opener:tagline -->
-Seven RAG approaches compared side by side through one Atlas stack and one
-reproducible evaluation harness.
+<p align="center"><strong>Seven RAG approaches. One shared stack. Measured side by side.</strong></p>
 <!-- /opener:tagline -->
-</div>
+
+<!-- opener:support -->
+<p align="center">Compare vector, hybrid, contextual, graph, agentic, adaptive, and lazy-graph retrieval through one reproducible Atlas evaluation harness.</p>
+<!-- /opener:support -->
 
 <!-- opener:badges -->
-![Docs and tests](https://img.shields.io/github/actions/workflow/status/thekaveh/rag-showcase/docs.yml?branch=develop&label=docs%20%26%20tests)
-![Atlas consumer contract](https://img.shields.io/github/actions/workflow/status/thekaveh/rag-showcase/atlas-contract.yml?branch=develop&label=Atlas%20contract)
-![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2563eb.svg)
+<p align="center">
+  <img alt="Docs and tests" src="https://img.shields.io/github/actions/workflow/status/thekaveh/rag-showcase/docs.yml?branch=main&amp;label=docs%20%26%20tests">
+  <img alt="Atlas consumer contract" src="https://img.shields.io/github/actions/workflow/status/thekaveh/rag-showcase/atlas-contract.yml?branch=main&amp;label=Atlas%20contract">
+  <img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-2563eb.svg">
+</p>
 <!-- /opener:badges -->
 
-<!-- opener:powered-by -->
-**Powered by:** Platform and UX: Atlas · Open WebUI · LiteLLM | Retrieval and
-storage: Weaviate · LightRAG · Neo4j · Supabase/Postgres | Processing and
-workflow: Chonkie · TEI · n8n | Models and evaluation: Ollama-compatible
-providers · Ragas · blinded judge panel
-<!-- /opener:powered-by -->
+<!-- opener:tech-badges -->
+<p align="center">
+  <img alt="Atlas" src="https://img.shields.io/badge/Atlas-platform-0891b2">
+  <img alt="Open WebUI" src="https://img.shields.io/badge/Open%20WebUI-chat-111827?logo=openwebui&amp;logoColor=white">
+  <img alt="LiteLLM" src="https://img.shields.io/badge/LiteLLM-gateway-0f766e?logo=litellm&amp;logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-plugin%20API-009688?logo=fastapi&amp;logoColor=white">
+</p>
+<p align="center">
+  <img alt="Weaviate" src="https://img.shields.io/badge/Weaviate-vector%20store-00b3b3?logo=weaviate&amp;logoColor=white">
+  <img alt="LightRAG" src="https://img.shields.io/badge/LightRAG-knowledge%20graph-7c3aed">
+  <img alt="Neo4j" src="https://img.shields.io/badge/Neo4j-graph%20store-4581c3?logo=neo4j&amp;logoColor=white">
+  <img alt="Supabase and PostgreSQL" src="https://img.shields.io/badge/Supabase%20%2F%20Postgres-state-3ecf8e?logo=supabase&amp;logoColor=white">
+</p>
+<p align="center">
+  <img alt="Chonkie" src="https://img.shields.io/badge/Chonkie-chunking-f59e0b">
+  <img alt="TEI" src="https://img.shields.io/badge/TEI-reranking-f97316">
+  <img alt="n8n" src="https://img.shields.io/badge/n8n-workflows-ea4b71?logo=n8n&amp;logoColor=white">
+  <img alt="Ollama" src="https://img.shields.io/badge/Ollama-local%20models-111827?logo=ollama&amp;logoColor=white">
+  <img alt="Ragas" src="https://img.shields.io/badge/Ragas-evaluation-2563eb">
+</p>
+<!-- /opener:tech-badges -->
 
 <!-- opener:summary -->
 RAG Showcase serves seven retrieval strategies as OpenAI-compatible model aliases
@@ -41,8 +61,15 @@ Ragas and a blinded judge panel. The default stack can run locally, while provid
 and model choices remain configurable through Atlas.
 <!-- /opener:summary -->
 
-[Quick Start](guide/quickstart.md){ .md-button .md-button--primary }
-[Measured Results](evaluation-results.md){ .md-button }
+<p align="center">
+  <a href="guide/quickstart.md"><strong>Quick Start</strong></a>&nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="evaluation-results.md"><strong>Measured Results</strong></a>&nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="architecture.md"><strong>Architecture</strong></a>
+</p>
+
+<!-- opener:results -->
+> **Latest benchmark (2026-07-17):** all **380/380** answer cells completed across seven base approaches, twelve query-time flavors, and three datasets. Winners changed with dataset complexity. See the **[full sortable results](evaluation-results.md)**, [methodology](evaluation-methodology.md), and [artifact ledger](results/README.md).
+<!-- /opener:results -->
 
 ## 1. The Seven Approaches
 

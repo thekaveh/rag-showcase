@@ -31,6 +31,17 @@ def test_manifest_h1s_match_numbered_titles() -> None:
         assert first_h1((DOCS / page.source).read_text(encoding="utf-8")) == page.nav_label
 
 
+def test_home_is_explicitly_unnumbered_without_weakening_content_page_numbers() -> None:
+    pages = iter_pages(load_manifest())
+    home = next(page for page in pages if page.source.as_posix() == "index.md")
+    content = next(page for page in pages if page.source.as_posix() == "guide/overview.md")
+
+    assert home.display_number is False
+    assert home.nav_label == "RAG Showcase"
+    assert content.display_number is True
+    assert content.nav_label == "2.1 Overview"
+
+
 def test_first_h1_skips_hash_lines_inside_code_fences() -> None:
     # No committed doc page happens to have a "# " line inside a code fence
     # before its real title, so the in_fence tracking guard was previously
@@ -42,6 +53,10 @@ def test_first_h1_skips_hash_lines_inside_code_fences() -> None:
 
 def test_first_h1_returns_none_when_absent() -> None:
     assert first_h1("no heading here, just prose\n") is None
+
+
+def test_first_h1_accepts_centered_html_heading() -> None:
+    assert first_h1('<h1 align="center">RAG Showcase</h1>\n') == "RAG Showcase"
 
 
 def test_generated_surfaces_have_no_self_surface_links(tmp_path) -> None:
@@ -137,7 +152,7 @@ def test_generated_surfaces_publish_nested_approach_diagrams(tmp_path) -> None:
     check_local_links(wiki_dir)
 
 
-def test_generated_surfaces_publish_landscape_opener_poster(tmp_path) -> None:
+def test_generated_surfaces_publish_landscape_comparison_overview(tmp_path) -> None:
     Image = pytest.importorskip("PIL.Image")
     manifest = load_manifest()
     pages = iter_pages(manifest)
@@ -147,8 +162,8 @@ def test_generated_surfaces_publish_landscape_opener_poster(tmp_path) -> None:
     render_site(manifest, pages, site_dir)
     render_wiki(manifest, pages, wiki_dir)
 
-    master = DOCS / "diagrams" / "rag-showcase-poster.html"
-    canonical_png = DOCS / "diagrams" / "img" / "rag-showcase-poster.png"
+    master = DOCS / "diagrams" / "rag-showcase-comparison-overview.html"
+    canonical_png = DOCS / "diagrams" / "img" / "rag-showcase-comparison-overview.png"
     assert master.is_file()
     assert canonical_png.is_file()
     with Image.open(canonical_png) as rendered:
@@ -156,13 +171,41 @@ def test_generated_surfaces_publish_landscape_opener_poster(tmp_path) -> None:
         assert width >= 2400
         assert width > height
 
-    site_svg = site_dir / "assets" / "img" / "rag-showcase-poster.svg"
+    site_svg = site_dir / "assets" / "img" / "rag-showcase-comparison-overview.svg"
     assert site_svg.is_file()
     assert 'xmlns="http://www.w3.org/2000/svg"' in site_svg.read_text(
         encoding="utf-8"
     )
-    assert (site_dir / "assets" / "img" / "rag-showcase-poster.png").is_file()
-    assert (wiki_dir / "img" / "rag-showcase-poster.png").is_file()
+    assert (
+        site_dir / "assets" / "img" / "rag-showcase-comparison-overview.png"
+    ).is_file()
+    assert (wiki_dir / "img" / "rag-showcase-comparison-overview.png").is_file()
+
+
+def test_generated_surfaces_publish_the_brand_banner(tmp_path) -> None:
+    Image = pytest.importorskip("PIL.Image")
+    manifest = load_manifest()
+    pages = iter_pages(manifest)
+    site_dir = tmp_path / "site"
+    wiki_dir = tmp_path / "wiki"
+
+    render_site(manifest, pages, site_dir)
+    render_wiki(manifest, pages, wiki_dir)
+
+    canonical = DOCS / "brand" / "rag-showcase-banner.png"
+    with Image.open(canonical) as rendered:
+        width, height = rendered.size
+        assert width >= 3600
+        assert width == height * 3
+
+    assert (site_dir / "assets" / "brand" / canonical.name).is_file()
+    assert (wiki_dir / "img" / canonical.name).is_file()
+    assert "assets/brand/rag-showcase-banner.png" in (
+        site_dir / "index.md"
+    ).read_text(encoding="utf-8")
+    assert "img/rag-showcase-banner.png" in (wiki_dir / "Home.md").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_render_all_regenerates_a_missing_nested_approach_png(tmp_path, monkeypatch) -> None:

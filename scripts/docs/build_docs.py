@@ -57,6 +57,7 @@ def render_site(manifest: dict[str, Any], pages: list[Page], site_dir: Path = SI
         _write(site_dir / page.source, _page_text(page, "site", mapping))
     _copy_tree_files(DOCS / "stylesheets", site_dir / "stylesheets")
     _copy_tree_files(DOCS / "javascripts", site_dir / "javascripts", "*.js")
+    _copy_tree_files(DOCS / "brand", site_dir / "assets" / "brand", "*.png")
     _copy_tree_files(DOCS / "results", site_dir / "results", "*.json")
     _copy_tree_files(DOCS / "results", site_dir / "results", "*.jsonl")
     _copy_tree_files(
@@ -94,6 +95,7 @@ def render_wiki(manifest: dict[str, Any], pages: list[Page], wiki_dir: Path = WI
     _write(wiki_dir / "_Footer.md", "Generated from the canonical rag-showcase docs.\n")
     _copy_tree_files(DOCS / "results", wiki_dir / "results", "*.json")
     _copy_tree_files(DOCS / "results", wiki_dir / "results", "*.jsonl")
+    _copy_tree_files(DOCS / "brand", wiki_dir / "img", "*.png")
     _copy_tree_files(
         DOCS / "diagrams" / "approaches",
         wiki_dir / "diagrams" / "approaches",
@@ -106,11 +108,13 @@ def render_wiki(manifest: dict[str, Any], pages: list[Page], wiki_dir: Path = WI
 
 
 def _nav(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    pages = {page.source.as_posix(): page for page in iter_pages(manifest)}
     nav: list[dict[str, Any]] = []
     for section in manifest["sections"]:
         rows = []
-        for page in section["pages"]:
-            rows.append({f"{page['number']} {page['title']}": page["source"]})
+        for row in section["pages"]:
+            page = pages[row["source"]]
+            rows.append({page.nav_label: row["source"]})
         nav.append({section["title"]: rows})
     return nav
 

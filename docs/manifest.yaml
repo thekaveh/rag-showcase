@@ -8,6 +8,7 @@ sections:
       - number: "1"
         title: RAG Showcase
         source: index.md
+        display_number: false
   - title: Get Started
     pages:
       - number: "2.1"
