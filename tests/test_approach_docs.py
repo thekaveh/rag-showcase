@@ -79,6 +79,16 @@ def test_lazy_graph_docs_and_architecture_do_not_claim_lightrag_or_supabase_stor
     assert "profile/revision concept graph + Supabase" not in architecture
 
 
+def test_comparison_overview_is_architecture_content_not_opener_brand_art() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    index = (ROOT / "docs" / "index.md").read_text(encoding="utf-8")
+    architecture = (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
+
+    assert "rag-showcase-comparison-overview.png" in architecture
+    assert "rag-showcase-poster.png" not in readme
+    assert "rag-showcase-poster.png" not in index
+
+
 def test_main_docs_link_to_approach_internals() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     architecture = (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")

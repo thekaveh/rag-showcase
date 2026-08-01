@@ -8,6 +8,12 @@ For exact per-approach steps, dependencies, tuning variables, and measured
 performance, see [`approaches.md`](approaches.md). This page focuses on where the
 approaches are deployed and how their lanes connect to the Atlas stack.
 
+![RAG Showcase comparison overview](diagrams/img/rag-showcase-comparison-overview.png)
+
+The comparison overview traces all seven retrieval lanes from callers, through
+Atlas-hosted aliases and services, to the shared response and evaluation surfaces.
+[Open the interactive comparison overview](diagrams/rag-showcase-comparison-overview.html).
+
 ## 1. Detailed Project Architecture
 
 ![RAG Showcase detailed architecture](diagrams/img/architecture-detailed.png)
@@ -227,8 +233,8 @@ Chrome on macOS:
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 "$CHROME" --headless=new --disable-gpu --hide-scrollbars \
   --window-size=1800,900 --force-device-scale-factor=2 \
-  --screenshot=docs/diagrams/img/rag-showcase-poster.png \
-  file://"$PWD"/docs/diagrams/rag-showcase-poster.html
+  --screenshot=docs/diagrams/img/rag-showcase-comparison-overview.png \
+  file://"$PWD"/docs/diagrams/rag-showcase-comparison-overview.html
 
 "$CHROME" --headless=new --disable-gpu --hide-scrollbars \
   --window-size=2000,1050 --force-device-scale-factor=2 \
