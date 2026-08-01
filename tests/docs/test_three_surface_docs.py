@@ -31,6 +31,17 @@ def test_manifest_h1s_match_numbered_titles() -> None:
         assert first_h1((DOCS / page.source).read_text(encoding="utf-8")) == page.nav_label
 
 
+def test_home_is_explicitly_unnumbered_without_weakening_content_page_numbers() -> None:
+    pages = iter_pages(load_manifest())
+    home = next(page for page in pages if page.source.as_posix() == "index.md")
+    content = next(page for page in pages if page.source.as_posix() == "guide/overview.md")
+
+    assert home.display_number is False
+    assert home.nav_label == "RAG Showcase"
+    assert content.display_number is True
+    assert content.nav_label == "2.1 Overview"
+
+
 def test_first_h1_skips_hash_lines_inside_code_fences() -> None:
     # No committed doc page happens to have a "# " line inside a code fence
     # before its real title, so the in_fence tracking guard was previously
@@ -42,6 +53,10 @@ def test_first_h1_skips_hash_lines_inside_code_fences() -> None:
 
 def test_first_h1_returns_none_when_absent() -> None:
     assert first_h1("no heading here, just prose\n") is None
+
+
+def test_first_h1_accepts_centered_html_heading() -> None:
+    assert first_h1('<h1 align="center">RAG Showcase</h1>\n') == "RAG Showcase"
 
 
 def test_generated_surfaces_have_no_self_surface_links(tmp_path) -> None:
@@ -56,6 +71,27 @@ def test_generated_surfaces_have_no_self_surface_links(tmp_path) -> None:
             text = path.read_text(encoding="utf-8")
             for match in re.finditer(r"\[[^\]]+\]\(([^)]+)\)", text):
                 assert not is_forbidden(match.group(1), surface), f"{path}: {match.group(1)}"
+
+
+def test_generated_wiki_uses_native_gollum_markdown(tmp_path) -> None:
+    manifest = load_manifest()
+    pages = iter_pages(manifest)
+    wiki_dir = tmp_path / "wiki"
+    render_wiki(manifest, pages, wiki_dir)
+
+    home = (wiki_dir / "Home.md").read_text(encoding="utf-8")
+    assert not home.startswith("---\n")
+    assert 'class="hero-tagline"' not in home
+    assert 'class="grid cards"' not in home
+    assert " markdown>" not in home
+    assert "{ .md-button" not in home
+
+    for path in wiki_dir.glob("*.md"):
+        text = path.read_text(encoding="utf-8")
+        for match in re.finditer(r"\[[^\]]+\]\(([^)]+)\)", text):
+            target = match.group(1).split("#", 1)[0]
+            if "://" not in target:
+                assert not target.endswith(".md"), f"{path}: raw wiki page link {target}"
 
 
 def test_generated_surfaces_publish_all_result_artifacts_and_have_valid_local_links(
@@ -114,6 +150,62 @@ def test_generated_surfaces_publish_nested_approach_diagrams(tmp_path) -> None:
 
     check_local_links(site_dir)
     check_local_links(wiki_dir)
+
+
+def test_generated_surfaces_publish_landscape_comparison_overview(tmp_path) -> None:
+    Image = pytest.importorskip("PIL.Image")
+    manifest = load_manifest()
+    pages = iter_pages(manifest)
+    site_dir = tmp_path / "site"
+    wiki_dir = tmp_path / "wiki"
+
+    render_site(manifest, pages, site_dir)
+    render_wiki(manifest, pages, wiki_dir)
+
+    master = DOCS / "diagrams" / "rag-showcase-comparison-overview.html"
+    canonical_png = DOCS / "diagrams" / "img" / "rag-showcase-comparison-overview.png"
+    assert master.is_file()
+    assert canonical_png.is_file()
+    with Image.open(canonical_png) as rendered:
+        width, height = rendered.size
+        assert width >= 2400
+        assert width > height
+
+    site_svg = site_dir / "assets" / "img" / "rag-showcase-comparison-overview.svg"
+    assert site_svg.is_file()
+    assert 'xmlns="http://www.w3.org/2000/svg"' in site_svg.read_text(
+        encoding="utf-8"
+    )
+    assert (
+        site_dir / "assets" / "img" / "rag-showcase-comparison-overview.png"
+    ).is_file()
+    assert (wiki_dir / "img" / "rag-showcase-comparison-overview.png").is_file()
+
+
+def test_generated_surfaces_publish_the_brand_banner(tmp_path) -> None:
+    Image = pytest.importorskip("PIL.Image")
+    manifest = load_manifest()
+    pages = iter_pages(manifest)
+    site_dir = tmp_path / "site"
+    wiki_dir = tmp_path / "wiki"
+
+    render_site(manifest, pages, site_dir)
+    render_wiki(manifest, pages, wiki_dir)
+
+    canonical = DOCS / "brand" / "rag-showcase-banner.png"
+    with Image.open(canonical) as rendered:
+        width, height = rendered.size
+        assert width >= 3600
+        assert width == height * 3
+
+    assert (site_dir / "assets" / "brand" / canonical.name).is_file()
+    assert (wiki_dir / "img" / canonical.name).is_file()
+    assert "assets/brand/rag-showcase-banner.png" in (
+        site_dir / "index.md"
+    ).read_text(encoding="utf-8")
+    assert "img/rag-showcase-banner.png" in (wiki_dir / "Home.md").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_render_all_regenerates_a_missing_nested_approach_png(tmp_path, monkeypatch) -> None:
@@ -245,8 +337,6 @@ def test_docs_workflow_runs_leaderboard_python_and_browser_contract_tests() -> N
     )
     makefile = (DOCS.parent / "Makefile").read_text(encoding="utf-8")
 
-    assert workflow.count('"compare/**"') == 2
-    assert workflow.count('"tests/**"') == 2
     # CI runs these through `make test`/`make lint`/`make sortable-tables-test`
     # (single source of truth shared with local dev, per README §8) rather than
     # duplicating the raw commands — assert both that CI invokes the targets and
@@ -258,3 +348,15 @@ def test_docs_workflow_runs_leaderboard_python_and_browser_contract_tests() -> N
     assert "uv run pytest tests backend_plugins/rag/tests -q" in makefile
     assert "uv run ruff check ." in makefile
     assert "node --test tests/docs/test_sortable_tables.cjs" in makefile
+
+
+def test_docs_workflow_validates_all_changes_and_requires_wiki_credentials() -> None:
+    workflow = (DOCS.parent / ".github" / "workflows" / "docs.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "    paths:" not in workflow
+    assert "Require wiki deploy key" in workflow
+    assert "WIKI_DEPLOY_KEY is required" in workflow
+    assert "Skip wiki publish" not in workflow
+    assert "if: env.WIKI_DEPLOY_KEY != ''" not in workflow

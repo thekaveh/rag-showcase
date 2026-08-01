@@ -1,24 +1,70 @@
-# RAG Showcase
+![Seven retrieval paths converging on one measured comparison](docs/brand/rag-showcase-banner.png)
 
-Seven RAG approaches compared side-by-side in Open WebUI's multi-model chat,
-all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
-submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
-as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
+<!-- opener:title -->
+<h1 align="center">RAG Showcase</h1>
+<!-- /opener:title -->
 
-> **Live results (2026-07-17).** The current committed run evaluated seven base
-> approaches and twelve named query-time flavors across baseline curated,
-> graph-native, and MITRE ATT&CK cyber-threat datasets. All **380/380** answer
-> cells succeeded: 140 base-family cells and 240 flavor cells. `vanilla-rag` led
-> baseline, experimental `lazy-graph-rag` led graph-native, and `contextual-rag`
-> led cyber by the blinded two-model judge panel. The flavor winners were
-> `lazy-graph-rag-wide`, `hybrid-rag-high-recall`, and `hybrid-rag-fast`.
-> Atlas Ragas returned coverage-aware faithfulness and answer-relevancy scores;
-> LightRAG answer-only rows are correctly ineligible for faithfulness. These are
-> concise headline winners; the complete
-> **[`docs/evaluation-results.md`](docs/evaluation-results.md)** leaderboards contain
-> every approach and metric. Read the [methodology](docs/evaluation-methodology.md),
-> [dataset ladder](docs/dataset-complexity-report.md), [narrative comparison](docs/comparison.md),
-> and [artifact ledger](docs/results/README.md) for their distinct supporting views.
+<!-- opener:tagline -->
+<p align="center"><strong>Seven RAG approaches. One shared stack. Measured side by side.</strong></p>
+<!-- /opener:tagline -->
+
+<!-- opener:support -->
+<p align="center">Compare vector, hybrid, contextual, graph, agentic, adaptive, and lazy-graph retrieval through one reproducible Atlas evaluation harness.</p>
+<!-- /opener:support -->
+
+<!-- opener:badges -->
+<p align="center">
+  <img alt="Docs and tests" src="https://img.shields.io/github/actions/workflow/status/thekaveh/rag-showcase/docs.yml?branch=main&amp;label=docs%20%26%20tests">
+  <img alt="Atlas consumer contract" src="https://img.shields.io/github/actions/workflow/status/thekaveh/rag-showcase/atlas-contract.yml?branch=main&amp;label=Atlas%20contract">
+  <img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-2563eb.svg">
+</p>
+<!-- /opener:badges -->
+
+<!-- opener:tech-badges -->
+<p align="center">
+  <img alt="Atlas" src="https://img.shields.io/badge/Atlas-platform-0891b2">
+  <img alt="Open WebUI" src="https://img.shields.io/badge/Open%20WebUI-chat-111827?logo=openwebui&amp;logoColor=white">
+  <img alt="LiteLLM" src="https://img.shields.io/badge/LiteLLM-gateway-0f766e?logo=litellm&amp;logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-plugin%20API-009688?logo=fastapi&amp;logoColor=white">
+</p>
+<p align="center">
+  <img alt="Weaviate" src="https://img.shields.io/badge/Weaviate-vector%20store-00b3b3?logo=weaviate&amp;logoColor=white">
+  <img alt="LightRAG" src="https://img.shields.io/badge/LightRAG-knowledge%20graph-7c3aed">
+  <img alt="Neo4j" src="https://img.shields.io/badge/Neo4j-graph%20store-4581c3?logo=neo4j&amp;logoColor=white">
+  <img alt="Supabase and PostgreSQL" src="https://img.shields.io/badge/Supabase%20%2F%20Postgres-state-3ecf8e?logo=supabase&amp;logoColor=white">
+</p>
+<p align="center">
+  <img alt="Chonkie" src="https://img.shields.io/badge/Chonkie-chunking-f59e0b">
+  <img alt="TEI" src="https://img.shields.io/badge/TEI-reranking-f97316">
+  <img alt="n8n" src="https://img.shields.io/badge/n8n-workflows-ea4b71?logo=n8n&amp;logoColor=white">
+  <img alt="Ollama" src="https://img.shields.io/badge/Ollama-local%20models-111827?logo=ollama&amp;logoColor=white">
+  <img alt="Ragas" src="https://img.shields.io/badge/Ragas-evaluation-2563eb">
+</p>
+<!-- /opener:tech-badges -->
+
+<!-- opener:summary -->
+RAG Showcase serves seven retrieval strategies as OpenAI-compatible model aliases
+in Open WebUI, so one prompt can fan out across vanilla, hybrid, contextual,
+LightRAG graph, agentic, n8n-adaptive, and experimental lazy-graph retrieval.
+Atlas supplies the shared gateway, model routing, ingestion, stores, workflow
+services, and health lifecycle; this repository contributes the approach plugin,
+corpus ladder, tuning flavors, and evaluation harness. The differentiator is
+controlled comparison rather than a collection of disconnected demos: approaches
+consume the same dataset profile and embedding model, return one response envelope
+with available evidence and metrics, and are scored from persisted artifacts by
+Ragas and a blinded judge panel. The default stack can run locally, while provider
+and model choices remain configurable through Atlas.
+<!-- /opener:summary -->
+
+<p align="center">
+  <a href="docs/guide/quickstart.md"><strong>Quick Start</strong></a>&nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="docs/evaluation-results.md"><strong>Measured Results</strong></a>&nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="docs/architecture.md"><strong>Architecture</strong></a>
+</p>
+
+<!-- opener:results -->
+> **Latest benchmark (2026-07-17):** all **380/380** answer cells completed across seven base approaches, twelve query-time flavors, and three datasets. Winners changed with dataset complexity. See the **[full sortable results](docs/evaluation-results.md)**, [methodology](docs/evaluation-methodology.md), and [artifact ledger](docs/results/README.md).
+<!-- /opener:results -->
 
 ## 1. Overview
 
@@ -30,8 +76,8 @@ their ownership and routes, compiles them into LiteLLM's startup configuration,
 and makes all nineteen aliases selectable in Open WebUI without admin-API
 registration. Flavors such as `graph-rag-wide` route to the same base approach
 with reproducible parameter overrides. Open a multi-model chat, select the
-approaches or flavors you want, and one prompt fans out with a uniform answer,
-retrieved-context, and metrics surface. The evaluation harness persists each cell
+approaches or flavors you want, and one prompt fans out with a uniform response
+envelope, available evidence, and metrics. The evaluation harness persists each cell
 to append-safe JSONL, sends eligible evidence to Atlas's generic Ragas endpoint,
 and keeps deterministic operational metrics separate from the optional blinded
 judge panel.
@@ -170,7 +216,7 @@ the thematic / multi-hop demo queries have little to work with — see
 The last column is the design intent behind each demo query family, not a measured
 result — several intended contrasts did not materialize in the committed runs (the
 measured per-query winners live in
-[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md) §4).
+[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md#5-base-family-per-query-winners) §5).
 
 For exact internal steps, dependencies, tuning variables, and current measured
 performance for each approach, see [`docs/approaches.md`](docs/approaches.md).
@@ -290,6 +336,8 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Atlas current-integration + comprehensive rerun plan](docs/superpowers/plans/2026-07-16-atlas-current-lifecycle-and-comprehensive-rerun.md) | Historical | Plan to pin the latest Atlas `main`, finish local roadmap work, and produce a provenance-complete rerun of every approach and flavor |
 | [Per-approach data-flow diagrams design](docs/superpowers/specs/2026-07-17-per-approach-data-flow-diagrams-design.md) | Historical | Design for the seven per-approach, service-aware data-flow diagrams (implemented — see [Approach internals](docs/approaches.md)) |
 | [Per-approach data-flow diagrams plan](docs/superpowers/plans/2026-07-17-per-approach-data-flow-diagrams.md) | Historical | Implementation plan for publishing the per-approach diagrams across all three documentation surfaces |
+| [Three-surface opener remediation design](docs/superpowers/specs/2026-07-31-three-surface-opener-remediation-design.md) | Historical | Design for a shared opener, project poster, native wiki output, and publication enforcement |
+| [Three-surface opener remediation plan](docs/superpowers/plans/2026-07-31-three-surface-opener-remediation.md) | Historical | Implementation and verification plan for the three-surface documentation corrections |
 | [Overview](docs/guide/overview.md) | Living | Concepts — how the seven approaches run under identical conditions, flavor aliases, and the fair-comparison guarantees |
 | [Quick Start](docs/guide/quickstart.md) | Living | One-command bring-up, prerequisites, and driving the multi-model comparison in Open WebUI |
 | [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and seven-approach parallel flow diagrams |

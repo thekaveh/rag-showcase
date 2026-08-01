@@ -276,6 +276,22 @@ body {
 }
 
 /* --- Home hero ------------------------------------------------------------ */
+.md-typeset > p:first-of-type:has(> img[alt="Seven retrieval paths converging on one measured comparison"]) {
+  max-width: none;
+  margin: 0 0 1.2rem;
+}
+.md-typeset > p:first-of-type > img[alt="Seven retrieval paths converging on one measured comparison"] {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  object-fit: cover;
+  border: 1px solid var(--sf-hairline);
+}
+.md-typeset h1[align="center"] {
+  margin-top: 0.8rem;
+  font-size: 2.55rem;
+  letter-spacing: 0;
+}
 .md-typeset .hero-tagline > p {
   font-size: 1.04rem;
   line-height: 1.62;

@@ -8,6 +8,7 @@ sections:
       - number: "1"
         title: RAG Showcase
         source: index.md
+        display_number: false
   - title: Get Started
     pages:
       - number: "2.1"
@@ -122,3 +123,15 @@ sections:
       - number: "7.13"
         title: Per-Approach Service-Aware Data-Flow Diagrams Implementation Plan
         source: superpowers/plans/2026-07-17-per-approach-data-flow-diagrams.md
+      - number: "7.14"
+        title: Three-Surface Opener and Publishing Remediation Design
+        source: superpowers/specs/2026-07-31-three-surface-opener-remediation-design.md
+      - number: "7.15"
+        title: Three-Surface Opener and Publishing Remediation Implementation Plan
+        source: superpowers/plans/2026-07-31-three-surface-opener-remediation.md
+      - number: "7.16"
+        title: Brand-First Three-Surface Opener Design
+        source: superpowers/specs/2026-08-01-brand-first-opener-design.md
+      - number: "7.17"
+        title: Brand-First Three-Surface Opener Implementation Plan
+        source: superpowers/plans/2026-08-01-brand-first-opener.md

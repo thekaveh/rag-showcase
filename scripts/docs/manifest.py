@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from typing import Any
 
 import yaml
@@ -21,10 +22,11 @@ class Page:
     title: str
     source: Path
     section: str
+    display_number: bool = True
 
     @property
     def nav_label(self) -> str:
-        return f"{self.number} {self.title}"
+        return f"{self.number} {self.title}" if self.display_number else self.title
 
     @property
     def wiki_name(self) -> str:
@@ -69,7 +71,16 @@ def iter_pages(manifest: dict[str, Any]) -> list[Page]:
             if not full.is_file():
                 raise ManifestError(f"manifest source missing: {source}")
             seen.add(source)
-            pages.append(Page(number=number, title=title, source=source, section=section_title))
+            display_number = bool(row.get("display_number", True))
+            pages.append(
+                Page(
+                    number=number,
+                    title=title,
+                    source=source,
+                    section=section_title,
+                    display_number=display_number,
+                )
+            )
     return pages
 
 
@@ -87,4 +98,8 @@ def first_h1(text: str) -> str | None:
             continue
         if not in_fence and line.startswith("# "):
             return line[2:].strip()
+        if not in_fence:
+            match = re.fullmatch(r"\s*<h1\b[^>]*>(.*?)</h1>\s*", line, re.IGNORECASE)
+            if match:
+                return re.sub(r"<[^>]+>", "", match.group(1)).strip()
     return None
