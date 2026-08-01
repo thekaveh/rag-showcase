@@ -208,6 +208,29 @@ def test_generated_surfaces_publish_the_brand_banner(tmp_path) -> None:
     )
 
 
+def test_brand_banner_master_labels_every_retrieval_lane() -> None:
+    html = (DOCS / "brand" / "rag-showcase-banner.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert '<h1 class="banner__title">RAG SHOWCASE</h1>' in html
+    aliases = [
+        "vanilla-rag",
+        "hybrid-rag",
+        "contextual-rag",
+        "graph-rag",
+        "agentic-rag",
+        "n8n-adaptive-rag",
+        "lazy-graph-rag",
+    ]
+    positions = [html.index(f">{alias}</span>") for alias in aliases]
+
+    assert positions == sorted(positions)
+    assert html.count('class="lane-label ') == 7
+    assert "font-size: 56px" in html
+    assert "font-size: 21px" in html
+
+
 def test_render_all_regenerates_a_missing_nested_approach_png(tmp_path, monkeypatch) -> None:
     # render_all()'s cairosvg fallback used to only ever glob html_dir's own
     # top-level *.html, so the seven nested diagrams/approaches/<name>/

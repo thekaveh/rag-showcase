@@ -2,9 +2,10 @@
 
 ## 1. Generation Mode
 
-Built-in image generation, new raster artwork. `rag-showcase-banner.html` records
-the exact 3:1 composition contract; the matching source composition is published at
-3600 x 1200 pixels as `rag-showcase-banner.png`.
+Built-in image generation produced the text-free source artwork. The project title
+and seven exact approach aliases are browser-rendered typography owned by
+`rag-showcase-banner.html`, which records the 3:1 composition contract. The complete
+composition is published at 3600 x 1200 pixels as `rag-showcase-banner.png`.
 
 ## 2. Prompt
 
@@ -27,5 +28,5 @@ the exact 3:1 composition contract; the matching source composition is published
 ## 3. Asset Roles
 
 - `rag-showcase-banner-art.png`: original generated source artwork.
-- `rag-showcase-banner.html`: deterministic 3:1 crop and presentation master.
+- `rag-showcase-banner.html`: deterministic 3:1 crop, project title, and lane-label master.
 - `rag-showcase-banner.png`: high-resolution opener distributed to all three docs surfaces.
