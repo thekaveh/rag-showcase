@@ -1,10 +1,13 @@
 # 2.4 Running Graph Approaches Locally
 
 The vector approaches (`vanilla-rag`, `hybrid-rag`, `contextual-rag` and their
-flavors) run cleanly on any Atlas-supported source. The **graph approaches**
-(`graph-rag`, `lazy-graph-rag`, `agentic-rag`) additionally depend on LightRAG's
+flavors) run cleanly on any Atlas-supported source. The LightRAG-backed
+`graph-rag` path and the graph tool available to `agentic-rag` depend on LightRAG's
 knowledge-graph **extraction**, which is the heaviest local step and carries a few
-host-specific footguns. This page is the runbook for a clean local graph run.
+host-specific footguns. Experimental `lazy-graph-rag` is independent of LightRAG
+extraction: it reads the profile's Weaviate chunks and persists its deterministic
+concept graph in a dedicated JSON cache volume. This page is the runbook for a clean
+local graph run.
 
 First, confirm the graph is actually built — `make eval-check` reports the LightRAG
 knowledge-graph population, not just service health:

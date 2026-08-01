@@ -226,6 +226,11 @@ Chrome on macOS:
 ```bash
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 "$CHROME" --headless=new --disable-gpu --hide-scrollbars \
+  --window-size=1800,900 --force-device-scale-factor=2 \
+  --screenshot=docs/diagrams/img/rag-showcase-poster.png \
+  file://"$PWD"/docs/diagrams/rag-showcase-poster.html
+
+"$CHROME" --headless=new --disable-gpu --hide-scrollbars \
   --window-size=2000,1050 --force-device-scale-factor=2 \
   --screenshot=docs/diagrams/img/architecture-detailed.png \
   file://"$PWD"/docs/diagrams/architecture-detailed.html

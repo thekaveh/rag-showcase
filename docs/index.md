@@ -5,16 +5,44 @@ hide:
 
 # 1 RAG Showcase
 
+![RAG Showcase comparison flow](diagrams/img/rag-showcase-poster.png)
+
 <div class="hero-tagline" markdown>
-Seven RAG approaches, compared side by side — each served as an OpenAI-compatible
-endpoint on a fully-local [Atlas](https://github.com/thekaveh/atlas) stack. Ask one
-question in Open WebUI and watch the approaches answer in parallel, with a uniform
-answer, retrieved-context, and metrics surface. It doubles as a reproducible evaluation
-harness that measures *which approach wins on which kind of question*.
+<!-- opener:tagline -->
+Seven RAG approaches compared side by side through one Atlas stack and one
+reproducible evaluation harness.
+<!-- /opener:tagline -->
 </div>
 
+<!-- opener:badges -->
+![Docs and tests](https://img.shields.io/github/actions/workflow/status/thekaveh/rag-showcase/docs.yml?branch=develop&label=docs%20%26%20tests)
+![Atlas consumer contract](https://img.shields.io/github/actions/workflow/status/thekaveh/rag-showcase/atlas-contract.yml?branch=develop&label=Atlas%20contract)
+![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2563eb.svg)
+<!-- /opener:badges -->
+
+<!-- opener:powered-by -->
+**Powered by:** Platform and UX: Atlas · Open WebUI · LiteLLM | Retrieval and
+storage: Weaviate · LightRAG · Neo4j · Supabase/Postgres | Processing and
+workflow: Chonkie · TEI · n8n | Models and evaluation: Ollama-compatible
+providers · Ragas · blinded judge panel
+<!-- /opener:powered-by -->
+
+<!-- opener:summary -->
+RAG Showcase serves seven retrieval strategies as OpenAI-compatible model aliases
+in Open WebUI, so one prompt can fan out across vanilla, hybrid, contextual,
+LightRAG graph, agentic, n8n-adaptive, and experimental lazy-graph retrieval.
+Atlas supplies the shared gateway, model routing, ingestion, stores, workflow
+services, and health lifecycle; this repository contributes the approach plugin,
+corpus ladder, tuning flavors, and evaluation harness. The differentiator is
+controlled comparison rather than a collection of disconnected demos: approaches
+consume the same dataset profile and embedding model, return one response envelope
+with available evidence and metrics, and are scored from persisted artifacts by
+Ragas and a blinded judge panel. The default stack can run locally, while provider
+and model choices remain configurable through Atlas.
+<!-- /opener:summary -->
+
 [Quick Start](guide/quickstart.md){ .md-button .md-button--primary }
-[Measured Results](comparison.md){ .md-button }
+[Measured Results](evaluation-results.md){ .md-button }
 
 ## 1. The Seven Approaches
 

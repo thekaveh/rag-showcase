@@ -12,6 +12,11 @@ INCLUDE_RE = re.compile(r"\{%\s*include-markdown\s+\"([^\"]+)\"\s*%\}", re.MULTI
 # the iframe resolves on each generated surface (the HTML lives under assets/ on
 # the site, beside the page on the wiki).
 IFRAME_SRC_RE = re.compile(r'(<iframe\b[^>]*?\bsrc=")([^"]+)(")')
+FRONT_MATTER_RE = re.compile(r"\A---\s*\n.*?\n---\s*\n", re.DOTALL)
+MKDOCS_MARKDOWN_DIV_RE = re.compile(
+    r"^<div\b[^>]*\bmarkdown\b[^>]*>\s*$|^</div>\s*$", re.MULTILINE
+)
+MATERIAL_BUTTON_ATTR_RE = re.compile(r"\{\s*\.md-button(?:\s+\.md-button--primary)?\s*\}")
 SOURCE_DIRS = {
     "backend_plugins", "compare", "compose", "corpus", "demo", "ingest",
     "n8n", "scripts",
@@ -104,6 +109,18 @@ def _rewrite_iframe_srcs(markdown: str, source: Path, surface: str) -> str:
     return IFRAME_SRC_RE.sub(repl, markdown)
 
 
+def _wiki_native_markdown(markdown: str) -> str:
+    markdown = FRONT_MATTER_RE.sub("", markdown, count=1)
+    markdown = MKDOCS_MARKDOWN_DIV_RE.sub("", markdown)
+    return MATERIAL_BUTTON_ATTR_RE.sub("", markdown)
+
+
+def _mapped_page_target(target: str, surface: str) -> str:
+    if surface == "wiki":
+        return PurePosixPath(target).with_suffix("").as_posix()
+    return target
+
+
 def rewrite_for_surface(
     markdown: str,
     source: Path,
@@ -112,6 +129,8 @@ def rewrite_for_surface(
     output_source: Path | None = None,
 ) -> str:
     markdown = _expand_includes(markdown, source)
+    if surface == "wiki":
+        markdown = _wiki_native_markdown(markdown)
     link_source = PurePosixPath((output_source or source).as_posix())
 
     def replace(match: re.Match[str]) -> str:
@@ -131,12 +150,14 @@ def rewrite_for_surface(
             if diagram_html:
                 return f"{'!' if bang else ''}[{text}]({diagram_html}{anchor})"
             if clean_target.rstrip("/") == "results" and "results/README.md" in mapping:
-                new_target = _relative(link_source, mapping["results/README.md"]) + anchor
+                destination = _mapped_page_target(mapping["results/README.md"], surface)
+                new_target = _relative(link_source, destination) + anchor
                 return f"[{text}]({new_target})"
         if clean_target.endswith(".md"):
             normalized = _normalize_target(PurePosixPath(source.as_posix()), clean_target)
             if normalized in mapping:
-                new_target = _relative(link_source, mapping[normalized]) + anchor
+                destination = _mapped_page_target(mapping[normalized], surface)
+                new_target = _relative(link_source, destination) + anchor
                 return f"{'!' if bang else ''}[{text}]({new_target})"
             if surface in {"site", "wiki"}:
                 return text if not bang else ""

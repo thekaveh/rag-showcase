@@ -1,9 +1,38 @@
 # RAG Showcase
 
-Seven RAG approaches compared side-by-side in Open WebUI's multi-model chat,
-all running on [Atlas](https://github.com/thekaveh/atlas) (vendored as a Git
-submodule at `infra/`). The project doubles as a deliberate test-drive of Atlas
-as reusable infrastructure — see the [Atlas-reuse assessment](docs/atlas-reuse-assessment.md).
+![RAG Showcase comparison flow](docs/diagrams/img/rag-showcase-poster.png)
+
+<!-- opener:tagline -->
+Seven RAG approaches compared side by side through one Atlas stack and one
+reproducible evaluation harness.
+<!-- /opener:tagline -->
+
+<!-- opener:badges -->
+![Docs and tests](https://img.shields.io/github/actions/workflow/status/thekaveh/rag-showcase/docs.yml?branch=develop&label=docs%20%26%20tests)
+![Atlas consumer contract](https://img.shields.io/github/actions/workflow/status/thekaveh/rag-showcase/atlas-contract.yml?branch=develop&label=Atlas%20contract)
+![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2563eb.svg)
+<!-- /opener:badges -->
+
+<!-- opener:powered-by -->
+**Powered by:** Platform and UX: Atlas · Open WebUI · LiteLLM | Retrieval and
+storage: Weaviate · LightRAG · Neo4j · Supabase/Postgres | Processing and
+workflow: Chonkie · TEI · n8n | Models and evaluation: Ollama-compatible
+providers · Ragas · blinded judge panel
+<!-- /opener:powered-by -->
+
+<!-- opener:summary -->
+RAG Showcase serves seven retrieval strategies as OpenAI-compatible model aliases
+in Open WebUI, so one prompt can fan out across vanilla, hybrid, contextual,
+LightRAG graph, agentic, n8n-adaptive, and experimental lazy-graph retrieval.
+Atlas supplies the shared gateway, model routing, ingestion, stores, workflow
+services, and health lifecycle; this repository contributes the approach plugin,
+corpus ladder, tuning flavors, and evaluation harness. The differentiator is
+controlled comparison rather than a collection of disconnected demos: approaches
+consume the same dataset profile and embedding model, return one response envelope
+with available evidence and metrics, and are scored from persisted artifacts by
+Ragas and a blinded judge panel. The default stack can run locally, while provider
+and model choices remain configurable through Atlas.
+<!-- /opener:summary -->
 
 > **Live results (2026-07-17).** The current committed run evaluated seven base
 > approaches and twelve named query-time flavors across baseline curated,
@@ -30,8 +59,8 @@ their ownership and routes, compiles them into LiteLLM's startup configuration,
 and makes all nineteen aliases selectable in Open WebUI without admin-API
 registration. Flavors such as `graph-rag-wide` route to the same base approach
 with reproducible parameter overrides. Open a multi-model chat, select the
-approaches or flavors you want, and one prompt fans out with a uniform answer,
-retrieved-context, and metrics surface. The evaluation harness persists each cell
+approaches or flavors you want, and one prompt fans out with a uniform response
+envelope, available evidence, and metrics. The evaluation harness persists each cell
 to append-safe JSONL, sends eligible evidence to Atlas's generic Ragas endpoint,
 and keeps deterministic operational metrics separate from the optional blinded
 judge panel.
@@ -170,7 +199,7 @@ the thematic / multi-hop demo queries have little to work with — see
 The last column is the design intent behind each demo query family, not a measured
 result — several intended contrasts did not materialize in the committed runs (the
 measured per-query winners live in
-[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md) §4).
+[`docs/dataset-complexity-report.md`](docs/dataset-complexity-report.md#5-base-family-per-query-winners) §5).
 
 For exact internal steps, dependencies, tuning variables, and current measured
 performance for each approach, see [`docs/approaches.md`](docs/approaches.md).
@@ -290,6 +319,8 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | [Atlas current-integration + comprehensive rerun plan](docs/superpowers/plans/2026-07-16-atlas-current-lifecycle-and-comprehensive-rerun.md) | Historical | Plan to pin the latest Atlas `main`, finish local roadmap work, and produce a provenance-complete rerun of every approach and flavor |
 | [Per-approach data-flow diagrams design](docs/superpowers/specs/2026-07-17-per-approach-data-flow-diagrams-design.md) | Historical | Design for the seven per-approach, service-aware data-flow diagrams (implemented — see [Approach internals](docs/approaches.md)) |
 | [Per-approach data-flow diagrams plan](docs/superpowers/plans/2026-07-17-per-approach-data-flow-diagrams.md) | Historical | Implementation plan for publishing the per-approach diagrams across all three documentation surfaces |
+| [Three-surface opener remediation design](docs/superpowers/specs/2026-07-31-three-surface-opener-remediation-design.md) | Historical | Design for a shared opener, project poster, native wiki output, and publication enforcement |
+| [Three-surface opener remediation plan](docs/superpowers/plans/2026-07-31-three-surface-opener-remediation.md) | Historical | Implementation and verification plan for the three-surface documentation corrections |
 | [Overview](docs/guide/overview.md) | Living | Concepts — how the seven approaches run under identical conditions, flavor aliases, and the fair-comparison guarantees |
 | [Quick Start](docs/guide/quickstart.md) | Living | One-command bring-up, prerequisites, and driving the multi-model comparison in Open WebUI |
 | [Architecture diagrams](docs/architecture.md) | Living | Detailed project architecture and seven-approach parallel flow diagrams |
