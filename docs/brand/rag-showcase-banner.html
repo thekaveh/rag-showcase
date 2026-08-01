@@ -27,8 +27,56 @@
       height: 100%;
       object-fit: cover;
     }
+    .banner__title {
+      position: absolute;
+      z-index: 2;
+      top: 24px;
+      left: 50%;
+      margin: 0;
+      transform: translateX(-50%);
+      color: #f8fafc;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 56px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: 0;
+      text-align: center;
+      text-shadow: 0 2px 18px #020711, 0 0 36px rgba(34, 211, 238, 0.24);
+      white-space: nowrap;
+    }
+    .lane-labels {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      pointer-events: none;
+    }
+    .lane-label {
+      position: absolute;
+      left: 44px;
+      min-height: 34px;
+      padding: 6px 10px 6px 12px;
+      border-left: 4px solid var(--lane-color);
+      border-radius: 3px;
+      background: rgba(2, 7, 17, 0.9);
+      box-shadow: 0 4px 16px rgba(2, 7, 17, 0.76);
+      color: #f8fafc;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 21px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+    .lane-label--vanilla { top: 101px; --lane-color: #22d3ee; }
+    .lane-label--hybrid { top: 157px; --lane-color: #84cc16; }
+    .lane-label--contextual { top: 214px; --lane-color: #a78bfa; }
+    .lane-label--graph { top: 269px; --lane-color: #f59e0b; }
+    .lane-label--agentic { top: 325px; --lane-color: #60a5fa; }
+    .lane-label--adaptive { top: 382px; --lane-color: #2dd4bf; }
+    .lane-label--lazy { top: 437px; --lane-color: #f472b6; }
     .banner::after {
       position: absolute;
+      z-index: 3;
       inset: 0;
       border: 1px solid rgba(103, 232, 249, 0.2);
       content: "";
@@ -42,6 +90,16 @@
       src="rag-showcase-banner-art.png"
       alt="Seven retrieval paths converging through document, vector, and graph structures into one measured comparison"
     >
+    <h1 class="banner__title">RAG SHOWCASE</h1>
+    <div class="lane-labels" aria-label="RAG approaches">
+      <span class="lane-label lane-label--vanilla">vanilla-rag</span>
+      <span class="lane-label lane-label--hybrid">hybrid-rag</span>
+      <span class="lane-label lane-label--contextual">contextual-rag</span>
+      <span class="lane-label lane-label--graph">graph-rag</span>
+      <span class="lane-label lane-label--agentic">agentic-rag</span>
+      <span class="lane-label lane-label--adaptive">n8n-adaptive-rag</span>
+      <span class="lane-label lane-label--lazy">lazy-graph-rag</span>
+    </div>
   </main>
 </body>
 </html>
