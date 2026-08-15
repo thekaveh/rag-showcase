@@ -10,7 +10,7 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_JUDGES = ["qwen3.6:latest", "gemma4:31b"]
+DEFAULT_JUDGES = ["qwen3.8:latest", "gemma4:31b"]
 
 
 def _canonical_fixture(dataset_id: str, row_id: str) -> dict:

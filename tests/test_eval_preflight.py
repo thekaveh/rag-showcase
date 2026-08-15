@@ -83,12 +83,12 @@ def test_load_expected_models_strips_inline_comments(tmp_path: Path) -> None:
     # /api/tags and turn eval-check red with a misleading "missing model").
     env = tmp_path / "atlas.env.user"
     env.write_text(
-        "LIGHTRAG_QUERY_LLM_MODEL=qwen3.6:latest  # keyword role\n"
-        "LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b\n"
+        "LIGHTRAG_QUERY_LLM_MODEL=qwen3.8:latest  # keyword role\n"
+        "LIGHTRAG_EXTRACT_LLM_MODEL=qwen3.8:latest\n"
         "# a comment line, ignored\n",
         encoding="utf-8",
     )
-    assert set(ep.load_expected_models(env)) == {"qwen3.6:latest", "mistral-small3.2:24b"}
+    assert set(ep.load_expected_models(env)) == {"qwen3.8:latest"}
 
 
 def test_probe_checks_ollama_models() -> None:
@@ -331,21 +331,21 @@ def test_probe_ollama_matches_exact_tag_and_latest(monkeypatch) -> None:
     # present() strategy 1 (exact) and 2 (model:latest fallback).
     res = _probe_ollama(
         monkeypatch,
-        tags={"mistral-small3.2:24b", "qwen3.6:latest"},
-        expected_models=["mistral-small3.2:24b", "qwen3.6"],
+        tags={"qwen3.8:latest", "nomic-embed-text:latest"},
+        expected_models=["qwen3.8", "nomic-embed-text"],
     )
     assert res["ok"] is True
 
 
 def test_probe_ollama_matches_tagless_base_name(monkeypatch) -> None:
-    # present() strategy 3: wanting "qwen3.6" against a differently-tagged pull.
-    res = _probe_ollama(monkeypatch, tags={"qwen3.6:32b"}, expected_models=["qwen3.6"])
+    # present() strategy 3: wanting "qwen3.8" against a differently-tagged pull.
+    res = _probe_ollama(monkeypatch, tags={"qwen3.8:32b"}, expected_models=["qwen3.8"])
     assert res["ok"] is True
 
 
 def test_probe_ollama_fails_on_missing_model(monkeypatch) -> None:
     res = _probe_ollama(
-        monkeypatch, tags={"qwen3.6:latest"}, expected_models=["gemma:7b"]
+        monkeypatch, tags={"qwen3.8:latest"}, expected_models=["gemma:7b"]
     )
     assert res["ok"] is False
     assert "not pulled" in res["detail"]
@@ -444,4 +444,3 @@ def test_run_live_probes_degrades_when_docker_binary_is_missing(monkeypatch) -> 
     assert set(result) == set(ep.DECLARED_SERVICES)
     assert all(not r["ok"] for r in result.values())
     assert all("docker unavailable" in r["detail"] for r in result.values())
-

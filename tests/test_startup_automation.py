@@ -213,10 +213,16 @@ def test_consumer_manifest_declares_the_atlas_integration() -> None:
         (ROOT / "brand" / "rag-showcase.logo").resolve()
     )
     assert config.env_overrides["LIGHTRAG_EMBEDDING_MODEL"] == "nomic-embed-text"
-    assert config.env_overrides["LIGHTRAG_EXTRACT_LLM_MODEL"] == "mistral-small3.2:24b"
-    assert config.env_overrides["LIGHTRAG_KEYWORD_LLM_MODEL"] == "qwen3.6:latest"
-    assert config.env_overrides["LIGHTRAG_QUERY_LLM_MODEL"] == "qwen3.6:latest"
-    assert config.env_overrides["OLLAMA_CUSTOM_MODELS"] == "mistral-small3.2:24b"
+    assert config.env_overrides["LIGHTRAG_EXTRACT_LLM_MODEL"] == "qwen3.8:latest"
+    assert config.env_overrides["LIGHTRAG_KEYWORD_LLM_MODEL"] == "qwen3.8:latest"
+    assert config.env_overrides["LIGHTRAG_QUERY_LLM_MODEL"] == "qwen3.8:latest"
+    assert config.env_overrides["RAGAS_EVALUATOR_MODEL"] == "qwen3.8:latest"
+    assert config.env_overrides["LITELLM_DEFAULT_MODEL"] == "ollama/qwen3.8:latest"
+    assert config.env_overrides["LITELLM_VISION_MODEL"] == "ollama/qwen3.8:latest"
+    assert config.env_overrides["OLLAMA_USER_MODELS"] == (
+        "qwen3.8:latest,nomic-embed-text"
+    )
+    assert not config.env_overrides.get("OLLAMA_CUSTOM_MODELS")
     assert config.compose_overlays == [ROOT / "compose" / "rag-overlay.yml"]
     assert list(config.consumers[0].backend_plugins) == [ROOT / "backend_plugins"]
 
