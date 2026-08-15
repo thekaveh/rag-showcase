@@ -95,24 +95,26 @@ inside that approach.
 | Role | Current setup default | Used by | Purpose |
 |---|---|---|---|
 | `embed` | `nomic-embed-text` | Weaviate-backed approaches, lazy graph, and agent vector tool | Keep dense retrieval embeddings comparable. |
-| `light_gen` | `qwen3.6:latest` | vanilla, hybrid, contextual, lazy graph | Shared answer synthesis while retrieval changes. |
-| `contextual_blurb` | `qwen3.6:latest` | contextual ingest | Generate context prefixes once at ingest. |
-| `agentic` | `qwen3.6:latest` | agentic | ReAct control and tool selection. |
-| LightRAG EXTRACT | `mistral-small3.2:24b` | graph ingest | High-volume entity and relationship extraction. |
-| LightRAG KEYWORD | `qwen3.6:latest` | graph query | Strict keyword/query decomposition with Atlas-scoped thinking disabled. |
-| LightRAG QUERY | `qwen3.6:latest` | graph query | Final graph/vector answer synthesis with Atlas-scoped thinking disabled. |
-| n8n classifier | `qwen3.6:latest` | adaptive workflow | Route a request to a downstream approach. |
-| Ragas evaluator | `mistral-small3.2:24b` + `nomic-embed-text` | eligible stored evidence | Non-reasoning local faithfulness critic plus semantic answer-relevancy embeddings. |
+| `light_gen` | `qwen3.8:latest` | vanilla, hybrid, contextual, lazy graph | Shared answer synthesis while retrieval changes. |
+| `contextual_blurb` | `qwen3.8:latest` | contextual ingest | Generate context prefixes once at ingest. |
+| `agentic` | `qwen3.8:latest` | agentic | ReAct control and tool selection. |
+| LightRAG EXTRACT | `qwen3.8:latest` | graph ingest | High-volume entity and relationship extraction with Atlas-scoped thinking disabled. |
+| LightRAG KEYWORD | `qwen3.8:latest` | graph query | Strict keyword/query decomposition with Atlas-scoped thinking disabled. |
+| LightRAG QUERY | `qwen3.8:latest` | graph query | Final graph/vector answer synthesis with Atlas-scoped thinking disabled. |
+| n8n classifier | `qwen3.8:latest` | adaptive workflow | Route a request to a downstream approach. |
+| Ragas evaluator | `qwen3.8:latest` + `nomic-embed-text` | eligible stored evidence | Thinking-disabled local faithfulness critic plus semantic answer-relevancy embeddings. |
 | Judge panel | Deployment-specific `JUDGE_MODELS`; July 17 used `qwen3.6:latest`, `gemma4:31b` | stored-answer evaluation only | Two-family subjective quality signal without assuming a provider or hardware profile in source control. |
 
-Model names are current configuration, not runner assumptions. Atlas resolves
+The role rows are current configuration; the judge row deliberately records the
+committed run's provenance. Atlas resolves
 providers, adapters, capabilities, and model-scoped request defaults. In
 particular, Atlas's catalog currently applies `think:false` to its Qwen entry;
 rag-showcase no longer injects that property globally.
 
-Mistral Small 3.2 was selected for extraction and Ragas because it is a
-non-reasoning instruction model with reliable structured responses, avoiding the
-per-call thinking overhead of Qwen during call-heavy work. The evaluator still
+The active configuration consolidates generation, LightRAG, and Ragas evaluator
+roles on Atlas's Qwen3.8 catalog entry. Every call traverses LiteLLM so the
+catalog-scoped `think:false` default applies during call-heavy extraction as well
+as query-time work. The evaluator in the committed July run still
 returned null on 118 of 300 faithfulness-eligible cells; those rows are retained
 as partial coverage rather than retried until a favorable score appears. For the
 July 17 run, Qwen and Gemma were selected as two distinct local judge families to
@@ -270,7 +272,7 @@ synchronous scoring method. Atlas
 [#596](https://github.com/thekaveh/atlas/issues/596),
 [#597](https://github.com/thekaveh/atlas/issues/597), and
 [#659](https://github.com/thekaveh/atlas/issues/659) resolved those defects. At
-the current `3c03bbfc` pin, Atlas invokes modern collection metrics through their
+the current `7f2fcf2d` pin, Atlas invokes modern collection metrics through their
 async batch API, keeps the client on one event loop, and closes it before loop
 teardown. The renewed run therefore records numeric faithfulness and answer
 relevancy wherever each metric is eligible; answer-only LightRAG rows remain
@@ -284,7 +286,8 @@ endpoint at temperature `0`, with thinking disabled, but deliberately does not
 name deployment-specific judge models. Set `JUDGE_MODELS` to two or more aliases
 available through that Atlas deployment; the July 17 run used
 `qwen3.6:latest,gemma4:31b`. The panel can also be disabled explicitly in a custom
-manifest.
+manifest. For the next local rerun, use `qwen3.8:latest,gemma4:31b` to retain the
+two-family panel while replacing the retired Qwen generation.
 
 For each query, the harness:
 
@@ -394,7 +397,7 @@ because no evaluated approach consumes it. The baseline and graph-native tiers r
 on verified-free block `64500-64609` with Atlas `2229fee9`. The cyber tiers ran on
 verified-free block `22000-22109` after the rerank repair, using Atlas `c744467e`.
 Every canonical row records its actual split-run base port and Atlas revision. The
-repository's current submodule pin is `3c03bbfc`. Hardware is run metadata, not an
+repository's current submodule pin is `7f2fcf2d`. Hardware is run metadata, not an
 assumption in startup or evaluation code.
 
 Each measured dataset received a cold stack reset, fresh Atlas ingestion job,

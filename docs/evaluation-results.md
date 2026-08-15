@@ -6,6 +6,10 @@ the [narrative comparison](comparison.md), the
 [dataset complexity ladder](dataset-complexity-report.md), and the
 [raw result snapshots](results/README.md).
 
+These are historical Qwen3.6/Mistral run results. The active runtime now uses
+`qwen3.8:latest`; model names in the tables and raw artifacts remain unchanged
+because they are provenance for the answers and scores actually recorded.
+
 ## 1. Reading the Results
 
 The default overall order is the **dataset-macro judge mean**: each measured dataset

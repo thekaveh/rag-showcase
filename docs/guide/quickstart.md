@@ -19,8 +19,8 @@ Atlas's requirements apply:
   so each host resolves the best source (an existing host Ollama if installed, else
   a container) automatically — no per-run flag.
 - Disk / RAM / headroom for the `gen-ai-rag` stack plus your chosen local models. The
-  default local run activates `mistral-small3.2:24b` for LightRAG extraction and
-  uses `qwen3.6:latest` for graph keyword/query roles — see
+  default local run uses Atlas's `qwen3.8:latest` for chat and all three LightRAG
+  LLM roles, with `nomic-embed-text` for embeddings — see
   [Hardware Sizing](../hardware.md) for minimum and recommended profiles.
 
 ## 2. Bring It Up

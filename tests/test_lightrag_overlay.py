@@ -62,6 +62,7 @@ def test_lightrag_overlay_only_adds_optional_lightrag_ollama_context_caps() -> N
     assert "asset-baker" not in overlay["services"]
     assert "lightrag-init" not in overlay["services"]
     assert env == {
+        "EXTRACT_LLM_BINDING_API_KEY": "${LITELLM_MASTER_KEY}",
         "OLLAMA_LLM_NUM_CTX": "${LIGHTRAG_OLLAMA_LLM_NUM_CTX:-8192}",
         "EXTRACT_OLLAMA_LLM_NUM_CTX": "${LIGHTRAG_EXTRACT_OLLAMA_LLM_NUM_CTX:-8192}",
         "KEYWORD_OLLAMA_LLM_NUM_CTX": "${LIGHTRAG_KEYWORD_OLLAMA_LLM_NUM_CTX:-8192}",
@@ -73,17 +74,27 @@ def test_manifest_env_sets_atlas_lightrag_inputs_not_native_runtime_envs() -> No
     env_file = (ROOT / "config/atlas.env.user").read_text(encoding="utf-8")
     manifest = (ROOT / "atlas.consumer.yml").read_text(encoding="utf-8")
 
-    assert "LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b" in env_file
-    assert "LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.6:latest" in env_file
-    assert "LIGHTRAG_QUERY_LLM_MODEL=qwen3.6:latest" in env_file
+    assert "LIGHTRAG_EXTRACT_LLM_MODEL=qwen3.8:latest" in env_file
+    assert "LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.8:latest" in env_file
+    assert "LIGHTRAG_QUERY_LLM_MODEL=qwen3.8:latest" in env_file
+    assert "LIGHTRAG_EXTRACT_LLM_BINDING=openai" in env_file
     assert "LIGHTRAG_KEYWORD_LLM_BINDING=openai" in env_file
     assert "LIGHTRAG_QUERY_LLM_BINDING=openai" in env_file
+    assert "LIGHTRAG_EXTRACT_LLM_BINDING_HOST=http://litellm:4000/v1" in env_file
     assert (
         "LIGHTRAG_KEYWORD_LLM_BINDING_HOST=http://litellm:4000/v1" in env_file
     )
     assert "LIGHTRAG_QUERY_LLM_BINDING_HOST=http://litellm:4000/v1" in env_file
-    assert "model_sidecars:" in manifest
-    assert "mistral-small3.2:24b" in manifest
+    assert "model_sidecars:" not in manifest
+
+    for retired_model in (
+        "qwen3.6",
+        "mistral-small3.2",
+        "ornith",
+        "mxbai-embed-large",
+    ):
+        assert retired_model not in env_file
+        assert retired_model not in manifest
 
     assert "\nEXTRACT_LLM_MODEL=" not in env_file
     assert "\nKEYWORD_LLM_MODEL=" not in env_file

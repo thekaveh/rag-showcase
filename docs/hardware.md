@@ -40,9 +40,10 @@ the heavier tiers above, and expect roughly double the run time, when using
 - **Local model inference:** this dominates resource usage when enabled. Model
   disk size is only the first cost; runtime memory also includes KV cache,
   context length, batching, and loaded-model concurrency.
-- **LightRAG indexing:** graph extraction is call-heavy. Use a cheaper,
-  non-reasoning model for `LIGHTRAG_EXTRACT_LLM_MODEL` and keep extraction
-  concurrency conservative unless the model backend has clear headroom.
+- **LightRAG indexing:** graph extraction is call-heavy. Use a cheaper
+  non-reasoning or reliably thinking-disabled model for
+  `LIGHTRAG_EXTRACT_LLM_MODEL` and keep extraction concurrency conservative
+  unless the model backend has clear headroom.
 - **Judging:** the comparison harness can use local judge models. Those are
   additional inference calls after the seven approaches answer.
 
@@ -52,21 +53,26 @@ The parent-owned `atlas.consumer.yml` imports `config/atlas.env.user`, which
 supplies Atlas LightRAG role defaults:
 
 ```dotenv
-LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b
-LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.6:latest
-LIGHTRAG_QUERY_LLM_MODEL=qwen3.6:latest
+LIGHTRAG_EXTRACT_LLM_MODEL=qwen3.8:latest
+LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.8:latest
+LIGHTRAG_QUERY_LLM_MODEL=qwen3.8:latest
+LIGHTRAG_EXTRACT_LLM_BINDING=openai
+LIGHTRAG_EXTRACT_LLM_BINDING_HOST=http://litellm:4000/v1
 LIGHTRAG_EXTRACT_MAX_ASYNC_LLM=1
 LIGHTRAG_EXTRACT_LLM_TIMEOUT=900
 ```
 
-The manifest also declares the model under `model_sidecars.ollama`; Atlas compiles
-that list into `OLLAMA_CUSTOM_MODELS` for a containerized Ollama source. If Atlas is using
+Qwen3.8 and `nomic-embed-text` are Atlas catalog defaults, so this consumer no
+longer needs `model_sidecars.ollama`. The manifest pins those catalog aliases in
+`OLLAMA_USER_MODELS` and explicitly clears `OLLAMA_CUSTOM_MODELS`, which also
+replaces stale selections in an existing generated `.env`. If Atlas is using
 `LLM_PROVIDER_SOURCE=ollama-localhost`, pull models on the host yourself; Atlas
 does not mutate a host-managed Ollama installation.
 
-The split keeps high-volume extraction on a non-reasoning model and reuses Atlas's
-thinking-disabled default chat model for the strict keyword schema and final query
-answer. For local runs:
+All Qwen3.8 LightRAG roles traverse LiteLLM, where Atlas applies the catalog's
+model-scoped `think:false` request default. This prevents extraction, keyword,
+and query calls from paying reasoning-token overhead without applying a global
+override to unrelated models. For local runs:
 
 - Prefer a non-reasoning or thinking-disabled model for extraction.
 - Prefer accelerated inference for 20B+ local models.
@@ -75,6 +81,18 @@ answer. For local runs:
 - If memory is tight, reduce model size before increasing timeouts.
 - If graph extraction stalls, lower concurrency first; then switch to a smaller
   extraction model.
+
+### 3.1 Model lifecycle status
+
+- Active generation/evaluation default: `qwen3.8:latest`.
+- Active embedding default: `nomic-embed-text`; the showcase does not use
+  `mxbai-embed-large:latest`, so its planned local retirement does not require a
+  repository change.
+- `qwen3.6`, `mistral-small3.2`, and `ornith` are not active runtime defaults.
+  Their names remain only where historical reports must preserve the provenance
+  of already-committed results.
+- `gemma4:31b` remains a supported second local judge. The next local panel can
+  use `JUDGE_MODELS=qwen3.8:latest,gemma4:31b`.
 
 ## 4. Docker Resource Allocation
 

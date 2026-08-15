@@ -11,7 +11,7 @@ import respx
 
 import compare.judge as judge
 
-JUDGES = ["qwen3.6:latest", "gemma4:31b"]
+JUDGES = ["qwen3.8:latest", "gemma4:31b"]
 TEST_ENDPOINT = "http://localhost:11434/v1/chat/completions"
 
 

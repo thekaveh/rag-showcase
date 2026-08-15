@@ -19,9 +19,9 @@ A living record of how well Atlas served as reusable infra for this project.
   requiring any custom UI implementation.
 - **The consumer-manifest seam:** `atlas.consumer.yml` now registers project and
   brand metadata, the env file, external Compose overlay, backend plugin root,
-  LiteLLM aliases, Ollama model sidecar, and the adaptive n8n workflow from the
-  parent repository. Atlas validates and launches the assembled integration without
-  any symlink or workflow bind mount inside the submodule.
+  LiteLLM aliases, Atlas-catalog model selections, and the adaptive n8n workflow
+  from the parent repository. Atlas validates and launches the assembled
+  integration without any symlink or workflow bind mount inside the submodule.
 
 ## 2. Friction Found / Seams Added
 
@@ -114,18 +114,20 @@ The seam test's `r.path` route introspection only works on FastAPI `<0.137`
 > host-pulled models. Rag-showcase no longer needs the historical `qwen3.6-moe`
 > runtime alias to route around container Ollama.
 
-### 2.9 LightRAG defaults extraction to the CPU model, then silently builds an empty graph
+### 2.9 LightRAG previously defaulted extraction to the CPU model
 
-`lightrag-init/scripts/resolve-models.py` resolves the extraction LLM to
-`LITELLM_DEFAULT_MODEL` (= `ollama/qwen3.6:latest`, CPU) unless `LIGHTRAG_LLM_MODEL`
-is set. On a CPU-only host this hits the extraction worker timeout (240-480 s),
-produces **zero entities**, yet `/health` reports healthy, so `graph-rag` can
-silently return "no context" with no surfaced error.
+At the original validation pin, `lightrag-init/scripts/resolve-models.py`
+resolved the extraction LLM to `LITELLM_DEFAULT_MODEL`
+(`ollama/qwen3.6:latest`) unless `LIGHTRAG_LLM_MODEL` was set. On the tested
+CPU-only path this hit the extraction worker timeout (240-480 s), produced
+**zero entities**, yet `/health` reported healthy, so `graph-rag` could silently
+return "no context" with no surfaced error.
 
 The showcase now configures LightRAG role models through Atlas's public
 `LIGHTRAG_EXTRACT_LLM_MODEL`, `LIGHTRAG_KEYWORD_LLM_MODEL`, and
-`LIGHTRAG_QUERY_LLM_MODEL` inputs. That keeps role selection independent of the
-chosen provider source.
+`LIGHTRAG_QUERY_LLM_MODEL` inputs. All three currently use
+`qwen3.8:latest` through LiteLLM, keeping role selection independent of the
+chosen provider source while preserving Atlas's scoped `think:false` metadata.
 
 ### 2.10 LightRAG role-specific model wiring
 
@@ -275,10 +277,10 @@ manifest validation and therefore needed real ingestion evidence.
 
 ### 2.23 Native LightRAG roles can bypass catalog request defaults
 
-Atlas #658 remains open. A native Ollama KEYWORD or QUERY binding would bypass the
-catalog-scoped `think:false` default. The showcase therefore keeps those two roles
-behind LiteLLM and sends only the non-reasoning EXTRACT role directly to Ollama.
-This is role-scoped and does not apply request parameters globally.
+Atlas #658 remains open. A native Ollama EXTRACT, KEYWORD, or QUERY binding would
+bypass the catalog-scoped `think:false` default. The showcase therefore keeps all
+three LightRAG LLM roles behind LiteLLM. This is role-scoped and does not apply
+request parameters globally.
 
 ## 3. Recommendations for Atlas
 
@@ -305,8 +307,9 @@ This is role-scoped and does not apply request parameters globally.
   `LLM_PROVIDER_SOURCE=ollama-localhost`.
 - **(MED) Surface LightRAG extraction failures** (§2.9): a timed-out / empty-graph
   extraction should show in `/health` or as a loud error, not just a log WARNING.
-  Document that graph extraction needs a GPU-class (ideally non-reasoning) model and
-  how to set `LIGHTRAG_LLM_MODEL`.
+  Document that graph extraction needs an appropriately sized non-reasoning or
+  thinking-disabled model and how to set `LIGHTRAG_EXTRACT_LLM_MODEL`; do not
+  assume a specific accelerator.
 - **(Resolved) Expose LightRAG role-specific models** (§2.10): Atlas now maps
   `LIGHTRAG_EXTRACT_LLM_MODEL`, `LIGHTRAG_KEYWORD_LLM_MODEL`, and
   `LIGHTRAG_QUERY_LLM_MODEL` to LightRAG's native runtime vars.

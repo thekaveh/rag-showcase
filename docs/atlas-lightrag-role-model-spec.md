@@ -141,11 +141,13 @@ Rag-showcase now declares Atlas's public inputs in `config/atlas.env.user`, whic
 
 ```dotenv
 LIGHTRAG_EMBEDDING_MODEL=nomic-embed-text
-LIGHTRAG_EXTRACT_LLM_MODEL=mistral-small3.2:24b
-LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.6:latest
-LIGHTRAG_QUERY_LLM_MODEL=qwen3.6:latest
-# KEYWORD/QUERY stay behind LiteLLM (not a native Ollama role call) so the
-# catalog-scoped think:false request default for qwen3.6 still applies.
+LIGHTRAG_EXTRACT_LLM_MODEL=qwen3.8:latest
+LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.8:latest
+LIGHTRAG_QUERY_LLM_MODEL=qwen3.8:latest
+# All three roles stay behind LiteLLM so Atlas's catalog-scoped think:false
+# request default for Qwen3.8 applies consistently.
+LIGHTRAG_EXTRACT_LLM_BINDING=openai
+LIGHTRAG_EXTRACT_LLM_BINDING_HOST=http://litellm:4000/v1
 LIGHTRAG_KEYWORD_LLM_BINDING=openai
 LIGHTRAG_KEYWORD_LLM_BINDING_HOST=http://litellm:4000/v1
 LIGHTRAG_QUERY_LLM_BINDING=openai
@@ -158,12 +160,13 @@ Operators can choose different models or provider sources without editing Atlas
 or the Compose overlay by selecting a local `atlas.consumer.yml` copy whose
 `env.file` points at a customized ignored env file.
 
-Note this deploys `qwen3.6:latest` for KEYWORD rather than the
-`mistral-small3.2:24b` shown in §3/§5's minimum-supported example: live
-validation found Mistral on the KEYWORD role produced thousands of tokens of
-free-form output instead of the requested compact keyword list (see
-[`docs/approaches.md`](approaches.md) §6.5), so KEYWORD was moved onto the
-same thinking-disabled `qwen3.6:latest` binding QUERY already uses.
+The earlier examples in §3/§5 intentionally preserve the model split proposed
+and tested during the original Atlas handoff. The active showcase has since
+consolidated EXTRACT, KEYWORD, and QUERY on Atlas's `qwen3.8:latest` catalog
+entry because Qwen3.6 and Mistral Small 3.2 were retired locally. The transport
+remains role-scoped: LiteLLM applies Qwen3.8's `think:false` metadata without a
+global request override. The consumer overlay supplies the EXTRACT role's
+LiteLLM API key from `LITELLM_MASTER_KEY`; Atlas supplies KEYWORD/QUERY role keys.
 
 The rag-showcase graph wrapper also sends these `/query` defaults:
 

@@ -60,7 +60,7 @@ async def test_chat_forwards_tools_and_omits_when_absent(monkeypatch):
 @pytest.mark.asyncio
 @respx.mock
 async def test_chat_delegates_model_request_defaults_to_litellm(monkeypatch):
-    # Atlas owns per-model request defaults in its catalog (e.g. qwen3.6:latest's
+    # Atlas owns per-model request defaults in its catalog (e.g. qwen3.8:latest's
     # think:false). backend_plugins/rag/common/config.py has no per-model request-
     # param function of its own (confirmed: only role()/litellm_base()/litellm_key()
     # exist) — the plugin must send only approach-level arguments (temperature) and
@@ -69,7 +69,7 @@ async def test_chat_delegates_model_request_defaults_to_litellm(monkeypatch):
     monkeypatch.setenv("LITELLM_API_KEY", "sk-test")
     route = respx.post("http://litellm:4000/v1/chat/completions").mock(
         return_value=httpx.Response(200, json={"choices": [{"message": {"content": "x"}}]}))
-    await litellm.chat("qwen3.6:latest", [{"role": "user", "content": "q"}])
+    await litellm.chat("qwen3.8:latest", [{"role": "user", "content": "q"}])
     body = json.loads(route.calls.last.request.content)
     assert body["temperature"] == 0.0
     assert "think" not in body

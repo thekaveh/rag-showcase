@@ -57,9 +57,9 @@ server and restart the Ollama app so both agree.
 
 ## 3. Host Ollama: keep models resident during ingest
 
-A graph ingest churns three host models — `mistral-small3.2:24b` (extract),
-`nomic-embed-text` (embed), and `qwen3.6:latest` (keyword). Under Ollama defaults
-the large models can evict each other between calls (`ollama ps` shows
+A graph ingest alternates between two host models — `qwen3.8:latest` (extract and
+keyword) and `nomic-embed-text` (embed). Under Ollama defaults, concurrent work
+can still trigger model churn (`ollama ps` shows
 `Stopping...`), thrashing the run. Pin them **for the duration of a run**, then
 revert:
 
@@ -75,12 +75,12 @@ Revert once the run is done:
 launchctl unsetenv OLLAMA_KEEP_ALIVE
 launchctl unsetenv OLLAMA_MAX_LOADED_MODELS
 # quit and reopen the Ollama app
-ollama stop mistral-small3.2:24b qwen3.6:latest nomic-embed-text
+ollama stop qwen3.8:latest nomic-embed-text
 ```
 
 `OLLAMA_KEEP_ALIVE=-1` keeps every loaded model resident **forever** — roughly
-66 GB for these three, visible as two large `llama-server` processes in Activity
-Monitor. That is the setting working as intended, not a leak; revert it when you are
+the resident footprint reported by `ollama ps`. That is the setting working as
+intended, not a leak; revert it when you are
 done so idle models unload normally. See
 [thekaveh/atlas#798](https://github.com/thekaveh/atlas/issues/798) for the upstream
 request to size `keep_alive` automatically for host-Ollama ingest.

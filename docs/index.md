@@ -159,8 +159,8 @@ source artifacts.
 ## 4. Fully Local by Default
 
 Everything runs on your own machine: local models through Atlas's Ollama provider
-(`qwen3.6:latest` for chat and LightRAG keyword/query roles, `nomic-embed-text` for
-embeddings, and `mistral-small3.2:24b` for LightRAG extraction), Weaviate and LightRAG
+(`qwen3.8:latest` for chat, LightRAG extraction/keyword/query roles, and local Ragas
+evaluation, plus `nomic-embed-text` for embeddings), Weaviate and LightRAG
 for retrieval, a TEI reranker, and a local judge panel. No cloud calls are required to
 run the showcase or reproduce its results. See the [Hardware Sizing](hardware.md) guide
 for minimum and recommended profiles.
