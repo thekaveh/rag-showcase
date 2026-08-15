@@ -52,10 +52,10 @@ def test_workflow_is_active_for_manifest_fromjson_policy() -> None:
 
 
 def test_classify_node_delegates_model_defaults_to_litellm() -> None:
-    # Atlas's qwen3.6 catalog entry owns think:false. The workflow specifies only
+    # Atlas's qwen3.8 catalog entry owns think:false. The workflow specifies only
     # approach-level request arguments so model defaults stay provider-scoped.
     body = _node(_workflow(), "Classify")["parameters"]["jsonBody"]
-    assert "qwen3.6:latest" in body
+    assert "qwen3.8:latest" in body
     assert "think" not in body
 
 

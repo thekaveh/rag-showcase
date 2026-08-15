@@ -126,9 +126,9 @@ requirements apply:
   installed, else a container — with no per-run flag. To pin one, edit the manifest
   or pass `--llm-provider-source` to `infra/start.sh` (an operator flag wins).
 - Disk/RAM/headroom for the `gen-ai-rag` stack plus whichever local models you
-  choose. The default local run asks Atlas to activate `mistral-small3.2:24b`
-  for LightRAG extraction and uses Atlas's default `qwen3.6:latest` for graph
-  keyword and query calls. See the
+  choose. The default local run uses Atlas's `qwen3.8:latest` for generation,
+  LightRAG extraction, keyword decomposition, graph answers, and local Ragas
+  evaluation; `nomic-embed-text` remains the embedding model. See the
   [hardware sizing guide](docs/hardware.md) for minimum and recommended profiles.
 
 ```bash
@@ -293,10 +293,15 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | `RAG_CONTEXTUAL_COLLECTION` | `RagContextual_<profile>` | contextual post-step and contextual-rag | derived by `start-all.sh` |
 | `BACKEND_PLUGINS_DIR` | `/app/plugins` | plugin seam (Atlas) | overlay |
 | `ATLAS_CONSUMER_MANIFEST` | `atlas.consumer.yml` | Atlas bootstrapper | host env; absolute path to the parent-owned consumer manifest |
-| `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | LightRAG EXTRACT role | `config/atlas.env.user` |
-| `LIGHTRAG_KEYWORD_LLM_MODEL` | `qwen3.6:latest` | LightRAG KEYWORD role | `config/atlas.env.user`; Atlas applies model-scoped `think:false` |
-| `LIGHTRAG_QUERY_LLM_MODEL` | `qwen3.6:latest` | LightRAG QUERY role | `config/atlas.env.user`; Atlas applies model-scoped `think:false` |
-| `LIGHTRAG_KEYWORD_LLM_BINDING` | `openai` | LightRAG KEYWORD role provider | `config/atlas.env.user`; kept behind LiteLLM so qwen3.6's catalog `think:false` default still applies |
+| `LITELLM_DEFAULT_MODEL` | `ollama/qwen3.8:latest` | Atlas/LiteLLM chat fallback | `atlas.consumer.yml`; catalog alias, independent of host accelerator |
+| `LITELLM_VISION_MODEL` | `ollama/qwen3.8:latest` | Atlas/LiteLLM vision fallback | `atlas.consumer.yml`; Qwen3.8 is multimodal |
+| `OLLAMA_USER_MODELS` | `qwen3.8:latest,nomic-embed-text` | Atlas Ollama activation | `atlas.consumer.yml`; replaces stale generated model selections on upgrade |
+| `LIGHTRAG_EXTRACT_LLM_MODEL` | `qwen3.8:latest` | LightRAG EXTRACT role | `config/atlas.env.user`; Atlas applies model-scoped `think:false` |
+| `LIGHTRAG_KEYWORD_LLM_MODEL` | `qwen3.8:latest` | LightRAG KEYWORD role | `config/atlas.env.user`; Atlas applies model-scoped `think:false` |
+| `LIGHTRAG_QUERY_LLM_MODEL` | `qwen3.8:latest` | LightRAG QUERY role | `config/atlas.env.user`; Atlas applies model-scoped `think:false` |
+| `LIGHTRAG_EXTRACT_LLM_BINDING` | `openai` | LightRAG EXTRACT role provider | `config/atlas.env.user`; kept behind LiteLLM so Qwen3.8's catalog `think:false` default applies during ingestion |
+| `LIGHTRAG_EXTRACT_LLM_BINDING_HOST` | `http://litellm:4000/v1` | LightRAG EXTRACT role endpoint | `config/atlas.env.user` |
+| `LIGHTRAG_KEYWORD_LLM_BINDING` | `openai` | LightRAG KEYWORD role provider | `config/atlas.env.user`; same model-default path as EXTRACT |
 | `LIGHTRAG_KEYWORD_LLM_BINDING_HOST` | `http://litellm:4000/v1` | LightRAG KEYWORD role endpoint | `config/atlas.env.user` |
 | `LIGHTRAG_QUERY_LLM_BINDING` | `openai` | LightRAG QUERY role provider | `config/atlas.env.user`; same LiteLLM-passthrough reasoning as the KEYWORD role |
 | `LIGHTRAG_QUERY_LLM_BINDING_HOST` | `http://litellm:4000/v1` | LightRAG QUERY role endpoint | `config/atlas.env.user` |
@@ -304,9 +309,8 @@ below expands that operator contract with adjacent Atlas and startup settings.
 | `LIGHTRAG_EXTRACT_MAX_ASYNC_LLM` | `1` | LightRAG EXTRACT concurrency | `config/atlas.env.user` |
 | `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | `900` | LightRAG EXTRACT timeout seconds | `config/atlas.env.user` |
 | `LIGHTRAG_RERANK_ADAPTER_ENABLED` | `true` | LightRAG-to-TEI rerank adapter | `config/atlas.env.user`; see Troubleshooting below |
-| `RAGAS_EVALUATOR_MODEL` | `mistral-small3.2:24b` | Ragas evaluator role | `config/atlas.env.user`; see [Evaluation Methodology](docs/evaluation-methodology.md) |
+| `RAGAS_EVALUATOR_MODEL` | `qwen3.8:latest` | Ragas evaluator role | `config/atlas.env.user`; see [Evaluation Methodology](docs/evaluation-methodology.md) |
 | `RAGAS_EMBEDDINGS_MODEL` | `nomic-embed-text` | Ragas embeddings role | `config/atlas.env.user`; see [Evaluation Methodology](docs/evaluation-methodology.md) |
-| `OLLAMA_CUSTOM_MODELS` | includes `mistral-small3.2:24b` | local Ollama model activation | compiled from `atlas.consumer.yml` `model_sidecars.ollama` |
 | `LIGHTRAG_QUERY_ENABLE_RERANK` | `false` | LightRAG service fallback | Atlas query profile owns each alias; overlay supplies the service fallback |
 | `LIGHTRAG_QUERY_TOP_K` | `10` | LightRAG service fallback | Atlas query profile owns each alias; overlay supplies the service fallback |
 | `LIGHTRAG_QUERY_CHUNK_TOP_K` | `5` | LightRAG service fallback | Atlas query profile owns each alias; overlay supplies the service fallback |

@@ -17,6 +17,13 @@ env:
     # Compute sources committed here (atlas#753/#755) so a manifest/profile-driven
     # start needs no per-run --*-source flags and is correct on every host.
     LLM_PROVIDER_SOURCE: auto     # host Ollama if installed, else container (host-adaptive)
+    # Pin catalog aliases, not an accelerator/runtime. This also supersedes
+    # stale generated .env selections when an existing clone advances Atlas.
+    LITELLM_DEFAULT_MODEL: ollama/qwen3.8:latest
+    LITELLM_VISION_MODEL: ollama/qwen3.8:latest
+    LITELLM_EMBEDDING_MODEL: ollama/nomic-embed-text
+    OLLAMA_USER_MODELS: qwen3.8:latest,nomic-embed-text
+    OLLAMA_CUSTOM_MODELS: ""
     LIGHTRAG_SOURCE: container    # in-network LightRAG
     TEI_RERANKER_SOURCE: container-cpu   # CPU reranker — hardware-neutral
     DOC_PROCESSOR_SOURCE: disabled       # no GPU/localhost Docling; ingest uses naive text chunking
@@ -251,7 +258,3 @@ rag_ingestion_profiles:
       chunker: *rag_chunker
       vector_targets: *rag_vector_targets
       graph_targets: *rag_graph_targets
-
-model_sidecars:
-  ollama:
-    - mistral-small3.2:24b

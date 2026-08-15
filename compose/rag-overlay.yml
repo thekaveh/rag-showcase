@@ -12,6 +12,9 @@ services:
 
   lightrag:
     environment:
+      # EXTRACT is routed through LiteLLM so Atlas's model-scoped request
+      # defaults (notably Qwen3.8 think:false) apply to graph ingestion too.
+      EXTRACT_LLM_BINDING_API_KEY: ${LITELLM_MASTER_KEY}
       # Used only when a LightRAG role is bound directly to Ollama. The default
       # Atlas path still uses LiteLLM/OpenAI-compatible routing, where these
       # role-specific Ollama option variables are ignored.

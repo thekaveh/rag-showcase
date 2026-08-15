@@ -15,7 +15,7 @@ answer, sources, and metrics.
 1. **Webhook** (POST, path `adaptive-rag`) — receives `{ "query": "..." }`.
 2. **Classify** (HTTP Request → `http://litellm:4000/v1/chat/completions`,
    Authorization `Bearer {{ $env.LITELLM_API_KEY }}` — Atlas injects the master
-   key into the n8n container under that name — model `qwen3.6:latest`, a name
+   key into the n8n container under that name — model `qwen3.8:latest`, a name
    LiteLLM registers, called with `temperature: 0`. Atlas's model catalog supplies
    that model's scoped `request_defaults: {think: false}`, which is load-bearing
    inside the node's 60 s timeout): the prompt classifies the *question* as one word —

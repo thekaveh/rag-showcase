@@ -53,17 +53,17 @@ underlying LLM. The approach then calls one or more configured roles.
 | Role | Default model | Used by | Notes |
 |---|---|---|---|
 | `embed` | `nomic-embed-text` | Weaviate-backed retrieval and the agent vector tool | Same embedding role across chunk-based approaches for fair vector comparison. |
-| `light_gen` | `qwen3.6:latest` | `vanilla-rag`, `hybrid-rag`, `contextual-rag` | Shared final answer model for chunk-based approaches. |
-| `contextual_blurb` | `qwen3.6:latest` | `contextual-rag` ingest | Generates short context blurbs before embedding contextual chunks. |
-| `agentic` | `qwen3.6:latest` | `agentic-rag` | Controls the ReAct loop and tool selection. |
-| LightRAG EXTRACT | `mistral-small3.2:24b` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for entity and relationship extraction. |
-| LightRAG KEYWORD | `qwen3.6:latest` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for strict LightRAG keyword/query decomposition, with thinking disabled by Atlas model metadata. |
-| LightRAG QUERY | `qwen3.6:latest` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for final LightRAG graph answers, with thinking disabled by Atlas model metadata. |
-| n8n classifier | `qwen3.6:latest` | `n8n-adaptive-rag` | Workflow-level simple/complex classifier. |
-| Lazy graph query | `nomic-embed-text` + `qwen3.6:latest` | experimental `lazy-graph-rag` | Shared embedding and final generation; concept indexing/traversal is LLM-free. |
+| `light_gen` | `qwen3.8:latest` | `vanilla-rag`, `hybrid-rag`, `contextual-rag` | Shared final answer model for chunk-based approaches. |
+| `contextual_blurb` | `qwen3.8:latest` | `contextual-rag` ingest | Generates short context blurbs before embedding contextual chunks. |
+| `agentic` | `qwen3.8:latest` | `agentic-rag` | Controls the ReAct loop and tool selection. |
+| LightRAG EXTRACT | `qwen3.8:latest` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for entity and relationship extraction, with thinking disabled by Atlas model metadata. |
+| LightRAG KEYWORD | `qwen3.8:latest` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for strict LightRAG keyword/query decomposition, with thinking disabled by Atlas model metadata. |
+| LightRAG QUERY | `qwen3.8:latest` setup default | `graph-rag`; graph tool inside `agentic-rag` | Atlas-owned role for final LightRAG graph answers, with thinking disabled by Atlas model metadata. |
+| n8n classifier | `qwen3.8:latest` | `n8n-adaptive-rag` | Workflow-level simple/complex classifier. |
+| Lazy graph query | `nomic-embed-text` + `qwen3.8:latest` | experimental `lazy-graph-rag` | Shared embedding and final generation; concept indexing/traversal is LLM-free. |
 
 Atlas's model catalog applies `request_defaults: {think: false}` to
-`qwen3.6:latest`. The setting is scoped to that catalog entry, not injected by
+`qwen3.8:latest`. The setting is scoped to that catalog entry, not injected by
 the approach plugin or applied globally. If a role is changed to a different
 local or cloud model, Atlas resolves that model's own adapter, capabilities, and
 request defaults.
@@ -192,7 +192,7 @@ followed by one answer-generation call.
 ### 3.5 Models Used
 
 - Query embedding: `embed` role, default `nomic-embed-text`.
-- Answer generation: `light_gen` role, default `qwen3.6:latest`.
+- Answer generation: `light_gen` role, default `qwen3.8:latest`.
 - External evaluation: Atlas scores eligible stored contexts through the Ragas
   endpoint; the manifest-configured judge panel scores stored answers separately.
 
@@ -254,7 +254,7 @@ It does not query LightRAG or use extracted graph entities/relations.
 - Query embedding: `embed` role, default `nomic-embed-text`.
 - Reranking: Atlas TEI reranker service, default endpoint
   `http://tei-reranker:80`.
-- Answer generation: `light_gen` role, default `qwen3.6:latest`.
+- Answer generation: `light_gen` role, default `qwen3.8:latest`.
 - External evaluation: Atlas scores eligible stored contexts through the Ragas
   endpoint; the manifest-configured judge panel scores stored answers separately.
 
@@ -324,11 +324,11 @@ Query-time:
 ### 5.5 Models Used
 
 - Ingest-time contextualization: `contextual_blurb` role, default
-  `qwen3.6:latest`.
+  `qwen3.8:latest`.
 - Query embedding: `embed` role, default `nomic-embed-text`.
 - Reranking: Atlas TEI reranker service, default endpoint
   `http://tei-reranker:80`.
-- Answer generation: `light_gen` role, default `qwen3.6:latest`.
+- Answer generation: `light_gen` role, default `qwen3.8:latest`.
 - External evaluation: Atlas scores eligible stored contexts through the Ragas
   endpoint; the manifest-configured judge panel scores stored answers separately.
 
@@ -396,11 +396,11 @@ Query-time:
 ### 6.5 Models Used
 
 - Graph extraction: Atlas LightRAG EXTRACT role, setup default
-  `mistral-small3.2:24b`.
+  `qwen3.8:latest` with Atlas-scoped thinking disabled.
 - Graph keyword/query decomposition: Atlas LightRAG KEYWORD role, setup default
-  `qwen3.6:latest` with Atlas-scoped thinking disabled.
+  `qwen3.8:latest` with Atlas-scoped thinking disabled.
 - Graph answer generation: Atlas LightRAG QUERY role, setup default
-  `qwen3.6:latest` with Atlas-scoped thinking disabled.
+  `qwen3.8:latest` with Atlas-scoped thinking disabled.
 - LightRAG embeddings: setup default `nomic-embed-text`.
 - External evaluation: operational and judge metrics remain available. The current
   LightRAG response lacks retrievable contexts, so context-dependent Ragas metrics
@@ -422,9 +422,9 @@ thousands of tokens instead of the requested compact structure.
 | `top_k` / `LIGHTRAG_QUERY_TOP_K` | 10 canonical | Atlas query profile; env fallback | Knowledge-graph candidate fanout; wide uses 30. |
 | `chunk_top_k` / `LIGHTRAG_QUERY_CHUNK_TOP_K` | 5 canonical | Atlas query profile; env fallback | Chunk context fanout; wide uses 12. |
 | `max_total_tokens` / `LIGHTRAG_QUERY_MAX_TOTAL_TOKENS` | 12000 canonical | Atlas query profile; env fallback | Query prompt/context budget; wide uses 24000. |
-| `LIGHTRAG_EXTRACT_LLM_MODEL` | `mistral-small3.2:24b` | Yes, Atlas `.env` | Extraction model choice has large quality/latency impact. |
-| `LIGHTRAG_KEYWORD_LLM_MODEL` | `qwen3.6:latest` | Yes, Atlas `.env` | Keyword/query decomposition role; model metadata supplies `think:false`. |
-| `LIGHTRAG_QUERY_LLM_MODEL` | `qwen3.6:latest` | Yes, Atlas `.env` | Final graph answer model; model metadata supplies `think:false`. |
+| `LIGHTRAG_EXTRACT_LLM_MODEL` | `qwen3.8:latest` | Yes, Atlas `.env` | Extraction model choice has large quality/latency impact; model metadata supplies `think:false`. |
+| `LIGHTRAG_KEYWORD_LLM_MODEL` | `qwen3.8:latest` | Yes, Atlas `.env` | Keyword/query decomposition role; model metadata supplies `think:false`. |
+| `LIGHTRAG_QUERY_LLM_MODEL` | `qwen3.8:latest` | Yes, Atlas `.env` | Final graph answer model; model metadata supplies `think:false`. |
 | `LIGHTRAG_EXTRACT_MAX_ASYNC_LLM` | 1 | Yes, Atlas `.env` | Stability vs throughput. |
 | `LIGHTRAG_EXTRACT_LLM_TIMEOUT` | 900 | Yes, Atlas `.env` | Prevents slow extraction calls from failing too early. |
 | Ollama role context caps | 8192 defaults when native Ollama binding is used | Yes | Passed through overlay as `*_OLLAMA_LLM_NUM_CTX`. |
@@ -482,10 +482,10 @@ vector search or graph search, instead of following a fixed retrieval path.
 
 ### 7.5 Models Used
 
-- Agent controller: `agentic` role, default `qwen3.6:latest`.
+- Agent controller: `agentic` role, default `qwen3.8:latest`.
 - Vector tool embedding: `embed` role, default `nomic-embed-text`.
-- Graph tool: LightRAG EXTRACT uses `mistral-small3.2:24b`; KEYWORD and QUERY
-  use Atlas's thinking-disabled `qwen3.6:latest` setup default.
+- Graph tool: LightRAG EXTRACT, KEYWORD, and QUERY use Atlas's
+  thinking-disabled `qwen3.8:latest` setup default.
 - External evaluation: Atlas scores eligible tool evidence through the Ragas
   endpoint; the manifest-configured judge panel scores stored answers separately.
 
@@ -540,7 +540,7 @@ or complex, sends it to another approach, then normalizes the response.
 
 ### 8.5 Models Used
 
-- Workflow classifier: `qwen3.6:latest` in
+- Workflow classifier: `qwen3.8:latest` in
   `n8n/adaptive-rag.workflow.json`.
 - Downstream answer model: inherited from the selected route. In the current
   workflow, `simple` routes to `vanilla-rag` and `complex` routes to
@@ -553,7 +553,7 @@ or complex, sends it to another approach, then normalizes the response.
 | Knob | Current value | Exposed as env? | Notes |
 |---|---:|---|---|
 | Webhook URL | `http://n8n:5678/webhook/adaptive-rag` | Yes, `N8N_ADAPTIVE_WEBHOOK_URL` | Plugin wrapper setting. |
-| Classifier model | `qwen3.6:latest` | Workflow JSON | Change in `n8n/adaptive-rag.workflow.json`. |
+| Classifier model | `qwen3.8:latest` | Workflow JSON | Change in `n8n/adaptive-rag.workflow.json`. |
 | Classifier prompt | fixed | Workflow JSON | Determines simple/complex routing. |
 | Route map | simple -> vanilla, complex -> agentic | Workflow JSON | Could route graph-native questions to hybrid or graph instead. |
 | Approach-call timeout | 175000 ms | Workflow JSON | Workflow HTTP node timeout. |

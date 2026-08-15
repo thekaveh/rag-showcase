@@ -791,6 +791,9 @@ def test_leaderboard_report_contains_all_result_views() -> None:
     assert "Faithfulness coverage" in report
     assert "Errors" in report
     assert "Timeouts" in report
+    normalized = " ".join(report.split())
+    assert "These are historical Qwen3.6/Mistral run results" in normalized
+    assert "active runtime now uses `qwen3.8:latest`" in normalized
 
 
 def test_committed_leaderboard_report_is_fresh() -> None:
