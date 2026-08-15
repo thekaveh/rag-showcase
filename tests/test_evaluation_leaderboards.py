@@ -792,8 +792,55 @@ def test_leaderboard_report_contains_all_result_views() -> None:
     assert "Errors" in report
     assert "Timeouts" in report
     normalized = " ".join(report.split())
-    assert "These are historical Qwen3.6/Mistral run results" in normalized
-    assert "active runtime now uses `qwen3.8:latest`" in normalized
+    assert "Recorded judge models: `gemma4:31b`, `qwen3.6:latest`" in normalized
+    assert "Recorded Ragas evaluator models: `mistral-small3.2:24b`" in normalized
+    assert "Active generation and LightRAG role models: `qwen3.8:latest`" in normalized
+
+
+def test_model_provenance_notice_is_derived_from_snapshots_and_roles(
+    tmp_path: Path,
+) -> None:
+    results = tmp_path / "results"
+    results.mkdir()
+    _write_json(results / "judgments.json", {"judges": ["future-judge:latest"]})
+    (results / "evidence.jsonl").write_text(
+        json.dumps({"metrics": {"ragas": {"evaluator_model": "future-evaluator"}}})
+        + "\n",
+        encoding="utf-8",
+    )
+    roles = tmp_path / "roles.yaml"
+    roles.write_text(
+        yaml.safe_dump(
+            {
+                "embed": "future-embed",
+                "light_gen": "future-generation",
+                "extraction": "future-extraction",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    lines = report_leaderboards.model_provenance_notice(
+        [
+            {
+                "status": "measured",
+                "judgment_snapshot": "results/judgments.json",
+                "evidence_snapshot": "results/evidence.jsonl",
+            }
+        ],
+        root=tmp_path,
+        roles_file=roles,
+    )
+    notice = " ".join(lines)
+
+    assert "Recorded judge models: `future-judge:latest`" in notice
+    assert "Recorded Ragas evaluator models: `future-evaluator`" in notice
+    assert (
+        "Active generation and LightRAG role models: `future-extraction`, "
+        "`future-generation`" in notice
+    )
+    assert "future-embed" not in notice
+    assert "qwen3.6" not in notice
 
 
 def test_committed_leaderboard_report_is_fresh() -> None:
