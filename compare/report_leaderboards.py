@@ -22,6 +22,13 @@ MANIFEST = ROOT / "compare" / "datasets.yaml"
 DOCS_MANIFEST = ROOT / "docs" / "manifest.yaml"
 DEFAULT_OUTPUT = ROOT / "docs" / "evaluation-results.md"
 ROLES_FILE = ROOT / "backend_plugins" / "rag" / "roles.yaml"
+LIGHTRAG_ENV_FILE = ROOT / "config" / "atlas.env.user"
+PLUGIN_GENERATION_ROLES = {"light_gen", "contextual_blurb", "agentic"}
+LIGHTRAG_MODEL_KEYS = {
+    "LIGHTRAG_EXTRACT_LLM_MODEL",
+    "LIGHTRAG_KEYWORD_LLM_MODEL",
+    "LIGHTRAG_QUERY_LLM_MODEL",
+}
 
 
 @dataclass(frozen=True)
@@ -58,11 +65,33 @@ def _model_list(models: set[str]) -> str:
     return ", ".join(f"`{model}`" for model in sorted(models)) or "not recorded"
 
 
+def _env_model_values(path: Path, keys: set[str]) -> set[str]:
+    values: dict[str, str] = {}
+    for line_number, raw_line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, separator, value = line.partition("=")
+        key = key.strip()
+        if key not in keys:
+            continue
+        if not separator or not value.strip():
+            raise ValueError(f"model setting {key} is empty in {path}:{line_number}")
+        values[key] = value.strip().strip('"\'')
+    missing = sorted(keys - values.keys())
+    if missing:
+        raise ValueError(f"model settings missing from {path}: {', '.join(missing)}")
+    return set(values.values())
+
+
 def model_provenance_notice(
     datasets: list[dict[str, Any]],
     *,
     root: Path = ROOT,
     roles_file: Path = ROLES_FILE,
+    lightrag_env_file: Path = LIGHTRAG_ENV_FILE,
 ) -> list[str]:
     """Describe measured and active models from their canonical source files."""
     judges: set[str] = set()
@@ -113,17 +142,19 @@ def model_provenance_notice(
     role_data = yaml.safe_load(roles_file.read_text(encoding="utf-8")) or {}
     if not isinstance(role_data, dict):
         raise ValueError(f"role map {roles_file} must contain an object")
-    active_models = {
+    plugin_models = {
         model
         for role, model in role_data.items()
-        if role != "embed" and isinstance(model, str) and model
+        if role in PLUGIN_GENERATION_ROLES and isinstance(model, str) and model
     }
+    lightrag_models = _env_model_values(lightrag_env_file, LIGHTRAG_MODEL_KEYS)
     return [
         "**Model provenance.** Recorded judge models: "
         f"{_model_list(judges)}. Recorded Ragas evaluator models: "
         f"{_model_list(evaluators)}.",
-        "Active generation and LightRAG role models: "
-        f"{_model_list(active_models)}. Snapshot model names remain unchanged because "
+        "Active plugin generation role models: "
+        f"{_model_list(plugin_models)}. Active LightRAG role models: "
+        f"{_model_list(lightrag_models)}. Snapshot model names remain unchanged because "
         "they identify the systems that produced the recorded answers and scores.",
     ]
 

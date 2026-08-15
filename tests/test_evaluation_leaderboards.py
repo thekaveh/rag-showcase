@@ -794,7 +794,8 @@ def test_leaderboard_report_contains_all_result_views() -> None:
     normalized = " ".join(report.split())
     assert "Recorded judge models: `gemma4:31b`, `qwen3.6:latest`" in normalized
     assert "Recorded Ragas evaluator models: `mistral-small3.2:24b`" in normalized
-    assert "Active generation and LightRAG role models: `qwen3.8:latest`" in normalized
+    assert "Active plugin generation role models: `qwen3.8:latest`" in normalized
+    assert "Active LightRAG role models: `qwen3.8:latest`" in normalized
 
 
 def test_model_provenance_notice_is_derived_from_snapshots_and_roles(
@@ -819,6 +820,13 @@ def test_model_provenance_notice_is_derived_from_snapshots_and_roles(
         ),
         encoding="utf-8",
     )
+    lightrag_env = tmp_path / "atlas.env.user"
+    lightrag_env.write_text(
+        "LIGHTRAG_EXTRACT_LLM_MODEL=future-lightrag\n"
+        "LIGHTRAG_KEYWORD_LLM_MODEL=future-lightrag\n"
+        "LIGHTRAG_QUERY_LLM_MODEL=future-lightrag\n",
+        encoding="utf-8",
+    )
 
     lines = report_leaderboards.model_provenance_notice(
         [
@@ -830,15 +838,17 @@ def test_model_provenance_notice_is_derived_from_snapshots_and_roles(
         ],
         root=tmp_path,
         roles_file=roles,
+        lightrag_env_file=lightrag_env,
     )
     notice = " ".join(lines)
 
     assert "Recorded judge models: `future-judge:latest`" in notice
     assert "Recorded Ragas evaluator models: `future-evaluator`" in notice
     assert (
-        "Active generation and LightRAG role models: `future-extraction`, "
-        "`future-generation`" in notice
+        "Active plugin generation role models: `future-generation`" in notice
     )
+    assert "Active LightRAG role models: `future-lightrag`" in notice
+    assert "future-extraction" not in notice
     assert "future-embed" not in notice
     assert "qwen3.6" not in notice
 

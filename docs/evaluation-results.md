@@ -7,7 +7,7 @@ the [narrative comparison](comparison.md), the
 [raw result snapshots](results/README.md).
 
 **Model provenance.** Recorded judge models: `gemma4:31b`, `qwen3.6:latest`. Recorded Ragas evaluator models: `mistral-small3.2:24b`.
-Active generation and LightRAG role models: `qwen3.8:latest`. Snapshot model names remain unchanged because they identify the systems that produced the recorded answers and scores.
+Active plugin generation role models: `qwen3.8:latest`. Active LightRAG role models: `qwen3.8:latest`. Snapshot model names remain unchanged because they identify the systems that produced the recorded answers and scores.
 
 ## 1. Reading the Results
 
