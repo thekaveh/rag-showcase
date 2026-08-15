@@ -28,6 +28,10 @@ with host Ollama; that is run metadata, not a repo requirement. See
   dataset-ladder process are documented in
   [`evaluation-methodology.md`](evaluation-methodology.md).
 
+These are historical Qwen3.6/Mistral run results. The active runtime now uses
+`qwen3.8:latest`; model names below and in the raw artifacts remain unchanged
+because they are provenance for the answers and scores actually recorded.
+
 The experimental lazy graph family remains excluded from `default`, but its base
 alias was selected explicitly for this run. Its implementation, cold/warm cache
 measurements, and keep-experimental decision are documented in

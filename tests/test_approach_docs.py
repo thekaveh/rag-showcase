@@ -117,6 +117,9 @@ def test_comparison_defers_aggregate_metrics_to_canonical_leaderboards() -> None
     comparison = (ROOT / "docs" / "comparison.md").read_text(encoding="utf-8")
 
     assert "evaluation-results.md" in comparison
+    normalized = " ".join(comparison.split())
+    assert "These are historical Qwen3.6/Mistral run results" in normalized
+    assert "active runtime now uses `qwen3.8:latest`" in normalized
     for aggregate_literal in [
         "4.17",
         "4.31",
@@ -181,3 +184,26 @@ def test_evaluation_methodology_documents_models_judges_and_ladder() -> None:
         "cyber_threat_intel",
     ]:
         assert phrase in doc
+
+
+def test_atlas_integration_docs_match_the_active_model_contract() -> None:
+    handoff = (ROOT / "docs" / "atlas-lightrag-role-model-spec.md").read_text(
+        encoding="utf-8"
+    )
+    active_section = handoff.split("## 7. RAG Showcase Configuration", 1)[1]
+    active_section = active_section.split("## 8. Acceptance Criteria", 1)[0]
+
+    assert "LIGHTRAG_EXTRACT_LLM_MODEL=qwen3.8:latest" in active_section
+    assert "LIGHTRAG_KEYWORD_LLM_MODEL=qwen3.8:latest" in active_section
+    assert "LIGHTRAG_QUERY_LLM_MODEL=qwen3.8:latest" in active_section
+    assert "LIGHTRAG_EXTRACT_LLM_BINDING=openai" in active_section
+    assert "qwen3.6" not in active_section
+    assert "mistral-small3.2" not in active_section
+
+    assessment = (ROOT / "docs" / "atlas-reuse-assessment.md").read_text(
+        encoding="utf-8"
+    )
+    assert "Ollama model sidecar" not in assessment
+    assert "keeps all three LightRAG LLM roles behind LiteLLM" in " ".join(
+        assessment.split()
+    )
