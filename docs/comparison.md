@@ -144,7 +144,7 @@ LightRAG; `agentic-rag` runs a ReAct loop over vector and graph tools; and
 | Concern | This run |
 |---|---|
 | Hardware | Mac Studio M2 Ultra, 192 GB unified memory |
-| Atlas | 2026-07-17 run pin `c744467e` (`v0.1.0-438-gc744467e`; current pin `3c03bbfc`), project `rag-showcase`; baseline/graph-native rows record pre-rerank-fix `2229fee9`, cyber rows record `c744467e` |
+| Atlas | 2026-07-17 run pin `c744467e` (`v0.1.0-438-gc744467e`; current pin `7f2fcf2d`), project `rag-showcase`; baseline/graph-native rows record pre-rerank-fix `2229fee9`, cyber rows record `c744467e` |
 | Ports | baseline and graph-native `64500-64609`; cyber `22000-22109`; both blocks were verified free at assignment |
 | Provider | host Ollama selected through Atlas `ollama-localhost`; ComfyUI disabled as not applicable |
 | Generation | local Ollama `qwen3.6:latest`, with Atlas-scoped `think:false` |

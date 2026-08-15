@@ -207,3 +207,19 @@ def test_atlas_integration_docs_match_the_active_model_contract() -> None:
     assert "keeps all three LightRAG LLM roles behind LiteLLM" in " ".join(
         assessment.split()
     )
+
+
+def test_current_atlas_pin_is_consistent_across_canonical_docs() -> None:
+    current_pin = "7f2fcf2d"
+    methodology = (ROOT / "docs" / "evaluation-methodology.md").read_text(
+        encoding="utf-8"
+    )
+    comparison = (ROOT / "docs" / "comparison.md").read_text(encoding="utf-8")
+    dependency_contracts = (ROOT / "docs" / "dependency-contracts.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert f"current `{current_pin}` pin" in methodology
+    assert f"current submodule pin is `{current_pin}`" in methodology
+    assert f"current pin `{current_pin}`" in comparison
+    assert f"Atlas submodule:** `{current_pin}`" in dependency_contracts
