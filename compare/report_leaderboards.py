@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,6 +21,14 @@ from compare.leaderboards import build_leaderboards  # noqa: E402
 MANIFEST = ROOT / "compare" / "datasets.yaml"
 DOCS_MANIFEST = ROOT / "docs" / "manifest.yaml"
 DEFAULT_OUTPUT = ROOT / "docs" / "evaluation-results.md"
+ROLES_FILE = ROOT / "backend_plugins" / "rag" / "roles.yaml"
+LIGHTRAG_ENV_FILE = ROOT / "config" / "atlas.env.user"
+PLUGIN_GENERATION_ROLES = {"light_gen", "contextual_blurb", "agentic"}
+LIGHTRAG_MODEL_KEYS = {
+    "LIGHTRAG_EXTRACT_LLM_MODEL",
+    "LIGHTRAG_KEYWORD_LLM_MODEL",
+    "LIGHTRAG_QUERY_LLM_MODEL",
+}
 
 
 @dataclass(frozen=True)
@@ -50,6 +59,104 @@ def _report_h1() -> str:
             if page["source"] == "evaluation-results.md":
                 return f"# {page['number']} {page['title']}"
     return f"# {data['site_name']} Evaluation Results"
+
+
+def _model_list(models: set[str]) -> str:
+    return ", ".join(f"`{model}`" for model in sorted(models)) or "not recorded"
+
+
+def _env_model_values(path: Path, keys: set[str]) -> set[str]:
+    values: dict[str, str] = {}
+    for line_number, raw_line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, separator, value = line.partition("=")
+        key = key.strip()
+        if key not in keys:
+            continue
+        if not separator or not value.strip():
+            raise ValueError(f"model setting {key} is empty in {path}:{line_number}")
+        values[key] = value.strip().strip('"\'')
+    missing = sorted(keys - values.keys())
+    if missing:
+        raise ValueError(f"model settings missing from {path}: {', '.join(missing)}")
+    return set(values.values())
+
+
+def model_provenance_notice(
+    datasets: list[dict[str, Any]],
+    *,
+    root: Path = ROOT,
+    roles_file: Path = ROLES_FILE,
+    lightrag_env_file: Path = LIGHTRAG_ENV_FILE,
+) -> list[str]:
+    """Describe measured and active models from their canonical source files."""
+    judges: set[str] = set()
+    evaluators: set[str] = set()
+    for dataset in datasets:
+        if dataset.get("status") != "measured":
+            continue
+        for key in ("judgment_snapshot", "flavor_judgment_snapshot"):
+            relative_path = dataset.get(key)
+            if not relative_path:
+                continue
+            path = root / str(relative_path)
+            try:
+                snapshot = json.loads(path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"invalid judgment JSON in {path}: {exc}") from exc
+            if not isinstance(snapshot, dict):
+                raise ValueError(f"judgment snapshot {path} must contain an object")
+            recorded = snapshot.get("judges", [])
+            if not isinstance(recorded, list):
+                raise ValueError(f"judgment snapshot {path} must contain a judges list")
+            judges.update(model for model in recorded if isinstance(model, str) and model)
+        for key in ("evidence_snapshot", "flavor_evidence_snapshot"):
+            relative_path = dataset.get(key)
+            if not relative_path:
+                continue
+            path = root / str(relative_path)
+            for line_number, line in enumerate(
+                path.read_text(encoding="utf-8").splitlines(), start=1
+            ):
+                if not line.strip():
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(
+                        f"invalid evidence JSON in {path}:{line_number}: {exc}"
+                    ) from exc
+                if not isinstance(row, dict):
+                    raise ValueError(
+                        f"evidence row {path}:{line_number} must contain an object"
+                    )
+                ragas = row.get("metrics", {}).get("ragas", {})
+                model = ragas.get("evaluator_model") if isinstance(ragas, dict) else None
+                if isinstance(model, str) and model:
+                    evaluators.add(model)
+
+    role_data = yaml.safe_load(roles_file.read_text(encoding="utf-8")) or {}
+    if not isinstance(role_data, dict):
+        raise ValueError(f"role map {roles_file} must contain an object")
+    plugin_models = {
+        model
+        for role, model in role_data.items()
+        if role in PLUGIN_GENERATION_ROLES and isinstance(model, str) and model
+    }
+    lightrag_models = _env_model_values(lightrag_env_file, LIGHTRAG_MODEL_KEYS)
+    return [
+        "**Model provenance.** Recorded judge models: "
+        f"{_model_list(judges)}. Recorded Ragas evaluator models: "
+        f"{_model_list(evaluators)}.",
+        "Active plugin generation role models: "
+        f"{_model_list(plugin_models)}. Active LightRAG role models: "
+        f"{_model_list(lightrag_models)}. Snapshot model names remain unchanged because "
+        "they identify the systems that produced the recorded answers and scores.",
+    ]
 
 
 def _number(value: float | None, digits: int = 2) -> str:
@@ -329,7 +436,8 @@ def _operational_values(
 
 def build_report() -> str:
     """Build the complete canonical Markdown/HTML leaderboard report."""
-    leaderboards = build_leaderboards(_load_datasets())
+    datasets = _load_datasets()
+    leaderboards = build_leaderboards(datasets)
     base = leaderboards["base"]
     flavors = leaderboards["flavors"]
     lines = [
@@ -341,9 +449,7 @@ def build_report() -> str:
         "[dataset complexity ladder](dataset-complexity-report.md), and the",
         "[raw result snapshots](results/README.md).",
         "",
-        "These are historical Qwen3.6/Mistral run results. The active runtime now uses",
-        "`qwen3.8:latest`; model names in the tables and raw artifacts remain unchanged",
-        "because they are provenance for the answers and scores actually recorded.",
+        *model_provenance_notice(datasets),
         "",
         "## 1. Reading the Results",
         "",
