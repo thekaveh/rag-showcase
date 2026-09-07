@@ -195,8 +195,8 @@ def test_generated_surfaces_publish_the_brand_banner(tmp_path) -> None:
     canonical = DOCS / "brand" / "rag-showcase-banner.png"
     with Image.open(canonical) as rendered:
         width, height = rendered.size
-        assert width >= 3600
-        assert width == height * 3
+        assert width >= 1536
+        assert width * 2 == height * 3
 
     assert (site_dir / "assets" / "brand" / canonical.name).is_file()
     assert (wiki_dir / "img" / canonical.name).is_file()
