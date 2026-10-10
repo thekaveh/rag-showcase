@@ -86,7 +86,7 @@ def iter_pages(manifest: dict[str, Any]) -> list[Page]:
 
 def source_map(pages: list[Page], surface: str) -> dict[str, str]:
     if surface == "wiki":
-        return {page.source.as_posix(): page.wiki_name for page in pages}
+        return {page.source.as_posix(): ("Home.md" if page.source.as_posix() == "index.md" else page.wiki_name) for page in pages}
     return {page.source.as_posix(): page.source.as_posix() for page in pages}
 
 

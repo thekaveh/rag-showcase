@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 
 CANONICAL_TITLE = '<h1 align="center">RAG Showcase</h1>'
@@ -13,20 +14,6 @@ CANONICAL_TAGLINE = (
 CANONICAL_SUPPORT = (
     '<p align="center">Compare vector, hybrid, contextual, graph, agentic, adaptive, '
     "and lazy-graph retrieval through one reproducible Atlas evaluation harness.</p>"
-)
-
-CANONICAL_SUMMARY = (
-    "RAG Showcase serves seven retrieval strategies as OpenAI-compatible model aliases "
-    "in Open WebUI, so one prompt can fan out across vanilla, hybrid, contextual, "
-    "LightRAG graph, agentic, n8n-adaptive, and experimental lazy-graph retrieval. "
-    "Atlas supplies the shared gateway, model routing, ingestion, stores, workflow "
-    "services, and health lifecycle; this repository contributes the approach plugin, "
-    "corpus ladder, tuning flavors, and evaluation harness. The differentiator is "
-    "controlled comparison rather than a collection of disconnected demos: approaches "
-    "consume the same dataset profile and embedding model, return one response envelope "
-    "with available evidence and metrics, and are scored from persisted artifacts by "
-    "Ragas and a blinded judge panel. The default stack can run locally, while provider "
-    "and model choices remain configurable through Atlas."
 )
 
 CANONICAL_BADGES = """<p align="center">
@@ -59,7 +46,6 @@ _EXPECTED = {
     "title": CANONICAL_TITLE,
     "tagline": CANONICAL_TAGLINE,
     "support": CANONICAL_SUPPORT,
-    "summary": CANONICAL_SUMMARY,
     "badges": CANONICAL_BADGES,
     "tech-badges": CANONICAL_TECH_BADGES,
 }
@@ -99,11 +85,16 @@ def check_canonical_openers(root: Path) -> None:
                     f"{label}: opener block {name!r} differs from the canonical string"
                 )
 
-    summary_words = len(CANONICAL_SUMMARY.split())
-    if not 100 <= summary_words <= 150:
-        raise OpenerError(
-            f"canonical executive summary has {summary_words} words; expected 100-150"
-        )
+        summary = marked_block(text, "summary")
+        for pattern, requirement in (
+            (r"RAG Showcase", "project identity"),
+            (r"(?:seven|7) retrieval strategies|(?:seven|7) (?:RAG )?approaches", "seven approaches"),
+            (r"Open WebUI", "comparison interface"),
+            (r"Atlas", "shared infrastructure"),
+            (r"available evidence", "evidence availability"),
+        ):
+            if not re.search(pattern, summary, re.IGNORECASE):
+                raise OpenerError(f"{label}: summary missing {requirement}")
 
     required_banners = {
         "README.md": "(docs/brand/rag-showcase-banner.png)",

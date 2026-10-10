@@ -37,3 +37,30 @@ def strip_forbidden_links(markdown: str, surface: str) -> str:
         return text if is_forbidden(target, surface) else match.group(0)
 
     return MD_LINK_RE.sub(replace, markdown)
+
+
+def html_anchor_tags(markdown: str) -> list[tuple[int, int, str]]:
+    """Locate HTML anchor start tags using a parser, preserving original markup."""
+    from html.parser import HTMLParser
+
+    offsets = [0]
+    for line in markdown.splitlines(keepends=True):
+        offsets.append(offsets[-1] + len(line))
+
+    class Anchors(HTMLParser):
+        def __init__(self) -> None:
+            super().__init__(convert_charrefs=False)
+            self.tags: list[tuple[int, int, str]] = []
+
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            if tag != 'a':
+                return
+            href = dict(attrs).get('href')
+            if href is not None:
+                line, column = self.getpos()
+                start = offsets[line - 1] + column
+                self.tags.append((start, start + len(self.get_starttag_text()), href))
+
+    parser = Anchors()
+    parser.feed(markdown)
+    return parser.tags
