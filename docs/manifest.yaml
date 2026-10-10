@@ -23,6 +23,9 @@ sections:
       - number: "2.4"
         title: Running Graph Approaches Locally
         source: guide/local-graph-runs.md
+      - number: "2.5"
+        title: Operations and Configuration
+        source: guide/operations.md
   - title: Approaches
     pages:
       - number: "3.1"
@@ -141,3 +144,6 @@ sections:
       - number: "7.19"
         title: Labeled Brand Banner Implementation Plan
         source: superpowers/plans/2026-08-01-labeled-brand-banner.md
+      - number: "7.20"
+        title: Documentation Reference
+        source: reference.md

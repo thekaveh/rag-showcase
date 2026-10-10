@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 from .build_docs import SITE_SRC, WIKI_SRC, build, check_determinism
-from .links import is_forbidden
+from .links import html_anchor_tags, is_forbidden
 from .manifest import DOCS, first_h1, iter_pages, load_manifest
 from .opener import OpenerError, check_canonical_openers
 
@@ -43,8 +43,7 @@ def check_generated_content() -> None:
                 _fail(f"{path}: empty fenced code block")
             if surface == "wiki" and WIKI_MKDOCS_RE.search(text):
                 _fail(f"{path}: MkDocs-only syntax leaked into generated wiki")
-            for match in re.finditer(r"\[[^\]]+\]\(([^)]+)\)", text):
-                target = match.group(1)
+            for target in [m.group(1) for m in re.finditer(r"\[[^\]]+\]\(([^)]+)\)", text)] + [href for _, _, href in html_anchor_tags(text)]:
                 if is_forbidden(target, surface):
                     _fail(f"{path}: forbidden cross-surface link {target}")
                 parsed = urlparse(target)
@@ -57,18 +56,22 @@ def check_generated_content() -> None:
                     _fail(f"{path}: raw wiki page link {target}")
 
 
-def check_local_links(root: Path) -> None:
+def check_local_links(root: Path, surface: str = "wiki") -> None:
     """Reject generated Markdown links whose local file target is absent."""
     for path in root.rglob("*.md"):
         text = path.read_text(encoding="utf-8")
-        for match in re.finditer(r"!?\[[^\]]+\]\(([^)]+)\)", text):
-            target = match.group(1).strip()
+        markdown_targets = [(m.group(1).strip(), False) for m in re.finditer(r"!?\[[^\]]+\]\(([^)]+)\)", text)]
+        html_targets = [(href, True) for _, _, href in html_anchor_tags(text)]
+        for target, html in markdown_targets + html_targets:
             parsed = urlparse(target)
             if parsed.scheme or parsed.netloc or not parsed.path:
                 continue
             clean = unquote(parsed.path)
-            candidate = root / clean.lstrip("/") if clean.startswith("/") else path.parent / clean
+            base = path.parent
+            candidate = root / clean.lstrip("/") if clean.startswith("/") else base / clean
             candidates = [candidate]
+            if html and surface == "site" and candidate.suffix == ".html":
+                candidates.append(candidate.with_suffix(".md"))
             if not candidate.suffix:
                 candidates.extend([candidate.with_suffix(".md"), candidate / "index.md"])
             if not any(item.exists() for item in candidates):
@@ -92,7 +95,7 @@ def main() -> None:
     build()
     check_manifest_h1()
     check_generated_content()
-    check_local_links(SITE_SRC)
+    check_local_links(SITE_SRC, "site")
     check_local_links(WIKI_SRC)
     check_readme()
     check_openers()
