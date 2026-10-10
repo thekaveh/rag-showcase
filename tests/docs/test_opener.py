@@ -6,7 +6,6 @@ from scripts.docs import opener
 from scripts.docs.opener import (
     CANONICAL_BADGES,
     CANONICAL_SUPPORT,
-    CANONICAL_SUMMARY,
     CANONICAL_TAGLINE,
     CANONICAL_TECH_BADGES,
     CANONICAL_TITLE,
@@ -82,7 +81,6 @@ def test_canonical_openers_match_every_full_shared_block() -> None:
         "title": CANONICAL_TITLE,
         "tagline": CANONICAL_TAGLINE,
         "support": CANONICAL_SUPPORT,
-        "summary": CANONICAL_SUMMARY,
         "badges": CANONICAL_BADGES,
         "tech-badges": CANONICAL_TECH_BADGES,
     }
@@ -92,13 +90,13 @@ def test_canonical_openers_match_every_full_shared_block() -> None:
         assert marked_block(index, name) == expected_value
 
 
-def test_executive_summary_is_concise_grounded_and_evidence_aware() -> None:
-    words = CANONICAL_SUMMARY.split()
-    assert 100 <= len(words) <= 150
-    assert "response envelope with available evidence and metrics" in CANONICAL_SUMMARY
-    assert "uniform retrieved-context" not in CANONICAL_SUMMARY
-    assert "controlled comparison" in CANONICAL_SUMMARY
-    assert "Open WebUI" in CANONICAL_SUMMARY
+def test_summaries_are_grounded_without_incidental_prose_quotas() -> None:
+    for path in (ROOT / "README.md", ROOT / "docs/index.md"):
+        summary = marked_block(path.read_text(), "summary")
+        assert "seven retrieval strategies" in summary
+        assert "available evidence" in summary
+        assert "Open WebUI" in summary and "Atlas" in summary
+        assert "uniform retrieved-context" not in summary
 
 
 def test_openers_embed_the_shared_banner_and_complete_stack_shields() -> None:
@@ -136,3 +134,19 @@ def test_opener_results_links_target_canonical_sections() -> None:
 
     assert 'href="docs/evaluation-results.md"' in readme
     assert 'href="evaluation-results.md"' in index
+
+
+def test_semantically_equivalent_summaries_can_use_different_words(tmp_path):
+    (tmp_path / "docs").mkdir()
+    for name in ("README.md", "docs/index.md"):
+        (tmp_path / name).write_text((ROOT / name).read_text())
+    path = tmp_path / "docs/index.md"
+    text = path.read_text()
+    start, tail = text.split("<!-- opener:summary -->", 1)
+    _, end = tail.split("<!-- /opener:summary -->", 1)
+    path.write_text(start + "<!-- opener:summary -->\nRAG Showcase compares seven approaches in Open WebUI using Atlas and available evidence.\n<!-- /opener:summary -->" + end)
+    check_canonical_openers(tmp_path)
+    path.write_text(path.read_text().replace("seven approaches", "six approaches"))
+    import pytest
+    with pytest.raises(opener.OpenerError, match="seven approaches"):
+        check_canonical_openers(tmp_path)

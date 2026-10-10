@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import re
+import posixpath
+from html import escape
+from urllib.parse import urlsplit
 from pathlib import Path, PurePosixPath
 
-from .links import MD_LINK_RE, strip_forbidden_links
+from .links import MD_LINK_RE, html_anchor_tags, is_forbidden, strip_forbidden_links
 from .manifest import DOCS
 
 INCLUDE_RE = re.compile(r"\{%\s*include-markdown\s+\"([^\"]+)\"\s*%\}", re.MULTILINE)
@@ -131,6 +134,54 @@ def _mapped_page_target(target: str, surface: str) -> str:
     return target
 
 
+def _html_page_route(path: str) -> str:
+    # The generated MkDocs config uses use_directory_urls=False.
+    page = PurePosixPath(path)
+    if page.name == "README.md":
+        page = page.with_name("index.md")
+    return page.with_suffix(".html").as_posix()
+
+
+def _rewrite_html_anchors(
+    markdown: str, source: Path, surface: str, mapping: dict[str, str], link_source: PurePosixPath
+) -> str:
+    for start, end, target in reversed(html_anchor_tags(markdown)):
+        parsed = urlsplit(target)
+        replacement = target
+        if parsed.scheme or parsed.netloc or not parsed.path:
+            if not is_forbidden(target, surface):
+                continue
+            replacement = None
+        elif parsed.path.endswith(".md"):
+            normalized = _normalize_target(PurePosixPath(source.as_posix()), parsed.path)
+            if normalized in mapping:
+                destination = mapping[normalized]
+                if surface == "wiki":
+                    replacement = _relative(link_source, _mapped_page_target(destination, surface))
+                else:
+                    replacement = posixpath.relpath(
+                        _html_page_route(destination), link_source.parent.as_posix()
+                    )
+                if parsed.query:
+                    replacement += "?" + parsed.query
+                if parsed.fragment:
+                    replacement += "#" + parsed.fragment
+            else:
+                replacement = None
+        if replacement == target:
+            continue
+        tag = markdown[start:end]
+        # The parser identifies the tag and decoded href. Change only this attribute.
+        attribute = re.compile(r"\bhref\s*=\s*(?:([\"'])(.*?)\1|([^\s>]+))", re.IGNORECASE)
+        def replace_attribute(match: re.Match[str]) -> str:
+            if replacement is None:
+                return ""
+            quote = match.group(1) or '"'
+            return f"href={quote}{escape(replacement, quote=True)}{quote}"
+        markdown = markdown[:start] + attribute.sub(replace_attribute, tag, count=1) + markdown[end:]
+    return markdown
+
+
 def rewrite_for_surface(
     markdown: str,
     source: Path,
@@ -183,5 +234,6 @@ def rewrite_for_surface(
 
     markdown = MD_LINK_RE.sub(replace, markdown)
     if surface in {"site", "wiki"}:
+        markdown = _rewrite_html_anchors(markdown, source, surface, mapping, link_source)
         markdown = _rewrite_iframe_srcs(markdown, source, surface)
     return strip_forbidden_links(markdown, surface)

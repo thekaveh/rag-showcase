@@ -5,15 +5,14 @@ Git submodule at `infra/`) and comes up with **one command**.
 
 ## 1. Prerequisites
 
+Local shell commands require Git, Bash and Make. Install Python 3.10+ and `uv`.
+Run commands from the checkout root, after checking the hardware requirements.
+
 Atlas's requirements apply:
 
 - **Docker** + **Docker Compose 2.20.3 or newer** (Atlas recommends 2.26.0+),
   installed and running. The Compose top-level file merges fragments via the
   native `include:` directive.
-- The vendored `infra/` submodule initialized:
-  ```bash
-  git submodule update --init --recursive
-  ```
 - Host tools **`uv`** and **`python3`** (Atlas's bootstrapper and the host-side corpus fetch use them).
 - An Atlas-supported LLM backend. The manifest commits `LLM_PROVIDER_SOURCE: auto`,
   so each host resolves the best source (an existing host Ollama if installed, else
@@ -25,66 +24,37 @@ Atlas's requirements apply:
 
 ## 2. Bring It Up
 
+From a fresh checkout, before any startup or corpus command:
+
+```bash
+git clone https://github.com/thekaveh/rag-showcase.git
+cd rag-showcase
+git submodule update --init --recursive
+```
+
+By default the bundled keyword corpus supports the first query below. For the
+full MultiHop corpus, install `datasets` in your isolated host Python environment
+before starting; see the corpus note below. Check that this selected showcase
+project will not disrupt shared Atlas resources.
+
 ```bash
 ./scripts/start-all.sh
 ```
 
-This single script:
+The script starts Atlas, assembles/ingests the corpus, waits for model and service
+readiness and prints an Open WebUI URL. Local model downloads can take time.
+Graph extraction has known host/version limits; see
+[Running Graph Approaches Locally](local-graph-runs.md) if ingestion stalls.
 
-1. Starts Atlas with durable `BASE_PORT: auto` in the manifest, so Atlas resolves a
-   completely free 110-port block below the OS dynamic/private range once and keeps
-   it stable across restarts (persisted to `infra/.env`).
-   The project name is `rag-showcase` (override with `RAG_SHOWCASE_PROJECT_NAME`).
-   Set `RAG_SHOWCASE_BASE_PORT` to pin a specific block; Atlas rejects it if any
-   port is occupied.
-2. Selects `atlas.consumer.yml` and runs Atlas's native headless env backfill,
-   manifest-aware Compose validation, and consumer doctor. The manifest declares
-   project/brand metadata, the env
-   file, external Compose overlay, backend plugin root, nineteen LiteLLM aliases,
-   Ollama sidecar, adaptive workflow, and RAG ingestion profiles without tracked
-   Atlas modifications or a `_user` symlink.
-3. Starts the Atlas `gen-ai-rag` stack with `--no-tui --detach`; Atlas applies
-   the `rag-showcase` project and brand metadata, waits on Compose health, and
-   returns. On a fresh checkout, the initial bootstrap banner can retain Atlas
-   artwork because Atlas renders it before applying the consumer manifest. The
-   stack includes LightRAG, TEI reranker, Weaviate, Neo4j,
-   n8n, Open WebUI, and LiteLLM. The showcase wrapper explicitly disables the
-   hardware-dependent Docling source, so Atlas falls back to plain-text parsing and
-   the selected profile's Chonkie recursive chunker. Atlas starts only the enabled
-   service set and owns dependency and initial one-shot classification.
-4. Proceeds after Atlas's detached health summary, then **assembles the corpus**
-   on the host (`corpus/fetch_corpus.py`). If Atlas reports the known
-   [exited-zero one-shot race](https://github.com/thekaveh/atlas/issues/508), the
-   wrapper proceeds only when that exact log signature is present and a strict,
-   provider-aware Docker-state check confirms every long-lived service is ready
-   and every expected init service exited zero.
-5. Waits for model readiness (embed + chat), submits the `showcase_default` Atlas
-   **RAG ingestion job**, waits on its machine-readable phase record, and then builds
-   the contextual collection from Atlas-written plain chunks. Atlas compiles the
-   consumer-declared LiteLLM aliases into `config.yaml` before the proxy boots, so
-   they are discoverable in `/v1/models` at startup with no consumer-side reconcile
-   or restart.
-6. Prints the Open WebUI URL.
+Open the printed URL and complete Open WebUI sign-in/setup if prompted. Start a
+multi-model chat and select `vanilla-rag` and `hybrid-rag`. Ask:
+`What does error code WIDGET-ERR-7741 mean and how do I reset it?`
+Expect a response from each selected model, with available evidence where provided.
+Compare responses; no winner is guaranteed. Add other model aliases only as your
+resource budget allows. Lazy graph is experimental and off in the default matrix.
 
-!!! tip "First run downloads models"
-    With local models, the first run may pull several GB, so it takes a while.
-    `start-all.sh` gates on model readiness — let it finish.
-
-!!! note "Running the graph approaches locally"
-    LightRAG graph extraction is the heaviest local step and has host-specific
-    footguns (Ollama version skew, model-churn eviction, and an upstream
-    extract-runaway bug). If a run stalls at ingestion or `graph-rag` returns
-    nothing, see [Running Graph Approaches Locally](local-graph-runs.md).
-
-Then open the printed URL, start a **multi-model chat**, and select:
-`vanilla-rag`, `hybrid-rag`, `contextual-rag`, `graph-rag`, `agentic-rag`,
-`n8n-adaptive-rag`, `lazy-graph-rag`. One prompt fans out to all of them.
-
-Stop everything with:
-
-```bash
-./scripts/stop-all.sh
-```
+Stop this selected stack with `./scripts/stop-all.sh`. Cold teardown erases Atlas
+volumes/data. Read [Operations](operations.md) before resets or source/model overrides.
 
 To customize Atlas-owned values without editing the submodule, copy the committed
 manifest and env file, point the manifest copy at the env copy, and select it:
@@ -96,11 +66,11 @@ cp config/atlas.env.user .env.rag-showcase
 ATLAS_CONSUMER_MANIFEST="$PWD/atlas.consumer.local.yml" ./scripts/start-all.sh
 ```
 
-Atlas's detached startup revalidates after applying the wrapper's source flags.
+Atlas's detached startup revalidates after applying the consumer manifest.
 All compute sources are committed in `atlas.consumer.yml` (`profile: dev` +
 `env.values`): `LLM_PROVIDER_SOURCE: auto` (host-adaptive), LightRAG in a container,
-TEI on its CPU container, and Docling disabled. So a plain start is correct on every
-host and needs no per-run source flag:
+TEI on its CPU container, and Docling disabled. So a plain start resolves the selected
+host configuration without requiring a per-run source flag:
 
 ```bash
 ./scripts/start-all.sh
@@ -178,5 +148,5 @@ Build these docs locally with:
 uv run --group docs mkdocs serve
 ```
 
-Full environment-variable reference and troubleshooting live in the project
-[README](../../README.md).
+Full environment-variable reference and troubleshooting are in
+[Operations and Configuration](operations.md).

@@ -48,17 +48,14 @@ hide:
 <!-- /opener:tech-badges -->
 
 <!-- opener:summary -->
-RAG Showcase serves seven retrieval strategies as OpenAI-compatible model aliases
-in Open WebUI, so one prompt can fan out across vanilla, hybrid, contextual,
-LightRAG graph, agentic, n8n-adaptive, and experimental lazy-graph retrieval.
-Atlas supplies the shared gateway, model routing, ingestion, stores, workflow
-services, and health lifecycle; this repository contributes the approach plugin,
-corpus ladder, tuning flavors, and evaluation harness. The differentiator is
-controlled comparison rather than a collection of disconnected demos: approaches
-consume the same dataset profile and embedding model, return one response envelope
-with available evidence and metrics, and are scored from persisted artifacts by
-Ragas and a blinded judge panel. The default stack can run locally, while provider
-and model choices remain configurable through Atlas.
+RAG Showcase compares seven retrieval strategies through Open WebUI. Ask the
+same question in a multi-model chat and compare the responses. The approaches
+share an Atlas stack, dataset profile and embedding model. Responses can include
+available evidence and metrics.
+
+Start with the committed measured results or run a local comparison. Atlas owns
+the shared services; this repository supplies the approach plugin, corpus ladder,
+tuning flavors and evaluation harness. Provider and model choices are configurable.
 <!-- /opener:summary -->
 
 <p align="center">
@@ -71,7 +68,20 @@ and model choices remain configurable through Atlas.
 > **Latest benchmark (2026-07-17):** all **380/380** answer cells completed across seven base approaches, twelve query-time flavors, and three datasets. Winners changed with dataset complexity. See the **[full sortable results](evaluation-results.md)**, [methodology](evaluation-methodology.md), and [artifact ledger](results/README.md).
 <!-- /opener:results -->
 
-## 1. The Seven Approaches
+## 1. Start with a comparison
+
+Read [Quick Start](guide/quickstart.md) for tools, hardware, clone/cwd and model
+requirements. After startup prints its Open WebUI URL, start a multi-model chat
+with `vanilla-rag` and `hybrid-rag`. Ask:
+`What does error code WIDGET-ERR-7741 mean and how do I reset it?`
+Compare the two responses and any available evidence. The bundled keyword corpus
+supports this query; no approach is guaranteed to win.
+
+Prefer browsing recorded evidence first? Open the [sortable measured results](evaluation-results.md)
+and [methodology](evaluation-methodology.md). These describe a dated benchmark,
+not a prediction that every current host/provider run will reproduce the scores.
+
+## 2. The Seven Approaches
 
 | Endpoint | Approach | Designed to shine on |
 |---|---|---|
@@ -96,7 +106,7 @@ supported base approach. It remains outside the backward-compatible ad hoc
 `default` matrix expansion, but joins the measured dataset ladder when
 `--include-flavor-tier` is selected.
 
-## 2. Headline Result
+## 3. Headline Result
 
 The 2026-07-17 ladder ran all seven base approaches and all twelve named flavors
 across three datasets of increasing structure. All 380 answer cells succeeded:
@@ -117,7 +127,7 @@ and metric; the [methodology](evaluation-methodology.md),
 [live-run artifact ledger](results/README.md) provide the protocol, ladder, and
 source artifacts.
 
-## 3. Documentation
+## 4. Documentation
 
 <div class="grid cards" markdown>
 
@@ -156,7 +166,7 @@ source artifacts.
 
 </div>
 
-## 4. Fully Local by Default
+## 5. Local runtime and deeper help
 
 Everything runs on your own machine: local models through Atlas's Ollama provider
 (`qwen3.8:latest` for chat, LightRAG extraction/keyword/query roles, and local Ragas
@@ -169,3 +179,6 @@ The project is also a deliberate test-drive of Atlas as reusable infrastructure.
 [Atlas Reuse Assessment](atlas-reuse-assessment.md) records what reused cleanly, the
 seams that were added, and the [pinned dependency contracts](dependency-contracts.md)
 each integration was verified against.
+
+See [Operations](guide/operations.md) for startup/configuration/reset details and
+[Documentation Reference](reference.md) for historical specifications and plans.

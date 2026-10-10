@@ -106,7 +106,8 @@ def test_main_docs_link_to_approach_internals() -> None:
     assert "approaches.md" in comparison
     assert "docs/evaluation-methodology.md" in readme
     assert "evaluation-methodology.md" in comparison
-    assert "backend_plugins/rag/plugin.yml" in readme
+    assert "docs/guide/operations.md" in readme
+    assert "backend_plugins/rag/plugin.yml" in (ROOT / "docs/guide/operations.md").read_text()
     assert "evaluation-results.md" in manifest_sources
     assert "[Full sortable leaderboards](evaluation-results.md)" in index
     assert "docs/evaluation-results.md" in readme

@@ -117,7 +117,7 @@ def test_generated_surfaces_publish_all_result_artifacts_and_have_valid_local_li
             if path.is_file()
         }
         assert expected <= published
-        check_local_links(root)
+        check_local_links(root, "site" if root == site_dir else "wiki")
 
 
 def test_generated_surfaces_publish_nested_approach_diagrams(tmp_path) -> None:
@@ -148,7 +148,7 @@ def test_generated_surfaces_publish_nested_approach_diagrams(tmp_path) -> None:
             assert (target / "data-flow.html").is_file()
             assert (target / "data-flow.png").is_file()
 
-    check_local_links(site_dir)
+    check_local_links(site_dir, "site")
     check_local_links(wiki_dir)
 
 
@@ -383,3 +383,41 @@ def test_docs_workflow_validates_all_changes_and_requires_wiki_credentials() -> 
     assert "WIKI_DEPLOY_KEY is required" in workflow
     assert "Skip wiki publish" not in workflow
     assert "if: env.WIKI_DEPLOY_KEY != ''" not in workflow
+
+
+def test_html_primary_buttons_are_native_surface_routes():
+    from scripts.docs.manifest import source_map
+    from scripts.docs.transforms import rewrite_for_surface
+    pages = iter_pages(load_manifest())
+    raw = (DOCS / 'index.md').read_text()
+    site = rewrite_for_surface(raw, Path('index.md'), 'site', source_map(pages, 'site'))
+    wiki = rewrite_for_surface(raw, Path('index.md'), 'wiki', source_map(pages, 'wiki'), output_source=Path('Home.md'))
+    for target in ['guide/quickstart.html', 'evaluation-results.html', 'architecture.html']:
+        assert f'href="{target}"' in site
+    for target in ['guide-quickstart', 'evaluation-results', 'architecture']:
+        assert f'href="{target}"' in wiki
+
+
+def test_html_nested_route_preserves_fragments_quotes_and_external_links():
+    from scripts.docs.transforms import rewrite_for_surface
+    raw = "<a class='button' href='../architecture.md#context'>Architecture</a> <a href='https://example.org/help.md'>External</a>"
+    mapping = {'guide/quickstart.md': 'guide/quickstart.md', 'architecture.md': 'architecture.md'}
+    result = rewrite_for_surface(raw, Path('guide/quickstart.md'), 'site', mapping)
+    assert "href='../architecture.html#context'" in result
+    assert "href='https://example.org/help.md'" in result
+
+
+def test_local_checker_rejects_missing_html_anchor_target(tmp_path):
+    (tmp_path / 'index.md').write_text('<a href="missing/">Broken</a>')
+    with pytest.raises(SystemExit, match='missing local link target'):
+        check_local_links(tmp_path)
+
+
+def test_site_html_link_check_uses_explicit_surface_with_custom_output_root(tmp_path):
+    (tmp_path / "guide").mkdir()
+    (tmp_path / "guide" / "quickstart.md").write_text('<a href="../architecture.html#context">Architecture</a>')
+    (tmp_path / "architecture.md").write_text('# Architecture\n## Context')
+    check_local_links(tmp_path, "site")
+    (tmp_path / "architecture.md").unlink()
+    with pytest.raises(SystemExit, match='missing local link target'):
+        check_local_links(tmp_path, "site")
